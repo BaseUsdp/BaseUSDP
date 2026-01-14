@@ -1,0 +1,48 @@
+# Environment files
+.env.local
+.env.*.local
+!.env.example
+
+# Documentation files (keep repo clean)
+*.md
+!README.md
+!REMAINING_TASKS.md
+!DEPLOYMENT_COMPLETE.md
+!GIT_STATUS.md
+*.pdf
+
+# Dependencies
+node_modules/
+packages/*/node_modules/
+
+# Build outputs
+dist/
+packages/*/dist/
+build/
+packages/*/build/
+
+# Solana build artifacts
+packages/void402-solana/target/
+packages/void402-solana/.mint_address.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
+

@@ -1,0 +1,21 @@
+================================================================================
+VOID402 CONTRACT DEPLOYMENT INSTRUCTIONS
+================================================================================
+
+BEFORE DEPLOYING:
+1. Edit packages/contracts/.env and add your PRIVATE_KEY
+2. Make sure your wallet has Base Sepolia testnet ETH
+3. Get testnet ETH from: https://www.coinbase.com/faucets/base-ethereum-goerli-faucet
+
+TO DEPLOY:
+cd packages/contracts
+npm run deploy:sepolia
+
+AFTER DEPLOYMENT:
+1. Copy the TOKEN_ADDRESS from the output
+2. Copy the FACILITATOR_ADDRESS from the output
+3. Update packages/backend/.env with these addresses
+4. See DEPLOYMENT_GUIDE.md for complete instructions
+
+================================================================================
+

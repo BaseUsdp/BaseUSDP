@@ -1,0 +1,258 @@
+import { motion, AnimatePresence } from "framer-motion";
+import { Wallet, ChevronDown, LogOut, Copy, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
+import { useState } from "react";
+import { useWallet, WalletType } from "@/contexts/WalletContext";
+import { Button } from "@/components/ui/button";
+
+// Official Phantom logo
+const PhantomLogo = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="64" cy="64" r="64" fill="url(#phantom-gradient-btn)" />
+    <path d="M110.584 64.9142H99.142C99.142 41.7651 80.173 23 56.7724 23C33.6612 23 14.8716 41.3057 14.4118 64.0452C13.9361 87.5724 35.3331 108 59.0296 108H62.2325C82.9503 108 110.584 89.1451 110.584 64.9142ZM40.4578 67.3909C40.4578 71.0469 37.4903 74.0095 33.8285 74.0095C30.1667 74.0095 27.1992 71.0469 27.1992 67.3909V57.6052C27.1992 53.9493 30.1667 50.9866 33.8285 50.9866C37.4903 50.9866 40.4578 53.9493 40.4578 57.6052V67.3909ZM63.8593 67.3909C63.8593 71.0469 60.8918 74.0095 57.23 74.0095C53.5682 74.0095 50.6007 71.0469 50.6007 67.3909V57.6052C50.6007 53.9493 53.5682 50.9866 57.23 50.9866C60.8918 50.9866 63.8593 53.9493 63.8593 57.6052V67.3909Z" fill="white"/>
+    <defs>
+      <linearGradient id="phantom-gradient-btn" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#534BB1"/>
+        <stop offset="1" stopColor="#551BF9"/>
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
+// Official Solflare logo
+const SolflareLogo = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="50" fill="url(#solflare-gradient-btn)" />
+    <path d="M72.5 35L50 25L27.5 35L50 45L72.5 35Z" fill="white"/>
+    <path d="M27.5 35V55L50 65V45L27.5 35Z" fill="white" fillOpacity="0.8"/>
+    <path d="M72.5 35V55L50 65V45L72.5 35Z" fill="white" fillOpacity="0.6"/>
+    <path d="M50 70L27.5 60V55L50 65L72.5 55V60L50 70Z" fill="white" fillOpacity="0.9"/>
+    <path d="M50 78L27.5 68V63L50 73L72.5 63V68L50 78Z" fill="white" fillOpacity="0.7"/>
+    <defs>
+      <linearGradient id="solflare-gradient-btn" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#FC9965"/>
+        <stop offset="1" stopColor="#FE7B01"/>
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
+interface WalletConnectButtonProps {
+  variant?: "navbar" | "dashboard";
+}
+
+const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) => {
+  const { 
+    isConnected, 
+    walletAddress, 
+    walletType, 
+    isConnecting, 
+    networkStatus,
+    connect, 
+    disconnect,
+    switchNetwork 
+  } = useWallet();
+  const [isOpen, setIsOpen] = useState(false);
+  const [showWalletSelect, setShowWalletSelect] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(walletAddress);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleConnect = async (type: WalletType) => {
+    await connect(type);
+    setShowWalletSelect(false);
+  };
+
+  const getWalletLogo = () => {
+    switch (walletType) {
+      case "phantom": return <PhantomLogo />;
+      case "solflare": return <SolflareLogo />;
+      default: return <Wallet className="w-4 h-4" />;
+    }
+  };
+
+  const getWalletName = () => {
+    switch (walletType) {
+      case "phantom": return "Phantom";
+      case "solflare": return "Solflare";
+      default: return "Wallet";
+    }
+  };
+
+  // Network mismatch warning
+  if (isConnected && networkStatus === "wrong_network") {
+    return (
+      <Button
+        onClick={switchNetwork}
+        variant="destructive"
+        className="gap-2"
+      >
+        <AlertTriangle className="w-4 h-4" />
+        Wrong Network
+      </Button>
+    );
+  }
+
+  // Wallet selection modal
+  if (showWalletSelect) {
+    return (
+      <div className="relative">
+        <Button
+          variant="outline"
+          className="gap-2 border-primary/30 bg-primary/10 backdrop-blur-md hover:bg-primary/20"
+          onClick={() => setShowWalletSelect(false)}
+        >
+          <Wallet className="h-4 w-4" />
+          Cancel
+        </Button>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#0a0a0a]/95 border border-primary/20 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
+        >
+          <p className="text-sm font-semibold mb-1 text-center text-white">Connect Wallet</p>
+          <p className="text-xs text-white/50 text-center mb-4">
+            Select a wallet to connect to Void402
+          </p>
+          
+          <div className="space-y-2">
+            <button
+              onClick={() => handleConnect("phantom")}
+              disabled={isConnecting}
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-white/10 hover:border-purple-500/50 hover:bg-purple-500/10 transition-all group"
+            >
+              <PhantomLogo size={24} />
+              <div className="text-left flex-1">
+                <span className="font-medium text-white">Phantom</span>
+                <p className="text-xs text-white/40">Most popular</p>
+              </div>
+              {isConnecting && (
+                <Loader2 className="ml-2 h-4 w-4 animate-spin text-purple-400" />
+              )}
+            </button>
+            
+            <button
+              onClick={() => handleConnect("solflare")}
+              disabled={isConnecting}
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-white/10 hover:border-orange-500/50 hover:bg-orange-500/10 transition-all group"
+            >
+              <SolflareLogo size={24} />
+              <div className="text-left flex-1">
+                <span className="font-medium text-white">Solflare</span>
+                <p className="text-xs text-white/40">Secure wallet</p>
+              </div>
+              {isConnecting && (
+                <Loader2 className="ml-2 h-4 w-4 animate-spin text-orange-400" />
+              )}
+            </button>
+          </div>
+          
+          <p className="text-xs text-white/40 text-center mt-4">
+            By connecting, you agree to the Terms of Service
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (!isConnected) {
+    return (
+      <Button
+        onClick={() => setShowWalletSelect(true)}
+        disabled={isConnecting}
+        className={`gap-2 ${
+          variant === "navbar"
+            ? "bg-primary/20 text-white border border-primary/40 backdrop-blur-md hover:bg-primary/30 shadow-[0_0_20px_-5px_hsl(262_83%_58%_/_0.4)] transition-all hover:shadow-[0_0_30px_-5px_hsl(262_83%_58%_/_0.6)]"
+            : "bg-primary/20 text-white border border-primary/40 backdrop-blur-md hover:bg-primary/30 shadow-[0_0_25px_-5px_hsl(262_83%_58%_/_0.4)] px-8 py-4"
+        }`}
+      >
+        {isConnecting ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Wallet className="h-4 w-4" />
+        )}
+        Connect Wallet
+      </Button>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <motion.button
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => setIsOpen(!isOpen)}
+        className="inline-flex items-center gap-3 px-4 py-2.5 bg-primary/10 border border-primary/30 rounded-xl hover:border-primary/50 hover:bg-primary/20 transition-all backdrop-blur-md"
+      >
+        <div className="relative">
+          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center overflow-hidden">
+            {getWalletLogo()}
+          </div>
+          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-[#0a0a0a]" />
+        </div>
+        <div className="text-left">
+          <p className="text-xs text-white/50">{getWalletName()}</p>
+          <p className="text-sm font-mono font-medium text-white">{walletAddress}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-500 font-medium">
+            Solana
+          </span>
+          <ChevronDown className={`w-4 h-4 text-white/50 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        </div>
+      </motion.button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="absolute right-0 top-full mt-2 w-72 p-2 bg-[#0a0a0a]/95 border border-primary/20 rounded-xl shadow-2xl backdrop-blur-xl z-50"
+          >
+            <div className="p-3 mb-2 bg-primary/10 rounded-lg">
+              <p className="text-xs text-white/50 mb-1">Wallet Address</p>
+              <p className="text-xs font-mono break-all text-white">
+                {walletAddress}
+              </p>
+            </div>
+
+            <div className="p-3 mb-2 bg-green-500/10 rounded-lg flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-xs text-green-500 font-medium">Connected to Solana</span>
+            </div>
+            
+            <button
+              onClick={handleCopy}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left text-white hover:bg-primary/10 rounded-lg transition-colors"
+            >
+              {copied ? (
+                <CheckCircle className="w-4 h-4 text-primary" />
+              ) : (
+                <Copy className="w-4 h-4 text-white/50" />
+              )}
+              {copied ? "Copied!" : "Copy Address"}
+            </button>
+            
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                disconnect();
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Disconnect
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default WalletConnectButton;

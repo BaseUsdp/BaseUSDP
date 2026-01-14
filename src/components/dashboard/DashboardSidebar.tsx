@@ -1,0 +1,76 @@
+import { Link } from "react-router-dom";
+import { Icon } from "@iconify/react";
+import { cn } from "@/lib/utils";
+
+interface DashboardSidebarProps {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+}
+
+const DashboardSidebar = ({ activeTab, setActiveTab }: DashboardSidebarProps) => {
+  const navItems = [
+    { id: "overview", icon: "ph:squares-four-bold", label: "Overview" },
+    { id: "payments", icon: "ph:paper-plane-tilt-bold", label: "Payments" },
+    { id: "yield", icon: "ph:trend-up-bold", label: "Yield Vaults" },
+    { id: "cards", icon: "ph:credit-card-bold", label: "Virtual Cards" },
+    { id: "governance", icon: "ph:hand-fist-bold", label: "Governance" },
+    { id: "settings", icon: "ph:gear-six-bold", label: "Settings" },
+  ];
+
+  return (
+    <aside className="w-64 border-r border-border bg-card/30 hidden lg:flex flex-col">
+      {/* Logo */}
+      <div className="p-6 border-b border-border">
+        <Link to="/" className="flex items-center gap-3 group">
+          <div className="relative">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <Icon icon="ph:shield-check-bold" className="w-4 h-4 text-white" />
+            </div>
+          </div>
+          <span className="font-display text-lg font-bold">Void402</span>
+        </Link>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 p-4">
+        <ul className="space-y-1">
+          {navItems.map((item) => (
+            <li key={item.id}>
+              <button
+                onClick={() => setActiveTab(item.id)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
+                  activeTab === item.id
+                    ? "bg-primary/10 text-foreground border border-primary/30"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                )}
+              >
+                <Icon icon={item.icon} className={cn(
+                  "w-5 h-5",
+                  activeTab === item.id ? "text-primary" : ""
+                )} />
+                {item.label}
+                {activeTab === item.id && (
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      {/* Network Info */}
+      <div className="p-4 border-t border-border">
+        <div className="rounded-xl bg-secondary/50 p-3">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-xs font-medium">Base Sepolia</span>
+          </div>
+          <p className="text-xs text-muted-foreground">Chain ID: 84532</p>
+        </div>
+      </div>
+    </aside>
+  );
+};
+
+export default DashboardSidebar;

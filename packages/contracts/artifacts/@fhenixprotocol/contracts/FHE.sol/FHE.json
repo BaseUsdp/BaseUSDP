@@ -1,0 +1,50 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "FHE",
+  "sourceName": "@fhenixprotocol/contracts/FHE.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "NIL16",
+      "outputs": [
+        {
+          "internalType": "euint16",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "NIL32",
+      "outputs": [
+        {
+          "internalType": "euint32",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "NIL8",
+      "outputs": [
+        {
+          "internalType": "euint8",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x609b6037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe730000000000000000000000000000000000000000301460806040526004361060475760003560e01c80639e80b51314604c578063acfc53ee14604c578063b1c4854414604c575b600080fd5b6053600081565b60405190815260200160405180910390f3fea2646970667358221220c3d6fd18e34c5432058469275eff7df24ca90ecf8426b961dcc2d290ec789dbd64736f6c634300081c0033",
+  "deployedBytecode": "0x730000000000000000000000000000000000000000301460806040526004361060475760003560e01c80639e80b51314604c578063acfc53ee14604c578063b1c4854414604c575b600080fd5b6053600081565b60405190815260200160405180910390f3fea2646970667358221220c3d6fd18e34c5432058469275eff7df24ca90ecf8426b961dcc2d290ec789dbd64736f6c634300081c0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

@@ -1,0 +1,184 @@
+import { motion, useInView } from "framer-motion";
+import { useRef, useState, MouseEvent } from "react";
+import { Icon } from "@iconify/react";
+
+const FAQSection = () => {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const [mousePosition, setMousePosition] = useState({ x: -999, y: -999 });
+
+  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMousePosition({ 
+      x: e.clientX - rect.left, 
+      y: e.clientY - rect.top 
+    });
+  };
+
+  const faqs = [
+    {
+      icon: "ph:shield-check-bold",
+      question: "What is Fully Homomorphic Encryption (FHE)?",
+      answer: "FHE is a form of encryption that allows computations to be performed on encrypted data without decrypting it first. This means your transaction amounts, balances, and financial data remain private even while being processed on the blockchain. Void402 uses FHE to enable truly confidential transactions.",
+    },
+    {
+      icon: "ph:lightning-bold",
+      question: "What is the x402 protocol?",
+      answer: "x402 is an internet-native payment standard that implements HTTP 402 (Payment Required). It enables seamless machine-to-machine payments, micropayments, and API monetization. Any website, app, or AI agent can request and process payments instantly using this open standard.",
+    },
+    {
+      icon: "ph:lock-bold",
+      question: "How does Void402 protect my privacy?",
+      answer: "Void402 encrypts your transaction amounts and balances using FHE technology. Unlike traditional blockchains where all data is public, only you can see your true balances. Third parties, including validators and observers, cannot view your financial activity.",
+    },
+    {
+      icon: "ph:credit-card-bold",
+      question: "What are Anonymous Virtual Cards?",
+      answer: "Anonymous Virtual Cards are disposable payment cards generated on-demand for online purchases. Each card can have custom spending limits and merchant locks, ensuring your primary wallet remains hidden. Perfect for subscriptions, one-time purchases, or privacy-conscious shopping.",
+    },
+    {
+      icon: "ph:robot-bold",
+      question: "Can AI agents use Void402?",
+      answer: "Yes! Void402 is built for the agentic economy. AI agents can autonomously make and receive payments using the x402 protocol without exposing sensitive financial data. Our SDK enables developers to integrate confidential payments into any AI application.",
+    },
+    {
+      icon: "ph:question-bold",
+      question: "Which blockchains does Void402 support?",
+      answer: "Void402 currently operates on Base (Coinbase L2) with Fhenix for FHE capabilities. We're actively developing cross-chain bridges to expand to other EVM-compatible networks in Q3 2026 as part of our roadmap.",
+    },
+  ];
+
+  return (
+    <section ref={ref} id="faq" className="relative py-32 overflow-hidden bg-[#020202]">
+      {/* Top Border */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-white/10" />
+      
+      {/* Background */}
+      <div className="absolute inset-0 pointer-events-none" style={{backgroundImage: `repeating-linear-gradient(-45deg,transparent,transparent 40px,rgba(255,255,255,0.015) 40px,rgba(255,255,255,0.015) 41px)`}} />
+
+      <div className="container relative mx-auto px-6" onMouseMove={handleMouseMove}>
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6 }}
+          className="mb-16 max-w-3xl"
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 bg-primary/10 backdrop-blur-sm mb-8">
+            <Icon icon="ph:sparkle-bold" className="h-3 w-3 text-primary" />
+            <span className="text-xs font-medium text-primary tracking-wide">FAQ</span>
+          </div>
+          
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-white mb-4">
+            Frequently <span className="text-primary">Asked</span>
+          </h2>
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-white/50 mb-6">
+            Questions
+          </h2>
+          <p className="text-white/50 text-base md:text-lg">
+            Everything you need to know about Void402 and privacy-first payments.
+          </p>
+        </motion.div>
+
+        {/* FAQ Grid */}
+        <div className="grid md:grid-cols-2 gap-4">
+          {faqs.map((faq, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.5, delay: 0.1 + index * 0.1 }}
+              className="flashlight-card relative"
+              style={{
+                '--mouse-x': `${mousePosition.x}px`,
+                '--mouse-y': `${mousePosition.y}px`,
+              } as React.CSSProperties}
+            >
+              <motion.div
+                className={`relative rounded-2xl border overflow-hidden transition-all duration-300 ${
+                  openIndex === index 
+                    ? 'bg-white/[0.04] border-primary/30' 
+                    : 'bg-white/[0.02] border-white/10 hover:border-white/20'
+                }`}
+              >
+                <button
+                  onClick={() => setOpenIndex(openIndex === index ? null : index)}
+                  className="w-full p-6 text-left"
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Icon */}
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl transition-colors ${
+                      openIndex === index ? 'bg-primary text-white' : 'bg-white/5 text-white/40'
+                    }`}>
+                      <Icon icon={faq.icon} className="w-5 h-5" />
+                    </div>
+                    
+                    {/* Question */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className={`font-semibold transition-colors ${
+                        openIndex === index ? 'text-white' : 'text-white/80'
+                      }`}>
+                        {faq.question}
+                      </h3>
+                    </div>
+                    
+                    {/* Chevron */}
+                    <motion.div
+                      animate={{ rotate: openIndex === index ? 180 : 0 }}
+                      transition={{ duration: 0.3 }}
+                      className={`flex-shrink-0 ${openIndex === index ? 'text-primary' : 'text-white/30'}`}
+                    >
+                      <Icon icon="ph:caret-down-bold" className="w-5 h-5" />
+                    </motion.div>
+                  </div>
+                </button>
+                
+                {/* Answer */}
+                <motion.div
+                  initial={false}
+                  animate={{
+                    height: openIndex === index ? "auto" : 0,
+                    opacity: openIndex === index ? 1 : 0,
+                  }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-6 pb-6 pl-20">
+                    <p className="text-white/50 text-sm leading-relaxed">
+                      {faq.answer}
+                    </p>
+                  </div>
+                </motion.div>
+              </motion.div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Bottom CTA */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, delay: 0.8 }}
+          className="mt-12 text-center"
+        >
+          <p className="text-white/40 text-sm">
+            Still have questions?{" "}
+            <a href="#" className="text-primary hover:underline">
+              Join our Discord
+            </a>{" "}
+            or{" "}
+            <a href="#" className="text-primary hover:underline">
+              read our docs
+            </a>
+          </p>
+        </motion.div>
+      </div>
+
+      {/* Bottom Border */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-white/10" />
+    </section>
+  );
+};
+
+export default FAQSection;
