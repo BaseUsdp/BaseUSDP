@@ -25,7 +25,7 @@ interface PaymentRequest {
   amount: string;
   serviceName: string;
   description: string;
-  status: "pending" | "paid" | "expired" | "cancelled";
+  status: "pending" | "paid" | "expired" | "cancelled" | "settled" | "failed";
   createdAt: string;
   paymentLink: string;
 }
