@@ -52,11 +52,11 @@ const AboutSection = () => {
             {/* Vision Card */}
             <div className="glass-card rounded-2xl p-8 border-violet-500/10">
               <div className="flex items-center gap-3 mb-8">
-              <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center overflow-hidden">
+              <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center">
                 <Lottie 
                   animationData={eyeAnimation} 
                   loop={true}
-                  className="w-8 h-8"
+                  style={{ width: 32, height: 32 }}
                 />
               </div>
                 <div>
