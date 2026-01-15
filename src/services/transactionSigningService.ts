@@ -327,6 +327,3 @@ export async function executePaymentSettlement(
   );
 }
 
-// Export types for use in components
-export type { WalletAdapter };
-

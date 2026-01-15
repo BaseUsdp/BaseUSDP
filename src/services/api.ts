@@ -120,7 +120,7 @@ class ApiClient {
   /**
    * Make a fetch request with error handling and authentication
    */
-  private async request<T>(
+  public async request<T>(
     endpoint: string,
     options: RequestInit = {},
     requireAuth: boolean = false
