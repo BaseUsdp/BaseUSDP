@@ -1,6 +1,8 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Icon } from "@iconify/react";
+import Lottie from "lottie-react";
+import eyeAnimation from "@/assets/eye-animation.json";
 
 const AboutSection = () => {
   const ref = useRef(null);
@@ -50,9 +52,13 @@ const AboutSection = () => {
             {/* Vision Card */}
             <div className="glass-card rounded-2xl p-8 border-violet-500/10">
               <div className="flex items-center gap-3 mb-8">
-                <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center">
-                  <Icon icon="ph:eye-fill" className="w-6 h-6 text-white" />
-                </div>
+              <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center overflow-hidden">
+                <Lottie 
+                  animationData={eyeAnimation} 
+                  loop={true}
+                  className="w-8 h-8"
+                />
+              </div>
                 <div>
                   <h3 className="text-lg text-white font-medium">Our Vision</h3>
                   <div className="text-[10px] font-mono text-violet-400 uppercase">Core Mission</div>
