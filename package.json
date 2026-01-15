@@ -11,8 +11,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@solana/web3.js": "^1.98.4",
-    "bs58": "^6.0.0",
     "@hookform/resolvers": "^3.10.0",
     "@iconify/react": "^6.0.2",
     "@radix-ui/react-accordion": "^1.2.11",
@@ -42,7 +40,9 @@
     "@radix-ui/react-toggle": "^1.1.9",
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
+    "@solana/web3.js": "^1.98.4",
     "@tanstack/react-query": "^5.83.0",
+    "bs58": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -50,6 +50,7 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.25.0",
     "input-otp": "^1.4.2",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
