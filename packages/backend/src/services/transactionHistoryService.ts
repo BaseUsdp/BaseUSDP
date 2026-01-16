@@ -35,6 +35,13 @@ export interface TransactionHistoryOptions {
   limit?: number;
   before?: string;  // Signature to start from (for pagination)
   until?: string;   // Signature to end at
+  // Filtering options
+  type?: "transfer" | "payment" | "deposit" | "withdraw";
+  status?: "success" | "failed";
+  minAmount?: number;
+  maxAmount?: number;
+  startDate?: number;  // Unix timestamp (ms)
+  endDate?: number;    // Unix timestamp (ms)
 }
 
 export class TransactionHistoryService {
@@ -54,6 +61,7 @@ export class TransactionHistoryService {
 
   /**
    * Get transaction history for a wallet address
+   * Supports filtering by type, status, amount, and date
    */
   async getTransactionHistory(
     walletAddress: string,
@@ -63,47 +71,135 @@ export class TransactionHistoryService {
       throw new Error("Service not initialized");
     }
 
-    const { limit = 20, before, until } = options;
+    const { 
+      limit = 20, 
+      before, 
+      until,
+      // Filtering options
+      type,
+      status,
+      minAmount,
+      maxAmount,
+      startDate,
+      endDate,
+    } = options;
+    
     const pubkey = new PublicKey(walletAddress);
+    const hasFilters = !!(type || status || minAmount !== undefined || maxAmount !== undefined || startDate || endDate);
 
     try {
+      // If we have filters, we need to fetch more transactions to apply filters
+      // Then return the requested limit after filtering
+      const fetchLimit = hasFilters ? Math.max(limit * 3, 100) : limit + 1;
+      
       // Get signatures for the wallet
       const signatures = await this.connection.getSignaturesForAddress(
         pubkey,
         {
-          limit: limit + 1, // Get one extra to check if there are more
+          limit: fetchLimit,
           before,
           until,
         },
         "confirmed"
       );
 
-      // Check if there are more transactions
-      const hasMore = signatures.length > limit;
-      const signaturesToProcess = signatures.slice(0, limit);
-
-      if (signaturesToProcess.length === 0) {
+      if (signatures.length === 0) {
         return {
           transactions: [],
           hasMore: false,
         };
       }
 
-      // Parse transactions
-      const transactions = await this.parseTransactions(
-        signaturesToProcess,
+      // Parse all fetched transactions
+      let transactions = await this.parseTransactions(
+        signatures,
         walletAddress
       );
 
+      // Apply filters
+      if (hasFilters) {
+        transactions = this.applyFilters(transactions, {
+          type,
+          status,
+          minAmount,
+          maxAmount,
+          startDate,
+          endDate,
+        });
+      }
+
+      // Check if there are more transactions
+      const hasMore = hasFilters 
+        ? transactions.length > limit 
+        : signatures.length > limit;
+      
+      // Limit to requested number
+      const limitedTransactions = transactions.slice(0, limit);
+
       return {
-        transactions,
+        transactions: limitedTransactions,
         hasMore,
-        oldestSignature: signaturesToProcess[signaturesToProcess.length - 1]?.signature,
+        oldestSignature: limitedTransactions.length > 0 
+          ? limitedTransactions[limitedTransactions.length - 1]?.signature
+          : undefined,
       };
     } catch (error) {
       console.error("Error fetching transaction history:", error);
       throw error;
     }
+  }
+
+  /**
+   * Apply filters to transaction list
+   */
+  private applyFilters(
+    transactions: TransactionRecord[],
+    filters: {
+      type?: string;
+      status?: string;
+      minAmount?: number;
+      maxAmount?: number;
+      startDate?: number;
+      endDate?: number;
+    }
+  ): TransactionRecord[] {
+    return transactions.filter((tx) => {
+      // Filter by type
+      if (filters.type && tx.type !== filters.type) {
+        return false;
+      }
+
+      // Filter by status
+      if (filters.status && tx.status !== filters.status) {
+        return false;
+      }
+
+      // Filter by minimum amount
+      if (filters.minAmount !== undefined && tx.amount !== undefined) {
+        if (tx.amount < filters.minAmount) {
+          return false;
+        }
+      }
+
+      // Filter by maximum amount
+      if (filters.maxAmount !== undefined && tx.amount !== undefined) {
+        if (tx.amount > filters.maxAmount) {
+          return false;
+        }
+      }
+
+      // Filter by start date
+      if (filters.startDate && tx.timestamp < filters.startDate) {
+        return false;
+      }
+
+      // Filter by end date
+      if (filters.endDate && tx.timestamp > filters.endDate) {
+        return false;
+      }
+
+      return true;
+    });
   }
 
   /**
@@ -277,4 +373,5 @@ export class TransactionHistoryService {
 
 // Export singleton instance
 export const transactionHistoryService = new TransactionHistoryService();
+
 

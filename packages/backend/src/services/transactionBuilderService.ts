@@ -438,6 +438,141 @@ export class TransactionBuilderService {
       };
     }
   }
+
+  /**
+   * Build an unsigned transaction to create a Token-2022 account
+   * This allows new users to receive tokens
+   * 
+   * SECURITY: Account creation is permissionless - anyone can create an account
+   * for any wallet. The wallet owner pays the rent-exempt fee.
+   * 
+   * @param ownerAddress The wallet that will own the token account
+   * @param payerAddress The wallet that will pay for account creation (usually same as owner)
+   * @returns Unsigned transaction for account creation
+   */
+  async buildCreateTokenAccountTransaction(
+    ownerAddress: string,
+    payerAddress?: string
+  ): Promise<UnsignedTransactionResponse> {
+    if (!this.connection || !this.mintAddress) {
+      throw new Error("Service not initialized");
+    }
+
+    // Default payer to owner if not specified
+    const payer = payerAddress || ownerAddress;
+
+    let ownerPubkey: PublicKey;
+    let payerPubkey: PublicKey;
+
+    try {
+      ownerPubkey = new PublicKey(ownerAddress);
+      payerPubkey = new PublicKey(payer);
+    } catch (error) {
+      throw new Error("Invalid Solana address format");
+    }
+
+    // Get the token account address
+    const tokenAccountAddress = await getAssociatedTokenAddress(
+      this.mintAddress,
+      ownerPubkey,
+      false,
+      TOKEN_2022_PROGRAM_ID
+    );
+
+    // Check if account already exists
+    try {
+      await getAccount(this.connection, tokenAccountAddress, "confirmed", TOKEN_2022_PROGRAM_ID);
+      throw new Error("Token account already exists for this wallet");
+    } catch (error: any) {
+      // If error is "Token account already exists", throw it
+      if (error.message?.includes("already exists")) {
+        throw error;
+      }
+      // Otherwise, account doesn't exist - continue with creation
+    }
+
+    // Get latest blockhash
+    const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash("confirmed");
+
+    // Build transaction
+    const transaction = new Transaction();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = payerPubkey;
+
+    // Add create instruction
+    const createAtaIx = createAssociatedTokenAccountInstruction(
+      payerPubkey, // payer
+      tokenAccountAddress, // associated token account
+      ownerPubkey, // owner
+      this.mintAddress, // mint
+      TOKEN_2022_PROGRAM_ID
+    );
+    transaction.add(createAtaIx);
+
+    // Serialize transaction to base58 (unsigned)
+    const serializedTransaction = transaction.serialize({
+      requireAllSignatures: false,
+      verifySignatures: false,
+    });
+    const unsignedTransaction = bs58.encode(serializedTransaction);
+
+    return {
+      unsignedTransaction,
+      blockhash,
+      lastValidBlockHeight,
+      message: `Create Token-2022 account for wallet ${ownerAddress.slice(0, 8)}...`,
+    };
+  }
+
+  /**
+   * Check if a wallet needs a token account to be created
+   * 
+   * @param ownerAddress Wallet address to check
+   * @returns Whether account needs to be created and estimated cost
+   */
+  async checkTokenAccountNeeded(ownerAddress: string): Promise<{
+    needsAccount: boolean;
+    estimatedCost: number;
+    accountAddress?: string;
+  }> {
+    if (!this.connection || !this.mintAddress) {
+      throw new Error("Service not initialized");
+    }
+
+    try {
+      const ownerPubkey = new PublicKey(ownerAddress);
+      const tokenAccountAddress = await getAssociatedTokenAddress(
+        this.mintAddress,
+        ownerPubkey,
+        false,
+        TOKEN_2022_PROGRAM_ID
+      );
+
+      // Try to get the account
+      try {
+        await getAccount(this.connection, tokenAccountAddress, "confirmed", TOKEN_2022_PROGRAM_ID);
+        
+        // Account exists
+        return {
+          needsAccount: false,
+          estimatedCost: 0,
+          accountAddress: tokenAccountAddress.toBase58(),
+        };
+      } catch {
+        // Account doesn't exist - estimate the rent-exempt cost
+        // Token-2022 accounts are ~165 bytes, rent-exempt is about 0.002 SOL
+        const rentExemptBalance = await this.connection.getMinimumBalanceForRentExemption(165);
+        
+        return {
+          needsAccount: true,
+          estimatedCost: rentExemptBalance / LAMPORTS_PER_SOL,
+          accountAddress: tokenAccountAddress.toBase58(),
+        };
+      }
+    } catch (error) {
+      throw new Error("Failed to check token account status");
+    }
+  }
 }
 
 // Export singleton instance

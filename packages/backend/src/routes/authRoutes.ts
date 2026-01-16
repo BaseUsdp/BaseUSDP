@@ -1,9 +1,14 @@
 /**
  * Authentication Routes
  * Wallet-based authentication endpoints
+ * 
+ * SECURITY: This file handles wallet authentication.
+ * Signature verification is CRITICAL - do not modify without security review.
  */
 
 import { Router, Request, Response } from "express";
+import nacl from "tweetnacl";
+import bs58 from "bs58";
 import {
   asyncHandler,
   BadRequestError,
@@ -17,6 +22,47 @@ import {
   verifyWalletAddress,
   logger,
 } from "../middleware/index.js";
+
+/**
+ * Verify a Solana wallet signature
+ * 
+ * SECURITY: This is the core authentication mechanism.
+ * A valid signature proves the user controls the private key for the wallet.
+ * 
+ * @param message - The original message that was signed
+ * @param signature - Base58-encoded signature from wallet
+ * @param publicKey - Base58-encoded public key (wallet address)
+ * @returns true if signature is valid
+ */
+function verifySignature(
+  message: string,
+  signature: string,
+  publicKey: string
+): boolean {
+  try {
+    // Decode the signature from base58
+    const signatureBytes = bs58.decode(signature);
+    
+    // Decode the public key from base58
+    const publicKeyBytes = bs58.decode(publicKey);
+    
+    // Encode the message as bytes (same as frontend)
+    const messageBytes = new TextEncoder().encode(message);
+    
+    // Verify using nacl
+    const isValid = nacl.sign.detached.verify(
+      messageBytes,
+      signatureBytes,
+      publicKeyBytes
+    );
+    
+    return isValid;
+  } catch (error) {
+    // Any decoding or verification error means invalid signature
+    logger.error("Signature verification error:", error);
+    return false;
+  }
+}
 
 const router = Router();
 
@@ -60,11 +106,11 @@ router.post(
  * POST /api/auth/verify
  * Verify wallet signature and create session
  * 
+ * SECURITY: This endpoint verifies cryptographic signatures.
+ * The signature proves the user controls the wallet's private key.
+ * 
  * Request: { walletAddress: string, signature: string, nonce: string }
  * Response: { success: true, sessionToken: string, expiresIn: number }
- * 
- * Note: In a full implementation, you would verify the signature using
- * nacl or tweetnacl. For now, we trust the nonce verification.
  */
 router.post(
   "/verify",
@@ -72,38 +118,55 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { walletAddress, signature, nonce } = req.body;
 
-    if (!walletAddress || !nonce) {
-      throw new BadRequestError("walletAddress and nonce are required");
+    // Validate required fields
+    if (!walletAddress) {
+      throw new BadRequestError("walletAddress is required");
+    }
+    
+    if (!signature) {
+      throw new BadRequestError("signature is required");
+    }
+    
+    if (!nonce) {
+      throw new BadRequestError("nonce is required");
     }
 
+    // Validate wallet address format
     if (!verifyWalletAddress(walletAddress)) {
       throw new BadRequestError("Invalid wallet address format");
     }
 
-    // Verify the nonce is valid and not expired
+    // Validate signature format (base58, reasonable length)
+    if (typeof signature !== "string" || signature.length < 64 || signature.length > 128) {
+      throw new BadRequestError("Invalid signature format");
+    }
+
+    // Get the stored nonce data (includes the message)
+    const storedNonce = getNonce(walletAddress);
+    
+    if (!storedNonce) {
+      throw new UnauthorizedError("No pending authentication. Please request a nonce first.");
+    }
+
+    // Verify the nonce matches and is not expired
     if (!verifyNonce(walletAddress, nonce)) {
       throw new UnauthorizedError("Invalid or expired nonce. Please request a new one.");
     }
 
-    // TODO: In production, verify the actual signature using nacl
-    // const isValidSignature = nacl.sign.detached.verify(
-    //   new TextEncoder().encode(message),
-    //   bs58.decode(signature),
-    //   new PublicKey(walletAddress).toBytes()
-    // );
-    
-    // For now, if the nonce is valid, we trust the client
-    // This is acceptable because:
-    // 1. Client already proved wallet ownership by connecting
-    // 2. Transaction signing is the real security gate
-    
-    if (!signature) {
-      logger.warn(`Missing signature for wallet: ${walletAddress.slice(0, 8)}...`);
-      // For development, allow session creation without signature
-      // In production, throw an error here
+    // Reconstruct the message that was signed
+    const message = `Sign this message to authenticate with Void402.\n\nNonce: ${nonce}\n\nThis signature will not trigger any blockchain transaction.`;
+
+    // SECURITY: Verify the cryptographic signature
+    const isValidSignature = verifySignature(message, signature, walletAddress);
+
+    if (!isValidSignature) {
+      logger.warn(`Invalid signature attempt for wallet: ${walletAddress.slice(0, 8)}...`);
+      throw new UnauthorizedError("Invalid signature. Please try again.");
     }
 
-    // Create session
+    logger.info(`Signature verified for wallet: ${walletAddress.slice(0, 8)}...`);
+
+    // Create session - only after signature is verified
     const sessionToken = createSession(walletAddress);
 
     res.json({
@@ -171,4 +234,5 @@ router.get(
 );
 
 export default router;
+
 

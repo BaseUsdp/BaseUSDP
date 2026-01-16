@@ -10,7 +10,6 @@
  */
 
 import { Router, Request, Response } from "express";
-import { PublicKey } from "@solana/web3.js";
 import {
   transactionBuilderService,
   BuildTransferRequest,
@@ -373,10 +372,10 @@ router.get("/token-account/:address", async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/solana/balance/:address
- * Get balance for an address (token account balance + SOL balance)
+ * GET /api/solana/token-account-needed/:address
+ * Check if a wallet needs a token account to be created
  */
-router.get("/balance/:address", async (req: Request, res: Response) => {
+router.get("/token-account-needed/:address", async (req: Request, res: Response) => {
   try {
     const { address } = req.params;
 
@@ -387,29 +386,88 @@ router.get("/balance/:address", async (req: Request, res: Response) => {
       });
     }
 
-    // Get token account info
-    const tokenAccount = await transactionBuilderService.getTokenAccountInfo(address);
-    
-    // Get SOL balance
-    const connection = transactionBuilderService.getConnection();
-    const pubkey = new PublicKey(address);
-    const solBalance = await connection.getBalance(pubkey);
+    const result = await transactionBuilderService.checkTokenAccountNeeded(address);
 
     res.json({
       success: true,
       address,
-      tokenBalance: tokenAccount.balance || 0,
-      solBalance: solBalance / 1e9,
-      tokenAccountExists: tokenAccount.exists || false,
-      tokenAccountAddress: tokenAccount.address,
+      ...result,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : "Failed to get balance",
+      error: error instanceof Error ? error.message : "Failed to check token account status",
+    });
+  }
+});
+
+/**
+ * POST /api/solana/build-create-account-transaction
+ * Build an unsigned transaction to create a Token-2022 account
+ * 
+ * Request Body:
+ * {
+ *   "ownerAddress": "wallet_that_will_own_the_account",
+ *   "payerAddress": "optional_different_payer"
+ * }
+ * 
+ * Response:
+ * {
+ *   "success": true,
+ *   "unsignedTransaction": "base58_encoded",
+ *   "blockhash": "...",
+ *   "lastValidBlockHeight": 12345
+ * }
+ */
+router.post("/build-create-account-transaction", async (req: Request, res: Response) => {
+  try {
+    const { ownerAddress, payerAddress } = req.body;
+
+    if (!ownerAddress) {
+      return res.status(400).json({
+        success: false,
+        error: "ownerAddress is required",
+      });
+    }
+
+    // Check if payer has enough SOL
+    const payer = payerAddress || ownerAddress;
+    const feeCheck = await transactionBuilderService.validateFeeBalance(payer);
+    
+    if (!feeCheck.sufficient) {
+      return res.status(400).json({
+        success: false,
+        error: `Insufficient SOL for account creation. Current balance: ${feeCheck.balance.toFixed(4)} SOL`,
+      });
+    }
+
+    const result = await transactionBuilderService.buildCreateTokenAccountTransaction(
+      ownerAddress,
+      payerAddress
+    );
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to build transaction";
+    
+    // Return 400 for "already exists" errors
+    if (errorMessage.includes("already exists")) {
+      return res.status(400).json({
+        success: false,
+        error: errorMessage,
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: errorMessage,
     });
   }
 });
 
 export default router;
+
 

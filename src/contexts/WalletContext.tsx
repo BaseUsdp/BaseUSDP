@@ -92,24 +92,137 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     return address;
   };
 
+  // Handle external wallet disconnection
+  const handleWalletDisconnect = useCallback(() => {
+    console.log("Wallet disconnected externally");
+    
+    // Clear auth session
+    authService.logout(false);
+    setIsAuthenticated(false);
+    setAuthError(null);
+    
+    // Clear wallet state
+    setIsConnected(false);
+    setWalletAddress("");
+    setFullWalletAddress("");
+    setWalletType(null);
+    setNetworkStatus("disconnected");
+    setChainId(null);
+    setEncryptedBalance("0");
+    localStorage.removeItem("void402_wallet");
+  }, []);
+
+  // Handle account change (user switched accounts in wallet)
+  const handleAccountChange = useCallback((publicKey: any) => {
+    if (!publicKey) {
+      // Account was disconnected
+      handleWalletDisconnect();
+      return;
+    }
+
+    // Account was changed - update state
+    const newAddress = publicKey.toString();
+    console.log("Wallet account changed to:", newAddress);
+    
+    // Clear old auth session (new account needs to re-authenticate)
+    authService.logout(false);
+    setIsAuthenticated(false);
+    setAuthError(null);
+    
+    // Update wallet address
+    const formattedAddress = formatAddress(newAddress);
+    setWalletAddress(formattedAddress);
+    setFullWalletAddress(newAddress);
+    
+    // Update storage
+    localStorage.setItem("void402_wallet", JSON.stringify({
+      type: walletType,
+      address: formattedAddress,
+      fullAddress: newAddress
+    }));
+  }, [walletType]);
+
   // Check for persisted connection and auth on mount
   useEffect(() => {
     const savedWallet = localStorage.getItem("void402_wallet");
     if (savedWallet) {
-      const { type, address, fullAddress } = JSON.parse(savedWallet);
-      setWalletType(type);
-      setWalletAddress(address);
-      setFullWalletAddress(fullAddress || address);
-      setIsConnected(true);
-      setNetworkStatus("connected");
-      // Balance will be fetched by BalanceDisplay component
-      
-      // Check if user has valid session
-      if (authService.isAuthenticated()) {
-        setIsAuthenticated(true);
+      try {
+        const { type, address, fullAddress } = JSON.parse(savedWallet);
+        setWalletType(type);
+        setWalletAddress(address);
+        setFullWalletAddress(fullAddress || address);
+        setIsConnected(true);
+        setNetworkStatus("connected");
+        setEncryptedBalance("12,450.00");
+        
+        // Check if user has valid session
+        if (authService.isAuthenticated()) {
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.error("Failed to restore wallet session:", error);
+        localStorage.removeItem("void402_wallet");
       }
     }
   }, []);
+
+  // Set up wallet event listeners
+  useEffect(() => {
+    if (!isConnected || !walletType) return;
+
+    const phantom = getPhantomProvider();
+    const solflare = getSolflareProvider();
+
+    // Listen for disconnection and account changes
+    if (walletType === "phantom" && phantom) {
+      phantom.on("disconnect", handleWalletDisconnect);
+      phantom.on("accountChanged", handleAccountChange);
+      
+      return () => {
+        phantom.off("disconnect", handleWalletDisconnect);
+        phantom.off("accountChanged", handleAccountChange);
+      };
+    }
+
+    if (walletType === "solflare" && solflare) {
+      solflare.on("disconnect", handleWalletDisconnect);
+      solflare.on("accountChanged", handleAccountChange);
+      
+      return () => {
+        solflare.off("disconnect", handleWalletDisconnect);
+        solflare.off("accountChanged", handleAccountChange);
+      };
+    }
+  }, [isConnected, walletType, handleWalletDisconnect, handleAccountChange]);
+
+  // Verify wallet is still connected periodically
+  useEffect(() => {
+    if (!isConnected || !walletType) return;
+
+    const checkConnection = () => {
+      const phantom = getPhantomProvider();
+      const solflare = getSolflareProvider();
+
+      if (walletType === "phantom" && phantom) {
+        if (!phantom.isConnected) {
+          console.log("Phantom wallet no longer connected");
+          handleWalletDisconnect();
+        }
+      }
+
+      if (walletType === "solflare" && solflare) {
+        if (!solflare.isConnected) {
+          console.log("Solflare wallet no longer connected");
+          handleWalletDisconnect();
+        }
+      }
+    };
+
+    // Check every 5 seconds
+    const interval = setInterval(checkConnection, 5000);
+    
+    return () => clearInterval(interval);
+  }, [isConnected, walletType, handleWalletDisconnect]);
 
   const connect = useCallback(async (type: WalletType) => {
     setIsConnecting(true);
