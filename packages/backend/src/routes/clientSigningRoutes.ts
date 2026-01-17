@@ -10,7 +10,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, Connection } from "@solana/web3.js";
 import {
   transactionBuilderService,
   BuildTransferRequest,
@@ -18,7 +18,6 @@ import {
   TransactionSubmitRequest,
 } from "../services/transactionBuilderService.js";
 import { solanaX402Service } from "../services/solanaX402Service.js";
-import { requireInitialization } from "../middleware/initializationGuard.js";
 
 const router = Router();
 
@@ -376,8 +375,9 @@ router.get("/token-account/:address", requireInitialization, async (req: Request
 /**
  * GET /api/solana/balance/:address
  * Get balance for an address (token account balance + SOL balance)
+ * Works even if services aren't fully initialized - creates connection on demand
  */
-router.get("/balance/:address", requireInitialization, async (req: Request, res: Response) => {
+router.get("/balance/:address", async (req: Request, res: Response) => {
   try {
     const { address } = req.params;
 
@@ -388,21 +388,46 @@ router.get("/balance/:address", requireInitialization, async (req: Request, res:
       });
     }
 
-    // Get token account info
-    const tokenAccount = await transactionBuilderService.getTokenAccountInfo(address);
+    // Create connection if not available (fast, doesn't require full init)
+    let connection: Connection;
+    let tokenBalance = 0;
+    let tokenAccountExists = false;
+    let tokenAccountAddress: string | undefined;
+
+    try {
+      // Try to use existing connection from transaction builder service
+      connection = transactionBuilderService.getConnection();
+      
+      // Try to get token account info if service is initialized
+      try {
+        const tokenAccount = await transactionBuilderService.getTokenAccountInfo(address);
+        tokenBalance = tokenAccount.balance || 0;
+        tokenAccountExists = tokenAccount.exists || false;
+        tokenAccountAddress = tokenAccount.address;
+      } catch (tokenError) {
+        // Token account lookup failed - service might not be initialized
+        // Continue with just SOL balance
+        console.log("Token account lookup failed (service may be initializing):", tokenError);
+      }
+    } catch (serviceError) {
+      // Service not initialized - create a basic connection
+      const solanaRpcUrl = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
+      connection = new Connection(solanaRpcUrl, "confirmed");
+      console.log("Using basic connection (services initializing)");
+    }
     
-    // Get SOL balance
-    const connection = transactionBuilderService.getConnection();
+    // Get SOL balance (always works with just a connection)
     const pubkey = new PublicKey(address);
-    const solBalance = await connection.getBalance(pubkey);
+    const solBalanceLamports = await connection.getBalance(pubkey);
+    const solBalance = solBalanceLamports / 1e9;
 
     res.json({
       success: true,
       address,
-      tokenBalance: tokenAccount.balance || 0,
-      solBalance: solBalance / 1e9,
-      tokenAccountExists: tokenAccount.exists || false,
-      tokenAccountAddress: tokenAccount.address,
+      tokenBalance,
+      solBalance,
+      tokenAccountExists,
+      tokenAccountAddress,
     });
   } catch (error) {
     res.status(500).json({

@@ -245,50 +245,68 @@ async function initializeServices(): Promise<void> {
   // Start initialization
   initializationPromise = (async () => {
     try {
-      logger.info("Initializing Void402 Solana services with Token-2022...");
+      logger.info("Initializing Void402 Solana services...");
 
-      // Solana connection
+      // Solana connection - this is fast and always needed
       const solanaRpcUrl = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
       const connection = new Connection(solanaRpcUrl, "confirmed");
+
+      // Initialize transaction history service immediately (works without mint)
+      // This allows basic functionality even if Token-2022 init fails
+      transactionHistoryService.initialize(connection);
+      logger.info("✅ Transaction history service initialized");
 
       // Token-2022 configuration
       const mintAddress = process.env.TOKEN_2022_MINT_ADDRESS || "";
       const facilitatorProgramId = process.env.FACILITATOR_PROGRAM_ID || "";
 
       if (mintAddress && facilitatorProgramId) {
-        // Initialize main transaction service
-        await solanaTransactionService.initialize(
-          solanaRpcUrl,
-          mintAddress,
-          facilitatorProgramId
-        );
+        try {
+          // Initialize main transaction service (with timeout)
+          const initPromise = solanaTransactionService.initialize(
+            solanaRpcUrl,
+            mintAddress,
+            facilitatorProgramId
+          );
+          
+          // Add timeout to prevent hanging
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Transaction service initialization timeout")), 5000);
+          });
+          
+          await Promise.race([initPromise, timeoutPromise]);
 
-        // Initialize x402 payment service
-        await solanaX402Service.initialize(facilitatorProgramId, connection);
+          // Initialize x402 payment service
+          await solanaX402Service.initialize(facilitatorProgramId, connection);
 
-        // Initialize transaction history service
-        transactionHistoryService.initialize(connection, mintAddress);
-        
-        logger.info("✅ Token-2022 service initialized");
-        logger.info(`   Mint: ${mintAddress}`);
-        logger.info(`   Facilitator: ${facilitatorProgramId}`);
-        isInitialized = true;
+          // Update history service with mint address
+          transactionHistoryService.initialize(connection, mintAddress);
+          
+          logger.info("✅ Token-2022 service initialized");
+          logger.info(`   Mint: ${mintAddress}`);
+          logger.info(`   Facilitator: ${facilitatorProgramId}`);
+        } catch (tokenError) {
+          logger.warn("⚠️  Token-2022 initialization failed, continuing with basic functionality:", tokenError);
+          // Continue without Token-2022 - basic SOL functionality still works
+        }
       } else {
         logger.warn("⚠️  Token-2022 configuration missing");
         logger.warn("   Set TOKEN_2022_MINT_ADDRESS in .env");
         logger.warn("   Set FACILITATOR_PROGRAM_ID in .env");
-        
-        // Initialize history service without mint (will still work for SOL transactions)
-        transactionHistoryService.initialize(connection);
-        isInitialized = true; // Still mark as initialized for basic functionality
+        logger.info("   Continuing with basic SOL transaction support");
       }
 
-      logger.info("Services initialized successfully");
+      // Mark as initialized even if Token-2022 init failed
+      // This allows basic functionality (balance, history) to work
+      isInitialized = true;
       initializationError = null;
+      logger.info("✅ Services initialized successfully");
     } catch (error) {
-      initializationError = error instanceof Error ? error : new Error(String(error));
-      logger.error("Failed to initialize services:", error);
-      throw initializationError;
+      // Even if initialization fails, mark as initialized so requests can proceed
+      // with basic functionality (history service is already initialized)
+      logger.error("Service initialization had errors, but basic functionality available:", error);
+      isInitialized = true; // Allow basic operations
+      initializationError = null; // Don't block requests
     }
   })();
 
@@ -298,22 +316,31 @@ async function initializeServices(): Promise<void> {
 /**
  * Ensure services are initialized before handling requests
  * This is critical for Vercel serverless functions where initialization is async
+ * 
+ * Uses a shorter timeout and allows basic functionality even if full init fails
  */
 export async function ensureInitialized(): Promise<void> {
   if (isInitialized) {
     return;
   }
 
-  if (initializationError) {
-    throw new Error(`Services failed to initialize: ${initializationError.message}`);
-  }
-
-  // Wait for initialization to complete (with timeout)
-  const timeout = new Promise<void>((_, reject) => {
-    setTimeout(() => reject(new Error("Service initialization timeout")), 10000);
+  // Wait for initialization to complete (with shorter timeout)
+  // After timeout, allow requests to proceed with basic functionality
+  const timeout = new Promise<void>((resolve) => {
+    setTimeout(() => {
+      logger.warn("Initialization timeout - allowing requests with basic functionality");
+      isInitialized = true; // Allow basic operations
+      resolve();
+    }, 3000); // 3 second timeout instead of 10
   });
 
-  await Promise.race([initializeServices(), timeout]);
+  try {
+    await Promise.race([initializeServices(), timeout]);
+  } catch (error) {
+    // Even if initialization fails, allow basic functionality
+    logger.warn("Initialization error, but allowing basic operations:", error);
+    isInitialized = true;
+  }
 }
 
 // =============================================================================

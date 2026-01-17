@@ -13,8 +13,8 @@ import {
   isValidSolanaAddress,
   logger,
 } from "../middleware/index.js";
-import { requireInitialization } from "../middleware/initializationGuard.js";
 import { transactionHistoryService } from "../services/transactionHistoryService.js";
+import { Connection } from "@solana/web3.js";
 
 const router = Router();
 
@@ -37,7 +37,6 @@ const router = Router();
 router.get(
   "/:address",
   generalRateLimiter,
-  requireInitialization,
   optionalAuth,
   asyncHandler(async (req: Request, res: Response) => {
     const { address } = req.params;
@@ -97,6 +96,11 @@ router.get(
     }
 
     logger.debug(`Fetching history for ${address.slice(0, 8)}... (limit: ${parsedLimit}, filters: ${type || status ? "active" : "none"})`);
+
+    // Ensure transaction history service is initialized (creates connection if needed)
+    const solanaRpcUrl = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
+    const connection = new Connection(solanaRpcUrl, "confirmed");
+    transactionHistoryService.initialize(connection);
 
     const result = await transactionHistoryService.getTransactionHistory(address, {
       limit: parsedLimit,
