@@ -246,7 +246,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
                 </label>
                 <div className="relative">
                   <Input
-                    placeholder="Enter Solana address (e.g., BkQiVanfqtvyieDEJQxgxFNEzHftAHoBUr4nagro8Dqf)"
+                    placeholder="Enter Solana address (e.g., 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU)"
                     value={recipient}
                     onChange={(e) => setRecipient(e.target.value)}
                     className="bg-secondary border-border h-12 pr-12"
