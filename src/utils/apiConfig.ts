@@ -24,7 +24,7 @@ export function getApiUrl(): string {
   // In production, use default backend URL
   // This should be updated to your actual backend deployment URL
   if (import.meta.env.PROD) {
-    return "https://void402-backend-cop7imolj-bryces-projects-72528c60.vercel.app";
+    return "https://void402-backend.vercel.app";
   }
   
   // Development default
