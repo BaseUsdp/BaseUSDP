@@ -231,7 +231,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         
         // Fetch balance immediately after connecting
         setTimeout(() => {
-          refreshBalance();
+          // Balance will be fetched automatically by useEffect when isConnected/fullWalletAddress changes
         }, 100);
       }
     } catch (error) {
