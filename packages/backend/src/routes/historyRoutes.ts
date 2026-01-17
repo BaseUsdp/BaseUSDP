@@ -13,6 +13,7 @@ import {
   isValidSolanaAddress,
   logger,
 } from "../middleware/index.js";
+import { requireInitialization } from "../middleware/initializationGuard.js";
 import { transactionHistoryService } from "../services/transactionHistoryService.js";
 
 const router = Router();
@@ -36,6 +37,7 @@ const router = Router();
 router.get(
   "/:address",
   generalRateLimiter,
+  requireInitialization,
   optionalAuth,
   asyncHandler(async (req: Request, res: Response) => {
     const { address } = req.params;

@@ -226,48 +226,94 @@ app.use(errorHandler);
 // SERVICE INITIALIZATION
 // =============================================================================
 
-async function initializeServices() {
-  try {
-    logger.info("Initializing Void402 Solana services with Token-2022...");
+// Track initialization state
+let isInitialized = false;
+let initializationPromise: Promise<void> | null = null;
+let initializationError: Error | null = null;
 
-    // Solana connection
-    const solanaRpcUrl = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
-    const connection = new Connection(solanaRpcUrl, "confirmed");
-
-    // Token-2022 configuration
-    const mintAddress = process.env.TOKEN_2022_MINT_ADDRESS || "";
-    const facilitatorProgramId = process.env.FACILITATOR_PROGRAM_ID || "";
-
-    if (mintAddress && facilitatorProgramId) {
-      // Initialize main transaction service
-      await solanaTransactionService.initialize(
-        solanaRpcUrl,
-        mintAddress,
-        facilitatorProgramId
-      );
-
-      // Initialize x402 payment service
-      await solanaX402Service.initialize(facilitatorProgramId, connection);
-
-      // Initialize transaction history service
-      transactionHistoryService.initialize(connection, mintAddress);
-      
-      logger.info("✅ Token-2022 service initialized");
-      logger.info(`   Mint: ${mintAddress}`);
-      logger.info(`   Facilitator: ${facilitatorProgramId}`);
-    } else {
-      logger.warn("⚠️  Token-2022 configuration missing");
-      logger.warn("   Set TOKEN_2022_MINT_ADDRESS in .env");
-      logger.warn("   Set FACILITATOR_PROGRAM_ID in .env");
-      
-      // Initialize history service without mint (will still work for SOL transactions)
-      transactionHistoryService.initialize(connection);
-    }
-
-    logger.info("Services initialized successfully");
-  } catch (error) {
-    logger.error("Failed to initialize services:", error);
+async function initializeServices(): Promise<void> {
+  // If already initialized, return immediately
+  if (isInitialized) {
+    return;
   }
+
+  // If initialization is in progress, wait for it
+  if (initializationPromise) {
+    return initializationPromise;
+  }
+
+  // Start initialization
+  initializationPromise = (async () => {
+    try {
+      logger.info("Initializing Void402 Solana services with Token-2022...");
+
+      // Solana connection
+      const solanaRpcUrl = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
+      const connection = new Connection(solanaRpcUrl, "confirmed");
+
+      // Token-2022 configuration
+      const mintAddress = process.env.TOKEN_2022_MINT_ADDRESS || "";
+      const facilitatorProgramId = process.env.FACILITATOR_PROGRAM_ID || "";
+
+      if (mintAddress && facilitatorProgramId) {
+        // Initialize main transaction service
+        await solanaTransactionService.initialize(
+          solanaRpcUrl,
+          mintAddress,
+          facilitatorProgramId
+        );
+
+        // Initialize x402 payment service
+        await solanaX402Service.initialize(facilitatorProgramId, connection);
+
+        // Initialize transaction history service
+        transactionHistoryService.initialize(connection, mintAddress);
+        
+        logger.info("✅ Token-2022 service initialized");
+        logger.info(`   Mint: ${mintAddress}`);
+        logger.info(`   Facilitator: ${facilitatorProgramId}`);
+        isInitialized = true;
+      } else {
+        logger.warn("⚠️  Token-2022 configuration missing");
+        logger.warn("   Set TOKEN_2022_MINT_ADDRESS in .env");
+        logger.warn("   Set FACILITATOR_PROGRAM_ID in .env");
+        
+        // Initialize history service without mint (will still work for SOL transactions)
+        transactionHistoryService.initialize(connection);
+        isInitialized = true; // Still mark as initialized for basic functionality
+      }
+
+      logger.info("Services initialized successfully");
+      initializationError = null;
+    } catch (error) {
+      initializationError = error instanceof Error ? error : new Error(String(error));
+      logger.error("Failed to initialize services:", error);
+      throw initializationError;
+    }
+  })();
+
+  return initializationPromise;
+}
+
+/**
+ * Ensure services are initialized before handling requests
+ * This is critical for Vercel serverless functions where initialization is async
+ */
+export async function ensureInitialized(): Promise<void> {
+  if (isInitialized) {
+    return;
+  }
+
+  if (initializationError) {
+    throw new Error(`Services failed to initialize: ${initializationError.message}`);
+  }
+
+  // Wait for initialization to complete (with timeout)
+  const timeout = new Promise<void>((_, reject) => {
+    setTimeout(() => reject(new Error("Service initialization timeout")), 10000);
+  });
+
+  await Promise.race([initializeServices(), timeout]);
 }
 
 // =============================================================================
@@ -337,6 +383,7 @@ if (process.env.VERCEL !== "1") {
   });
 } else {
   // Initialize services for Vercel (async initialization)
+  // Start initialization immediately but don't block
   initializeServices().catch((error) => {
     logger.error("Failed to initialize services:", error);
   });

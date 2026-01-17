@@ -18,6 +18,7 @@ import {
   TransactionSubmitRequest,
 } from "../services/transactionBuilderService.js";
 import { solanaX402Service } from "../services/solanaX402Service.js";
+import { requireInitialization } from "../middleware/initializationGuard.js";
 
 const router = Router();
 
@@ -62,7 +63,7 @@ interface SubmitTransactionBody {
  *   "message": "Transfer description"
  * }
  */
-router.post("/build-transfer-transaction", async (req: Request, res: Response) => {
+router.post("/build-transfer-transaction", requireInitialization, async (req: Request, res: Response) => {
   try {
     const { from, to, amount, privacyLevel = "full" }: BuildTransferBody = req.body;
 
@@ -142,7 +143,7 @@ router.post("/build-transfer-transaction", async (req: Request, res: Response) =
  *   "message": "Payment description"
  * }
  */
-router.post("/build-payment-transaction", async (req: Request, res: Response) => {
+router.post("/build-payment-transaction", requireInitialization, async (req: Request, res: Response) => {
   try {
     const { paymentId, payerAddress, amount }: BuildPaymentBody = req.body;
 
@@ -235,7 +236,7 @@ router.post("/build-payment-transaction", async (req: Request, res: Response) =>
  *   "confirmationStatus": "confirmed"
  * }
  */
-router.post("/submit-transaction", async (req: Request, res: Response) => {
+router.post("/submit-transaction", requireInitialization, async (req: Request, res: Response) => {
   try {
     const { signedTransaction, transactionType, paymentId }: SubmitTransactionBody = req.body;
 
@@ -316,7 +317,7 @@ router.post("/submit-transaction", async (req: Request, res: Response) => {
  * GET /api/solana/validate-address/:address
  * Validate that an address has sufficient SOL for transaction fees
  */
-router.get("/validate-address/:address", async (req: Request, res: Response) => {
+router.get("/validate-address/:address", requireInitialization, async (req: Request, res: Response) => {
   try {
     const { address } = req.params;
 
@@ -346,7 +347,7 @@ router.get("/validate-address/:address", async (req: Request, res: Response) => 
  * GET /api/solana/token-account/:address
  * Get token account information for an address
  */
-router.get("/token-account/:address", async (req: Request, res: Response) => {
+router.get("/token-account/:address", requireInitialization, async (req: Request, res: Response) => {
   try {
     const { address } = req.params;
 
@@ -376,7 +377,7 @@ router.get("/token-account/:address", async (req: Request, res: Response) => {
  * GET /api/solana/balance/:address
  * Get balance for an address (token account balance + SOL balance)
  */
-router.get("/balance/:address", async (req: Request, res: Response) => {
+router.get("/balance/:address", requireInitialization, async (req: Request, res: Response) => {
   try {
     const { address } = req.params;
 

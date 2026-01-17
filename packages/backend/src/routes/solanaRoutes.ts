@@ -6,6 +6,7 @@
 import { Router } from "express";
 import { solanaTransactionService } from "../services/solanaTransactionService.js";
 import { solanaX402Service } from "../services/solanaX402Service.js";
+import { requireInitialization } from "../middleware/initializationGuard.js";
 
 const router = Router();
 
@@ -76,7 +77,7 @@ router.post("/encrypted-transfer", async (req, res) => {
  * GET /api/solana/balance/:address
  * Get encrypted balance for a Solana address
  */
-router.get("/balance/:address", async (req, res) => {
+router.get("/balance/:address", requireInitialization, async (req, res) => {
   try {
     const { address } = req.params;
 
