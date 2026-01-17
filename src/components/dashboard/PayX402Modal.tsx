@@ -32,7 +32,7 @@ interface PaymentDetails {
   amount: string;
   payee: string;
   description: string;
-  status: "pending" | "paid" | "expired" | "settled" | "failed";
+  status: "pending" | "paid" | "expired";
 }
 
 const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {

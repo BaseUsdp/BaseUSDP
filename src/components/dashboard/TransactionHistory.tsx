@@ -14,8 +14,11 @@ const TransactionHistory = ({ showBalance }: TransactionHistoryProps) => {
   const [transactions, setTransactions] = useState<TransactionHistoryResponse["transactions"]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [filter, setFilter] = useState<"all" | "transfer" | "payment">("all");
+  const [retryCount, setRetryCount] = useState(0);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (limit: number = 20, before?: string) => {
     if (!isConnected || !fullWalletAddress) {
       setIsLoading(false);
       return;
@@ -23,17 +26,56 @@ const TransactionHistory = ({ showBalance }: TransactionHistoryProps) => {
 
     try {
       setIsLoading(true);
-      const result = await getTransactionHistory(fullWalletAddress, 10);
+      setError(null);
       
-      if (result.success) {
-        setTransactions(result.transactions);
+      // Add retry logic for network errors
+      let result;
+      let attempts = 0;
+      const maxRetries = 3;
+      
+      while (attempts < maxRetries) {
+        try {
+          result = await getTransactionHistory(fullWalletAddress, limit, before);
+          break;
+        } catch (err) {
+          attempts++;
+          if (attempts >= maxRetries) {
+            throw err;
+          }
+          // Wait before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+        }
+      }
+      
+      if (result && result.success) {
+        // Apply filter if needed
+        let filtered = result.transactions;
+        if (filter !== "all") {
+          filtered = result.transactions.filter(tx => tx.type === filter);
+        }
+        
+        setTransactions(filtered);
+        setHasMore(result.hasMore || false);
         setError(null);
+        setRetryCount(0);
       } else {
         setError("Failed to fetch transactions");
       }
     } catch (err) {
       console.error("Error fetching transactions:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch transactions");
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch transactions";
+      
+      // Handle specific error types
+      if (errorMessage.includes("network") || errorMessage.includes("fetch")) {
+        setError("Network error. Please check your connection and try again.");
+      } else if (errorMessage.includes("rate limit")) {
+        setError("Too many requests. Please wait a moment and try again.");
+      } else {
+        setError(errorMessage);
+      }
+      
+      // Increment retry count for UI feedback
+      setRetryCount(prev => prev + 1);
     } finally {
       setIsLoading(false);
     }
@@ -99,7 +141,45 @@ const TransactionHistory = ({ showBalance }: TransactionHistoryProps) => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h3 className="font-display text-lg font-bold">History.</h3>
-        <Clock className="w-5 h-5 text-muted-foreground" />
+        <div className="flex items-center gap-2">
+          {/* Filter buttons */}
+          <div className="flex gap-1 bg-muted rounded-lg p-1">
+            <button
+              onClick={() => {
+                setFilter("all");
+                fetchTransactions();
+              }}
+              className={`px-2 py-1 text-xs rounded ${
+                filter === "all" ? "bg-background" : "text-muted-foreground"
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => {
+                setFilter("transfer");
+                fetchTransactions();
+              }}
+              className={`px-2 py-1 text-xs rounded ${
+                filter === "transfer" ? "bg-background" : "text-muted-foreground"
+              }`}
+            >
+              Transfers
+            </button>
+            <button
+              onClick={() => {
+                setFilter("payment");
+                fetchTransactions();
+              }}
+              className={`px-2 py-1 text-xs rounded ${
+                filter === "payment" ? "bg-background" : "text-muted-foreground"
+              }`}
+            >
+              Payments
+            </button>
+          </div>
+          <Clock className="w-5 h-5 text-muted-foreground" />
+        </div>
       </div>
 
       {/* Transactions List */}
@@ -171,13 +251,29 @@ const TransactionHistory = ({ showBalance }: TransactionHistoryProps) => {
       </div>
 
       {/* CTA */}
-      <Button 
-        variant="ghost" 
-        className="w-full mt-4 text-muted-foreground hover:text-foreground"
-        onClick={fetchTransactions}
-      >
-        REFRESH
-      </Button>
+      <div className="flex gap-2 mt-4">
+        {hasMore && (
+          <Button 
+            variant="ghost" 
+            className="flex-1 text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              const oldestSig = transactions[transactions.length - 1]?.signature;
+              fetchTransactions(20, oldestSig);
+            }}
+            disabled={isLoading}
+          >
+            LOAD MORE
+          </Button>
+        )}
+        <Button 
+          variant="ghost" 
+          className={hasMore ? "flex-1" : "w-full"}
+          onClick={() => fetchTransactions()}
+          disabled={isLoading}
+        >
+          {retryCount > 0 ? `RETRY (${retryCount})` : "REFRESH"}
+        </Button>
+      </div>
     </motion.div>
   );
 };

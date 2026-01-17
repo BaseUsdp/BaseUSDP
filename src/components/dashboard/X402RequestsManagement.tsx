@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Icon } from "@iconify/react";
 import { 
   Download, 
   Clock, 
@@ -10,7 +11,9 @@ import {
   Share2, 
   Trash2,
   ExternalLink,
-  QrCode
+  QrCode,
+  Loader2,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,8 +25,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { getPaymentStatus } from "@/services/api";
+import { useWallet } from "@/contexts/WalletContext";
 
-type RequestStatus = "pending" | "paid" | "expired" | "cancelled";
+type RequestStatus = "pending" | "settled" | "failed" | "expired" | "cancelled";
 
 interface PaymentRequest {
   id: string;
@@ -35,56 +40,101 @@ interface PaymentRequest {
   expiresAt?: string;
   paidBy?: string;
   txHash?: string;
+  paymentHash?: string;
 }
-
-const mockRequests: PaymentRequest[] = [
-  {
-    id: "x402_abc123",
-    serviceName: "Premium API Access",
-    amount: "50.00",
-    description: "Monthly subscription",
-    status: "pending",
-    createdAt: "2026-01-12T10:00:00Z",
-    expiresAt: "2026-01-19T10:00:00Z",
-  },
-  {
-    id: "x402_def456",
-    serviceName: "Data Export",
-    amount: "25.00",
-    description: "One-time export fee",
-    status: "paid",
-    createdAt: "2026-01-10T14:30:00Z",
-    paidBy: "7xKq...9mPw",
-    txHash: "5xYz...AbCd",
-  },
-  {
-    id: "x402_ghi789",
-    serviceName: "Enterprise License",
-    amount: "500.00",
-    description: "Annual license",
-    status: "expired",
-    createdAt: "2026-01-01T09:00:00Z",
-    expiresAt: "2026-01-08T09:00:00Z",
-  },
-  {
-    id: "x402_jkl012",
-    serviceName: "Consulting Session",
-    amount: "150.00",
-    description: "1-hour consultation",
-    status: "cancelled",
-    createdAt: "2026-01-05T16:00:00Z",
-  },
-];
 
 interface X402RequestsManagementProps {
   onCreateNew: () => void;
 }
 
 const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) => {
-  const [requests, setRequests] = useState(mockRequests);
+  const { fullWalletAddress } = useWallet();
+  const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "all">("all");
   const [cancelDialog, setCancelDialog] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load payment requests from localStorage (in production, this would come from backend)
+  const loadRequests = useCallback(() => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Get requests from localStorage (created via X402PaymentModal)
+      const storedRequests = localStorage.getItem("void402_payment_requests");
+      if (storedRequests) {
+        const parsed = JSON.parse(storedRequests);
+        // Filter to only show requests for current wallet
+        const userRequests = parsed.filter((r: PaymentRequest) => 
+          r.id && r.id.startsWith("x402_")
+        );
+        setRequests(userRequests);
+      } else {
+        setRequests([]);
+      }
+    } catch (err) {
+      console.error("Error loading payment requests:", err);
+      setError("Failed to load payment requests");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Refresh payment statuses
+  const refreshStatuses = useCallback(async () => {
+    if (requests.length === 0) return;
+    
+    try {
+      const updatedRequests = await Promise.all(
+        requests.map(async (req) => {
+          try {
+            const result = await getPaymentStatus(req.id);
+            if (result.success && result.payment) {
+              return {
+                ...req,
+                status: result.payment.status as RequestStatus,
+              };
+            }
+            return req;
+          } catch {
+            return req;
+          }
+        })
+      );
+      setRequests(updatedRequests);
+      
+      // Update localStorage
+      localStorage.setItem("void402_payment_requests", JSON.stringify(updatedRequests));
+    } catch (err) {
+      console.error("Error refreshing statuses:", err);
+    }
+  }, [requests]);
+
+  useEffect(() => {
+    loadRequests();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(refreshStatuses, 30000);
+    return () => clearInterval(interval);
+  }, [loadRequests, refreshStatuses]);
+
+  // Listen for new payment requests created
+  useEffect(() => {
+    const handleStorageChange = () => {
+      loadRequests();
+    };
+    
+    window.addEventListener("storage", handleStorageChange);
+    // Also listen for custom event when request is created in same tab
+    window.addEventListener("paymentRequestCreated", handleStorageChange);
+    
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("paymentRequestCreated", handleStorageChange);
+    };
+  }, [loadRequests]);
 
   const filteredRequests = statusFilter === "all" 
     ? requests 
@@ -94,8 +144,10 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
     switch (status) {
       case "pending":
         return { icon: Clock, color: "bg-yellow-500/20 text-yellow-500", label: "Pending" };
-      case "paid":
-        return { icon: CheckCircle2, color: "bg-green-500/20 text-green-500", label: "Paid" };
+      case "settled":
+        return { icon: CheckCircle2, color: "bg-green-500/20 text-green-500", label: "Settled" };
+      case "failed":
+        return { icon: XCircle, color: "bg-red-500/20 text-red-500", label: "Failed" };
       case "expired":
         return { icon: AlertCircle, color: "bg-gray-500/20 text-gray-500", label: "Expired" };
       case "cancelled":
@@ -119,7 +171,8 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
   const statusFilters: { id: RequestStatus | "all"; label: string }[] = [
     { id: "all", label: "All" },
     { id: "pending", label: "Pending" },
-    { id: "paid", label: "Paid" },
+    { id: "settled", label: "Settled" },
+    { id: "failed", label: "Failed" },
     { id: "expired", label: "Expired" },
     { id: "cancelled", label: "Cancelled" },
   ];
@@ -130,17 +183,30 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
-            <Download className="w-5 h-5 text-accent" />
+            <Icon icon="ph:download-bold" className="w-5 h-5 text-accent" />
           </div>
           <div>
             <h3 className="font-display text-lg font-bold">Payment Requests</h3>
-            <p className="text-xs text-muted-foreground">Manage your x402 payment requests</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Manage your x402 payment requests
+            </p>
           </div>
         </div>
-        <Button onClick={onCreateNew} className="bg-accent hover:bg-accent/90">
-          <Download className="w-4 h-4 mr-2" />
-          New Request
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refreshStatuses}
+            disabled={isLoading}
+            className="h-9"
+          >
+            <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
+          </Button>
+          <Button onClick={onCreateNew} className="bg-accent hover:bg-accent/90 h-9">
+            <Icon icon="ph:plus-bold" className="w-4 h-4 mr-2" />
+            New Request
+          </Button>
+        </div>
       </div>
 
       {/* Status Filters */}
@@ -153,7 +219,7 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
               "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all",
               statusFilter === filter.id
                 ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
             )}
           >
             {filter.label}
@@ -169,16 +235,41 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
       {/* Requests List */}
       <div className="space-y-3">
         <AnimatePresence mode="popLayout">
-          {filteredRequests.length === 0 ? (
+          {isLoading ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-center py-12 rounded-2xl bg-secondary/30"
+              className="text-center py-12 rounded-2xl border border-border bg-card"
             >
-              <Download className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No payment requests found</p>
-              <Button onClick={onCreateNew} variant="outline" className="mt-4">
-                Create your first request
+              <Loader2 className="w-8 h-8 text-muted-foreground mx-auto mb-4 animate-spin" />
+              <p className="text-muted-foreground">Loading payment requests...</p>
+            </motion.div>
+          ) : error ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-12 rounded-2xl border border-border bg-card"
+            >
+              <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-4" />
+              <p className="text-destructive mb-2">{error}</p>
+              <Button onClick={loadRequests} variant="outline" size="sm">
+                Retry
+              </Button>
+            </motion.div>
+          ) : filteredRequests.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-12 rounded-2xl border border-border bg-card"
+            >
+              <Icon icon="ph:download-bold" className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground mb-2">No payment requests found</p>
+              <p className="text-xs text-muted-foreground mb-4">
+                {statusFilter !== "all" ? "Try a different filter" : "Create your first payment request"}
+              </p>
+              <Button onClick={onCreateNew} variant="outline" size="sm">
+                <Icon icon="ph:plus-bold" className="w-4 h-4 mr-2" />
+                Create Request
               </Button>
             </motion.div>
           ) : (
@@ -214,7 +305,7 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
                         <span className="font-mono">{request.id}</span>
                         <span>•</span>
                         <span>{new Date(request.createdAt).toLocaleDateString()}</span>
-                        {request.status === "paid" && request.paidBy && (
+                        {request.status === "settled" && request.paidBy && (
                           <>
                             <span>•</span>
                             <span>Paid by {request.paidBy}</span>
@@ -257,9 +348,9 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
                       <Share2 className="w-4 h-4" />
                     </Button>
 
-                    {request.status === "paid" && request.txHash && (
+                    {request.status === "settled" && request.txHash && (
                       <a
-                        href={`https://sepolia.basescan.org/tx/${request.txHash}`}
+                        href={`https://solscan.io/tx/${request.txHash}?cluster=devnet`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >

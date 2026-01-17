@@ -3,10 +3,12 @@
  * Handles x402 payment processing on Solana with Token-2022 confidential transfers
  */
 
-import { Connection, PublicKey, Keypair, Transaction } from "@solana/web3.js";
+import { Connection, PublicKey, Keypair, Transaction, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { createHash } from "crypto";
+import { TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { Token2022Service } from "./token2022Service.js";
 import { solanaTransactionService } from "./solanaTransactionService.js";
+import bs58 from "bs58";
 
 export interface X402PaymentRequest {
   amount: number;
@@ -74,47 +76,115 @@ export class SolanaX402Service {
    * @param paymentId Payment identifier
    * @param payerAddress Payer wallet address
    * @param payeeAddress Payee wallet address
-   * @param encryptedAmount Encrypted amount
+   * @param amount Payment amount (for on-chain verification)
    * @param paymentHash Payment hash
-   * @param signer Signer keypair
+   * @param connection Solana connection
    * @returns Transaction signature
    */
   async createOnChainPaymentRequest(
     paymentId: string,
     payerAddress: string,
     payeeAddress: string,
-    encryptedAmount: Uint8Array,
+    amount: number,
     paymentHash: string,
-    signer: Keypair
+    connection: Connection
   ): Promise<string> {
     if (!this.facilitatorProgramId) {
       throw new Error("Service not initialized");
     }
 
     try {
-      // TODO: Build instruction to create payment request
-      // This would call void_facilitator::create_payment_request
-      
       // Convert paymentId and paymentHash to [u8; 32]
       const paymentIdBytes = await this.stringToBytes32(paymentId);
       const paymentHashBytes = this.hexToBytes32(paymentHash);
 
+      const payerPubkey = new PublicKey(payerAddress);
+      const payeePubkey = new PublicKey(payeeAddress);
+
+      // Derive payment request PDA
+      const [paymentRequestPDA] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("payment_request"),
+          paymentIdBytes,
+        ],
+        this.facilitatorProgramId
+      );
+
+      // Get latest blockhash
+      const { blockhash } = await connection.getLatestBlockhash("confirmed");
+
+      // Build Anchor instruction manually
+      // Anchor instruction format: discriminator (8 bytes) + method args
+      // create_payment_request(payment_id: [u8; 32], amount: u64, payment_hash: [u8; 32])
+      
+      // Discriminator for create_payment_request (first 8 bytes of sha256("global:create_payment_request"))
+      // In Anchor, this is typically the first 8 bytes of the method name hash
+      const methodName = "create_payment_request";
+      const methodHash = createHash("sha256")
+        .update(`global:${methodName}`)
+        .digest();
+      const discriminator = methodHash.slice(0, 8);
+
+      // Build instruction data
+      // Format: discriminator (8) + payment_id (32) + amount (8) + payment_hash (32)
+      const amountBytes = Buffer.allocUnsafe(8);
+      amountBytes.writeBigUInt64LE(BigInt(Math.floor(amount * 1e9)), 0);
+      
+      const instructionData = Buffer.concat([
+        Buffer.from(discriminator),
+        Buffer.from(paymentIdBytes),
+        amountBytes,
+        Buffer.from(paymentHashBytes),
+      ]);
+
+      // Build accounts array for Anchor instruction
+      // Accounts: payment_request, payer, payee, system_program
+      const accounts = [
+        {
+          pubkey: paymentRequestPDA,
+          isSigner: false,
+          isWritable: true,
+        },
+        {
+          pubkey: payerPubkey,
+          isSigner: true,
+          isWritable: true,
+        },
+        {
+          pubkey: payeePubkey,
+          isSigner: false,
+          isWritable: false,
+        },
+        {
+          pubkey: SystemProgram.programId,
+          isSigner: false,
+          isWritable: false,
+        },
+      ];
+
+      // Create instruction
+      const instruction = {
+        programId: this.facilitatorProgramId,
+        keys: accounts,
+        data: instructionData,
+      };
+
+      // Build transaction
       const transaction = new Transaction();
-      // Add instruction here:
-      // - Call facilitator program
-      // - Pass payment_id, encrypted_amount, payment_hash
-      // - Set payer and payee
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = payerPubkey;
+      transaction.add(instruction);
 
-      // Placeholder - actual implementation would use Anchor IDL
-      // const instruction = await program.methods
-      //   .createPaymentRequest(paymentIdBytes, encryptedAmount, paymentHashBytes)
-      //   .accounts({...})
-      //   .instruction();
+      // Note: This transaction needs to be signed by the payer
+      // In production, this would be sent to the client for signing
+      // For now, we return the serialized unsigned transaction
+      const serialized = transaction.serialize({
+        requireAllSignatures: false,
+        verifySignatures: false,
+      });
 
-      // transaction.add(instruction);
-
-      // For now, return placeholder
-      return "placeholder_signature";
+      // Return base58 encoded transaction (client will sign and submit)
+      return bs58.encode(serialized);
     } catch (error) {
       throw new Error(
         `Failed to create payment request: ${error instanceof Error ? error.message : "Unknown error"}`

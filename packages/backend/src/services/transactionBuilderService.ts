@@ -147,11 +147,12 @@ export class TransactionBuilderService {
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = fromPubkey;
 
-    // Check if recipient token account exists, if not, add instruction to create it
+      // Check if recipient token account exists, if not, add instruction to create it
     try {
       await getAccount(this.connection, toTokenAccount, "confirmed", TOKEN_2022_PROGRAM_ID);
     } catch (error) {
       // Account doesn't exist, add create instruction
+      // This automatically creates the account for the recipient
       const createAtaIx = createAssociatedTokenAccountInstruction(
         fromPubkey, // payer
         toTokenAccount, // associated token account
@@ -162,22 +163,52 @@ export class TransactionBuilderService {
       transaction.add(createAtaIx);
     }
 
+    // Check if sender token account exists
+    try {
+      await getAccount(this.connection, fromTokenAccount, "confirmed", TOKEN_2022_PROGRAM_ID);
+    } catch (error) {
+      // Sender account doesn't exist - this is an error
+      throw new Error(
+        `Sender token account does not exist. Please create a token account first. ` +
+        `Account address: ${fromTokenAccount.toBase58()}`
+      );
+    }
+
     // Convert amount to token units (assuming 9 decimals for Token-2022)
     const tokenAmount = BigInt(Math.floor(amount * 1e9));
 
-    // Add transfer instruction
-    // Note: For full confidential transfers with Token-2022, you would use
-    // the confidential transfer extension instructions. This is a standard
-    // transfer that works with Token-2022 program.
-    const transferIx = createTransferInstruction(
-      fromTokenAccount,
-      toTokenAccount,
-      fromPubkey,
-      tokenAmount,
-      [],
-      TOKEN_2022_PROGRAM_ID
-    );
-    transaction.add(transferIx);
+    // Add transfer instruction based on privacy level
+    // Note: Confidential transfers are currently disabled on Solana pending security audit
+    // This code structure is ready for when they're re-enabled
+    if (privacyLevel === "full" || privacyLevel === "partial") {
+      // For confidential transfers, we would use confidential transfer extension instructions
+      // Currently using standard transfer as confidential transfers are disabled
+      // When re-enabled, this would use:
+      // - createConfidentialTransferInstruction for full privacy
+      // - createPartialConfidentialTransferInstruction for partial privacy
+      
+      // For now, use standard transfer (confidential transfers disabled)
+      const transferIx = createTransferInstruction(
+        fromTokenAccount,
+        toTokenAccount,
+        fromPubkey,
+        tokenAmount,
+        [],
+        TOKEN_2022_PROGRAM_ID
+      );
+      transaction.add(transferIx);
+    } else {
+      // Public transfer
+      const transferIx = createTransferInstruction(
+        fromTokenAccount,
+        toTokenAccount,
+        fromPubkey,
+        tokenAmount,
+        [],
+        TOKEN_2022_PROGRAM_ID
+      );
+      transaction.add(transferIx);
+    }
 
     // Serialize transaction to base58 (unsigned)
     const serializedTransaction = transaction.serialize({
@@ -308,14 +339,49 @@ export class TransactionBuilderService {
       // Deserialize the transaction
       const transaction = Transaction.from(transactionBuffer);
 
-      // Send the transaction
-      const signature = await this.connection.sendRawTransaction(transactionBuffer, {
-        skipPreflight: false,
-        preflightCommitment: "confirmed",
-      });
+      // Retry logic for network errors
+      let signature: string;
+      let attempts = 0;
+      const maxRetries = 3;
+      
+      while (attempts < maxRetries) {
+        try {
+          // Send the transaction
+          signature = await this.connection.sendRawTransaction(transactionBuffer, {
+            skipPreflight: false,
+            preflightCommitment: "confirmed",
+          });
+          break;
+        } catch (err) {
+          attempts++;
+          const errorMessage = err instanceof Error ? err.message : "Unknown error";
+          
+          // Don't retry on non-network errors
+          if (!errorMessage.includes("network") && !errorMessage.includes("ECONNREFUSED") && !errorMessage.includes("timeout")) {
+            throw err;
+          }
+          
+          if (attempts >= maxRetries) {
+            return {
+              success: false,
+              error: "Network error. Please check your connection and try again.",
+            };
+          }
+          
+          // Wait before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+        }
+      }
 
-      // Confirm the transaction
-      const confirmation = await this.connection.confirmTransaction(
+      if (!signature!) {
+        return {
+          success: false,
+          error: "Failed to send transaction after retries",
+        };
+      }
+
+      // Confirm the transaction with timeout
+      const confirmationPromise = this.connection.confirmTransaction(
         {
           signature,
           blockhash: transaction.recentBlockhash!,
@@ -324,7 +390,14 @@ export class TransactionBuilderService {
         "confirmed"
       );
 
-      if (confirmation.value.err) {
+      // Add timeout for confirmation (30 seconds)
+      const timeoutPromise = new Promise<null>((_, reject) => {
+        setTimeout(() => reject(new Error("Transaction confirmation timeout")), 30000);
+      });
+
+      const confirmation = await Promise.race([confirmationPromise, timeoutPromise]);
+
+      if (confirmation && confirmation.value?.err) {
         return {
           success: false,
           error: `Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
@@ -341,10 +414,10 @@ export class TransactionBuilderService {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       
       // Check for common error types
-      if (errorMessage.includes("insufficient funds")) {
+      if (errorMessage.includes("insufficient funds") || errorMessage.includes("insufficient balance")) {
         return {
           success: false,
-          error: "Insufficient funds for transaction",
+          error: "Insufficient funds for transaction. Please ensure you have enough SOL for fees.",
         };
       }
       
@@ -355,10 +428,24 @@ export class TransactionBuilderService {
         };
       }
 
-      if (errorMessage.includes("signature verification failed")) {
+      if (errorMessage.includes("signature verification failed") || errorMessage.includes("invalid signature")) {
         return {
           success: false,
-          error: "Invalid transaction signature",
+          error: "Invalid transaction signature. Please sign the transaction again.",
+        };
+      }
+
+      if (errorMessage.includes("network") || errorMessage.includes("ECONNREFUSED") || errorMessage.includes("timeout")) {
+        return {
+          success: false,
+          error: "Network error. Please check your connection and try again.",
+        };
+      }
+
+      if (errorMessage.includes("confirmation timeout")) {
+        return {
+          success: false,
+          error: "Transaction confirmation timed out. The transaction may still be processing. Please check the blockchain explorer.",
         };
       }
 

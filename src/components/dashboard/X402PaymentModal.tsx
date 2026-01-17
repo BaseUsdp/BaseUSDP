@@ -55,24 +55,23 @@ const X402PaymentModal = ({ open, onOpenChange }: X402PaymentModalProps) => {
         },
       });
 
+      let request: PaymentRequest;
+      
       if (result.success && result.payment) {
-        const request: PaymentRequest = {
+        request = {
           id: result.payment.paymentId,
           amount,
           serviceName,
           description,
-          status: result.payment.status,
+          status: result.payment.status as "pending" | "settled" | "failed",
           createdAt: new Date().toISOString(),
           paymentLink: `https://void402.app/pay/${result.payment.paymentId}`,
         };
-        
-        setPaymentRequest(request);
-        setStep("success");
       } else {
         console.error("Failed to create payment:", result.error);
         // Fallback to local ID if API fails (for demo purposes)
         const paymentId = "x402_" + Math.random().toString(36).substr(2, 9);
-        const request: PaymentRequest = {
+        request = {
           id: paymentId,
           amount,
           serviceName,
@@ -81,10 +80,23 @@ const X402PaymentModal = ({ open, onOpenChange }: X402PaymentModalProps) => {
           createdAt: new Date().toISOString(),
           paymentLink: `https://void402.app/pay/${paymentId}`,
         };
-        
-        setPaymentRequest(request);
-        setStep("success");
       }
+      
+      // Save to localStorage for management component
+      try {
+        const existing = localStorage.getItem("void402_payment_requests");
+        const requests = existing ? JSON.parse(existing) : [];
+        requests.push(request);
+        localStorage.setItem("void402_payment_requests", JSON.stringify(requests));
+        
+        // Dispatch event to notify management component
+        window.dispatchEvent(new Event("paymentRequestCreated"));
+      } catch (err) {
+        console.error("Error saving payment request:", err);
+      }
+      
+      setPaymentRequest(request);
+      setStep("success");
     } catch (error) {
       console.error("Error creating payment request:", error);
       // Fallback to local ID if API call fails
@@ -98,6 +110,17 @@ const X402PaymentModal = ({ open, onOpenChange }: X402PaymentModalProps) => {
         createdAt: new Date().toISOString(),
         paymentLink: `https://void402.app/pay/${paymentId}`,
       };
+      
+      // Save to localStorage
+      try {
+        const existing = localStorage.getItem("void402_payment_requests");
+        const requests = existing ? JSON.parse(existing) : [];
+        requests.push(request);
+        localStorage.setItem("void402_payment_requests", JSON.stringify(requests));
+        window.dispatchEvent(new Event("paymentRequestCreated"));
+      } catch (err) {
+        console.error("Error saving payment request:", err);
+      }
       
       setPaymentRequest(request);
       setStep("success");

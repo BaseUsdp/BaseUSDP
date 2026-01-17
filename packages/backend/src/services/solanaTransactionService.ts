@@ -18,6 +18,7 @@ import {
 } from "@solana/web3.js";
 import { Token2022Service } from "./token2022Service.js";
 import { transactionBuilderService } from "./transactionBuilderService.js";
+import { transactionHistoryService } from "./transactionHistoryService.js";
 
 export interface TransferRequest {
   from: string;
@@ -278,16 +279,23 @@ export class SolanaTransactionService {
     }
 
     try {
-      const userPubkey = new PublicKey(address);
-      
-      // TODO: Query transaction history from Solana
-      // This would:
-      // 1. Get signatures for the user's account
-      // 2. Parse transactions to get encrypted transfer events
-      // 3. Return encrypted transaction list
+      // Use transaction history service to get transactions
+      const historyResult = await transactionHistoryService.getTransactionHistory(
+        address,
+        { limit: 50 }
+      );
 
-      // Placeholder
-      return [];
+      // Convert to expected format
+      return historyResult.transactions.map((tx) => ({
+        signature: tx.signature,
+        timestamp: tx.timestamp,
+        type: tx.type,
+        status: tx.status,
+        from: tx.from,
+        to: tx.to,
+        amount: tx.amount,
+        fee: tx.fee,
+      }));
     } catch (error) {
       throw new Error(
         `Failed to get history: ${error instanceof Error ? error.message : "Unknown error"}`
