@@ -118,14 +118,20 @@ class ApiClient {
   }
 
   /**
-   * Make a fetch request with error handling and authentication
+   * Make a fetch request with error handling, authentication, and retry logic
+   * 
+   * Automatically retries 503 Service Unavailable errors (service initializing)
+   * with exponential backoff up to 3 times.
    */
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    requireAuth: boolean = false
+    requireAuth: boolean = false,
+    retryCount: number = 0
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
+    const MAX_RETRIES = 3;
+    const INITIAL_RETRY_DELAY = 1000; // 1 second
     
     // Build headers with optional auth token
     const headers: HeadersInit = {
@@ -138,37 +144,63 @@ class ApiClient {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...headers,
-        ...options.headers,
-      },
-    });
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...headers,
+          ...options.headers,
+        },
+      });
 
-    // Handle 401 Unauthorized
-    if (response.status === 401) {
-      // Clear the invalid session
-      await authService.logout(false);
-      
-      // Throw error so caller can handle re-auth
-      const error = new Error("Session expired. Please authenticate again.");
-      (error as any).status = 401;
-      (error as any).requiresAuth = true;
+      // Handle 503 Service Unavailable (service initializing) with retry
+      if (response.status === 503 && retryCount < MAX_RETRIES) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        // Check if it's a service initialization error
+        if (errorData.code === "SERVICE_INITIALIZING" || errorData.error?.includes("initializing")) {
+          // Exponential backoff: 1s, 2s, 4s
+          const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount);
+          
+          console.log(`Service initializing, retrying in ${delay}ms... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+          
+          await new Promise(resolve => setTimeout(resolve, delay));
+          
+          // Retry the request
+          return this.request<T>(endpoint, options, requireAuth, retryCount + 1);
+        }
+      }
+
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        // Clear the invalid session
+        await authService.logout(false);
+        
+        // Throw error so caller can handle re-auth
+        const error = new Error("Session expired. Please authenticate again.");
+        (error as any).status = 401;
+        (error as any).requiresAuth = true;
+        throw error;
+      }
+
+      // Handle other error responses
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData.error || `Request failed with status ${response.status}`);
+        (error as any).status = response.status;
+        (error as any).data = errorData;
+        throw error;
+      }
+
+      const data = await response.json();
+      return data as T;
+    } catch (error) {
+      // If it's a 503 after max retries, provide a helpful error message
+      if ((error as any)?.status === 503 && retryCount >= MAX_RETRIES) {
+        throw new Error("Backend service is taking longer than expected to initialize. Please refresh the page in a few moments.");
+      }
       throw error;
     }
-
-    // Handle other error responses
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const error = new Error(errorData.error || `Request failed with status ${response.status}`);
-      (error as any).status = response.status;
-      (error as any).data = errorData;
-      throw error;
-    }
-
-    const data = await response.json();
-    return data as T;
   }
 
   // ==========================================================================
