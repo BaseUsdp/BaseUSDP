@@ -1,9 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Icon } from "@iconify/react";
 import { Button } from "@/components/ui/button";
 import TransactionFilters, { TransactionFilter, SortOption } from "./TransactionFilters";
 import { cn } from "@/lib/utils";
+import { useWallet } from "@/contexts/WalletContext";
+import { getTransactionHistory, TransactionHistoryResponse } from "@/services/api";
+import { Loader2 } from "lucide-react";
 
 interface TransactionHistoryFullProps {
   showBalance: boolean;
@@ -27,47 +30,72 @@ interface Transaction {
   paymentId?: string;
 }
 
-const generateMockTransactions = (): Transaction[] => {
-  const transactions: Transaction[] = [];
-  const now = new Date();
+// Convert API transaction to UI transaction format
+const convertApiTransaction = (tx: TransactionHistoryResponse["transactions"][0], walletAddress: string): Transaction => {
+  const direction = tx.from === walletAddress ? "sent" : "received";
+  const amount = tx.amount || 0;
+  const counterparty = direction === "sent" ? tx.to : tx.from;
   
-  for (let i = 0; i < 50; i++) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - Math.floor(i / 3));
-    date.setHours(Math.floor(Math.random() * 24));
-    
-    const type: TransactionType = Math.random() > 0.6 ? "x402" : "transfer";
-    const direction: "sent" | "received" = Math.random() > 0.5 ? "sent" : "received";
-    const amount = Math.floor(Math.random() * 5000) + 10;
-    const status: TransactionStatus = Math.random() > 0.9 ? "pending" : Math.random() > 0.95 ? "failed" : "success";
-    
-    transactions.push({
-      id: `tx_${i}`,
-      type,
-      direction,
-      amount,
-      amountDisplay: `${direction === "sent" ? "-" : "+"}$${amount.toLocaleString()}.00`,
-      counterparty: `0x${Math.random().toString(16).substr(2, 4)}...${Math.random().toString(16).substr(2, 4)}`,
-      timestamp: date.toLocaleString(),
-      date,
-      status,
-      txHash: `0x${Math.random().toString(16).substr(2, 12)}...${Math.random().toString(16).substr(2, 6)}`,
-      privacyLevel: ["public", "partial", "full"][Math.floor(Math.random() * 3)] as "public" | "partial" | "full",
-      paymentId: type === "x402" ? `x402_${Math.random().toString(36).substr(2, 6)}` : undefined,
-    });
-  }
-  
-  return transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
+  return {
+    id: tx.signature,
+    type: tx.type === "payment" ? "x402" : "transfer",
+    direction,
+    amount,
+    amountDisplay: `${direction === "sent" ? "-" : "+"}$${Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    counterparty: counterparty || "Unknown",
+    timestamp: new Date(tx.timestamp).toLocaleString(),
+    date: new Date(tx.timestamp),
+    status: tx.status,
+    txHash: tx.signature,
+    privacyLevel: "full", // All transactions are encrypted
+    paymentId: tx.type === "payment" ? tx.signature : undefined,
+  };
 };
 
 const ITEMS_PER_PAGE = 10;
 
 const TransactionHistoryFull = ({ showBalance }: TransactionHistoryFullProps) => {
-  const [allTransactions] = useState(generateMockTransactions);
+  const { fullWalletAddress, isConnected } = useWallet();
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<TransactionFilter>("all");
   const [sort, setSort] = useState<SortOption>("date_desc");
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      if (!isConnected || !fullWalletAddress) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+        // Fetch a large number of transactions for filtering/searching
+        const result = await getTransactionHistory(fullWalletAddress, 100);
+        
+        if (result && result.success) {
+          const converted = result.transactions.map(tx => convertApiTransaction(tx, fullWalletAddress));
+          setAllTransactions(converted);
+        } else {
+          setError("Failed to fetch transactions");
+        }
+      } catch (err) {
+        console.error("Error fetching transactions:", err);
+        setError(err instanceof Error ? err.message : "Failed to fetch transactions");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTransactions();
+    // Refresh every 60 seconds
+    const interval = setInterval(fetchTransactions, 60000);
+    return () => clearInterval(interval);
+  }, [fullWalletAddress, isConnected]);
 
   const filteredAndSortedTransactions = useMemo(() => {
     let result = [...allTransactions];

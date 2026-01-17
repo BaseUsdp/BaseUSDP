@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
 import { Lock, RefreshCw, Eye, EyeOff, Shield, TrendingUp, ArrowDownLeft, ArrowUpRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { Button } from "@/components/ui/button";
 import PrivacyLevelSelector from "./PrivacyLevelSelector";
 import { cn } from "@/lib/utils";
+import { getTransactionHistory } from "@/services/api";
 
 interface EncryptedBalanceCardProps {
   showBalance: boolean;
@@ -12,8 +13,61 @@ interface EncryptedBalanceCardProps {
 }
 
 const EncryptedBalanceCard = ({ showBalance, onToggleBalance }: EncryptedBalanceCardProps) => {
-  const { encryptedBalance, isBalanceLoading, refreshBalance, privacyLevel } = useWallet();
+  const { encryptedBalance, isBalanceLoading, refreshBalance, privacyLevel, fullWalletAddress, isConnected } = useWallet();
   const [isDecrypting, setIsDecrypting] = useState(false);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+
+  // Calculate real sent/received amounts from transaction history
+  const stats = useMemo(() => {
+    if (!transactions.length) return { sent: 0, received: 0 };
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    let sent = 0;
+    let received = 0;
+
+    transactions.forEach(tx => {
+      const txDate = new Date(tx.timestamp);
+      if (txDate < thirtyDaysAgo) return; // Only count last 30 days
+
+      const isSent = tx.from === fullWalletAddress;
+      const amount = tx.amount || 0;
+
+      if (isSent) {
+        sent += amount;
+      } else {
+        received += amount;
+      }
+    });
+
+    return { sent, received };
+  }, [transactions, fullWalletAddress]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!isConnected || !fullWalletAddress) return;
+
+      try {
+        setIsLoadingStats(true);
+        // Fetch last 100 transactions to calculate 30-day stats
+        const result = await getTransactionHistory(fullWalletAddress, 100);
+        if (result && result.success) {
+          setTransactions(result.transactions);
+        }
+      } catch (err) {
+        console.error("Error fetching transaction stats:", err);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
+
+    fetchStats();
+    // Refresh stats every 60 seconds
+    const interval = setInterval(fetchStats, 60000);
+    return () => clearInterval(interval);
+  }, [fullWalletAddress, isConnected]);
 
   const handleRefresh = async () => {
     setIsDecrypting(true);
@@ -124,14 +178,18 @@ const EncryptedBalanceCard = ({ showBalance, onToggleBalance }: EncryptedBalance
                 <ArrowUpRight className="w-4 h-4 text-red-500" />
                 <span className="text-xs text-muted-foreground">Sent (30d)</span>
               </div>
-              <p className="text-lg font-bold">$2,450.00</p>
+              <p className="text-lg font-bold">
+                {isLoadingStats ? "..." : `$${stats.sent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              </p>
             </div>
             <div className="rounded-xl bg-secondary/50 p-4">
               <div className="flex items-center gap-2 mb-1">
                 <ArrowDownLeft className="w-4 h-4 text-green-500" />
                 <span className="text-xs text-muted-foreground">Received (30d)</span>
               </div>
-              <p className="text-lg font-bold">$5,200.00</p>
+              <p className="text-lg font-bold">
+                {isLoadingStats ? "..." : `$${stats.received.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              </p>
             </div>
           </div>
         )}

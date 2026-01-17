@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
+import { useTransactionStats } from "@/hooks/useTransactionStats";
 
 interface DashboardRightSidebarProps {
   showBalance: boolean;
@@ -21,6 +22,12 @@ interface DashboardRightSidebarProps {
 
 const DashboardRightSidebar = ({ showBalance }: DashboardRightSidebarProps) => {
   const { encryptedBalance, privacyLevel, refreshBalance, isBalanceLoading } = useWallet();
+  const { stats, isLoading: isLoadingStats } = useTransactionStats();
+
+  const formatAmount = (amount: number, showSign: boolean = false) => {
+    const sign = showSign ? (amount >= 0 ? "+" : "") : "";
+    return `${sign}$${Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
   const upcomingPayments = [
     { name: "API Subscription", due: "Dec 15", amount: "$50", color: "bg-red-500" },
@@ -171,20 +178,28 @@ const DashboardRightSidebar = ({ showBalance }: DashboardRightSidebarProps) => {
           <div className="space-y-2 text-[11px]">
             <div className="flex justify-between">
               <span className="text-neutral-400">Received</span>
-              <span className="text-sky-400">{showBalance ? "+$5,200" : "••••"}</span>
+              <span className="text-sky-400">
+                {showBalance ? (isLoadingStats ? "..." : formatAmount(stats.monthlyReceived, true)) : "••••"}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-neutral-400">Sent</span>
-              <span className="text-red-400">{showBalance ? "-$2,450" : "••••"}</span>
+              <span className="text-red-400">
+                {showBalance ? (isLoadingStats ? "..." : formatAmount(stats.monthlySent, true)) : "••••"}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-neutral-400">Yield</span>
-              <span className="text-emerald-400">{showBalance ? "+$125" : "••••"}</span>
+              <span className="text-emerald-400">
+                {showBalance ? (isLoadingStats ? "..." : formatAmount(stats.monthlyYield, true)) : "••••"}
+              </span>
             </div>
             <div className="h-px bg-white/10 my-1" />
             <div className="flex justify-between font-medium">
               <span className="text-neutral-300">Net</span>
-              <span className="text-sky-400">{showBalance ? "+$2,875" : "••••"}</span>
+              <span className="text-sky-400">
+                {showBalance ? (isLoadingStats ? "..." : formatAmount(stats.monthlyReceived - stats.monthlySent, true)) : "••••"}
+              </span>
             </div>
           </div>
         </div>

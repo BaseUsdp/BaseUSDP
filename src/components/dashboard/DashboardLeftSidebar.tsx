@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
+import { useTransactionStats } from "@/hooks/useTransactionStats";
 
 interface DashboardLeftSidebarProps {
   activeTab: string;
@@ -22,6 +23,7 @@ interface DashboardLeftSidebarProps {
 
 const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance }: DashboardLeftSidebarProps) => {
   const { encryptedBalance, privacyLevel, walletAddress } = useWallet();
+  const { stats, isLoading: isLoadingStats } = useTransactionStats();
 
   const navItems = [
     { id: "overview", label: "Dashboard", icon: LayoutDashboard },
@@ -54,11 +56,15 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance }: Dashboar
     },
   ];
 
+  const formatAmount = (amount: number) => {
+    return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   const categories = [
-    { name: "Transfers", color: "bg-sky-500", amount: "$2,450" },
-    { name: "x402 Payments", color: "bg-purple-500", amount: "$1,200" },
-    { name: "Yield Earnings", color: "bg-emerald-500", amount: "$312" },
-    { name: "Gas Fees", color: "bg-red-500", amount: "$45" },
+    { name: "Transfers", color: "bg-sky-500", amount: isLoadingStats ? "..." : formatAmount(stats.transfers) },
+    { name: "x402 Payments", color: "bg-purple-500", amount: isLoadingStats ? "..." : formatAmount(stats.payments) },
+    { name: "Yield Earnings", color: "bg-emerald-500", amount: isLoadingStats ? "..." : formatAmount(stats.yieldEarnings) },
+    { name: "Gas Fees", color: "bg-red-500", amount: isLoadingStats ? "..." : formatAmount(stats.gasFees) },
   ];
 
   return (
