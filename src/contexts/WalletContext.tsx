@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
 import { authService } from "@/services/authService";
+import { getBalance } from "@/services/api";
 
 export type WalletType = "phantom" | "solflare" | null;
 export type PrivacyLevel = "public" | "partial" | "full";
@@ -102,14 +103,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setFullWalletAddress(fullAddress || address);
       setIsConnected(true);
       setNetworkStatus("connected");
-      // Balance will be fetched by BalanceDisplay component
       
       // Check if user has valid session
       if (authService.isAuthenticated()) {
         setIsAuthenticated(true);
       }
+      
+      // Fetch balance for persisted wallet
+      setTimeout(() => {
+        refreshBalance();
+      }, 500);
     }
-  }, []);
+  }, [refreshBalance]);
 
   const connect = useCallback(async (type: WalletType) => {
     setIsConnecting(true);
@@ -181,7 +186,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         setFullWalletAddress(publicKey); // Store full address for transactions
         setIsConnected(true);
         setNetworkStatus("connected");
-        setEncryptedBalance("12,450.00");
         
         // Persist connection
         localStorage.setItem("void402_wallet", JSON.stringify({
@@ -189,6 +193,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           address: formattedAddress,
           fullAddress: publicKey
         }));
+        
+        // Fetch balance immediately after connecting
+        setTimeout(() => {
+          refreshBalance();
+        }, 100);
       }
     } catch (error) {
       console.error("Failed to connect wallet:", error);
@@ -294,15 +303,41 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const refreshBalance = useCallback(async () => {
+    if (!isConnected || !fullWalletAddress) {
+      setEncryptedBalance("0");
+      return;
+    }
+
     setIsBalanceLoading(true);
     try {
-      // Simulate balance fetch - in production this would call Solana RPC
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setEncryptedBalance("12,450.00");
+      // Call backend API to get real balance
+      const result = await getBalance(fullWalletAddress);
+      
+      if (result.success) {
+        // Calculate total balance (token + SOL)
+        const tokenBalance = result.tokenBalance || 0;
+        const solBalance = result.solBalance || 0;
+        const totalBalance = tokenBalance + solBalance;
+        
+        // Format balance for display
+        const formattedBalance = totalBalance.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+        
+        setEncryptedBalance(formattedBalance);
+      } else {
+        // If API fails, set to 0 or show error
+        console.error("Failed to fetch balance:", result.error);
+        setEncryptedBalance("0");
+      }
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+      setEncryptedBalance("0");
     } finally {
       setIsBalanceLoading(false);
     }
-  }, []);
+  }, [isConnected, fullWalletAddress]);
 
   return (
     <WalletContext.Provider
