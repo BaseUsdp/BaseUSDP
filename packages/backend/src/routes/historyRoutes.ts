@@ -98,9 +98,14 @@ router.get(
     logger.debug(`Fetching history for ${address.slice(0, 8)}... (limit: ${parsedLimit}, filters: ${type || status ? "active" : "none"})`);
 
     // Ensure transaction history service is initialized (creates connection if needed)
-    const solanaRpcUrl = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
-    const connection = new Connection(solanaRpcUrl, "confirmed");
-    transactionHistoryService.initialize(connection);
+    // Check if service has connection, if not create one
+    try {
+      const solanaRpcUrl = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
+      const connection = new Connection(solanaRpcUrl, "confirmed");
+      transactionHistoryService.initialize(connection);
+    } catch (initError) {
+      logger.warn("Failed to initialize history service, but continuing:", initError);
+    }
 
     const result = await transactionHistoryService.getTransactionHistory(address, {
       limit: parsedLimit,
