@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { QRCodeSVG } from "qrcode.react";
 
 interface ReceivePaymentModalProps {
   open: boolean;
@@ -16,15 +17,11 @@ interface ReceivePaymentModalProps {
 }
 
 const ReceivePaymentModal = ({ open, onOpenChange }: ReceivePaymentModalProps) => {
-  const { walletAddress, walletType } = useWallet();
+  const { fullWalletAddress, walletAddress, isConnected } = useWallet();
   const [copied, setCopied] = useState(false);
 
-  // Get full mock address based on wallet type
-  const fullAddress = walletType === "phantom" 
-    ? "PhntmDemo1234567890abcdefghijklmnopqrstuvwxyz"
-    : walletType === "solflare"
-    ? "SlfDemo1234567890abcdefghijklmnopqrstuvwxyz"
-    : walletAddress || "Demo1234567890abcdefghijklmnopqrstuvwxyz";
+  // Use real wallet address
+  const fullAddress = fullWalletAddress || walletAddress || "";
 
   const handleCopy = () => {
     navigator.clipboard.writeText(fullAddress);
@@ -61,82 +58,82 @@ const ReceivePaymentModal = ({ open, onOpenChange }: ReceivePaymentModalProps) =
 
         <div className="space-y-6 py-4">
           {/* QR Code */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex justify-center"
-          >
-            <div className="relative">
-              {/* Mock QR Code - In production, use a real QR library */}
-              <div className="w-48 h-48 bg-white rounded-2xl p-4 flex items-center justify-center">
-                <div className="w-full h-full bg-gradient-to-br from-foreground to-foreground/80 rounded-lg relative overflow-hidden">
-                  {/* QR Pattern Simulation */}
-                  <div className="absolute inset-2 grid grid-cols-8 gap-0.5">
-                    {Array(64).fill(0).map((_, i) => (
-                      <div
-                        key={i}
-                        className={`w-full aspect-square ${Math.random() > 0.5 ? 'bg-white' : 'bg-transparent'}`}
-                      />
-                    ))}
-                  </div>
-                  {/* Corner markers */}
-                  <div className="absolute top-2 left-2 w-6 h-6 border-4 border-white rounded-sm" />
-                  <div className="absolute top-2 right-2 w-6 h-6 border-4 border-white rounded-sm" />
-                  <div className="absolute bottom-2 left-2 w-6 h-6 border-4 border-white rounded-sm" />
-                  {/* Center logo */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                      <span className="text-white font-bold text-xs">V402</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {/* Decorative ring */}
-              <div className="absolute -inset-2 rounded-3xl border-2 border-primary/20" />
+          {!isConnected || !fullAddress ? (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-muted-foreground text-sm">Please connect your wallet to receive payments</p>
             </div>
-          </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex justify-center"
+            >
+              <div className="relative">
+                <div className="w-48 h-48 bg-white rounded-2xl p-4 flex items-center justify-center">
+                  <QRCodeSVG
+                    value={fullAddress}
+                    size={192}
+                    level="H"
+                    includeMargin={false}
+                  />
+                </div>
+                {/* Decorative ring */}
+                <div className="absolute -inset-2 rounded-3xl border-2 border-primary/20" />
+              </div>
+            </motion.div>
+          )}
 
           {/* Address Display */}
-          <div className="rounded-xl bg-secondary p-4">
-            <p className="text-xs text-muted-foreground text-center mb-2">Your Address</p>
-            <p className="font-mono text-sm text-center break-all">
-              {fullAddress}
-            </p>
-          </div>
+          {!isConnected || !fullAddress ? (
+            <div className="rounded-xl bg-secondary p-4">
+              <p className="text-xs text-muted-foreground text-center">Connect your wallet to see your address</p>
+            </div>
+          ) : (
+            <div className="rounded-xl bg-secondary p-4">
+              <p className="text-xs text-muted-foreground text-center mb-2">Your Address</p>
+              <p className="font-mono text-sm text-center break-all">
+                {fullAddress}
+              </p>
+            </div>
+          )}
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              variant="outline"
-              onClick={handleCopy}
-              className="h-12"
-            >
-              {copied ? (
-                <>
-                  <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4 mr-2" />
-                  Copy Address
-                </>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleShare}
-              className="h-12"
-            >
-              <Share2 className="w-4 h-4 mr-2" />
-              Share
-            </Button>
-          </div>
+          {isConnected && fullAddress && (
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                onClick={handleCopy}
+                className="h-12"
+                disabled={!fullAddress}
+              >
+                {copied ? (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy Address
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleShare}
+                className="h-12"
+                disabled={!fullAddress}
+              >
+                <Share2 className="w-4 h-4 mr-2" />
+                Share
+              </Button>
+            </div>
+          )}
 
           {/* Info */}
           <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
             <p className="text-sm text-muted-foreground text-center">
-              Share this QR code or address to receive encrypted payments on Base Sepolia
+              Share this QR code or address to receive encrypted payments on Solana Devnet
             </p>
           </div>
         </div>
