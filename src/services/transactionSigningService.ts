@@ -11,7 +11,6 @@
 
 import { Transaction, PublicKey, VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
-import { getApiUrl } from "@/utils/apiConfig";
 
 // Wallet adapter interface (compatible with Phantom/Solflare)
 export interface WalletAdapter {
@@ -107,8 +106,9 @@ export async function signTransaction(
   unsignedTransactionBase58: string
 ): Promise<SigningResult> {
   try {
-    // Validate wallet is connected
-    if (!wallet.connected || !wallet.publicKey) {
+    // Validate wallet is connected (check both 'connected' and 'isConnected' for different wallet providers)
+    const isWalletConnected = wallet.connected || (wallet as any)?.isConnected;
+    if (!isWalletConnected || !wallet.publicKey) {
       return {
         success: false,
         error: "Wallet not connected. Please connect your wallet first.",
@@ -174,19 +174,16 @@ export async function signAndSubmitTransaction(
   wallet: WalletAdapter,
   buildPayload: Record<string, any>,
   transactionType: "transfer" | "payment",
-  backendUrl?: string
+  backendUrl: string = "http://localhost:3000"
 ): Promise<TransactionFlowResult> {
   try {
-    // Use provided backend URL or get from config
-    const apiUrl = backendUrl || getApiUrl();
-    
     // Step 1: Build unsigned transaction
     const buildEndpoint =
       transactionType === "transfer"
         ? "/api/solana/build-transfer-transaction"
         : "/api/solana/build-payment-transaction";
 
-    const buildResponse = await fetch(`${apiUrl}${buildEndpoint}`, {
+    const buildResponse = await fetch(`${backendUrl}${buildEndpoint}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(buildPayload),
@@ -224,7 +221,7 @@ export async function signAndSubmitTransaction(
       submitPayload.paymentId = buildPayload.paymentId;
     }
 
-    const submitResponse = await fetch(`${apiUrl}/api/solana/submit-transaction`, {
+    const submitResponse = await fetch(`${backendUrl}/api/solana/submit-transaction`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(submitPayload),
@@ -255,10 +252,13 @@ export async function signAndSubmitTransaction(
 /**
  * Execute a confidential transfer with client-side signing
  * 
+ * NOTE: Currently uses simple SOL transfers for testing.
+ * Token-2022 confidential transfers require a deployed Token-2022 mint.
+ * 
  * @param wallet Wallet adapter
  * @param toAddress Recipient address
- * @param amount Amount to transfer
- * @param privacyLevel Privacy level
+ * @param amount Amount to transfer (in SOL for now)
+ * @param privacyLevel Privacy level (not used for SOL transfers)
  * @param backendUrl Backend API URL
  * @returns Transaction result
  */
@@ -267,9 +267,10 @@ export async function executeConfidentialTransfer(
   toAddress: string,
   amount: number,
   privacyLevel: "public" | "partial" | "full" = "full",
-  backendUrl?: string
+  backendUrl: string = "http://localhost:3000"
 ): Promise<TransactionFlowResult> {
-  if (!wallet.connected || !wallet.publicKey) {
+  const isWalletConnected = wallet.connected || (wallet as any)?.isConnected;
+  if (!isWalletConnected || !wallet.publicKey) {
     return {
       success: false,
       error: "Wallet not connected",
@@ -278,17 +279,99 @@ export async function executeConfidentialTransfer(
 
   const fromAddress = wallet.publicKey.toBase58();
 
-  return signAndSubmitTransaction(
-    wallet,
-    {
-      from: fromAddress,
-      to: toAddress,
-      amount,
-      privacyLevel,
-    },
-    "transfer",
-    backendUrl
-  );
+  // Use simple SOL transfer for testing until Token-2022 mint is deployed
+  return executeSolTransfer(wallet, toAddress, amount, backendUrl);
+}
+
+/**
+ * Execute a simple SOL transfer with client-side signing
+ * This is for testing without a Token-2022 mint
+ * 
+ * @param wallet Wallet adapter
+ * @param toAddress Recipient address
+ * @param amount Amount in SOL
+ * @param backendUrl Backend API URL
+ * @returns Transaction result
+ */
+export async function executeSolTransfer(
+  wallet: WalletAdapter,
+  toAddress: string,
+  amount: number,
+  backendUrl: string = "http://localhost:3000"
+): Promise<TransactionFlowResult> {
+  const isWalletConnected = wallet.connected || (wallet as any)?.isConnected;
+  if (!isWalletConnected || !wallet.publicKey) {
+    return {
+      success: false,
+      error: "Wallet not connected",
+    };
+  }
+
+  const fromAddress = wallet.publicKey.toBase58();
+
+  try {
+    // Step 1: Build unsigned SOL transfer transaction
+    const buildResponse = await fetch(`${backendUrl}/api/solana/build-sol-transfer`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: fromAddress,
+        to: toAddress,
+        amount,
+      }),
+    });
+
+    const buildResult: BuildTransactionResponse = await buildResponse.json();
+
+    if (!buildResult.success || !buildResult.unsignedTransaction) {
+      return {
+        success: false,
+        error: buildResult.error || "Failed to build transaction",
+        step: "build",
+      };
+    }
+
+    // Step 2: Sign transaction with wallet
+    const signingResult = await signTransaction(wallet, buildResult.unsignedTransaction);
+
+    if (!signingResult.success || !signingResult.signedTransaction) {
+      return {
+        success: false,
+        error: signingResult.error || "Failed to sign transaction",
+        step: "sign",
+      };
+    }
+
+    // Step 3: Submit signed transaction
+    const submitResponse = await fetch(`${backendUrl}/api/solana/submit-transaction`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        signedTransaction: signingResult.signedTransaction,
+        transactionType: "transfer",
+      }),
+    });
+
+    const submitResult: SubmitTransactionResponse = await submitResponse.json();
+
+    if (!submitResult.success) {
+      return {
+        success: false,
+        error: submitResult.error || "Failed to submit transaction",
+        step: "submit",
+      };
+    }
+
+    return {
+      success: true,
+      signature: submitResult.signature,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Transaction failed",
+    };
+  }
 }
 
 /**
@@ -304,9 +387,10 @@ export async function executePaymentSettlement(
   wallet: WalletAdapter,
   paymentId: string,
   amount: number,
-  backendUrl?: string
+  backendUrl: string = "http://localhost:3000"
 ): Promise<TransactionFlowResult> {
-  if (!wallet.connected || !wallet.publicKey) {
+  const isWalletConnected = wallet.connected || (wallet as any)?.isConnected;
+  if (!isWalletConnected || !wallet.publicKey) {
     return {
       success: false,
       error: "Wallet not connected",
@@ -326,4 +410,8 @@ export async function executePaymentSettlement(
     backendUrl
   );
 }
+
+// Export types for use in components
+export type { WalletAdapter };
+
 

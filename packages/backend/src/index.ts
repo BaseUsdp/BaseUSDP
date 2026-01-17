@@ -26,6 +26,7 @@ import historyRoutes from "./routes/historyRoutes.js";
 import { solanaTransactionService } from "./services/solanaTransactionService.js";
 import { solanaX402Service } from "./services/solanaX402Service.js";
 import { transactionHistoryService } from "./services/transactionHistoryService.js";
+import { transactionBuilderService } from "./services/transactionBuilderService.js";
 
 // Middleware
 import {
@@ -46,122 +47,12 @@ const PORT = process.env.PORT || 3000;
 // MIDDLEWARE
 // =============================================================================
 
-// CORS configuration - MUST be first middleware
-// Allow multiple origins for production and development
-const allowedOrigins = process.env.CORS_ORIGIN 
-  ? process.env.CORS_ORIGIN.split(",").map(origin => origin.trim())
-  : [
-      "https://www.void402.com",
-      "https://void402.com",
-      "https://code-whisperer-33.vercel.app",
-      "https://code-whisperer-33-*.vercel.app", // Vercel preview deployments
-      "http://localhost:5173",
-      "http://localhost:3000",
-      "http://localhost:8080",
-    ];
-
-// Add CORS headers FIRST for Vercel serverless compatibility (before cors middleware)
-// This MUST be the very first middleware
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  
-  // Check if origin is allowed
-  const isAllowed = !origin || allowedOrigins.some(allowed => {
-    if (allowed === "*") return true;
-    if (allowed.includes("*")) {
-      const pattern = allowed.replace(/\*/g, ".*");
-      return new RegExp(`^${pattern}$`).test(origin);
-    }
-    return origin === allowed;
-  });
-  
-  // ALWAYS set CORS headers for preflight requests
-  // Set CORS headers - ALWAYS set them for allowed origins
-  if (isAllowed && origin) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  } else if (isAllowed) {
-    // No origin but allowed
-    res.setHeader("Access-Control-Allow-Origin", "*");
-  }
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin");
-  res.setHeader("Access-Control-Max-Age", "86400");
-  
-  // Handle preflight OPTIONS requests - MUST return early with 204
-  if (req.method === "OPTIONS") {
-    res.status(204).end();
-    return;
-  }
-  next();
-});
-
-// Explicitly handle OPTIONS for all routes BEFORE other middleware
-app.options("*", (req, res) => {
-  const origin = req.headers.origin;
-  const isAllowed = !origin || allowedOrigins.some(allowed => {
-    if (allowed === "*") return true;
-    if (allowed.includes("*")) {
-      const pattern = allowed.replace(/\*/g, ".*");
-      return new RegExp(`^${pattern}$`).test(origin);
-    }
-    return origin === allowed;
-  });
-  
-  if (isAllowed && origin) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin");
-  res.setHeader("Access-Control-Max-Age", "86400");
-  res.status(204).end();
-});
-
-// Also use cors middleware as backup
+// CORS configuration
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) {
-      return callback(null, true);
-    }
-    
-    // Check if origin matches any allowed origin
-    const isAllowed = allowedOrigins.some(allowedOrigin => {
-      if (allowedOrigin === "*") return true;
-      if (allowedOrigin.includes("*")) {
-        // Handle wildcard patterns like "https://*.vercel.app"
-        const pattern = allowedOrigin.replace("*", ".*");
-        const regex = new RegExp(`^${pattern}$`);
-        return regex.test(origin);
-      }
-      return origin === allowedOrigin;
-    });
-    
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      // Log for debugging
-      console.log(`CORS check - Origin: ${origin}, Allowed: ${JSON.stringify(allowedOrigins)}`);
-      logger.warn(`CORS blocked origin: ${origin}, Allowed origins: ${JSON.stringify(allowedOrigins)}`);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: [
-    "Content-Type", 
-    "Authorization", 
-    "X-Requested-With",
-    "Accept",
-    "Origin",
-  ],
-  exposedHeaders: ["Content-Length", "Content-Type"],
-  credentials: true,
-  maxAge: 86400, // 24 hours
-  preflightContinue: false,
-  optionsSuccessStatus: 204,
+  origin: process.env.CORS_ORIGIN || "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 }));
-
 
 // Parse JSON bodies
 app.use(express.json({ limit: "1mb" }));
@@ -228,7 +119,7 @@ app.use(errorHandler);
 
 async function initializeServices() {
   try {
-    logger.info("Initializing Void402 Solana services with Token-2022...");
+    logger.info("Initializing Void402 Solana services...");
 
     // Solana connection
     const solanaRpcUrl = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
@@ -237,6 +128,17 @@ async function initializeServices() {
     // Token-2022 configuration
     const mintAddress = process.env.TOKEN_2022_MINT_ADDRESS || "";
     const facilitatorProgramId = process.env.FACILITATOR_PROGRAM_ID || "";
+
+    // ALWAYS initialize transaction builder service (for SOL transfers and balance checks)
+    // Use a placeholder mint if none configured - will work for SOL operations
+    const effectiveMint = mintAddress || "So11111111111111111111111111111111111111112"; // Native SOL mint
+    await transactionBuilderService.initialize(solanaRpcUrl, effectiveMint);
+    logger.info("✅ Transaction builder service initialized");
+    logger.info(`   RPC: ${solanaRpcUrl}`);
+
+    // Initialize history service (works for all transactions)
+    transactionHistoryService.initialize(connection, mintAddress || undefined);
+    logger.info("✅ Transaction history service initialized");
 
     if (mintAddress && facilitatorProgramId) {
       // Initialize main transaction service
@@ -248,23 +150,17 @@ async function initializeServices() {
 
       // Initialize x402 payment service
       await solanaX402Service.initialize(facilitatorProgramId, connection);
-
-      // Initialize transaction history service
-      transactionHistoryService.initialize(connection, mintAddress);
       
-      logger.info("✅ Token-2022 service initialized");
+      logger.info("✅ Token-2022 services initialized");
       logger.info(`   Mint: ${mintAddress}`);
       logger.info(`   Facilitator: ${facilitatorProgramId}`);
     } else {
-      logger.warn("⚠️  Token-2022 configuration missing");
-      logger.warn("   Set TOKEN_2022_MINT_ADDRESS in .env");
-      logger.warn("   Set FACILITATOR_PROGRAM_ID in .env");
-      
-      // Initialize history service without mint (will still work for SOL transactions)
-      transactionHistoryService.initialize(connection);
+      logger.warn("⚠️  Token-2022 configuration missing (optional)");
+      logger.warn("   Set TOKEN_2022_MINT_ADDRESS in .env for token transfers");
+      logger.warn("   Set FACILITATOR_PROGRAM_ID in .env for x402 payments");
     }
 
-    logger.info("Services initialized successfully");
+    logger.info("All services initialized successfully");
   } catch (error) {
     logger.error("Failed to initialize services:", error);
   }
@@ -326,18 +222,7 @@ async function startServer() {
   });
 }
 
-// Export app for Vercel serverless functions
-export default app;
-
-// Only start server if not in Vercel environment
-if (process.env.VERCEL !== "1") {
-  startServer().catch((error) => {
-    logger.error("Failed to start server:", error);
-    process.exit(1);
-  });
-} else {
-  // Initialize services for Vercel (async initialization)
-  initializeServices().catch((error) => {
-    logger.error("Failed to initialize services:", error);
-  });
-}
+startServer().catch((error) => {
+  logger.error("Failed to start server:", error);
+  process.exit(1);
+});

@@ -74,7 +74,10 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
     // Get the wallet provider
     const wallet = getWalletProvider();
     
-    if (!wallet || !wallet.connected || !wallet.publicKey) {
+    // Check for both 'connected' and 'isConnected' (different wallet providers use different properties)
+    const isWalletConnected = wallet?.connected || (wallet as any)?.isConnected;
+    
+    if (!wallet || !isWalletConnected || !wallet.publicKey) {
       setError("Wallet not connected. Please connect your wallet first.");
       setStep("failed");
       return;
@@ -84,9 +87,8 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
       // Step 1: Signing - Wallet popup will appear
       setStep("signing");
       
-      // Get backend URL from centralized config
-      const { getApiUrl } = await import("@/utils/apiConfig");
-      const backendUrl = getApiUrl();
+      // Get backend URL from environment or use default
+      const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
       
       // Execute the confidential transfer with client-side signing
       // This will:

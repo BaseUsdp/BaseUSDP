@@ -14,6 +14,7 @@ import {
   PublicKey,
   Transaction,
   LAMPORTS_PER_SOL,
+  SystemProgram,
 } from "@solana/web3.js";
 import {
   getAssociatedTokenAddress,
@@ -572,6 +573,74 @@ export class TransactionBuilderService {
     } catch (error) {
       throw new Error("Failed to check token account status");
     }
+  }
+
+  /**
+   * Build a simple SOL transfer transaction (for testing)
+   * This is a native SOL transfer, not a Token-2022 transfer
+   * 
+   * @param from Sender address
+   * @param to Recipient address  
+   * @param amount Amount in SOL
+   * @returns Unsigned transaction
+   */
+  async buildSolTransfer(
+    from: string,
+    to: string,
+    amount: number
+  ): Promise<UnsignedTransactionResponse> {
+    if (!this.connection) {
+      throw new Error("Service not initialized");
+    }
+
+    let fromPubkey: PublicKey;
+    let toPubkey: PublicKey;
+
+    try {
+      fromPubkey = new PublicKey(from);
+      toPubkey = new PublicKey(to);
+    } catch (error) {
+      throw new Error("Invalid Solana address format");
+    }
+
+    // Check sender has sufficient balance
+    const balance = await this.connection.getBalance(fromPubkey);
+    const lamportsToSend = Math.floor(amount * LAMPORTS_PER_SOL);
+    const estimatedFee = 5000; // ~0.000005 SOL
+
+    if (balance < lamportsToSend + estimatedFee) {
+      throw new Error(`Insufficient balance. Have: ${balance / LAMPORTS_PER_SOL} SOL, Need: ${(lamportsToSend + estimatedFee) / LAMPORTS_PER_SOL} SOL`);
+    }
+
+    // Get latest blockhash
+    const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash("confirmed");
+
+    // Build transaction
+    const transaction = new Transaction();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = fromPubkey;
+
+    // Add SOL transfer instruction
+    const transferIx = SystemProgram.transfer({
+      fromPubkey,
+      toPubkey,
+      lamports: lamportsToSend,
+    });
+    transaction.add(transferIx);
+
+    // Serialize transaction to base58 (unsigned)
+    const serializedTransaction = transaction.serialize({
+      requireAllSignatures: false,
+      verifySignatures: false,
+    });
+    const unsignedTransaction = bs58.encode(serializedTransaction);
+
+    return {
+      unsignedTransaction,
+      blockhash,
+      lastValidBlockHeight,
+      message: `Transfer ${amount} SOL from ${from.slice(0, 8)}... to ${to.slice(0, 8)}...`,
+    };
   }
 }
 

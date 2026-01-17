@@ -25,12 +25,46 @@ interface SolflareProvider {
   isConnected?: boolean;
 }
 
-// Helper to get Phantom provider
+// Helper to get Phantom provider with retry
 const getPhantomProvider = (): PhantomProvider | null => {
   if (typeof window === "undefined") return null;
-  const provider = (window as any).phantom?.solana || (window as any).solana;
-  if (provider?.isPhantom) return provider;
+  
+  // Try multiple paths where Phantom might be injected
+  const phantom = (window as any).phantom?.solana;
+  const solana = (window as any).solana;
+  
+  // Prefer phantom.solana if available
+  if (phantom?.isPhantom) return phantom;
+  // Fall back to window.solana (older injection method)
+  if (solana?.isPhantom) return solana;
+  
   return null;
+};
+
+// Wait for Phantom to be available (extension might load after page)
+const waitForPhantom = (timeout = 3000): Promise<PhantomProvider | null> => {
+  return new Promise((resolve) => {
+    const provider = getPhantomProvider();
+    if (provider) {
+      resolve(provider);
+      return;
+    }
+
+    // Check if we're in a browser that might have Phantom
+    const checkInterval = setInterval(() => {
+      const provider = getPhantomProvider();
+      if (provider) {
+        clearInterval(checkInterval);
+        resolve(provider);
+      }
+    }, 100);
+
+    // Timeout after specified duration
+    setTimeout(() => {
+      clearInterval(checkInterval);
+      resolve(getPhantomProvider());
+    }, timeout);
+  });
 };
 
 // Helper to get Solflare provider
@@ -153,12 +187,30 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         setFullWalletAddress(fullAddress || address);
         setIsConnected(true);
         setNetworkStatus("connected");
-        setEncryptedBalance("12,450.00");
+        setEncryptedBalance("Loading...");
         
         // Check if user has valid session
         if (authService.isAuthenticated()) {
           setIsAuthenticated(true);
         }
+        
+        // Fetch real balance on restore
+        const fetchBalance = async () => {
+          try {
+            const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+            const response = await fetch(`${API_URL}/api/solana/validate-address/${fullAddress || address}`);
+            const data = await response.json();
+            if (data.success) {
+              setEncryptedBalance(data.balance?.toFixed(4) || "0.00");
+            } else {
+              setEncryptedBalance("--");
+            }
+          } catch (error) {
+            console.error("Error fetching balance on restore:", error);
+            setEncryptedBalance("--");
+          }
+        };
+        fetchBalance();
       } catch (error) {
         console.error("Failed to restore wallet session:", error);
         localStorage.removeItem("void402_wallet");
@@ -231,9 +283,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       let publicKey: string | null = null;
 
       if (type === "phantom") {
-        const phantom = getPhantomProvider();
+        // Wait for Phantom to be available (extension might still be loading)
+        console.log("Looking for Phantom wallet...");
+        const phantom = await waitForPhantom(3000);
         
         if (phantom) {
+          console.log("Phantom found, requesting connection...");
           try {
             // Request connection - this will trigger the Phantom popup
             const response = await phantom.connect();
@@ -250,6 +305,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           }
         } else {
           // Phantom not installed - open install page
+          console.log("Phantom not found, opening install page");
           window.open("https://phantom.app/", "_blank");
           setIsConnecting(false);
           return;
@@ -294,7 +350,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         setFullWalletAddress(publicKey); // Store full address for transactions
         setIsConnected(true);
         setNetworkStatus("connected");
-        setEncryptedBalance("12,450.00");
+        setEncryptedBalance("Loading...");
         
         // Persist connection
         localStorage.setItem("void402_wallet", JSON.stringify({
@@ -302,6 +358,19 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           address: formattedAddress,
           fullAddress: publicKey
         }));
+        
+        // Fetch real balance after connection
+        try {
+          const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+          const response = await fetch(`${API_URL}/api/solana/validate-address/${publicKey}`);
+          const data = await response.json();
+          if (data.success) {
+            setEncryptedBalance(data.balance?.toFixed(4) || "0.00");
+          }
+        } catch (error) {
+          console.error("Error fetching initial balance:", error);
+          setEncryptedBalance("--");
+        }
       }
     } catch (error) {
       console.error("Failed to connect wallet:", error);
@@ -407,15 +476,31 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const refreshBalance = useCallback(async () => {
+    if (!fullWalletAddress) return;
+    
     setIsBalanceLoading(true);
     try {
-      // Simulate balance fetch - in production this would call Solana RPC
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setEncryptedBalance("12,450.00");
+      // Fetch real SOL balance from Solana RPC
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      
+      // Get SOL balance for fees
+      const validateResponse = await fetch(`${API_URL}/api/solana/validate-address/${fullWalletAddress}`);
+      const validateData = await validateResponse.json();
+      
+      if (validateData.success) {
+        // Display SOL balance (in SOL, not lamports)
+        const solBalance = validateData.balance || 0;
+        setEncryptedBalance(solBalance.toFixed(4));
+      } else {
+        setEncryptedBalance("0.00");
+      }
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+      setEncryptedBalance("--");
     } finally {
       setIsBalanceLoading(false);
     }
-  }, []);
+  }, [fullWalletAddress]);
 
   return (
     <WalletContext.Provider

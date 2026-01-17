@@ -122,6 +122,62 @@ router.post("/build-transfer-transaction", async (req: Request, res: Response) =
 });
 
 /**
+ * POST /api/solana/build-sol-transfer
+ * Build an unsigned simple SOL transfer transaction (for testing)
+ * 
+ * Request Body:
+ * {
+ *   "from": "sender_address",
+ *   "to": "recipient_address", 
+ *   "amount": 0.01 // in SOL
+ * }
+ * 
+ * Response:
+ * {
+ *   "success": true,
+ *   "unsignedTransaction": "base58_encoded_transaction",
+ *   "blockhash": "blockhash_string",
+ *   "lastValidBlockHeight": 12345,
+ *   "message": "Transfer description"
+ * }
+ */
+router.post("/build-sol-transfer", async (req: Request, res: Response) => {
+  try {
+    const { from, to, amount }: BuildTransferBody = req.body;
+
+    // Validate required fields
+    if (!from || !to || amount === undefined || amount === null) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields: from, to, amount",
+      });
+    }
+
+    // Validate amount
+    if (typeof amount !== "number" || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Amount must be a positive number",
+      });
+    }
+
+    // Build the unsigned SOL transfer transaction
+    const result = await transactionBuilderService.buildSolTransfer(from, to, amount);
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    console.error("Error building SOL transfer transaction:", error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to build transaction",
+    });
+  }
+});
+
+/**
  * POST /api/solana/build-payment-transaction
  * Build an unsigned x402 payment settlement transaction for client-side signing
  * 
