@@ -63,8 +63,25 @@ interface SubmitTransactionBody {
  *   "message": "Transfer description"
  * }
  */
-router.post("/build-transfer-transaction", requireInitialization, async (req: Request, res: Response) => {
+router.post("/build-transfer-transaction", async (req: Request, res: Response) => {
   try {
+    // Ensure service is initialized (create connection if needed)
+    try {
+      transactionBuilderService.getConnection();
+    } catch (serviceError) {
+      // Service not initialized - create basic connection
+      const solanaRpcUrl = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
+      const mintAddress = process.env.TOKEN_2022_MINT_ADDRESS || "";
+      if (mintAddress) {
+        await transactionBuilderService.initialize(solanaRpcUrl, mintAddress);
+      } else {
+        return res.status(503).json({
+          success: false,
+          error: "Token-2022 mint not configured. Please set TOKEN_2022_MINT_ADDRESS in environment variables.",
+        });
+      }
+    }
+
     const { from, to, amount, privacyLevel = "full" }: BuildTransferBody = req.body;
 
     // Validate required fields
