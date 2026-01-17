@@ -21,11 +21,17 @@ import clientSigningRoutes from "./routes/clientSigningRoutes.js";
 import solanaRoutes from "./routes/solanaRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import historyRoutes from "./routes/historyRoutes.js";
+import zkDepositRoutes from "./routes/zkDepositRoutes.js";
+import zkBalanceRoutes from "./routes/zkBalanceRoutes.js";
+import zkProofRoutes from "./routes/zkProofRoutes.js";
+import zkRelayerRoutes from "./routes/zkRelayerRoutes.js";
+import zkX402Routes from "./routes/zkX402Routes.js";
+import zkTransferRoutes from "./routes/zkTransferRoutes.js";
+import zkX402SettleRoutes from "./routes/zkX402SettleRoutes.js";
 
 // Services
-import { solanaTransactionService } from "./services/solanaTransactionService.js";
-import { solanaX402Service } from "./services/solanaX402Service.js";
 import { transactionHistoryService } from "./services/transactionHistoryService.js";
+// Note: solanaTransactionService and solanaX402Service removed - using ZK proof system instead
 
 // Middleware
 import {
@@ -204,6 +210,25 @@ app.use("/api/solana", clientSigningRoutes);
 // Transaction history routes (NEW)
 app.use("/api/history", historyRoutes);
 
+// ZK Deposit routes (NEW)
+app.use("/api/zk", zkDepositRoutes);
+
+// ZK Balance routes (NEW)
+app.use("/api/zk", zkBalanceRoutes);
+
+// ZK Transfer routes (NEW - Simplified)
+app.use("/api/zk", zkTransferRoutes);
+
+// ZK Proof routes (NEW)
+app.use("/api/zk-pay", zkProofRoutes);
+
+// ZK Relayer routes (NEW)
+app.use("/api/zk-pay", zkRelayerRoutes);
+
+// ZK x402 routes (NEW)
+app.use("/api/zk-x402", zkX402Routes);
+app.use("/api/zk-x402", zkX402SettleRoutes); // Simplified settle endpoint
+
 // Example protected endpoint
 app.get("/api/protected", async (req, res) => {
   res.json({
@@ -256,44 +281,18 @@ async function initializeServices(): Promise<void> {
       transactionHistoryService.initialize(connection);
       logger.info("✅ Transaction history service initialized");
 
-      // Token-2022 configuration
-      const mintAddress = process.env.TOKEN_2022_MINT_ADDRESS || "";
-      const facilitatorProgramId = process.env.FACILITATOR_PROGRAM_ID || "";
+      // Note: Token-2022 has been replaced with ZK proof system
+      // All privacy features now use ZK proofs via Nolvi Pay program
+      logger.info("✅ Using ZK proof system for privacy (Token-2022 removed)");
 
-      if (mintAddress && facilitatorProgramId) {
-        try {
-          // Initialize main transaction service (with timeout)
-          const initPromise = solanaTransactionService.initialize(
-            solanaRpcUrl,
-            mintAddress,
-            facilitatorProgramId
-          );
-          
-          // Add timeout to prevent hanging
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error("Transaction service initialization timeout")), 5000);
-          });
-          
-          await Promise.race([initPromise, timeoutPromise]);
-
-          // Initialize x402 payment service
-          await solanaX402Service.initialize(facilitatorProgramId, connection);
-
-          // Update history service with mint address
-          transactionHistoryService.initialize(connection, mintAddress);
-          
-          logger.info("✅ Token-2022 service initialized");
-          logger.info(`   Mint: ${mintAddress}`);
-          logger.info(`   Facilitator: ${facilitatorProgramId}`);
-        } catch (tokenError) {
-          logger.warn("⚠️  Token-2022 initialization failed, continuing with basic functionality:", tokenError);
-          // Continue without Token-2022 - basic SOL functionality still works
-        }
+      // Initialize Database Service (for security and persistence)
+      const { getDatabaseService } = await import("./services/databaseService.js");
+      const dbService = getDatabaseService();
+      if (dbService.isAvailable()) {
+        logger.info("✅ Database service initialized (Supabase) - Full security enabled");
       } else {
-        logger.warn("⚠️  Token-2022 configuration missing");
-        logger.warn("   Set TOKEN_2022_MINT_ADDRESS in .env");
-        logger.warn("   Set FACILITATOR_PROGRAM_ID in .env");
-        logger.info("   Continuing with basic SOL transaction support");
+        logger.warn("⚠️  Database service not available - using in-memory storage");
+        logger.warn("   Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env for production security");
       }
 
       // Mark as initialized even if Token-2022 init failed

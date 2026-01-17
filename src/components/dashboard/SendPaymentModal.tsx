@@ -13,11 +13,12 @@ import {
 import PrivacyLevelSelector from "./PrivacyLevelSelector";
 import { cn } from "@/lib/utils";
 import {
-  executeConfidentialTransfer,
   getPhantomProvider,
   getSolflareProvider,
   WalletAdapter,
 } from "@/services/transactionSigningService";
+import { executeZKTransfer } from "@/services/api";
+import { getApiUrl } from "@/utils/apiConfig";
 
 interface SendPaymentModalProps {
   open: boolean;
@@ -108,26 +109,61 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
     }
 
     try {
-      // Step 1: Signing - Wallet popup will appear
+      // Step 1: Sign message for authorization (Stripe-like UX)
       setStep("signing");
       
-      // Get backend URL from centralized config
-      const { getApiUrl } = await import("@/utils/apiConfig");
-      const backendUrl = getApiUrl();
+      // Create message to sign
+      const message = `Authorize Void402 transfer:\nAmount: ${amount} USDC\nTo: ${recipient}\nTimestamp: ${Date.now()}`;
       
-      // Execute the confidential transfer with client-side signing
-      // This will:
-      // 1. Build unsigned transaction on backend
-      // 2. Sign with wallet (popup appears)
-      // 3. Submit signed transaction to backend
-      // 4. Backend submits to Solana
-      const result = await executeConfidentialTransfer(
-        wallet,
+      // Sign message with wallet (Phantom/Solflare format)
+      let walletSignature: string;
+      try {
+        const encodedMessage = new TextEncoder().encode(message);
+        
+        if (walletType === "phantom") {
+          const provider = (window as any).phantom?.solana;
+          if (!provider) throw new Error("Phantom wallet not found");
+          
+          const signedMessage = await provider.signMessage(encodedMessage, "utf8");
+          if (!signedMessage || !signedMessage.signature) {
+            throw new Error("Failed to sign message");
+          }
+          // Convert Uint8Array to base58
+          const bs58 = (await import("bs58")).default;
+          walletSignature = bs58.encode(signedMessage.signature);
+        } else if (walletType === "solflare") {
+          const provider = (window as any).solflare;
+          if (!provider) throw new Error("Solflare wallet not found");
+          
+          const signedMessage = await provider.signMessage(encodedMessage, "utf8");
+          if (!signedMessage || !signedMessage.signature) {
+            throw new Error("Failed to sign message");
+          }
+          // Convert Uint8Array to base58
+          const bs58 = (await import("bs58")).default;
+          walletSignature = bs58.encode(signedMessage.signature);
+        } else {
+          throw new Error("Unsupported wallet type");
+        }
+      } catch (signError: any) {
+        if (signError.message?.includes("reject") || signError.message?.includes("User rejected") || signError.message?.includes("User cancelled")) {
+          setError("Transaction cancelled. You rejected the signature request.");
+          setStep("failed");
+          return;
+        }
+        throw signError;
+      }
+
+      // Step 2: Execute ZK transfer (backend handles proof generation and relayer)
+      setStep("encrypting");
+      const result = await executeZKTransfer({
+        sender_wallet: fullWalletAddress,
         recipient,
-        parseFloat(amount),
-        selectedPrivacy,
-        backendUrl
-      );
+        token: "USDC", // Default to USDC for now
+        amount: parseFloat(amount),
+        wallet_signature: walletSignature,
+        message_to_sign: message,
+      });
 
       // Check if wallet disconnected during transaction
       if (!wallet.connected || !wallet.publicKey) {
@@ -140,13 +176,9 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
         // Transaction succeeded!
         setTxHash(result.signature);
         
-        // Show encrypting step briefly for UX
-        setStep("encrypting");
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
         // Show pending step briefly
         setStep("pending");
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         setStep("success");
       } else {

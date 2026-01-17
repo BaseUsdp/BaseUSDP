@@ -4,8 +4,9 @@
  */
 
 import { Router } from "express";
-import { x402Service } from "../services/x402Service.js";
-import { encryptedTransactionService } from "../services/encryptedTransactionService.js";
+// Note: Old x402Service removed - using ZK x402 service instead
+// import { x402Service } from "../services/x402Service.js";
+import { getZKX402Service } from "../services/zkX402Service.js";
 
 const router = Router();
 
@@ -23,12 +24,18 @@ router.post("/create", async (req, res) => {
       });
     }
 
-    const paymentRequest = await x402Service.createPaymentRequest({
-      amount,
-      recipient,
-      serviceId,
-      metadata,
-    });
+    // Use ZK x402 service instead
+    const zkX402Service = getZKX402Service();
+    const paymentRequest = await zkX402Service.createPaymentRequest(
+      {
+        amount,
+        recipient,
+        serviceId,
+        token: "USDC", // Default to USDC
+        metadata,
+      },
+      req.body.wallet || "" // User wallet from request
+    );
 
     res.json({
       success: true,
@@ -56,7 +63,10 @@ router.post("/verify", async (req, res) => {
       });
     }
 
-    const isValid = await x402Service.verifyPayment(paymentId, encryptedAmount);
+    // Use ZK x402 service instead
+    const zkX402Service = getZKX402Service();
+    const verification = await zkX402Service.verifyPayment(paymentId);
+    const isValid = verification.verified;
 
     res.json({
       success: isValid,
@@ -84,13 +94,13 @@ router.post("/settle", async (req, res) => {
       });
     }
 
-    // Note: In production, signer would come from authenticated session
-    // For now, this is a placeholder
-    const result = await x402Service.settlePayment(
-      paymentId,
-      payerAddress,
-      null // signer would be passed here
-    );
+    // Note: This endpoint is deprecated - use ZK x402 settle endpoint instead
+    // Use /api/zk-x402/settle for ZK x402 payments
+    return res.json({
+      success: false,
+      error: "This endpoint is deprecated. Use ZK x402 system for payments.",
+      message: "Use /api/zk-x402/settle instead",
+    });
 
     res.json(result);
   } catch (error) {
@@ -108,7 +118,9 @@ router.post("/settle", async (req, res) => {
 router.get("/status/:paymentId", (req, res) => {
   try {
     const { paymentId } = req.params;
-    const payment = x402Service.getPaymentStatus(paymentId);
+    // Use ZK x402 service instead
+    const zkX402Service = getZKX402Service();
+    const payment = await zkX402Service.getPaymentStatus(paymentId);
 
     if (!payment) {
       return res.status(404).json({

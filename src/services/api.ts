@@ -435,5 +435,200 @@ export const getTransactionHistory = async (
   );
 };
 
+// ==========================================================================
+// ZK Deposit and Balance Endpoints
+// ==========================================================================
+
+export interface ZKDepositRequest {
+  wallet: string;
+  amount: number;
+  token: "SOL" | "USDC" | "USDT";
+}
+
+export interface ZKDepositResponse {
+  success: boolean;
+  depositId?: string;
+  transaction?: string; // Base64 encoded unsigned transaction
+  error?: string;
+}
+
+export interface ZKProcessDepositRequest {
+  depositId: string;
+  transactionSignature: string;
+  wallet: string;
+  amount: number;
+  token: "SOL" | "USDC" | "USDT";
+}
+
+export interface ZKProcessDepositResponse {
+  success: boolean;
+  depositId?: string;
+  intermediateWallet?: string;
+  zkProofNonce?: number;
+  splitParts?: Array<{ amount: number; swapSignature?: string }>;
+  error?: string;
+}
+
+export interface ZKBalanceResponse {
+  success: boolean;
+  wallet: string;
+  balances: {
+    sol: number;
+    usdc: number;
+    usdt: number;
+  };
+  error?: string;
+}
+
+/**
+ * Create ZK deposit transaction
+ */
+export const createZKDeposit = async (
+  params: ZKDepositRequest
+): Promise<ZKDepositResponse> => {
+  return api.request<ZKDepositResponse>("/api/zk/deposit", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+};
+
+/**
+ * Process ZK deposit after signing
+ */
+export const processZKDeposit = async (
+  params: ZKProcessDepositRequest
+): Promise<ZKProcessDepositResponse> => {
+  return api.request<ZKProcessDepositResponse>("/api/zk/deposit/process", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+};
+
+/**
+ * Get ZK balance (SOL, USDC, USDT)
+ */
+export const getZKBalance = async (
+  wallet: string
+): Promise<ZKBalanceResponse> => {
+  return api.request<ZKBalanceResponse>(`/api/zk/balance/${wallet}`);
+};
+
+// ==========================================================================
+// ZK x402 Payment Endpoints
+// ==========================================================================
+
+export interface ZKX402CreateRequest {
+  amount: number;
+  recipient: string;
+  service_id: string;
+  token: "SOL" | "USDC" | "USDT";
+  wallet: string;
+  metadata?: Record<string, any>;
+}
+
+export interface ZKX402CreateResponse {
+  success: boolean;
+  paymentId?: string;
+  paymentHash?: string;
+  nonce?: number;
+  status?: string;
+  error?: string;
+}
+
+export interface ZKX402SettleRequest {
+  paymentId: string;
+  wallet: string;
+  proof_bytes: string;
+  commitment_bytes: string;
+  blinding_factor_bytes: string;
+  wallet_signature?: string;
+  message_to_sign?: string;
+}
+
+export interface ZKX402SettleResponse {
+  success: boolean;
+  signature?: string;
+  paymentId?: string;
+  error?: string;
+}
+
+/**
+ * Create ZK x402 payment request
+ */
+export const createZKX402Payment = async (
+  params: ZKX402CreateRequest
+): Promise<ZKX402CreateResponse> => {
+  return api.request<ZKX402CreateResponse>("/api/zk-x402/create", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+};
+
+/**
+ * Settle ZK x402 payment (simplified - just sign message)
+ */
+export const settleZKX402PaymentSimple = async (
+  paymentId: string,
+  wallet: string,
+  walletSignature: string,
+  messageToSign: string
+): Promise<ZKX402SettleResponse> => {
+  return api.request<ZKX402SettleResponse>("/api/zk-x402/settle-simple", {
+    method: "POST",
+    body: JSON.stringify({
+      paymentId,
+      wallet,
+      wallet_signature: walletSignature,
+      message_to_sign: messageToSign,
+    }),
+  });
+};
+
+/**
+ * Settle ZK x402 payment (full - with proof data)
+ */
+export const settleZKX402Payment = async (
+  params: ZKX402SettleRequest
+): Promise<ZKX402SettleResponse> => {
+  return api.request<ZKX402SettleResponse>("/api/zk-x402/settle", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+};
+
+// ==========================================================================
+// ZK Transfer Endpoints (Simplified)
+// ==========================================================================
+
+export interface ZKTransferRequest {
+  sender_wallet: string;
+  recipient: string;
+  token: "SOL" | "USDC" | "USDT";
+  amount: number;
+  wallet_signature: string;
+  message_to_sign: string;
+}
+
+export interface ZKTransferResponse {
+  success: boolean;
+  signature?: string;
+  transfer_amount?: number;
+  proof_pda?: string;
+  nonce?: number;
+  error?: string;
+}
+
+/**
+ * Execute a private transfer using ZK proofs
+ */
+export const executeZKTransfer = async (
+  params: ZKTransferRequest
+): Promise<ZKTransferResponse> => {
+  return api.request<ZKTransferResponse>("/api/zk/transfer", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+};
+
 export default api;
 

@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Shield, Lock, TrendingUp, ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useWallet } from "@/contexts/WalletContext";
-import { getBalance } from "@/services/api";
+import { getZKBalance } from "@/services/api";
 
 interface BalanceDisplayProps {
   showBalance: boolean;
@@ -24,11 +24,13 @@ const BalanceDisplay = ({ showBalance }: BalanceDisplayProps) => {
 
     try {
       setIsDecrypting(true);
-      const result = await getBalance(fullWalletAddress);
+      const result = await getZKBalance(fullWalletAddress);
       
-      if (result.success) {
-        setTokenBalance(result.tokenBalance || 0);
-        setSolBalance(result.solBalance || 0);
+      if (result.success && result.balances) {
+        // Sum all token balances for total
+        const total = result.balances.sol + result.balances.usdc + result.balances.usdt;
+        setTokenBalance(result.balances.usdc + result.balances.usdt); // USDC + USDT
+        setSolBalance(result.balances.sol);
         setError(null);
       } else {
         setError(result.error || "Failed to fetch balance");

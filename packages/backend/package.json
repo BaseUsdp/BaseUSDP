@@ -8,7 +8,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test:integration": "tsx src/test/integration.test.ts"
+    "test:integration": "tsx src/test/integration.test.ts",
+    "fund-intermediate-wallets": "tsx scripts/fund-intermediate-wallets.ts"
   },
   "keywords": [
     "x402",
@@ -21,14 +22,17 @@
   "dependencies": {
     "@arcium-hq/client": "^0.5.4",
     "@coinbase/x402": "^2.1.0",
+    "@jup-ag/api": "^6.0.48",
     "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.98.4",
+    "@supabase/supabase-js": "^2.90.1",
     "bs58": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.0",
     "express": "^4.18.2",
     "fhenixjs": "^0.4.1",
+    "tweetnacl": "^1.0.3",
     "x402-express": "^1.1.0"
   },
   "devDependencies": {

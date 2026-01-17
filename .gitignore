@@ -8,11 +8,7 @@ packages/*/.env.*
 !.env.example
 
 # Documentation files (keep repo clean)
-*.md
-!README.md
-!REMAINING_TASKS.md
-!DEPLOYMENT_COMPLETE.md
-!GIT_STATUS.md
+# Only ignore PDFs, keep all .md files
 *.pdf
 
 # Dependencies

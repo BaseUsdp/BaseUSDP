@@ -6,11 +6,29 @@ import { Button } from "@/components/ui/button";
 import PrivacyLevelSelector from "./PrivacyLevelSelector";
 import { cn } from "@/lib/utils";
 import { getTransactionHistory } from "@/services/api";
+import DepositModal from "./DepositModal";
 
 interface EncryptedBalanceCardProps {
   showBalance: boolean;
   onToggleBalance: () => void;
 }
+
+const DepositButton = () => {
+  const [depositOpen, setDepositOpen] = useState(false);
+  
+  return (
+    <>
+      <Button 
+        className="flex-1 bg-primary hover:bg-primary/90 h-12"
+        onClick={() => setDepositOpen(true)}
+      >
+        <ArrowUpRight className="w-4 h-4 mr-2" />
+        Deposit
+      </Button>
+      <DepositModal open={depositOpen} onOpenChange={setDepositOpen} />
+    </>
+  );
+};
 
 const EncryptedBalanceCard = ({ showBalance, onToggleBalance }: EncryptedBalanceCardProps) => {
   const { encryptedBalance, isBalanceLoading, refreshBalance, privacyLevel, fullWalletAddress, isConnected } = useWallet();
@@ -196,10 +214,7 @@ const EncryptedBalanceCard = ({ showBalance, onToggleBalance }: EncryptedBalance
 
         {/* Action Buttons */}
         <div className="flex gap-3">
-          <Button className="flex-1 bg-primary hover:bg-primary/90 h-12">
-            <ArrowUpRight className="w-4 h-4 mr-2" />
-            Deposit
-          </Button>
+          <DepositButton />
           <Button variant="outline" className="flex-1 h-12">
             <ArrowDownLeft className="w-4 h-4 mr-2" />
             Withdraw

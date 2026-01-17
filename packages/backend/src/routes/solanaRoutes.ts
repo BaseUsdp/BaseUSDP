@@ -4,8 +4,9 @@
  */
 
 import { Router } from "express";
-import { solanaTransactionService } from "../services/solanaTransactionService.js";
-import { solanaX402Service } from "../services/solanaX402Service.js";
+// Note: Token-2022 services removed - using ZK proof system instead
+// import { solanaTransactionService } from "../services/solanaTransactionService.js";
+// import { solanaX402Service } from "../services/solanaX402Service.js";
 import { requireInitialization } from "../middleware/initializationGuard.js";
 
 const router = Router();
@@ -53,18 +54,13 @@ router.post("/encrypted-transfer", async (req, res) => {
       });
     }
 
-    // Note: In production, signer would come from authenticated session
-    const result = await solanaTransactionService.executeEncryptedTransfer(
-      {
-        from,
-        to,
-        amount,
-        privacyLevel: privacyLevel || "full",
-      },
-      {} as any // Placeholder - would be actual Keypair
-    );
-
-    res.json(result);
+    // Note: This endpoint is deprecated - use ZK proof system instead
+    // Use /api/zk-pay/upload-proof and /api/zk-pay/relayer/submit for private transfers
+    res.json({
+      success: false,
+      error: "This endpoint is deprecated. Use ZK proof system for private transfers.",
+      message: "Use /api/zk-pay/upload-proof and /api/zk-pay/relayer/submit instead",
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -90,26 +86,15 @@ router.get("/balance/:address", async (req, res) => {
       });
     }
 
-    // Try to get balance, but don't require full initialization
-    try {
-      const encryptedBalance = await solanaTransactionService.getEncryptedBalance(address);
-      return res.json({
-        success: true,
-        address,
-        encryptedBalance,
-      });
-    } catch (serviceError) {
-      // If service not initialized, return basic response
-      return res.json({
-        success: true,
-        address,
-        encryptedBalance: {
-          address: address,
-          encrypted: true,
-          note: "Service initializing - full balance unavailable",
-        },
-      });
-    }
+    // Note: This endpoint is deprecated - use ZK balance API instead
+    // Use /api/zk/balance/:wallet for ZK balances
+    return res.json({
+      success: true,
+      address,
+      note: "This endpoint is deprecated. Use /api/zk/balance/:wallet for ZK balances.",
+      solBalance: 0,
+      tokenBalance: 0,
+    });
   } catch (error) {
     res.status(500).json({
       success: false,

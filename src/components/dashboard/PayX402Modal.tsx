@@ -11,13 +11,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { getPaymentStatus } from "@/services/api";
+import { getPaymentStatus, settleZKX402PaymentSimple } from "@/services/api";
 import {
-  executePaymentSettlement,
   getPhantomProvider,
   getSolflareProvider,
   WalletAdapter,
 } from "@/services/transactionSigningService";
+import { useWallet } from "@/contexts/WalletContext";
 
 interface PayX402ModalProps {
   open: boolean;
@@ -36,7 +36,7 @@ interface PaymentDetails {
 }
 
 const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
-  const { isConnected, walletType } = useWallet();
+  const { isConnected, walletType, fullWalletAddress } = useWallet();
   const [paymentId, setPaymentId] = useState("");
   const [step, setStep] = useState<PaymentStep>("input");
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
@@ -133,23 +133,62 @@ const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
     try {
       setStep("signing");
       
-      // Get backend URL from centralized config
-      const { getApiUrl } = await import("@/utils/apiConfig");
-      const backendUrl = getApiUrl();
+      if (!fullWalletAddress) {
+        setError("Wallet address not available");
+        setStep("failed");
+        return;
+      }
+
+      // Create message to sign
+      const message = `Authorize Void402 x402 payment:\nPayment ID: ${paymentDetails.id}\nAmount: ${paymentDetails.amount} USDC\nTimestamp: ${Date.now()}`;
       
-      // Execute the payment settlement with client-side signing
-      const result = await executePaymentSettlement(
-        wallet,
+      // Sign message with wallet
+      let walletSignature: string;
+      try {
+        const encodedMessage = new TextEncoder().encode(message);
+        
+        if (walletType === "phantom") {
+          const provider = (window as any).phantom?.solana;
+          if (!provider) throw new Error("Phantom wallet not found");
+          
+          const signedMessage = await provider.signMessage(encodedMessage, "utf8");
+          if (!signedMessage || !signedMessage.signature) {
+            throw new Error("Failed to sign message");
+          }
+          const bs58 = (await import("bs58")).default;
+          walletSignature = bs58.encode(signedMessage.signature);
+        } else if (walletType === "solflare") {
+          const provider = (window as any).solflare;
+          if (!provider) throw new Error("Solflare wallet not found");
+          
+          const signedMessage = await provider.signMessage(encodedMessage, "utf8");
+          if (!signedMessage || !signedMessage.signature) {
+            throw new Error("Failed to sign message");
+          }
+          const bs58 = (await import("bs58")).default;
+          walletSignature = bs58.encode(signedMessage.signature);
+        } else {
+          throw new Error("Unsupported wallet type");
+        }
+      } catch (signError: any) {
+        if (signError.message?.includes("reject") || signError.message?.includes("User rejected") || signError.message?.includes("User cancelled")) {
+          setError("Payment cancelled. You rejected the signature request.");
+          setStep("failed");
+          return;
+        }
+        throw signError;
+      }
+
+      // Execute ZK x402 payment settlement
+      setStep("pending");
+      const result = await settleZKX402PaymentSimple(
         paymentDetails.id,
-        parseFloat(paymentDetails.amount),
-        backendUrl
+        fullWalletAddress,
+        walletSignature,
+        message
       );
 
       if (result.success && result.signature) {
-        setStep("pending");
-        // Brief delay for UX
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
         setTxHash(result.signature);
         setStep("success");
       } else {

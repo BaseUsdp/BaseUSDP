@@ -11,7 +11,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { createPaymentRequest } from "@/services/api";
+import { createZKX402Payment } from "@/services/api";
+import { useWallet } from "@/contexts/WalletContext";
 
 interface X402PaymentModalProps {
   open: boolean;
@@ -31,6 +32,7 @@ interface PaymentRequest {
 }
 
 const X402PaymentModal = ({ open, onOpenChange }: X402PaymentModalProps) => {
+  const { fullWalletAddress } = useWallet();
   const [serviceName, setServiceName] = useState("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -44,11 +46,17 @@ const X402PaymentModal = ({ open, onOpenChange }: X402PaymentModalProps) => {
     setStep("creating");
     
     try {
-      // Call the backend API to create the payment request
-      const result = await createPaymentRequest({
+      if (!fullWalletAddress) {
+        throw new Error("Wallet not connected");
+      }
+
+      // Call the ZK x402 API to create the payment request
+      const result = await createZKX402Payment({
         amount: parseFloat(amount),
-        recipient: "", // Will be set from authenticated user on backend
-        serviceId: serviceName.toLowerCase().replace(/\s+/g, "-"),
+        recipient: fullWalletAddress, // Recipient is the creator (they'll receive payment)
+        service_id: serviceName.toLowerCase().replace(/\s+/g, "-"),
+        token: "USDC", // Default to USDC
+        wallet: fullWalletAddress,
         metadata: {
           serviceName,
           description,
@@ -57,15 +65,15 @@ const X402PaymentModal = ({ open, onOpenChange }: X402PaymentModalProps) => {
 
       let request: PaymentRequest;
       
-      if (result.success && result.payment) {
+      if (result.success && result.paymentId) {
         request = {
-          id: result.payment.paymentId,
+          id: result.paymentId,
           amount,
           serviceName,
           description,
-          status: result.payment.status as "pending" | "settled" | "failed",
+          status: (result.status || "pending") as "pending" | "settled" | "failed",
           createdAt: new Date().toISOString(),
-          paymentLink: `https://void402.app/pay/${result.payment.paymentId}`,
+          paymentLink: `https://void402.app/pay/${result.paymentId}`,
         };
       } else {
         console.error("Failed to create payment:", result.error);
