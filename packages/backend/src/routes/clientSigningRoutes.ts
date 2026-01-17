@@ -18,6 +18,7 @@ import {
   TransactionSubmitRequest,
 } from "../services/transactionBuilderService.js";
 import { solanaX402Service } from "../services/solanaX402Service.js";
+import { requireInitialization } from "../middleware/initializationGuard.js";
 
 const router = Router();
 
