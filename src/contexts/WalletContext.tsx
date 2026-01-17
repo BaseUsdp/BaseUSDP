@@ -108,13 +108,48 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (authService.isAuthenticated()) {
         setIsAuthenticated(true);
       }
-      
-      // Fetch balance for persisted wallet
-      setTimeout(() => {
-        refreshBalance();
-      }, 500);
     }
-  }, [refreshBalance]);
+  }, []); // Only run once on mount
+
+  // Fetch balance when wallet is connected
+  useEffect(() => {
+    if (!isConnected || !fullWalletAddress) {
+      setEncryptedBalance("0");
+      return;
+    }
+
+    const fetchBalance = async () => {
+      setIsBalanceLoading(true);
+      try {
+        const result = await getBalance(fullWalletAddress);
+        
+        if (result.success) {
+          const tokenBalance = result.tokenBalance || 0;
+          const solBalance = result.solBalance || 0;
+          const totalBalance = tokenBalance + solBalance;
+          
+          const formattedBalance = totalBalance.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
+          
+          setEncryptedBalance(formattedBalance);
+        } else {
+          console.error("Failed to fetch balance:", result.error);
+          setEncryptedBalance("0");
+        }
+      } catch (error) {
+        console.error("Error fetching balance:", error);
+        setEncryptedBalance("0");
+      } finally {
+        setIsBalanceLoading(false);
+      }
+    };
+
+    // Small delay to ensure state is set
+    const timer = setTimeout(fetchBalance, 300);
+    return () => clearTimeout(timer);
+  }, [isConnected, fullWalletAddress]);
 
   const connect = useCallback(async (type: WalletType) => {
     setIsConnecting(true);
