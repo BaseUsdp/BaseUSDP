@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Icon } from "@iconify/react";
 import { useWallet } from "@/contexts/WalletContext";
@@ -11,6 +11,8 @@ import PayX402Modal from "./PayX402Modal";
 import PrivacyLevelSelector from "./PrivacyLevelSelector";
 import SettingsSection from "./sections/SettingsSection";
 import PaymentsSection from "./sections/PaymentsSection";
+import { getTransactionHistory, TransactionHistoryResponse } from "@/services/api";
+import { useTransactionStats } from "@/hooks/useTransactionStats";
 
 interface DashboardMainContentProps {
   activeTab: string;
@@ -20,18 +22,108 @@ interface DashboardMainContentProps {
 }
 
 const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBalance }: DashboardMainContentProps) => {
-  const { encryptedBalance, privacyLevel, refreshBalance, isBalanceLoading } = useWallet();
+  const { encryptedBalance, privacyLevel, refreshBalance, isBalanceLoading, fullWalletAddress, isConnected } = useWallet();
+  const { stats, isLoading: isLoadingStats } = useTransactionStats();
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [receiveModalOpen, setReceiveModalOpen] = useState(false);
   const [x402ModalOpen, setX402ModalOpen] = useState(false);
   const [payX402ModalOpen, setPayX402ModalOpen] = useState(false);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
 
-  const recentTransactions = [
-    { type: "received", from: "7xKq...9mPw", amount: "+$1,200.00", time: "Today, 2:34 PM", icon: "ph:arrow-down-left-bold", color: "text-emerald-400", bgColor: "bg-emerald-500/20" },
-    { type: "sent", to: "3nFv...8kLz", amount: "-$500.00", time: "Yesterday, 6:12 PM", icon: "ph:arrow-up-right-bold", color: "text-red-400", bgColor: "bg-red-500/20" },
-    { type: "x402", from: "API Service", amount: "+$50.00", time: "Jan 10, 9:00 AM", icon: "ph:download-bold", color: "text-purple-400", bgColor: "bg-purple-500/20" },
-    { type: "yield", from: "Yield Vault", amount: "+$25.00", time: "Jan 8, 12:00 PM", icon: "ph:trend-up-bold", color: "text-sky-400", bgColor: "bg-sky-500/20" },
-  ];
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      if (!isConnected || !fullWalletAddress) {
+        setIsLoadingTransactions(false);
+        return;
+      }
+
+      try {
+        setIsLoadingTransactions(true);
+        const result = await getTransactionHistory(fullWalletAddress, 5);
+        if (result && result.success) {
+          // Convert API transactions to UI format
+          const converted = result.transactions.map(tx => {
+            const direction = tx.from === fullWalletAddress ? "sent" : "received";
+            const counterparty = direction === "sent" ? tx.to : tx.from;
+            const amount = tx.amount || 0;
+            
+            // Format date
+            const date = new Date(tx.timestamp);
+            const now = new Date();
+            const diffMs = now.getTime() - date.getTime();
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            let timeStr = "";
+            if (diffMins < 1) timeStr = "Just now";
+            else if (diffMins < 60) timeStr = `${diffMins}m ago`;
+            else if (diffHours < 24) {
+              const hours = date.getHours();
+              const mins = date.getMinutes();
+              const ampm = hours >= 12 ? "PM" : "AM";
+              const displayHours = hours % 12 || 12;
+              timeStr = `Today, ${displayHours}:${mins.toString().padStart(2, "0")} ${ampm}`;
+            } else if (diffDays === 1) timeStr = "Yesterday, " + date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+            else timeStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+            // Format address
+            const formatAddress = (addr?: string) => {
+              if (!addr) return "Unknown";
+              if (addr.length <= 8) return addr;
+              return `${addr.slice(0, 4)}...${addr.slice(-4)}`;
+            };
+
+            // Determine type and icon
+            let type = "transfer";
+            let icon = "ph:arrow-down-left-bold";
+            let color = "text-emerald-400";
+            let bgColor = "bg-emerald-500/20";
+
+            if (tx.type === "payment") {
+              type = "x402";
+              icon = "ph:download-bold";
+              color = "text-purple-400";
+              bgColor = "bg-purple-500/20";
+            } else if (tx.type === "deposit") {
+              type = "yield";
+              icon = "ph:trend-up-bold";
+              color = "text-sky-400";
+              bgColor = "bg-sky-500/20";
+            } else if (direction === "sent") {
+              icon = "ph:arrow-up-right-bold";
+              color = "text-red-400";
+              bgColor = "bg-red-500/20";
+            }
+
+            return {
+              type,
+              direction,
+              from: direction === "received" ? formatAddress(counterparty) : undefined,
+              to: direction === "sent" ? formatAddress(counterparty) : undefined,
+              amount: `${direction === "sent" ? "-" : "+"}$${Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+              time: timeStr,
+              icon,
+              color,
+              bgColor,
+            };
+          });
+          setRecentTransactions(converted);
+        }
+      } catch (err) {
+        console.error("Error fetching recent transactions:", err);
+        setRecentTransactions([]);
+      } finally {
+        setIsLoadingTransactions(false);
+      }
+    };
+
+    fetchTransactions();
+    // Refresh every 60 seconds
+    const interval = setInterval(fetchTransactions, 60000);
+    return () => clearInterval(interval);
+  }, [fullWalletAddress, isConnected]);
 
   if (activeTab === "settings") {
     return (
@@ -132,14 +224,22 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
                 <Icon icon="ph:arrow-down-left-bold" className="w-4 h-4 text-emerald-400" />
                 <span className="text-xs text-neutral-400">Received</span>
               </div>
-              <p className="text-lg font-semibold">{showBalance ? "$5,200" : "••••"}</p>
+              <p className="text-lg font-semibold">
+                {showBalance 
+                  ? (isLoadingStats ? "..." : `$${stats.received.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+                  : "••••"}
+              </p>
             </div>
             <div className="rounded-lg bg-white/5 p-3">
               <div className="flex items-center gap-2 mb-1">
                 <Icon icon="ph:arrow-up-right-bold" className="w-4 h-4 text-red-400" />
                 <span className="text-xs text-neutral-400">Sent</span>
               </div>
-              <p className="text-lg font-semibold">{showBalance ? "$2,450" : "••••"}</p>
+              <p className="text-lg font-semibold">
+                {showBalance 
+                  ? (isLoadingStats ? "..." : `$${stats.sent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+                  : "••••"}
+              </p>
             </div>
           </div>
 
@@ -224,33 +324,41 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
             </button>
           </div>
           <div className="space-y-2">
-            {recentTransactions.map((tx, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.25 + i * 0.05 }}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors"
-              >
-                <div className={cn("w-8 h-8 rounded-lg grid place-items-center", tx.bgColor)}>
-                  <Icon icon={tx.icon} className={cn("w-4 h-4", tx.color)} />
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm text-neutral-300">
-                    {tx.type === "sent" ? `Sent to ${tx.to}` : 
-                     tx.type === "received" ? `Received from ${tx.from}` :
-                     tx.type === "x402" ? `x402 from ${tx.from}` : `Yield from ${tx.from}`}
+            {isLoadingTransactions ? (
+              <div className="flex items-center justify-center py-4">
+                <Icon icon="ph:spinner-bold" className="w-5 h-5 text-neutral-400 animate-spin" />
+              </div>
+            ) : recentTransactions.length === 0 ? (
+              <div className="text-center py-4 text-sm text-neutral-500">No transactions yet</div>
+            ) : (
+              recentTransactions.map((tx, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.25 + i * 0.05 }}
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <div className={cn("w-8 h-8 rounded-lg grid place-items-center", tx.bgColor)}>
+                    <Icon icon={tx.icon} className={cn("w-4 h-4", tx.color)} />
                   </div>
-                  <div className="text-[11px] text-neutral-500">{tx.time}</div>
-                </div>
-                <div className={cn(
-                  "text-sm font-medium",
-                  tx.amount.startsWith("+") ? "text-emerald-400" : "text-red-400"
-                )}>
-                  {showBalance ? tx.amount : "••••"}
-                </div>
-              </motion.div>
-            ))}
+                  <div className="flex-1">
+                    <div className="text-sm text-neutral-300">
+                      {tx.type === "sent" ? `Sent to ${tx.to}` : 
+                       tx.type === "received" ? `Received from ${tx.from}` :
+                       tx.type === "x402" ? `x402 from ${tx.from || "Service"}` : `Yield from ${tx.from || "Vault"}`}
+                    </div>
+                    <div className="text-[11px] text-neutral-500">{tx.time}</div>
+                  </div>
+                  <div className={cn(
+                    "text-sm font-medium",
+                    tx.amount.startsWith("+") ? "text-emerald-400" : "text-red-400"
+                  )}>
+                    {showBalance ? tx.amount : "••••"}
+                  </div>
+                </motion.div>
+              ))
+            )}
           </div>
         </motion.div>
       </div>
