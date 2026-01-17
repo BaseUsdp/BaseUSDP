@@ -27,7 +27,7 @@ interface SendPaymentModalProps {
 type TransactionStep = "form" | "preview" | "signing" | "encrypting" | "pending" | "success" | "failed";
 
 const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
-  const { encryptedBalance, privacyLevel, walletType } = useWallet();
+  const { encryptedBalance, privacyLevel, walletType, isConnected, fullWalletAddress } = useWallet();
   
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
@@ -38,13 +38,33 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
 
   // Get the appropriate wallet provider based on connected wallet type
   const getWalletProvider = useCallback((): WalletAdapter | null => {
+    if (!isConnected || !walletType) {
+      return null;
+    }
+    
     if (walletType === "phantom") {
-      return getPhantomProvider();
+      const provider = getPhantomProvider();
+      // Ensure provider has required interface
+      if (provider && provider.publicKey) {
+        return {
+          ...provider,
+          connected: true,
+          publicKey: provider.publicKey,
+        } as WalletAdapter;
+      }
     } else if (walletType === "solflare") {
-      return getSolflareProvider();
+      const provider = getSolflareProvider();
+      // Ensure provider has required interface
+      if (provider && provider.publicKey) {
+        return {
+          ...provider,
+          connected: true,
+          publicKey: provider.publicKey,
+        } as WalletAdapter;
+      }
     }
     return null;
-  }, [walletType]);
+  }, [walletType, isConnected]);
 
   // Validate Solana address (base58 format, 32-44 characters)
   const isValidAddress = (address: string) => {
@@ -71,10 +91,17 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
   };
 
   const handleConfirm = async () => {
+    // Check wallet connection from context first
+    if (!isConnected || !fullWalletAddress || !walletType) {
+      setError("Wallet not connected. Please connect your wallet first.");
+      setStep("failed");
+      return;
+    }
+
     // Get the wallet provider
     const wallet = getWalletProvider();
     
-    if (!wallet || !wallet.connected || !wallet.publicKey) {
+    if (!wallet || !wallet.publicKey) {
       setError("Wallet not connected. Please connect your wallet first.");
       setStep("failed");
       return;
@@ -219,7 +246,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
                 </label>
                 <div className="relative">
                   <Input
-                    placeholder="0x... or name.eth"
+                    placeholder="Enter Solana address (e.g., BkQiVanfqtvyieDEJQxgxFNEzHftAHoBUr4nagro8Dqf)"
                     value={recipient}
                     onChange={(e) => setRecipient(e.target.value)}
                     className="bg-secondary border-border h-12 pr-12"
@@ -279,9 +306,13 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
               className="space-y-5"
             >
               <div className="rounded-xl bg-secondary p-4 space-y-4">
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Recipient</span>
-                  <span className="font-mono text-sm">{recipient}</span>
+                  <span className="font-mono text-sm">
+                    {recipient.length > 20 
+                      ? `${recipient.slice(0, 6)}...${recipient.slice(-6)}`
+                      : recipient}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Amount</span>

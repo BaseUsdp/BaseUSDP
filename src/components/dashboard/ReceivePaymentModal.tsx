@@ -91,8 +91,10 @@ const ReceivePaymentModal = ({ open, onOpenChange }: ReceivePaymentModalProps) =
           ) : (
             <div className="rounded-xl bg-secondary p-4">
               <p className="text-xs text-muted-foreground text-center mb-2">Your Address</p>
-              <p className="font-mono text-sm text-center break-all">
-                {fullAddress}
+              <p className="font-mono text-sm text-center">
+                {fullAddress.length > 20 
+                  ? `${fullAddress.slice(0, 6)}...${fullAddress.slice(-6)}`
+                  : fullAddress}
               </p>
             </div>
           )}
