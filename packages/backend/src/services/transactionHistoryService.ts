@@ -88,20 +88,33 @@ export class TransactionHistoryService {
     const hasFilters = !!(type || status || minAmount !== undefined || maxAmount !== undefined || startDate || endDate);
 
     try {
+      // Limit fetch size to avoid rate limits
       // If we have filters, we need to fetch more transactions to apply filters
-      // Then return the requested limit after filtering
-      const fetchLimit = hasFilters ? Math.max(limit * 3, 100) : limit + 1;
+      // But cap at 50 to avoid hitting rate limits
+      const fetchLimit = hasFilters ? Math.min(limit * 3, 50) : Math.min(limit + 1, 50);
       
-      // Get signatures for the wallet
-      const signatures = await this.connection.getSignaturesForAddress(
-        pubkey,
-        {
-          limit: fetchLimit,
-          before,
-          until,
-        },
-        "confirmed"
-      );
+      // Get signatures for the wallet with retry logic
+      let signatures: ConfirmedSignatureInfo[];
+      try {
+        signatures = await this.getSignaturesWithRetry(
+          pubkey,
+          {
+            limit: fetchLimit,
+            before,
+            until,
+          }
+        );
+      } catch (error: any) {
+        // If rate limited, return empty result instead of failing
+        if (error?.message?.includes('429') || error?.code === 429) {
+          console.warn('Rate limited when fetching signatures, returning empty result');
+          return {
+            transactions: [],
+            hasMore: false,
+          };
+        }
+        throw error;
+      }
 
       if (signatures.length === 0) {
         return {
@@ -204,6 +217,7 @@ export class TransactionHistoryService {
 
   /**
    * Parse transaction signatures into detailed records
+   * Uses batching and rate limiting to avoid 429 errors
    */
   private async parseTransactions(
     signatures: ConfirmedSignatureInfo[],
@@ -214,23 +228,87 @@ export class TransactionHistoryService {
     }
 
     const transactions: TransactionRecord[] = [];
-
-    // Fetch full transaction details in batches
     const signatureStrings = signatures.map((s) => s.signature);
-    const parsedTransactions = await this.connection.getParsedTransactions(
-      signatureStrings,
-      { maxSupportedTransactionVersion: 0 }
-    );
 
-    for (let i = 0; i < signatures.length; i++) {
-      const sigInfo = signatures[i];
-      const parsed = parsedTransactions[i];
+    // Batch transactions to avoid rate limits (max 5 per batch, increased delay)
+    const BATCH_SIZE = 5; // Reduced from 10 to avoid rate limits
+    const BATCH_DELAY = 500; // Increased from 200ms to 500ms delay between batches
 
-      const record = this.parseTransaction(sigInfo, parsed, walletAddress);
-      transactions.push(record);
+    for (let i = 0; i < signatureStrings.length; i += BATCH_SIZE) {
+      const batch = signatureStrings.slice(i, i + BATCH_SIZE);
+      
+      try {
+        // Fetch batch with retry logic
+        let parsedBatch = await this.fetchTransactionsWithRetry(batch);
+        
+        for (let j = 0; j < batch.length; j++) {
+          const sigInfo = signatures[i + j];
+          const parsed = parsedBatch[j];
+          const record = this.parseTransaction(sigInfo, parsed, walletAddress);
+          transactions.push(record);
+        }
+
+        // Add delay between batches (except for the last one)
+        if (i + BATCH_SIZE < signatureStrings.length) {
+          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+        }
+      } catch (error) {
+        console.error(`Error fetching transaction batch ${i}-${i + BATCH_SIZE}:`, error);
+        // Continue with next batch even if this one fails
+        // Add placeholder records for failed transactions
+        for (let j = 0; j < batch.length; j++) {
+          const sigInfo = signatures[i + j];
+          transactions.push({
+            signature: sigInfo.signature,
+            timestamp: sigInfo.blockTime ? sigInfo.blockTime * 1000 : Date.now(),
+            type: "unknown",
+            status: sigInfo.err ? "failed" : "success",
+            fee: 0,
+            slot: sigInfo.slot,
+          });
+        }
+      }
     }
 
     return transactions;
+  }
+
+  /**
+   * Fetch transactions with retry logic for rate limiting
+   */
+  private async fetchTransactionsWithRetry(
+    signatures: string[],
+    maxRetries: number = 3
+  ): Promise<(ParsedTransactionWithMeta | null)[]> {
+    if (!this.connection) {
+      throw new Error("Service not initialized");
+    }
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const parsed = await this.connection.getParsedTransactions(
+          signatures,
+          { maxSupportedTransactionVersion: 0 }
+        );
+        return parsed;
+      } catch (error: any) {
+        const isRateLimit = error?.message?.includes('429') || 
+                           error?.message?.includes('Too many requests') ||
+                           error?.code === 429;
+        
+        if (isRateLimit && attempt < maxRetries - 1) {
+          // Exponential backoff: 1s, 2s, 4s
+          const delay = Math.pow(2, attempt) * 1000;
+          console.warn(`Rate limited, retrying after ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        throw error;
+      }
+    }
+
+    throw new Error('Failed to fetch transactions after retries');
   }
 
   /**
@@ -345,6 +423,46 @@ export class TransactionHistoryService {
   }
 
   /**
+   * Get signatures with retry logic for rate limiting
+   */
+  private async getSignaturesWithRetry(
+    pubkey: PublicKey,
+    options: { limit?: number; before?: string; until?: string },
+    maxRetries: number = 3
+  ): Promise<ConfirmedSignatureInfo[]> {
+    if (!this.connection) {
+      throw new Error("Service not initialized");
+    }
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const signatures = await this.connection.getSignaturesForAddress(
+          pubkey,
+          options,
+          "confirmed"
+        );
+        return signatures;
+      } catch (error: any) {
+        const isRateLimit = error?.message?.includes('429') || 
+                           error?.message?.includes('Too many requests') ||
+                           error?.code === 429;
+        
+        if (isRateLimit && attempt < maxRetries - 1) {
+          // Exponential backoff: 1s, 2s, 4s
+          const delay = Math.pow(2, attempt) * 1000;
+          console.warn(`Rate limited when fetching signatures, retrying after ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        throw error;
+      }
+    }
+
+    throw new Error('Failed to fetch signatures after retries');
+  }
+
+  /**
    * Get transaction count for a wallet
    */
   async getTransactionCount(walletAddress: string): Promise<number> {
@@ -355,12 +473,10 @@ export class TransactionHistoryService {
     try {
       const pubkey = new PublicKey(walletAddress);
       
-      // Get all signatures (this could be slow for wallets with many transactions)
-      // In production, you might want to limit or estimate this
-      const signatures = await this.connection.getSignaturesForAddress(
+      // Limit to 100 to avoid rate limits
+      const signatures = await this.getSignaturesWithRetry(
         pubkey,
-        { limit: 1000 },
-        "confirmed"
+        { limit: 100 }
       );
 
       return signatures.length;

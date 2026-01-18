@@ -184,13 +184,14 @@ router.post("/build-payment-transaction", requireInitialization, async (req: Req
 
     // Get payment request to retrieve recipient address (using ZK x402 service)
     const zkX402Service = getZKX402Service();
-    const paymentRequest = await zkX402Service.getPaymentStatus(paymentId);
-    if (!paymentRequest || !paymentRequest.success) {
+    const paymentRequestResult = await zkX402Service.getPaymentStatus(paymentId);
+    if (!paymentRequestResult || !paymentRequestResult.success || !paymentRequestResult.payment) {
       return res.status(404).json({
         success: false,
         error: "Payment request not found",
       });
     }
+    const paymentRequest = paymentRequestResult.payment;
 
     // Payment must be pending
     if (paymentRequest.status !== "pending") {
@@ -285,13 +286,14 @@ router.post("/submit-transaction", requireInitialization, async (req: Request, r
       }
 
       const zkX402Service = getZKX402Service();
-      const payment = await zkX402Service.getPaymentStatus(paymentId);
-      if (!payment || !payment.success) {
+      const paymentResult = await zkX402Service.getPaymentStatus(paymentId);
+      if (!paymentResult || !paymentResult.success || !paymentResult.payment) {
         return res.status(404).json({
           success: false,
           error: "Payment request not found",
         });
       }
+      const payment = paymentResult.payment;
 
       if (payment.status !== "pending") {
         return res.status(400).json({

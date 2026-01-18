@@ -96,6 +96,13 @@ router.post('/transfer', generalRateLimiter, async (req: Request, res: Response)
       });
     }
 
+    if (!balance.balances) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to retrieve balance',
+      });
+    }
+
     const tokenBalance = token === 'SOL' ? balance.balances.sol :
                         token === 'USDC' ? balance.balances.usdc :
                         balance.balances.usdt;

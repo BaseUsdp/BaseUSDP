@@ -101,8 +101,6 @@ router.post("/settle", async (req, res) => {
       error: "This endpoint is deprecated. Use ZK x402 system for payments.",
       message: "Use /api/zk-x402/settle instead",
     });
-
-    res.json(result);
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -115,12 +113,20 @@ router.post("/settle", async (req, res) => {
  * GET /api/payments/status/:paymentId
  * Get payment status
  */
-router.get("/status/:paymentId", (req, res) => {
+router.get("/status/:paymentId", async (req, res) => {
   try {
     const { paymentId } = req.params;
     // Use ZK x402 service instead
     const zkX402Service = getZKX402Service();
-    const payment = await zkX402Service.getPaymentStatus(paymentId);
+    const paymentResult = await zkX402Service.getPaymentStatus(paymentId);
+    
+    if (!paymentResult.success || !paymentResult.payment) {
+      return res.status(404).json({
+        success: false,
+        error: paymentResult.error || 'Payment not found',
+      });
+    }
+    const payment = paymentResult.payment;
 
     if (!payment) {
       return res.status(404).json({

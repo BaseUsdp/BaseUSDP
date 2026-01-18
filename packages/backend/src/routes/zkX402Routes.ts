@@ -128,14 +128,16 @@ router.get('/status/:paymentId', generalRateLimiter, async (req: Request, res: R
   try {
     const { paymentId } = req.params;
 
-    const payment = await x402Service.getPaymentStatus(paymentId);
+    const paymentResult = await x402Service.getPaymentStatus(paymentId);
 
-    if (!payment) {
+    if (!paymentResult.success || !paymentResult.payment) {
       return res.status(404).json({
         success: false,
-        error: 'Payment not found',
+        error: paymentResult.error || 'Payment not found',
       });
     }
+    
+    const payment = paymentResult.payment;
 
     // Verify payment if it's pending
     if (payment.status === 'pending') {
@@ -152,6 +154,9 @@ router.get('/status/:paymentId', generalRateLimiter, async (req: Request, res: R
       nonce: payment.nonce,
       proofPDA: payment.proofPDA,
       status: payment.status,
+      recipient: payment.recipient,
+      amount: payment.amount,
+      token: payment.token,
     });
   } catch (error) {
     res.status(500).json({

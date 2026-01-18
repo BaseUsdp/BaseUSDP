@@ -22,6 +22,9 @@ export interface ZKX402PaymentResponse {
   paymentId: string;
   paymentHash: string;
   nonce: number;
+  recipient: string;
+  amount: number;
+  token: 'SOL' | 'USDC' | 'USDT';
   proofPDA?: string;
   status: 'pending' | 'settled' | 'failed';
 }
@@ -284,7 +287,7 @@ export class ZKX402Service {
   /**
    * Get payment status
    */
-  async getPaymentStatus(paymentId: string): Promise<ZKX402PaymentResponse | null> {
+  async getPaymentStatus(paymentId: string): Promise<{ success: boolean; payment?: ZKX402PaymentResponse; error?: string }> {
     // Try database first, then memory
     const { getDatabaseService } = await import('./databaseService.js');
     const dbService = getDatabaseService();
@@ -293,20 +296,28 @@ export class ZKX402Service {
       const dbPayment = await dbService.getPaymentRequest(paymentId);
       if (dbPayment) {
         return {
-          paymentId: dbPayment.payment_id,
-          paymentHash: dbPayment.payment_hash,
-          nonce: dbPayment.nonce,
-          recipient: dbPayment.recipient,
-          amount: dbPayment.amount,
-          token: dbPayment.token,
-          status: dbPayment.status,
-          proofPDA: dbPayment.proof_pda,
+          success: true,
+          payment: {
+            paymentId: dbPayment.payment_id,
+            paymentHash: dbPayment.payment_hash,
+            nonce: dbPayment.nonce,
+            recipient: dbPayment.recipient || '',
+            amount: dbPayment.amount || 0,
+            token: (dbPayment.token as 'SOL' | 'USDC' | 'USDT') || 'USDC',
+            status: dbPayment.status as 'pending' | 'settled' | 'failed',
+            proofPDA: dbPayment.proof_pda || undefined,
+          },
         };
       }
     }
     
     // Fallback to memory
-    return this.paymentRequests.get(paymentId) || null;
+    const memoryPayment = this.paymentRequests.get(paymentId);
+    if (memoryPayment) {
+      return { success: true, payment: memoryPayment };
+    }
+    
+    return { success: false, error: 'Payment request not found' };
   }
 
   /**

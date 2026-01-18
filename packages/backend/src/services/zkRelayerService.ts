@@ -276,7 +276,32 @@ export class ZKRelayerService {
 
       // Derive PDAs
       const tokenMint = new PublicKey(proofData.tokenMint);
-      const recipientWallet = new PublicKey(request.recipient);
+      
+      // PRIVACY FIX: Look up recipient's intermediate wallet from database
+      // If recipient hasn't deposited yet, we'll send to their main wallet
+      // (they'll need to deposit to see it in their encrypted balance)
+      let recipientWallet: PublicKey;
+      let recipientIntermediateWallet: string | null = null;
+      
+      // Determine token from proof data
+      const recipientToken = proofData.tokenMint === WSOL_MINT.toBase58() ? 'SOL' : 
+                            proofData.tokenMint === USDC_MINT.toBase58() ? 'USDC' : 'USDT';
+      
+      // Try to find recipient's intermediate wallet (reuse dbService from above)
+      if (dbService.isAvailable()) {
+        recipientIntermediateWallet = await dbService.getUserIntermediateWallet(request.recipient, recipientToken);
+      }
+      
+      // Use intermediate wallet if found, otherwise use main wallet
+      // Note: If using main wallet, recipient won't see it in encrypted balance until they deposit
+      if (recipientIntermediateWallet) {
+        recipientWallet = new PublicKey(recipientIntermediateWallet);
+      } else {
+        // Recipient hasn't deposited yet - send to main wallet
+        // They'll need to deposit to see it in their encrypted balance
+        recipientWallet = new PublicKey(request.recipient);
+      }
+      
       const senderBalancePDA = await deriveUserBalancePDA(proofSender, proofData.tokenMint);
       const poolPDA = await derivePoolPDA(proofData.tokenMint);
       const proofPDA = await deriveProofPDA(request.nonce);
@@ -360,8 +385,8 @@ export class ZKRelayerService {
       await this.connection.confirmTransaction(signature, 'confirmed');
 
       // SECURITY: Mark proof as used in database (prevent replay attacks)
-      const { getDatabaseService } = await import('./databaseService.js');
-      const dbService = getDatabaseService();
+      const dbServiceModule2 = await import('./databaseService.js');
+      const dbService2 = dbServiceModule2.getDatabaseService();
       
       if (dbService.isAvailable()) {
         await dbService.markProofUsed(

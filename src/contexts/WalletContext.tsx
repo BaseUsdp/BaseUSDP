@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
 import { authService } from "@/services/authService";
-import { getBalance } from "@/services/api";
+import { getZKBalance } from "@/services/api";
 
 export type WalletType = "phantom" | "solflare" | null;
 export type PrivacyLevel = "public" | "partial" | "full";
@@ -121,12 +121,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const fetchBalance = async () => {
       setIsBalanceLoading(true);
       try {
-        const result = await getBalance(fullWalletAddress);
+        const result = await getZKBalance(fullWalletAddress);
         
-        if (result.success) {
-          const tokenBalance = result.tokenBalance || 0;
-          const solBalance = result.solBalance || 0;
-          const totalBalance = tokenBalance + solBalance;
+        if (result.success && result.balances) {
+          // Sum all token balances (SOL + USDC + USDT)
+          const totalBalance = result.balances.sol + result.balances.usdc + result.balances.usdt;
           
           const formattedBalance = totalBalance.toLocaleString(undefined, {
             minimumFractionDigits: 2,
@@ -345,14 +344,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     setIsBalanceLoading(true);
     try {
-      // Call backend API to get real balance
-      const result = await getBalance(fullWalletAddress);
+      // Call backend API to get ZK balance (from intermediate wallet)
+      const result = await getZKBalance(fullWalletAddress);
       
-      if (result.success) {
-        // Calculate total balance (token + SOL)
-        const tokenBalance = result.tokenBalance || 0;
-        const solBalance = result.solBalance || 0;
-        const totalBalance = tokenBalance + solBalance;
+      if (result.success && result.balances) {
+        // Sum all token balances (SOL + USDC + USDT)
+        const totalBalance = result.balances.sol + result.balances.usdc + result.balances.usdt;
         
         // Format balance for display
         const formattedBalance = totalBalance.toLocaleString(undefined, {

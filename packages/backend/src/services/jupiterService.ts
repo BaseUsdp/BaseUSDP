@@ -9,6 +9,7 @@ import { Connection, PublicKey, Keypair, Transaction, VersionedTransaction, Tran
 import { getAssociatedTokenAddress, getAccount, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 
 // Jupiter API base URL
+// Use the correct Jupiter API endpoint
 const JUPITER_API_URL = process.env.JUPITER_API_URL || 'https://quote-api.jup.ag/v6';
 
 // Token mint addresses
@@ -66,20 +67,37 @@ export class JupiterService {
     amount: bigint,
     slippageBps: number = 50 // 0.5% slippage
   ): Promise<JupiterQuote> {
-    const response = await fetch(
-      `${JUPITER_API_URL}/quote?` +
-      `inputMint=${inputMint.toBase58()}&` +
-      `outputMint=${outputMint.toBase58()}&` +
-      `amount=${amount.toString()}&` +
-      `slippageBps=${slippageBps}`
-    );
+    try {
+      const url = `${JUPITER_API_URL}/quote?` +
+        `inputMint=${inputMint.toBase58()}&` +
+        `outputMint=${outputMint.toBase58()}&` +
+        `amount=${amount.toString()}&` +
+        `slippageBps=${slippageBps}`;
+      
+      console.log(`[JupiterService] Fetching quote from: ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        // Add timeout for Vercel serverless functions
+        signal: AbortSignal.timeout(30000), // 30 second timeout
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Jupiter quote failed: ${error}`);
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Jupiter quote failed (${response.status}): ${error}`);
+      }
+
+      return await response.json() as JupiterQuote;
+    } catch (error: any) {
+      // If network error, provide helpful message
+      if (error?.code === 'ENOTFOUND' || error?.message?.includes('fetch failed')) {
+        throw new Error(`Jupiter API unreachable. Please check JUPITER_API_URL environment variable. Current: ${JUPITER_API_URL}`);
+      }
+      throw error;
     }
-
-    return await response.json();
   }
 
   /**
@@ -91,27 +109,41 @@ export class JupiterService {
     userPublicKey: PublicKey,
     wrapUnwrapSOL: boolean = false
   ): Promise<{ swapTransaction: string; userPublicKey: string }> {
-    const response = await fetch(`${JUPITER_API_URL}/swap`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        quoteResponse: quote,
-        userPublicKey: userPublicKey.toBase58(),
-        wrapUnwrapSOL,
-        dynamicComputeUnitLimit: true,
-        prioritizationFeeLamports: 'auto',
-      }),
-    });
+    try {
+      const url = `${JUPITER_API_URL}/swap`;
+      console.log(`[JupiterService] Executing swap at: ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          quoteResponse: quote,
+          userPublicKey: userPublicKey.toBase58(),
+          wrapUnwrapSOL,
+          dynamicComputeUnitLimit: true,
+          prioritizationFeeLamports: 'auto',
+        }),
+        // Add timeout for Vercel serverless functions
+        signal: AbortSignal.timeout(30000), // 30 second timeout
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Jupiter swap failed: ${error}`);
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Jupiter swap failed (${response.status}): ${error}`);
+      }
+
+      const swapResult = await response.json() as { swapTransaction: string; userPublicKey: string };
+      return swapResult;
+    } catch (error: any) {
+      // If network error, provide helpful message
+      if (error?.code === 'ENOTFOUND' || error?.message?.includes('fetch failed')) {
+        throw new Error(`Jupiter API unreachable. Please check JUPITER_API_URL environment variable. Current: ${JUPITER_API_URL}`);
+      }
+      throw error;
     }
-
-    const swapResult = await response.json();
-    return swapResult;
   }
 
   /**

@@ -68,13 +68,24 @@ export class TransactionBuilderService {
    * Initialize service with Solana connection and Token-2022 mint
    */
   async initialize(rpcUrl: string, mintAddress: string): Promise<void> {
-    this.rpcUrl = rpcUrl;
-    this.connection = new Connection(rpcUrl, "confirmed");
-    this.mintAddress = new PublicKey(mintAddress);
+    try {
+      this.rpcUrl = rpcUrl;
+      this.connection = new Connection(rpcUrl, "confirmed");
+      this.mintAddress = new PublicKey(mintAddress);
 
-    console.log("Transaction builder service initialized");
-    console.log("RPC URL:", rpcUrl);
-    console.log("Token-2022 Mint:", this.mintAddress.toBase58());
+      console.log("Transaction builder service initialized");
+      console.log("RPC URL:", rpcUrl);
+      console.log("Mint Address:", this.mintAddress.toBase58());
+      
+      // Verify connection is working
+      await this.connection.getVersion();
+      console.log("✅ Transaction builder service connection verified");
+    } catch (error) {
+      console.error("Failed to initialize transaction builder service:", error);
+      // Reset connection on failure
+      this.connection = null;
+      throw error;
+    }
   }
 
   /**
@@ -322,22 +333,45 @@ export class TransactionBuilderService {
   /**
    * Submit a signed transaction to Solana
    * 
-   * @param signedTransactionBase58 Base58-encoded signed transaction
+   * @param signedTransactionEncoded Base64 or Base58-encoded signed transaction
    * @returns Transaction result with signature
    */
   async submitSignedTransaction(
-    signedTransactionBase58: string
+    signedTransactionEncoded: string
   ): Promise<TransactionSubmitResponse> {
     if (!this.connection) {
       throw new Error("Service not initialized");
     }
 
     try {
-      // Decode base58 to buffer
-      const transactionBuffer = bs58.decode(signedTransactionBase58);
+      // Try to decode as base64 first (most common in web contexts)
+      // If that fails, try base58 (legacy format)
+      let transactionBuffer: Buffer;
+      try {
+        // Try base64 first
+        transactionBuffer = Buffer.from(signedTransactionEncoded, 'base64');
+      } catch {
+        // Fallback to base58
+        try {
+          transactionBuffer = Buffer.from(bs58.decode(signedTransactionEncoded));
+        } catch (decodeError) {
+          throw new Error(`Invalid transaction encoding. Expected base64 or base58, got: ${decodeError instanceof Error ? decodeError.message : 'unknown error'}`);
+        }
+      }
 
-      // Deserialize the transaction
-      const transaction = Transaction.from(transactionBuffer);
+      // Deserialize the transaction (try VersionedTransaction first, then legacy Transaction)
+      let transaction: Transaction | any;
+      let serializedTx: Buffer;
+      try {
+        // Try VersionedTransaction first (for newer transaction formats)
+        const { VersionedTransaction } = await import('@solana/web3.js');
+        transaction = VersionedTransaction.deserialize(transactionBuffer);
+        serializedTx = Buffer.from(transaction.serialize());
+      } catch {
+        // Fallback to legacy Transaction
+        transaction = Transaction.from(transactionBuffer);
+        serializedTx = transactionBuffer;
+      }
 
       // Retry logic for network errors
       let signature: string;
@@ -347,7 +381,7 @@ export class TransactionBuilderService {
       while (attempts < maxRetries) {
         try {
           // Send the transaction
-          signature = await this.connection.sendRawTransaction(transactionBuffer, {
+          signature = await this.connection.sendRawTransaction(serializedTx, {
             skipPreflight: false,
             preflightCommitment: "confirmed",
           });

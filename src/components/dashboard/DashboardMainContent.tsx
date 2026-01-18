@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import DepositModal from "./DepositModal";
 import SendPaymentModal from "./SendPaymentModal";
-import ReceivePaymentModal from "./ReceivePaymentModal";
 import X402PaymentModal from "./X402PaymentModal";
 import PayX402Modal from "./PayX402Modal";
 import PrivacyLevelSelector from "./PrivacyLevelSelector";
@@ -27,7 +26,6 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
   const { stats, isLoading: isLoadingStats } = useTransactionStats();
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [sendModalOpen, setSendModalOpen] = useState(false);
-  const [receiveModalOpen, setReceiveModalOpen] = useState(false);
   const [x402ModalOpen, setX402ModalOpen] = useState(false);
   const [payX402ModalOpen, setPayX402ModalOpen] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
@@ -261,14 +259,6 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
               <Icon icon="ph:paper-plane-tilt-bold" className="w-4 h-4 mr-2" />
               Send
             </Button>
-            <Button 
-              onClick={() => setReceiveModalOpen(true)}
-              variant="outline" 
-              className="flex-1 border-white/10 bg-white/5 hover:bg-white/10"
-            >
-              <Icon icon="ph:download-bold" className="w-4 h-4 mr-2" />
-              Receive
-            </Button>
           </div>
         </motion.div>
 
@@ -375,7 +365,6 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
       {/* Modals */}
       <DepositModal open={depositModalOpen} onOpenChange={setDepositModalOpen} />
       <SendPaymentModal open={sendModalOpen} onOpenChange={setSendModalOpen} />
-      <ReceivePaymentModal open={receiveModalOpen} onOpenChange={setReceiveModalOpen} />
       <X402PaymentModal open={x402ModalOpen} onOpenChange={setX402ModalOpen} />
       <PayX402Modal open={payX402ModalOpen} onOpenChange={setPayX402ModalOpen} />
     </>

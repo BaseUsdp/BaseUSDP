@@ -61,13 +61,14 @@ router.post('/settle-simple', generalRateLimiter, async (req: Request, res: Resp
     const x402Service = getZKX402Service();
     
     // Get payment details
-    const payment = await x402Service.getPaymentStatus(paymentId);
-    if (!payment || !payment.success) {
+    const paymentResult = await x402Service.getPaymentStatus(paymentId);
+    if (!paymentResult || !paymentResult.success || !paymentResult.payment) {
       return res.status(404).json({
         success: false,
-        error: 'Payment request not found',
+        error: paymentResult?.error || 'Payment request not found',
       });
     }
+    const payment = paymentResult.payment;
 
     if (payment.status !== 'pending') {
       return res.status(400).json({

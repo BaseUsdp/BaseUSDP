@@ -155,20 +155,38 @@ export function calculateRelayerDelay(): number {
 
 /**
  * Smart split amount into 2 parts for privacy
+ * IMPORTANT: Never splits more than the original amount
  */
 export function smartSplit(
   amount: number,
   currency: 'SOL' | 'USDC' | 'USDT'
 ): { part1: number; part2: number } {
-  // Round to fixed denomination first
-  const rounded = roundToFixedDenomination(amount, currency);
+  // Don't round up - use the exact amount or round down to nearest fixed denomination
+  // This prevents sending more than deposited
+  const denominations = FIXED_DENOMINATIONS[currency];
+  let useAmount = amount;
+  
+  // If amount is less than smallest denomination, use it as-is
+  if (denominations && denominations.length > 0 && amount < denominations[0]) {
+    useAmount = amount;
+  } else if (denominations && denominations.length > 0) {
+    // Find the largest denomination that's <= amount (round DOWN, not up)
+    let maxDenom = denominations[0];
+    for (const denom of denominations) {
+      if (denom <= amount && denom > maxDenom) {
+        maxDenom = denom;
+      }
+    }
+    // Use the smaller of: original amount or largest denomination <= amount
+    useAmount = Math.min(amount, maxDenom);
+  }
   
   // Split into 2 parts with random ratio (40-60%)
   const splitRatio = 0.4 + (Math.random() * 0.2); // 40-60%
-  const part1 = rounded.obfuscatedAmount * splitRatio;
-  const part2 = rounded.obfuscatedAmount - part1;
+  const part1 = useAmount * splitRatio;
+  const part2 = useAmount - part1;
   
-  // Round each part to prevent correlation
+  // Round each part to prevent correlation (but ensure they sum to useAmount)
   let dustIncrement: number;
   if (currency === 'SOL') {
     dustIncrement = 0.0001;
@@ -176,8 +194,8 @@ export function smartSplit(
     dustIncrement = 0.01;
   }
   
-  const part1Rounded = Math.ceil(part1 / dustIncrement) * dustIncrement;
-  const part2Rounded = Math.ceil(part2 / dustIncrement) * dustIncrement;
+  const part1Rounded = Math.floor(part1 / dustIncrement) * dustIncrement;
+  const part2Rounded = useAmount - part1Rounded; // Ensure they sum exactly to useAmount
   
   return {
     part1: part1Rounded,

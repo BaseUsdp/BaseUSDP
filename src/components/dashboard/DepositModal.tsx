@@ -70,12 +70,17 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
 
       // Step 1: Create deposit transaction
       const apiUrl = getApiUrl();
+      const depositAmount = parseFloat(amount);
+      
+      // DEBUG: Log amount being sent
+      console.log(`[DepositModal] Sending deposit request: amount=${amount}, parsed=${depositAmount}, token=${token}`);
+      
       const createResponse = await fetch(`${apiUrl}/api/zk/deposit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           wallet: fullWalletAddress,
-          amount: parseFloat(amount),
+          amount: depositAmount,
           token,
         }),
       });
@@ -94,14 +99,27 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
         throw new Error("Wallet not available for signing");
       }
 
-      const { signTransaction } = await import("@solana/web3.js");
       const { VersionedTransaction } = await import("@solana/web3.js");
       
-      const transactionBuffer = Buffer.from(createResult.transaction, "base64");
-      const transaction = VersionedTransaction.deserialize(transactionBuffer);
+      // Convert base64 string to Uint8Array (browser-compatible)
+      const base64String = createResult.transaction;
+      const binaryString = atob(base64String);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      const transaction = VersionedTransaction.deserialize(bytes);
 
       const signedTransaction = await wallet.signTransaction(transaction);
-      const signedBase64 = Buffer.from(signedTransaction.serialize()).toString("base64");
+      
+      // Convert Uint8Array to base64 string (browser-compatible)
+      const signedBytes = signedTransaction.serialize();
+      let binary = '';
+      for (let i = 0; i < signedBytes.length; i++) {
+        binary += String.fromCharCode(signedBytes[i]);
+      }
+      const signedBase64 = btoa(binary);
 
       // Step 3: Submit signed transaction first
       const submitResponse = await fetch(`${apiUrl}/api/solana/submit-transaction`, {

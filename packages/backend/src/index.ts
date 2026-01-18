@@ -31,6 +31,7 @@ import zkX402SettleRoutes from "./routes/zkX402SettleRoutes.js";
 
 // Services
 import { transactionHistoryService } from "./services/transactionHistoryService.js";
+import { transactionBuilderService } from "./services/transactionBuilderService.js";
 // Note: solanaTransactionService and solanaX402Service removed - using ZK proof system instead
 
 // Middleware
@@ -66,6 +67,9 @@ const allowedOrigins = process.env.CORS_ORIGIN
       "http://localhost:8080",
     ];
 
+// Log allowed origins for debugging
+logger.info(`CORS Allowed Origins: ${JSON.stringify(allowedOrigins)}`);
+
 // Add CORS headers FIRST for Vercel serverless compatibility (before cors middleware)
 // This MUST be the very first middleware
 app.use((req, res, next) => {
@@ -81,14 +85,22 @@ app.use((req, res, next) => {
     return origin === allowed;
   });
   
-  // ALWAYS set CORS headers for preflight requests
-  // Set CORS headers - ALWAYS set them for allowed origins
+  // ALWAYS set CORS headers for allowed origins
   if (isAllowed && origin) {
     res.setHeader("Access-Control-Allow-Origin", origin);
-  } else if (isAllowed) {
-    // No origin but allowed
-    res.setHeader("Access-Control-Allow-Origin", "*");
+  } else if (isAllowed || !origin) {
+    // For requests without origin or allowed origins, set the origin header
+    if (req.method === "OPTIONS") {
+      res.setHeader("Access-Control-Allow-Origin", origin || "*");
+    } else if (isAllowed) {
+      // For non-OPTIONS requests, set the origin if provided, otherwise allow all
+      res.setHeader("Access-Control-Allow-Origin", origin || "*");
+    }
+  } else {
+    // Origin not allowed - log for debugging
+    logger.warn(`CORS blocked: Origin ${origin} not in allowed list`);
   }
+  
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin");
@@ -274,12 +286,25 @@ async function initializeServices(): Promise<void> {
 
       // Solana connection - this is fast and always needed
       const solanaRpcUrl = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
-      const connection = new Connection(solanaRpcUrl, "confirmed");
+      const solanaConnection = new Connection(solanaRpcUrl, "confirmed");
 
       // Initialize transaction history service immediately (works without mint)
       // This allows basic functionality even if Token-2022 init fails
-      transactionHistoryService.initialize(connection);
+      transactionHistoryService.initialize(solanaConnection);
       logger.info("✅ Transaction history service initialized");
+
+      // Initialize transaction builder service for submitting signed transactions
+      // This is needed for deposit flow (user signs, backend submits)
+      // Use a dummy mint address since we're not using Token-2022 anymore
+      const dummyMint = "So11111111111111111111111111111111111111112"; // WSOL mint as placeholder
+      await transactionBuilderService.initialize(solanaRpcUrl, dummyMint);
+      
+      // Verify initialization succeeded
+      const builderConnection = transactionBuilderService.getConnection();
+      if (!builderConnection) {
+        throw new Error("Transaction builder service failed to initialize - connection is null");
+      }
+      logger.info("✅ Transaction builder service initialized and verified");
 
       // Note: Token-2022 has been replaced with ZK proof system
       // All privacy features now use ZK proofs via Nolvi Pay program

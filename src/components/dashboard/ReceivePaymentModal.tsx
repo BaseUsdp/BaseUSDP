@@ -133,9 +133,16 @@ const ReceivePaymentModal = ({ open, onOpenChange }: ReceivePaymentModalProps) =
           )}
 
           {/* Info */}
-          <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
+          <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 space-y-2">
             <p className="text-sm text-muted-foreground text-center">
-              Share this QR code or address to receive encrypted payments on Solana Devnet
+              <strong className="text-foreground">Privacy Note:</strong> This is your main wallet address.
+            </p>
+            <p className="text-xs text-muted-foreground text-center">
+              For maximum privacy, use <strong className="text-foreground">x402 Request</strong> instead. 
+              Direct transfers to this address will bypass the privacy system.
+            </p>
+            <p className="text-xs text-muted-foreground text-center">
+              If someone sends to this address via Void402 "Send", funds will go to your intermediate wallet (private).
             </p>
           </div>
         </div>
