@@ -83,7 +83,7 @@ const BalanceDisplay = ({ showBalance }: BalanceDisplayProps) => {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-full">
               <Lock className="w-3.5 h-3.5 text-primary" />
-              <span className="text-xs font-semibold text-primary">FHE Encrypted</span>
+              <span className="text-xs font-semibold text-primary">ZK Protected</span>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-full">
               <Shield className="w-3.5 h-3.5 text-muted-foreground" />
@@ -143,7 +143,7 @@ const BalanceDisplay = ({ showBalance }: BalanceDisplayProps) => {
               <div className="absolute inset-0 blur-xl bg-primary/30 animate-ping" />
             </div>
             <p className="text-sm font-medium mb-1">Decrypting Balance</p>
-            <p className="text-xs text-muted-foreground">Using Fully Homomorphic Encryption</p>
+            <p className="text-xs text-muted-foreground">Using Zero-Knowledge Proofs</p>
           </motion.div>
         )}
 
@@ -232,7 +232,7 @@ const BalanceDisplay = ({ showBalance }: BalanceDisplayProps) => {
           </div>
           <div className="space-y-2 text-sm">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">FHE Encryption</span>
+              <span className="text-muted-foreground">ZK Privacy</span>
               <span className="text-primary font-medium">Active</span>
             </div>
             <div className="flex items-center justify-between">

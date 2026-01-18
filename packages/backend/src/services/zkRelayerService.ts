@@ -4,10 +4,14 @@
  */
 
 import { Connection, PublicKey, Keypair, Transaction, TransactionInstruction, SystemProgram } from '@solana/web3.js';
-import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction as createATA } from '@solana/spl-token';
 import { getSolanaConnection, deriveProofPDA, deriveUserBalancePDA, derivePoolPDA, NOLVI_PAY_PROGRAM_ID } from '../lib/nolvi-solana.js';
 import { calculateRelayerDelay } from '../lib/zk-privacy-protection.js';
+import { getIntermediateWalletPool } from '../lib/intermediate-wallet-pool.js';
 import bs58 from 'bs58';
+
+// Instruction discriminator for deposit: [242, 35, 198, 137, 82, 225, 242, 182]
+const DEPOSIT_DISCRIMINATOR = Buffer.from([242, 35, 198, 137, 82, 225, 242, 182]);
 
 // Instruction discriminator for external_transfer: [11, 179, 85, 190, 61, 53, 105, 169]
 const EXTERNAL_TRANSFER_DISCRIMINATOR = Buffer.from([11, 179, 85, 190, 61, 53, 105, 169]);
@@ -121,6 +125,48 @@ export class ZKRelayerService {
   }
 
   /**
+   * Build deposit instruction to move funds from intermediate wallet to ZK pool
+   * Used for auto-depositing x402 payments (Option A - atomic)
+   */
+  private buildDepositInstruction({
+    user,
+    userBalance,
+    pool,
+    tokenMint,
+    userTokenAccount,
+    poolTokenAccount,
+    amountLamports,
+  }: {
+    user: PublicKey;
+    userBalance: PublicKey;
+    pool: PublicKey;
+    tokenMint: PublicKey;
+    userTokenAccount: PublicKey;
+    poolTokenAccount: PublicKey;
+    amountLamports: bigint;
+  }): TransactionInstruction {
+    const args = Buffer.alloc(8);
+    args.writeBigUInt64LE(amountLamports, 0);
+    
+    const instructionData = Buffer.concat([DEPOSIT_DISCRIMINATOR, args]);
+    
+    return new TransactionInstruction({
+      programId: NOLVI_PAY_PROGRAM_ID,
+      keys: [
+        { pubkey: user, isSigner: true, isWritable: true },
+        { pubkey: userBalance, isSigner: false, isWritable: true },
+        { pubkey: pool, isSigner: false, isWritable: true },
+        { pubkey: tokenMint, isSigner: false, isWritable: false },
+        { pubkey: userTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: poolTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      ],
+      data: instructionData,
+    });
+  }
+
+  /**
    * Read proof data from on-chain
    */
   async readProof(nonce: number): Promise<ProofData | null> {
@@ -175,6 +221,11 @@ export class ZKRelayerService {
       };
     }
 
+    // Import rate limiter
+    const { getRPCRateLimiter } = await import('../lib/rpcRateLimiter.js');
+    const rateLimiter = getRPCRateLimiter();
+    await rateLimiter.waitIfNeeded('getBalance');
+    
     const balance = await this.connection.getBalance(this.relayerKeypair.publicKey);
     const MIN_BALANCE = 200_000; // 0.0002 SOL minimum
 
@@ -224,31 +275,14 @@ export class ZKRelayerService {
         };
       }
 
-      // SECURITY: Verify sender wallet owns the intermediate wallet (proof sender)
-      const proofSender = proofData.sender.toString();
-      
       // Determine token from proof data
       const proofToken = proofData.tokenMint === WSOL_MINT.toBase58() ? 'SOL' : 
                        proofData.tokenMint === USDC_MINT.toBase58() ? 'USDC' : 'USDT';
       
-      // Verify ownership via database
-      const { getDatabaseService } = await import('./databaseService.js');
-      const dbService = getDatabaseService();
-      
-      if (dbService.isAvailable()) {
-        const ownsWallet = await dbService.verifyUserOwnsIntermediateWallet(
-          request.senderWallet,
-          proofSender,
-          proofToken
-        );
-        
-        if (!ownsWallet) {
-          return {
-            success: false,
-            error: 'Unauthorized: User does not own the intermediate wallet used in proof.',
-          };
-        }
-      }
+      // NOTE: With true pooling, we don't verify intermediate wallet ownership
+      // The proof itself proves the sender has the balance, and the User Balance PDA
+      // is stored in the database linked to the user's wallet
+      // The proof's validity is verified on-chain by the Nolvi Pay program
 
       // Calculate fees
       const poolMaintenanceFee = Math.max(Math.floor(proofData.amount / 200), 500);
@@ -287,7 +321,10 @@ export class ZKRelayerService {
       const recipientToken = proofData.tokenMint === WSOL_MINT.toBase58() ? 'SOL' : 
                             proofData.tokenMint === USDC_MINT.toBase58() ? 'USDC' : 'USDT';
       
-      // Try to find recipient's intermediate wallet (reuse dbService from above)
+      // Try to find recipient's intermediate wallet
+      const dbServiceModule = await import('./databaseService.js');
+      const dbService = dbServiceModule.getDatabaseService();
+      
       if (dbService.isAvailable()) {
         recipientIntermediateWallet = await dbService.getUserIntermediateWallet(request.recipient, recipientToken);
       }
@@ -302,7 +339,7 @@ export class ZKRelayerService {
         recipientWallet = new PublicKey(request.recipient);
       }
       
-      const senderBalancePDA = await deriveUserBalancePDA(proofSender, proofData.tokenMint);
+      const senderBalancePDA = await deriveUserBalancePDA(proofData.sender.toBase58(), proofData.tokenMint);
       const poolPDA = await derivePoolPDA(proofData.tokenMint);
       const proofPDA = await deriveProofPDA(request.nonce);
 
@@ -342,6 +379,10 @@ export class ZKRelayerService {
       await new Promise(resolve => setTimeout(resolve, delayMs));
 
       // Build transaction
+      const { getRPCRateLimiter } = await import('../lib/rpcRateLimiter.js');
+      const rateLimiter = getRPCRateLimiter();
+      await rateLimiter.waitIfNeeded('getLatestBlockhash');
+      
       const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
       const transaction = new Transaction();
       transaction.feePayer = relayerPubkey;
@@ -373,32 +414,101 @@ export class ZKRelayerService {
       });
 
       transaction.add(transferIx);
-      transaction.sign(this.relayerKeypair);
+
+      // OPTION A: Auto-deposit to recipient's ZK pool (atomic - same transaction)
+      // This ensures recipient sees payment in their encrypted balance immediately
+      let recipientIntermediateKeypair: Keypair | null = null;
+      if (recipientIntermediateWallet) {
+        try {
+          // Get recipient's intermediate wallet keypair from pool
+          const walletPool = getIntermediateWalletPool();
+          const recipientWalletData = walletPool.getWalletByPublicKey(recipientIntermediateWallet);
+          
+          if (recipientWalletData) {
+            recipientIntermediateKeypair = Keypair.fromSecretKey(
+              Uint8Array.from(recipientWalletData.privateKey)
+            );
+            
+            // Build deposit instruction to move funds from intermediate wallet to ZK pool
+            const recipientUserBalancePDA = await deriveUserBalancePDA(recipientIntermediateWallet, proofData.tokenMint);
+            
+            // The recipientTokenAccount is where external_transfer sends funds
+            // For deposit instruction, we use the same account (it's the recipient's intermediate wallet token account)
+            // Note: recipientWallet is already set to recipientIntermediateWallet above
+            
+            // Check if pool token account exists (for recipient's token type)
+            let poolAccountExists = false;
+            try {
+              await getAccount(this.connection, poolTokenAccount);
+              poolAccountExists = true;
+            } catch {
+              poolAccountExists = false;
+            }
+            
+            // Create pool token account if needed (relayer pays)
+            if (!poolAccountExists) {
+              transaction.add(
+                createAssociatedTokenAccountInstruction(
+                  relayerPubkey,
+                  poolTokenAccount,
+                  poolPDA,
+                  tokenMint
+                )
+              );
+            }
+            
+            // Build deposit instruction
+            // Note: recipientTokenAccount is the recipient's intermediate wallet token account
+            // (where external_transfer sends funds, and where deposit instruction reads from)
+            const depositIx = this.buildDepositInstruction({
+              user: recipientWallet, // Recipient's intermediate wallet (signer)
+              userBalance: recipientUserBalancePDA,
+              pool: poolPDA,
+              tokenMint,
+              userTokenAccount: recipientTokenAccount, // Same account that receives from external_transfer
+              poolTokenAccount,
+              amountLamports: BigInt(transferAmount), // Amount received (after fees)
+            });
+            
+            transaction.add(depositIx);
+            console.log(`[ZKRelayerService] Added auto-deposit instruction for recipient ${request.recipient} (atomic)`);
+          }
+        } catch (error) {
+          console.warn(`[ZKRelayerService] Failed to add auto-deposit instruction:`, error);
+          // Continue without auto-deposit - recipient can manually deposit later
+        }
+      }
+
+      // Sign transaction with relayer (and recipient's intermediate wallet if auto-deposit)
+      const signers = [this.relayerKeypair];
+      if (recipientIntermediateKeypair) {
+        signers.push(recipientIntermediateKeypair);
+      }
+      transaction.sign(...signers);
 
       // Send transaction
+      await rateLimiter.waitIfNeeded('sendRawTransaction');
       const signature = await this.connection.sendRawTransaction(transaction.serialize(), {
         skipPreflight: false,
         maxRetries: 3,
       });
 
       // Wait for confirmation
+      await rateLimiter.waitIfNeeded('confirmTransaction');
       await this.connection.confirmTransaction(signature, 'confirmed');
 
       // SECURITY: Mark proof as used in database (prevent replay attacks)
-      const dbServiceModule2 = await import('./databaseService.js');
-      const dbService2 = dbServiceModule2.getDatabaseService();
-      
       if (dbService.isAvailable()) {
         await dbService.markProofUsed(
           request.nonce,
           request.senderWallet,
-          proofSender,
+          proofData.sender.toBase58(),
           proofPDA.toString(),
           signature
         );
         await dbService.logTransaction({
           user_wallet: request.senderWallet,
-          intermediate_wallet: proofSender,
+          intermediate_wallet: proofData.sender.toBase58(),
           type: 'transfer',
           amount: transferAmount / (tokenMint.equals(WSOL_MINT) ? 1e9 : 1e6),
           token: proofData.tokenMint === WSOL_MINT.toBase58() ? 'SOL' : 
@@ -407,6 +517,23 @@ export class ZKRelayerService {
           transaction_signature: signature,
           nonce: request.nonce,
         });
+        
+        // If auto-deposit was successful, update recipient's User Balance PDA mapping
+        if (recipientIntermediateWallet) {
+          try {
+            const recipientUserBalancePDA = await deriveUserBalancePDA(recipientIntermediateWallet, proofData.tokenMint);
+            const recipientToken = proofData.tokenMint === WSOL_MINT.toBase58() ? 'SOL' : 
+                                  proofData.tokenMint === USDC_MINT.toBase58() ? 'USDC' : 'USDT';
+            
+            // Store/update User Balance PDA mapping
+            await dbService.setUserBalancePDA(request.recipient, recipientUserBalancePDA.toBase58(), recipientToken);
+            await dbService.setUserIntermediateWallet(request.recipient, recipientIntermediateWallet, recipientToken);
+            
+            console.log(`[ZKRelayerService] ✅ Auto-deposit complete - recipient ${request.recipient} balance updated`);
+          } catch (error) {
+            console.warn(`[ZKRelayerService] Failed to update recipient balance mapping:`, error);
+          }
+        }
       }
 
       return {

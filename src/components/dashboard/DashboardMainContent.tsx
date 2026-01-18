@@ -212,7 +212,7 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
               </div>
               <div className="flex items-center gap-1 justify-end text-xs text-neutral-400 mt-1">
                 <Icon icon="ph:lock-bold" className="w-3 h-3" />
-                FHE Protected
+                ZK Protected
               </div>
             </div>
           </div>

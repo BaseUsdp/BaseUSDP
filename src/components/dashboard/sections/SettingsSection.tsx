@@ -20,7 +20,7 @@ const SettingsSection = () => {
   const privacyLevels: { id: PrivacyLevel; label: string; description: string; icon: string }[] = [
     { id: "public", label: "Public", description: "Fully visible transactions", icon: "ph:eye-bold" },
     { id: "partial", label: "Partial", description: "Amount hidden, parties visible", icon: "ph:eye-slash-bold" },
-    { id: "full", label: "Full", description: "Maximum privacy with FHE", icon: "ph:lock-bold" },
+    { id: "full", label: "Full", description: "Maximum privacy with ZK proofs", icon: "ph:lock-bold" },
   ];
 
   return (

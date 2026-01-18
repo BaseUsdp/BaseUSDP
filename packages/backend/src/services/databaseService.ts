@@ -136,14 +136,29 @@ export class DatabaseService {
     if (!this.isAvailable()) return false;
 
     try {
+      // Preserve user_balance_pda if it exists (don't overwrite it)
+      const { data: existing } = await this.supabase!
+        .from('user_wallets')
+        .select('user_balance_pda')
+        .eq('user_wallet', userWallet)
+        .eq('token', token)
+        .single();
+
+      const updateData: any = {
+        user_wallet: userWallet,
+        intermediate_wallet: intermediateWallet,
+        token,
+        last_used_at: new Date().toISOString(),
+      };
+
+      // Preserve user_balance_pda if it exists
+      if (existing?.user_balance_pda) {
+        updateData.user_balance_pda = existing.user_balance_pda;
+      }
+
       const { error } = await this.supabase!
         .from('user_wallets')
-        .upsert({
-          user_wallet: userWallet,
-          intermediate_wallet: intermediateWallet,
-          token,
-          last_used_at: new Date().toISOString(),
-        }, {
+        .upsert(updateData, {
           onConflict: 'user_wallet,token',
         });
 
@@ -175,6 +190,95 @@ export class DatabaseService {
       return !error && data !== null;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Get User Balance PDA for user and token (true pooling)
+   */
+  async getUserBalancePDA(
+    userWallet: string,
+    token: 'SOL' | 'USDC' | 'USDT'
+  ): Promise<string | null> {
+    if (!this.isAvailable()) return null;
+
+    try {
+      // Try to get user_balance_pda field first (new schema)
+      // Fallback to intermediate_wallet if column doesn't exist yet
+      const { data, error } = await this.supabase!
+        .from('user_wallets')
+        .select('user_balance_pda, intermediate_wallet')
+        .eq('user_wallet', userWallet)
+        .eq('token', token)
+        .single();
+
+      if (error || !data) return null;
+      
+      // Prefer user_balance_pda if it exists, otherwise fallback to intermediate_wallet
+      // (for backwards compatibility during migration)
+      return data.user_balance_pda || data.intermediate_wallet;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Set User Balance PDA for user and token (true pooling)
+   */
+  async setUserBalancePDA(
+    userWallet: string,
+    userBalancePDA: string,
+    token: 'SOL' | 'USDC' | 'USDT'
+  ): Promise<boolean> {
+    if (!this.isAvailable()) return false;
+
+    try {
+      // Store User Balance PDA in user_balance_pda field (new schema)
+      // Also keep intermediate_wallet if it exists (for backwards compatibility)
+      const { data: existing } = await this.supabase!
+        .from('user_wallets')
+        .select('intermediate_wallet')
+        .eq('user_wallet', userWallet)
+        .eq('token', token)
+        .single();
+
+      const updateData: any = {
+        user_wallet: userWallet,
+        user_balance_pda: userBalancePDA,
+        token,
+        last_used_at: new Date().toISOString(),
+      };
+
+      // Preserve intermediate_wallet if it exists
+      if (existing?.intermediate_wallet) {
+        updateData.intermediate_wallet = existing.intermediate_wallet;
+      }
+
+      const { error } = await this.supabase!
+        .from('user_wallets')
+        .upsert(updateData, {
+          onConflict: 'user_wallet,token',
+        });
+
+      return !error;
+    } catch (error: any) {
+      // If user_balance_pda column doesn't exist yet, fallback to intermediate_wallet
+      console.warn('[DatabaseService] user_balance_pda column may not exist, using intermediate_wallet fallback:', error.message);
+      try {
+        const { error: fallbackError } = await this.supabase!
+          .from('user_wallets')
+          .upsert({
+            user_wallet: userWallet,
+            intermediate_wallet: userBalancePDA, // Fallback: store in intermediate_wallet
+            token,
+            last_used_at: new Date().toISOString(),
+          }, {
+            onConflict: 'user_wallet,token',
+          });
+        return !fallbackError;
+      } catch {
+        return false;
+      }
     }
   }
 

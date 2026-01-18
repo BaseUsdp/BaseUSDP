@@ -366,7 +366,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
                 <div className="flex items-start gap-3">
                   <Shield className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                   <p className="text-sm text-muted-foreground">
-                    This transaction will be encrypted using Fully Homomorphic Encryption (FHE). 
+                    This transaction uses ZK proofs for privacy. 
                     The amount and recipient will be hidden based on your privacy level.
                   </p>
                 </div>
@@ -409,7 +409,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
               </h3>
               <p className="text-muted-foreground text-sm">
                 {step === "signing" && "Please confirm the transaction in your wallet"}
-                {step === "encrypting" && "Applying FHE encryption to your transaction"}
+                {step === "encrypting" && "Generating ZK proof for your transaction"}
                 {step === "pending" && "Waiting for block confirmation"}
               </p>
 
@@ -460,7 +460,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
                     <Copy className="w-4 h-4 text-muted-foreground" />
                   </button>
                   <a
-                    href={`https://explorer.solana.com/tx/${txHash}?cluster=devnet`}
+                    href={`https://explorer.solana.com/tx/${txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1 hover:bg-primary/10 rounded"

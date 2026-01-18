@@ -39,7 +39,7 @@ const PrivacyLevelSelector = ({ compact = false, onChange }: PrivacyLevelSelecto
     {
       id: "full",
       label: "Full",
-      description: "Amount + parties hidden - maximum privacy with FHE",
+      description: "Amount + parties hidden - maximum privacy with ZK proofs",
       icon: Lock,
     },
   ];

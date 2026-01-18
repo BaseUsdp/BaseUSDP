@@ -85,7 +85,7 @@ const PaymentsSection = ({ showBalance }: PaymentsSectionProps) => {
                   <div>
                     <h3 className="font-display text-lg font-bold">Send Payment</h3>
                     <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                      FHE Encrypted Transfer
+                      ZK Private Transfer
                     </p>
                   </div>
                 </div>
@@ -97,7 +97,7 @@ const PaymentsSection = ({ showBalance }: PaymentsSectionProps) => {
                     <div>
                       <p className="text-sm font-medium text-primary">Full Encryption Active</p>
                       <p className="text-xs text-muted-foreground">
-                        Amount, recipient, and metadata will be encrypted using FHE
+                        Amount, recipient, and metadata will be hidden using ZK proofs
                       </p>
                     </div>
                   </div>

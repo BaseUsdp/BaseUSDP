@@ -337,7 +337,7 @@ const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
                 <div className="flex items-start gap-3">
                   <Shield className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                   <p className="text-sm text-muted-foreground">
-                    This payment will be encrypted using FHE. The amount will be hidden on-chain.
+                    This payment uses ZK proofs for privacy. The amount will be hidden on-chain.
                   </p>
                 </div>
               </div>
@@ -425,7 +425,7 @@ const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
                     <Copy className="w-4 h-4 text-muted-foreground" />
                   </button>
                   <a
-                    href={`https://explorer.solana.com/tx/${txHash}?cluster=devnet`}
+                    href={`https://explorer.solana.com/tx/${txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1 hover:bg-primary/10 rounded"

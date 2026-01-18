@@ -50,107 +50,112 @@ export class ZKBalanceService {
   }
 
   /**
-   * Internal method to get user balance
+   * Internal method to get user balance from ZK pool (User Balance PDA)
+   * With true pooling, balances are tracked via User Balance PDA stored in database
    */
   private async getUserBalanceInternal(userWallet: string): Promise<UserBalance> {
     try {
-      // Try database first to get user's intermediate wallet
+      // Import rate limiter
+      const { getRPCRateLimiter } = await import('../lib/rpcRateLimiter.js');
+      const rateLimiter = getRPCRateLimiter();
+      
+      // Get User Balance PDA from database (stored during deposit)
       const { getDatabaseService } = await import('./databaseService.js');
       const dbService = getDatabaseService();
       
-      const walletPool = getIntermediateWalletPool();
-      await walletPool.initialize();
-      
-      let intermediatePubkey: PublicKey | null = null;
-      
-      // Check database for user's intermediate wallets (one per token)
-      if (dbService.isAvailable()) {
-        // Try each token to find intermediate wallet
-        for (const token of ['SOL', 'USDC', 'USDT'] as const) {
-          const intermediateWalletPubkey = await dbService.getUserIntermediateWallet(userWallet, token);
-          if (intermediateWalletPubkey) {
-            intermediatePubkey = new PublicKey(intermediateWalletPubkey);
-            break; // Use first found wallet
-          }
-        }
-      }
-      
-      // Fallback: check all intermediate wallets (if database not available or no mapping found)
-      if (!intermediatePubkey) {
-        const allWallets = walletPool.getAllWallets();
-        // Just use first wallet as fallback (not ideal, but better than nothing)
-        if (allWallets.length > 0) {
-          intermediatePubkey = new PublicKey(allWallets[0].publicKey);
-        }
-      }
-
-      if (!intermediatePubkey) {
-        // User hasn't deposited yet
-        return { sol: 0, usdc: 0, usdt: 0 };
-      }
-
-      // Get balances for each token
       const balances: UserBalance = {
         sol: 0,
         usdc: 0,
         usdt: 0,
       };
 
-      // Check SOL balance (native)
-      const solBalance = await this.connection.getBalance(intermediatePubkey);
-      balances.sol = solBalance / 1e9;
-
-      // Check USDC balance - check token account directly (funds are here after deposit)
+      // Check USDC balance from User Balance PDA
       try {
-        const intermediateTokenAccount = await getAssociatedTokenAddress(USDC_MINT, intermediatePubkey);
-        const tokenAccount = await getAccount(this.connection, intermediateTokenAccount);
-        balances.usdc = Number(tokenAccount.amount) / 1e6; // USDC has 6 decimals
-      } catch {
-        // Token account doesn't exist or error reading it
-        balances.usdc = 0;
-      }
-      
-      // Also check ZK balance PDA if it exists (for future-proofing)
-      try {
-        const usdcBalancePDA = await deriveUserBalancePDA(intermediatePubkey.toBase58(), USDC_MINT.toBase58());
-        const balanceAccount = await this.connection.getAccountInfo(usdcBalancePDA);
+        console.log(`[ZKBalanceService] Checking USDC balance for wallet: ${userWallet}`);
+        const userBalancePDA = dbService.isAvailable() 
+          ? await dbService.getUserBalancePDA(userWallet, 'USDC')
+          : null;
         
-        if (balanceAccount && balanceAccount.data.length >= 56) {
-          // Read balance from account data (bytes 48-56, after sender + nonce)
-          const amountBuffer = balanceAccount.data.slice(48, 56);
-          const amount = Number(amountBuffer.readBigUInt64LE(0));
-          const pdaBalance = amount / 1e6; // USDC has 6 decimals
-          // Use the higher of the two balances (token account or PDA)
-          balances.usdc = Math.max(balances.usdc, pdaBalance);
+        console.log(`[ZKBalanceService] User Balance PDA from database: ${userBalancePDA || 'NOT FOUND'}`);
+        
+        if (userBalancePDA) {
+          const pdaPubkey = new PublicKey(userBalancePDA);
+          await rateLimiter.waitIfNeeded('getAccountInfo');
+          const balanceAccount = await this.connection.getAccountInfo(pdaPubkey);
+          
+          console.log(`[ZKBalanceService] Account info for PDA ${userBalancePDA}: exists=${!!balanceAccount}, dataLength=${balanceAccount?.data.length || 0}`);
+          
+          if (balanceAccount && balanceAccount.data.length >= 80) {
+            // Read available balance (bytes 72-80, after discriminator + wallet + token_mint)
+            const amountBuffer = balanceAccount.data.slice(72, 80);
+            const amount = Number(amountBuffer.readBigUInt64LE(0));
+            balances.usdc = amount / 1e6; // USDC has 6 decimals
+            console.log(`[ZKBalanceService] ✅ USDC balance from PDA: ${balances.usdc} USDC (raw: ${amount} lamports)`);
+          } else {
+            console.warn(`[ZKBalanceService] ⚠️ User Balance PDA account exists but data length is insufficient: ${balanceAccount?.data.length || 0} bytes (need at least 80)`);
+          }
+        } else {
+          console.log(`[ZKBalanceService] ⚠️ No User Balance PDA found in database for ${userWallet} / USDC`);
         }
-      } catch {
-        // PDA doesn't exist yet, that's okay
+      } catch (error: any) {
+        // PDA doesn't exist yet (user hasn't deposited), that's okay
+        console.error(`[ZKBalanceService] ❌ Error reading USDC balance PDA:`, error.message);
+        if (!error.message?.includes('InvalidAccountData') && !error.message?.includes('AccountNotFound')) {
+          console.warn('[ZKBalanceService] Error reading USDC balance PDA:', error.message);
+        }
       }
 
-      // Check USDT balance - check token account directly (funds might be here after Jupiter swaps)
+      // Check USDT balance from User Balance PDA
       try {
-        const intermediateTokenAccount = await getAssociatedTokenAddress(USDT_MINT, intermediatePubkey);
-        const tokenAccount = await getAccount(this.connection, intermediateTokenAccount);
-        balances.usdt = Number(tokenAccount.amount) / 1e6; // USDT has 6 decimals
-      } catch {
-        // Token account doesn't exist or error reading it
-        balances.usdt = 0;
-      }
-      
-      // Also check ZK balance PDA if it exists
-      try {
-        const usdtBalancePDA = await deriveUserBalancePDA(intermediatePubkey.toBase58(), USDT_MINT.toBase58());
-        const balanceAccount = await this.connection.getAccountInfo(usdtBalancePDA);
+        const userBalancePDA = dbService.isAvailable() 
+          ? await dbService.getUserBalancePDA(userWallet, 'USDT')
+          : null;
         
-        if (balanceAccount && balanceAccount.data.length >= 56) {
-          const amountBuffer = balanceAccount.data.slice(48, 56);
-          const amount = Number(amountBuffer.readBigUInt64LE(0));
-          const pdaBalance = amount / 1e6; // USDT has 6 decimals
-          // Use the higher of the two balances
-          balances.usdt = Math.max(balances.usdt, pdaBalance);
+        if (userBalancePDA) {
+          const pdaPubkey = new PublicKey(userBalancePDA);
+          await rateLimiter.waitIfNeeded('getAccountInfo');
+          const balanceAccount = await this.connection.getAccountInfo(pdaPubkey);
+          
+          if (balanceAccount && balanceAccount.data.length >= 80) {
+            // Read available balance (bytes 72-80)
+            const amountBuffer = balanceAccount.data.slice(72, 80);
+            const amount = Number(amountBuffer.readBigUInt64LE(0));
+            balances.usdt = amount / 1e6; // USDT has 6 decimals
+            console.log(`[ZKBalanceService] USDT balance from PDA: ${balances.usdt}`);
+          }
         }
-      } catch {
+      } catch (error: any) {
         // PDA doesn't exist yet, that's okay
+        if (!error.message?.includes('InvalidAccountData') && !error.message?.includes('AccountNotFound')) {
+          console.warn('[ZKBalanceService] Error reading USDT balance PDA:', error.message);
+        }
+      }
+
+      // Check SOL balance from User Balance PDA
+      // Note: SOL uses WSOL mint for the pool
+      try {
+        const userBalancePDA = dbService.isAvailable() 
+          ? await dbService.getUserBalancePDA(userWallet, 'SOL')
+          : null;
+        
+        if (userBalancePDA) {
+          const pdaPubkey = new PublicKey(userBalancePDA);
+          await rateLimiter.waitIfNeeded('getAccountInfo');
+          const balanceAccount = await this.connection.getAccountInfo(pdaPubkey);
+          
+          if (balanceAccount && balanceAccount.data.length >= 80) {
+            // Read available balance (bytes 72-80)
+            const amountBuffer = balanceAccount.data.slice(72, 80);
+            const amount = Number(amountBuffer.readBigUInt64LE(0));
+            balances.sol = amount / 1e9; // SOL has 9 decimals
+            console.log(`[ZKBalanceService] SOL balance from PDA: ${balances.sol}`);
+          }
+        }
+      } catch (error: any) {
+        // PDA doesn't exist yet, that's okay
+        if (!error.message?.includes('InvalidAccountData') && !error.message?.includes('AccountNotFound')) {
+          console.warn('[ZKBalanceService] Error reading SOL balance PDA:', error.message);
+        }
       }
 
       return balances;

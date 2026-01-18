@@ -181,17 +181,39 @@ export class ZKProofService {
 
   /**
    * Check user balance (security check)
+   * Uses User Balance PDA from database (true pooling)
    */
   async checkUserBalance(
-    intermediateWallet: string,
+    userWallet: string, // Changed from intermediateWallet to userWallet
     token: 'SOL' | 'USDC' | 'USDT',
     amount: number
   ): Promise<{ sufficient: boolean; available: number; error?: string }> {
     try {
-      const tokenMint = this.getTokenMint(token);
-      const userBalancePDA = await deriveUserBalancePDA(intermediateWallet, tokenMint.toBase58());
+      // Get User Balance PDA from database
+      const { getDatabaseService } = await import('./databaseService.js');
+      const dbService = getDatabaseService();
+      
+      if (!dbService.isAvailable()) {
+        return {
+          sufficient: false,
+          available: 0,
+          error: 'Database not available',
+        };
+      }
+      
+      const userBalancePDA = await dbService.getUserBalancePDA(userWallet, token);
+      
+      if (!userBalancePDA) {
+        return {
+          sufficient: false,
+          available: 0,
+          error: 'Balance account not found. Please deposit first.',
+        };
+      }
 
-      const accountInfo = await this.connection.getAccountInfo(userBalancePDA);
+      const pdaPubkey = new PublicKey(userBalancePDA);
+      const accountInfo = await this.connection.getAccountInfo(pdaPubkey);
+      
       if (!accountInfo || accountInfo.data.length < 80) {
         return {
           sufficient: false,
@@ -245,39 +267,53 @@ export class ZKProofService {
         };
       }
 
-      // Get intermediate wallet for user from database
+      // Get intermediate wallet from database (must match the one used during deposit)
+      // The User Balance PDA is derived from the intermediate wallet, so we need the same one
       const { getDatabaseService } = await import('./databaseService.js');
       const dbService = getDatabaseService();
       
-      let intermediateWallet;
-      if (dbService.isAvailable()) {
-        // Look up user's intermediate wallet from database (per token)
-        const intermediateWalletPubkey = await dbService.getUserIntermediateWallet(request.senderWallet, request.token);
-        if (intermediateWalletPubkey) {
-          // Find wallet in pool
-          const walletPool = getIntermediateWalletPool();
-          await walletPool.initialize();
-          intermediateWallet = walletPool.getWalletByPublicKey(intermediateWalletPubkey) || null;
-        }
+      if (!dbService.isAvailable()) {
+        return {
+          success: false,
+          error: 'Database not available',
+        };
       }
       
-      // Fallback to pool if database not available or wallet not found
-      if (!intermediateWallet) {
-        const walletPool = getIntermediateWalletPool();
-        await walletPool.initialize();
-        intermediateWallet = await walletPool.getAvailableWallet();
-        
-        // Save to database if available (per token)
-        if (dbService.isAvailable() && intermediateWallet) {
-          await dbService.setUserIntermediateWallet(request.senderWallet, intermediateWallet.publicKey, request.token);
-        }
+      // Get intermediate wallet used during deposit (required for User Balance PDA to match)
+      const intermediateWalletPubkey = await dbService.getUserIntermediateWallet(request.senderWallet, request.token);
+      
+      if (!intermediateWalletPubkey) {
+        return {
+          success: false,
+          error: 'Intermediate wallet not found. Please deposit first.',
+        };
       }
+      
+      // Find wallet in pool (checks both main pool and legacy pool)
+      const walletPool = getIntermediateWalletPool();
+      await walletPool.initialize();
+      const intermediateWallet = walletPool.getWalletByPublicKey(intermediateWalletPubkey);
+      
+      if (!intermediateWallet) {
+        // Wallet not found in pool - this means it's from old 50-wallet pool
+        // For existing users, we need to either:
+        // 1. Add LEGACY_INTERMEDIATE_WALLETS env var with old wallets, OR
+        // 2. User needs to make a new deposit to get a new intermediate wallet
+        return {
+          success: false,
+          error: `Intermediate wallet ${intermediateWalletPubkey} not found in pool. This wallet is from the old pool. Please add LEGACY_INTERMEDIATE_WALLETS env var with old wallets, or make a new deposit to get a new intermediate wallet.`,
+        };
+      }
+      
       const intermediateKeypair = Keypair.fromSecretKey(Uint8Array.from(intermediateWallet.privateKey));
       const intermediatePubkey = new PublicKey(intermediateWallet.publicKey);
+      
+      // Derive User Balance PDA (must match the one stored during deposit)
+      const userBalancePDA = await deriveUserBalancePDA(intermediatePubkey.toBase58(), this.getTokenMint(request.token).toBase58());
 
-      // Check balance
+      // Check balance (uses User Balance PDA from database - true pooling)
       const balanceCheck = await this.checkUserBalance(
-        intermediateWallet.publicKey,
+        request.senderWallet, // Use user wallet, not intermediate wallet
         request.token,
         request.amount
       );

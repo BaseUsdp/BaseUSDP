@@ -193,7 +193,7 @@ const RecentTransactions = ({ showBalance, limit = 5, onViewAll }: RecentTransac
 
                 {/* External Link (on hover) */}
                 <a
-                  href={`https://solscan.io/tx/${tx.signature}?cluster=devnet`}
+                  href={`https://solscan.io/tx/${tx.signature}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-secondary rounded-lg"

@@ -277,7 +277,7 @@ const GovernanceSection = ({ showBalance }: GovernanceSectionProps) => {
                     <div className="flex items-start gap-2">
                       <Icon icon="ph:shield-check-bold" className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                       <p className="text-xs text-muted-foreground">
-                        Your vote is encrypted using FHE. Vote counts are verifiable but individual choices remain private.
+                        Your vote is protected using ZK proofs. Vote counts are verifiable but individual choices remain private.
                       </p>
                     </div>
                   </div>

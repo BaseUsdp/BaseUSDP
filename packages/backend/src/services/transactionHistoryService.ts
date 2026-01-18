@@ -434,8 +434,15 @@ export class TransactionHistoryService {
       throw new Error("Service not initialized");
     }
 
+    // Import rate limiter
+    const { getRPCRateLimiter } = await import('../lib/rpcRateLimiter.js');
+    const rateLimiter = getRPCRateLimiter();
+
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
+        // Wait if needed to respect rate limits
+        await rateLimiter.waitIfNeeded('getSignaturesForAddress');
+        
         const signatures = await this.connection.getSignaturesForAddress(
           pubkey,
           options,
@@ -448,10 +455,13 @@ export class TransactionHistoryService {
                            error?.code === 429;
         
         if (isRateLimit && attempt < maxRetries - 1) {
-          // Exponential backoff: 1s, 2s, 4s
-          const delay = Math.pow(2, attempt) * 1000;
+          // Exponential backoff: 1s, 2s, 4s (capped at 10s)
+          const delay = Math.min(Math.pow(2, attempt) * 1000, 10000);
           console.warn(`Rate limited when fetching signatures, retrying after ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
           await new Promise(resolve => setTimeout(resolve, delay));
+          
+          // Wait again through rate limiter before retry
+          await rateLimiter.waitIfNeeded('getSignaturesForAddress');
           continue;
         }
         

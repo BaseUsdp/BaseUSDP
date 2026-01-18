@@ -264,7 +264,7 @@ const YieldVaultsSection = ({ showBalance }: YieldVaultsSectionProps) => {
               <div className="flex items-start gap-3">
                 <Icon icon="ph:lock-bold" className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                 <p className="text-xs text-muted-foreground">
-                  Your deposit amount and yield earnings are encrypted using FHE. Only you can view your balance.
+                  Your deposit amount and yield earnings are protected with ZK proofs. Only you can view your balance.
                 </p>
               </div>
             </div>

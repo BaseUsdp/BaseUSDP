@@ -10,7 +10,7 @@ import { getAssociatedTokenAddress, getAccount, createAssociatedTokenAccountInst
 
 // Jupiter API base URL
 // Use the correct Jupiter API endpoint
-const JUPITER_API_URL = process.env.JUPITER_API_URL || 'https://quote-api.jup.ag/v6';
+const JUPITER_API_URL = process.env.JUPITER_API_URL || 'https://jup.ag/api/v6';
 
 // Token mint addresses
 const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');

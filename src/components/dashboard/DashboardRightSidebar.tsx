@@ -29,26 +29,17 @@ const DashboardRightSidebar = ({ showBalance }: DashboardRightSidebarProps) => {
     return `${sign}$${Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const upcomingPayments = [
-    { name: "API Subscription", due: "Dec 15", amount: "$50", color: "bg-red-500" },
-    { name: "Yield Harvest", due: "Dec 20", amount: "+$125", color: "bg-emerald-500" },
-    { name: "Escrow Release", due: "Dec 22", amount: "+$500", color: "bg-sky-500" },
-  ];
+  // TODO: Fetch real upcoming payments from x402 API
+  const upcomingPayments: any[] = [];
 
+  // TODO: Fetch real alerts/status from API
   const alerts = [
     { 
       type: "success", 
       title: "Full Privacy Active", 
-      message: "All transactions are fully encrypted",
+      message: "All transactions use ZK proofs for privacy",
       color: "border-emerald-500/20 bg-emerald-500/10",
       textColor: "text-emerald-400"
-    },
-    { 
-      type: "info", 
-      title: "x402 Request Pending", 
-      message: "1 payment request awaiting settlement",
-      color: "border-sky-500/20 bg-sky-500/10",
-      textColor: "text-sky-400"
     },
   ];
 
@@ -89,7 +80,7 @@ const DashboardRightSidebar = ({ showBalance }: DashboardRightSidebarProps) => {
             <span className="text-xs font-medium text-sky-400">Privacy Tip</span>
           </div>
           <p className="text-xs text-neutral-300 leading-relaxed mb-2">
-            Your transactions are encrypted with FHE. Only you can decrypt and view your actual balances.
+            Your transactions are protected with ZK proofs. Amounts and parties are hidden for maximum privacy.
           </p>
           <button className="text-[11px] text-sky-400 hover:text-sky-300 transition-colors">
             Learn More →

@@ -163,7 +163,7 @@ const EncryptedBalanceCard = ({ showBalance, onToggleBalance }: EncryptedBalance
           {isBalanceLoading || isDecrypting ? (
             <div className="flex items-center gap-3">
               <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-              <span className="text-lg text-muted-foreground">Decrypting via FHE...</span>
+              <span className="text-lg text-muted-foreground">Loading balance...</span>
             </div>
           ) : (
             <div>

@@ -32,6 +32,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance }: Dashboar
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
+  // Only show real encrypted wallet - remove mock accounts
   const accounts = [
     { 
       name: "Encrypted Wallet", 
@@ -39,20 +40,6 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance }: Dashboar
       balance: encryptedBalance,
       color: "from-sky-500 to-sky-600",
       active: true
-    },
-    { 
-      name: "Yield Vault", 
-      address: "vVault",
-      balance: "2,450.00",
-      color: "from-purple-500 to-purple-600",
-      active: false
-    },
-    { 
-      name: "x402 Escrow", 
-      address: "Escrow",
-      balance: "500.00",
-      color: "from-emerald-500 to-teal-500",
-      active: false
     },
   ];
 
@@ -116,7 +103,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance }: Dashboar
           </div>
           <div className="flex items-center justify-between">
             <span className="text-xs text-neutral-400">Network</span>
-            <span className="text-xs font-semibold text-emerald-400">Solana Devnet</span>
+            <span className="text-xs font-semibold text-emerald-400">Solana Mainnet</span>
           </div>
         </div>
       </div>

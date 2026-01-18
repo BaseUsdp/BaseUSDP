@@ -350,7 +350,7 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
 
                     {request.status === "settled" && request.txHash && (
                       <a
-                        href={`https://solscan.io/tx/${request.txHash}?cluster=devnet`}
+                        href={`https://solscan.io/tx/${request.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >

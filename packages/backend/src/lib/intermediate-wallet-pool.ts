@@ -14,6 +14,7 @@ interface IntermediateWallet {
 
 class IntermediateWalletPool {
   private wallets: IntermediateWallet[] = [];
+  private legacyWallets: IntermediateWallet[] = [];
   private initialized = false;
   private envVarName: string;
 
@@ -23,6 +24,7 @@ class IntermediateWalletPool {
 
   /**
    * Initialize the pool from environment variable
+   * Also loads legacy wallets if available (for existing users)
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
@@ -30,6 +32,7 @@ class IntermediateWalletPool {
     }
 
     try {
+      // Load main pool
       const walletsEnv = process.env[this.envVarName];
       if (!walletsEnv) {
         throw new Error(`${this.envVarName} environment variable not set`);
@@ -46,6 +49,23 @@ class IntermediateWalletPool {
 
       if (this.wallets.length === 0) {
         throw new Error(`No intermediate wallets found in ${this.envVarName}`);
+      }
+
+      // Load legacy wallets if available (for existing users with old intermediate wallets)
+      const legacyWalletsEnv = process.env.LEGACY_INTERMEDIATE_WALLETS;
+      if (legacyWalletsEnv) {
+        try {
+          const legacyWalletsData = JSON.parse(legacyWalletsEnv);
+          this.legacyWallets = legacyWalletsData.map((w: any) => ({
+            publicKey: w.publicKey,
+            privateKey: Array.isArray(w.privateKey) ? w.privateKey : JSON.parse(w.privateKey),
+            lastUsed: undefined,
+            totalUses: 0,
+          }));
+          console.log(`✅ LEGACY WALLET POOL: Loaded ${this.legacyWallets.length} legacy wallets for existing users`);
+        } catch (legacyError) {
+          console.warn('⚠️  Failed to load legacy wallets:', legacyError);
+        }
       }
 
       this.initialized = true;
@@ -93,6 +113,7 @@ class IntermediateWalletPool {
 
   /**
    * Get a wallet by public key
+   * Checks both main pool and legacy pool (for existing users)
    */
   getWalletByPublicKey(publicKey: string): IntermediateWallet | null {
     if (!this.initialized) {
@@ -100,7 +121,20 @@ class IntermediateWalletPool {
       return null;
     }
 
-    return this.wallets.find(w => w.publicKey === publicKey) || null;
+    // Check main pool first
+    const mainWallet = this.wallets.find(w => w.publicKey === publicKey);
+    if (mainWallet) {
+      return mainWallet;
+    }
+
+    // Check legacy pool (for existing users with old intermediate wallets)
+    const legacyWallet = this.legacyWallets.find(w => w.publicKey === publicKey);
+    if (legacyWallet) {
+      console.log(`📦 Using legacy intermediate wallet: ${publicKey} (for existing user)`);
+      return legacyWallet;
+    }
+
+    return null;
   }
 
   getAllWallets(): IntermediateWallet[] {

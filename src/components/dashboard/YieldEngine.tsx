@@ -54,7 +54,7 @@ const YieldEngine = ({ showBalance }: YieldEngineProps) => {
           <HelpCircle className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium mb-1">
-              How does FHE yield compare to standard pools?
+              How does ZK-protected yield compare to standard pools?
             </p>
             <p className="text-xs text-muted-foreground">
               "Confidential compounding allows for higher capture of MEV returns without front running risks."

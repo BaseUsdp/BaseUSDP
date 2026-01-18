@@ -70,7 +70,7 @@ const VirtualCardsSection = ({ showBalance }: VirtualCardsSectionProps) => {
             Virtual Cards<span className="text-primary">.</span>
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage your anonymous virtual cards powered by FHE
+            Manage your anonymous virtual cards powered by ZK proofs
           </p>
         </div>
         <Button 

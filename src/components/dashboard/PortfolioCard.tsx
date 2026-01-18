@@ -45,7 +45,7 @@ const PortfolioCard = ({ showBalance }: PortfolioCardProps) => {
           <div className="flex items-center gap-4">
             <div className="animate-pulse flex items-center gap-2">
               <Lock className="w-8 h-8 text-white/80 animate-spin" />
-              <span className="text-lg text-white/80">Decrypting via FHE...</span>
+              <span className="text-lg text-white/80">Loading balance...</span>
             </div>
           </div>
         ) : (
@@ -78,7 +78,7 @@ const PortfolioCard = ({ showBalance }: PortfolioCardProps) => {
           className="flex-1 h-12 bg-transparent border-white/30 text-white hover:bg-white/10 hover:text-white font-semibold"
           onClick={handleDecrypt}
         >
-          DEPOSIT FHE
+          DEPOSIT
         </Button>
         <Button
           className="flex-1 h-12 bg-white/20 hover:bg-white/30 text-white font-semibold"

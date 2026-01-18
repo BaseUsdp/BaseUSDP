@@ -8,13 +8,16 @@
  * 5. ZK Proof Account Creation
  */
 
-import { Connection, PublicKey, Keypair, Transaction, VersionedTransaction, TransactionMessage, SystemProgram } from '@solana/web3.js';
+import { Connection, PublicKey, Keypair, Transaction, VersionedTransaction, TransactionMessage, SystemProgram, TransactionInstruction } from '@solana/web3.js';
 import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, createTransferInstruction, getAccount, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { getSolanaConnection, deriveUserBalancePDA, derivePoolPDA, NOLVI_PAY_PROGRAM_ID } from '../lib/nolvi-solana.js';
 import { getIntermediateWalletPool } from '../lib/intermediate-wallet-pool.js';
 import { smartSplit, generatePrivacyNonce } from '../lib/zk-privacy-protection.js';
-import { JupiterService } from './jupiterService.js';
+import { getChangeNowService } from './changenowService.js';
 import bs58 from 'bs58';
+
+// Instruction discriminator for deposit: [242, 35, 198, 137, 82, 225, 242, 182]
+const DEPOSIT_DISCRIMINATOR = Buffer.from([242, 35, 198, 137, 82, 225, 242, 182]);
 
 // Token mint addresses
 const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
@@ -46,41 +49,51 @@ export interface ProcessDepositResult {
   success: boolean;
   depositId: string;
   intermediateWallet?: string;
+  userBalancePDA?: string;
+  poolPDA?: string;
   zkProofNonce?: number;
   zkProofPDA?: string;
-  splitParts?: Array<{ amount: number; swapSignature?: string }>;
+  splitParts?: Array<{ amount: number; exchangeId?: string; exchangeSignature?: string }>;
+  depositSignature?: string;
   error?: string;
 }
 
 export class ZKDepositService {
   private connection: Connection;
-  private jupiterService: JupiterService;
+  private changenowService = getChangeNowService();
   private collectionWallet: PublicKey | null = null;
   private collectionKeypair: Keypair | null = null;
   private mainWalletKeypair: Keypair | null = null;
 
   constructor() {
     this.connection = getSolanaConnection();
-    this.jupiterService = new JupiterService(this.connection);
     this.initializeWallets();
   }
 
   /**
    * Helper to add delays between RPC calls to avoid rate limits
+   * Respects Solana Public RPC limits:
+   * - 100 requests per 10 seconds (10 RPS)
+   * - 40 requests per 10 seconds per method (4 RPS per method)
    */
   private async rateLimitedRpcCall<T>(
     operation: () => Promise<T>,
-    delayMs: number = 2000, // 2 seconds default (matches industry standard 3-15s polling)
+    method?: string, // RPC method name for per-method rate limiting
     maxRetries: number = 5
   ): Promise<T> {
-    // Add delay BEFORE the call to space out requests (industry standard: 3-15s)
-    await new Promise(resolve => setTimeout(resolve, delayMs));
+    // Import rate limiter
+    const { getRPCRateLimiter, extractRPCMethod } = await import('../lib/rpcRateLimiter.js');
+    const rateLimiter = getRPCRateLimiter();
+    
+    // Use provided method or try to extract it
+    const rpcMethod = method || extractRPCMethod(operation);
+    
+    // Wait if needed to respect rate limits
+    await rateLimiter.waitIfNeeded(rpcMethod);
     
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const result = await operation();
-        // Add delay AFTER successful call to prevent rapid-fire requests
-        await new Promise(resolve => setTimeout(resolve, delayMs));
         return result;
       } catch (error: any) {
         const isRateLimit = error?.message?.includes('429') ||
@@ -90,16 +103,65 @@ export class ZKDepositService {
                            error?.code === 429;
 
         if (isRateLimit && attempt < maxRetries - 1) {
-          // Exponential backoff: 5s, 10s, 20s, 40s, 80s (much longer delays)
-          const retryDelay = Math.pow(2, attempt + 1) * 5000; // Start at 5 seconds
+          // Exponential backoff: wait longer if we hit rate limit
+          // Calculate delay based on 10-second window
+          const retryDelay = Math.min(
+            Math.pow(2, attempt) * 1000, // 1s, 2s, 4s, 8s, 16s
+            10000 // Cap at 10 seconds (window size)
+          );
           console.warn(`[ZKDepositService] Rate limited (429), retrying after ${retryDelay/1000}s (attempt ${attempt + 1}/${maxRetries})`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
+          
+          // Wait again through rate limiter before retry
+          await rateLimiter.waitIfNeeded(rpcMethod);
           continue;
         }
         throw error;
       }
     }
     throw new Error('RPC call failed after multiple retries');
+  }
+
+  /**
+   * Build deposit instruction to move funds from intermediate wallet to ZK pool
+   * Exported for use in relayer service (x402 auto-deposit)
+   */
+  buildDepositInstruction({
+    user,
+    userBalance,
+    pool,
+    tokenMint,
+    userTokenAccount,
+    poolTokenAccount,
+    amountLamports,
+  }: {
+    user: PublicKey;
+    userBalance: PublicKey;
+    pool: PublicKey;
+    tokenMint: PublicKey;
+    userTokenAccount: PublicKey;
+    poolTokenAccount: PublicKey;
+    amountLamports: bigint;
+  }): TransactionInstruction {
+    const args = Buffer.alloc(8);
+    args.writeBigUInt64LE(amountLamports, 0);
+    
+    const instructionData = Buffer.concat([DEPOSIT_DISCRIMINATOR, args]);
+    
+    return new TransactionInstruction({
+      programId: NOLVI_PAY_PROGRAM_ID,
+      keys: [
+        { pubkey: user, isSigner: true, isWritable: true },
+        { pubkey: userBalance, isSigner: false, isWritable: true },
+        { pubkey: pool, isSigner: false, isWritable: true },
+        { pubkey: tokenMint, isSigner: false, isWritable: false },
+        { pubkey: userTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: poolTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      ],
+      data: instructionData,
+    });
   }
 
   /**
@@ -166,6 +228,21 @@ export class ZKDepositService {
       // DEBUG: Log received request
       console.log(`[ZKDepositService] createDepositTransaction: amount=${request.amount}, token=${request.token}, type=${typeof request.amount}`);
 
+      // Check if amount is too small to split (will be processed as single deposit)
+      const changenowMinAmount = this.changenowService.getMinimumAmount(request.token);
+      const minAmountDecimal = request.token === 'SOL' 
+        ? Number(changenowMinAmount) / 1e9 
+        : Number(changenowMinAmount) / 1e6;
+      
+      const splitThreshold = request.token === 'SOL' ? 6 : 5; // $5 for USDC/USDT, 6 SOL for SOL
+      if (request.amount <= splitThreshold) {
+        console.log(`[ZKDepositService] Amount ${request.amount} ${request.token} is at or below split threshold (${splitThreshold} ${request.token}), will process as single deposit`);
+        // Note: This is fine - we'll process as single deposit, but ChangeNow exchange might be skipped if below minimum
+        if (request.amount < minAmountDecimal) {
+          console.warn(`[ZKDepositService] Amount ${request.amount} ${request.token} is below ChangeNow minimum (${minAmountDecimal} ${request.token}), ChangeNow exchange will be skipped`);
+        }
+      }
+
       const userPubkey = new PublicKey(request.userWallet);
       const amountLamports = this.convertToLamports(request.amount, request.token);
       
@@ -177,7 +254,7 @@ export class ZKDepositService {
         // For SOL, check native balance and ensure enough for transfer + fees
         const balance = await this.rateLimitedRpcCall(
           () => this.connection.getBalance(userPubkey),
-          2000 // 2 seconds
+          'getBalance'
         );
         // Use a more conservative fee estimate (10,000 lamports = 0.00001 SOL)
         // This accounts for potential fee variations and ensures we don't fail during simulation
@@ -201,7 +278,7 @@ export class ZKDepositService {
         try {
           const tokenAccount = await this.rateLimitedRpcCall(
             () => getAccount(this.connection, userTokenAccount),
-            2000 // 2 seconds
+            'getAccount'
           );
           const balance = tokenAccount.amount;
           
@@ -225,7 +302,7 @@ export class ZKDepositService {
       const instructions = [];
       const { blockhash } = await this.rateLimitedRpcCall(
         () => this.connection.getLatestBlockhash(),
-        2000 // 2 seconds
+        'getLatestBlockhash'
       );
 
       // FIX 1: Handle SOL deposits as native SOL transfers (not WSOL)
@@ -233,7 +310,7 @@ export class ZKDepositService {
         // Re-check balance right before building transaction (in case it changed)
         const finalBalance = await this.rateLimitedRpcCall(
           () => this.connection.getBalance(userPubkey),
-          2000 // 2 seconds
+          'getBalance'
         );
         const estimatedFee = 10000; // ~0.00001 SOL
         const requiredBalance = Number(amountLamports) + estimatedFee;
@@ -266,7 +343,7 @@ export class ZKDepositService {
         try {
           await this.rateLimitedRpcCall(
             () => getAccount(this.connection, userTokenAccount),
-            2000 // 2 seconds
+            'getAccount'
           );
           userAccountExists = true;
         } catch {
@@ -290,7 +367,7 @@ export class ZKDepositService {
         try {
           await this.rateLimitedRpcCall(
             () => getAccount(this.connection, collectionTokenAccount),
-            2000 // 2 seconds
+            'getAccount'
           );
           collectionAccountExists = true;
         } catch {
@@ -365,7 +442,7 @@ export class ZKDepositService {
       
       const status = await this.rateLimitedRpcCall(
         () => this.connection.getSignatureStatus(signature),
-        3000 // 3 seconds (transaction status checks can be slower)
+        'getSignatureStatus'
       );
       
       console.log('[ZKDepositService] Transaction status:', {
@@ -378,10 +455,36 @@ export class ZKDepositService {
         throw new Error('Deposit transaction failed or not confirmed');
       }
 
-      // Smart split amount into 2 parts
-      console.log('[ZKDepositService] Splitting amount:', request.amount, request.token);
-      const split = smartSplit(request.amount, request.token);
-      console.log('[ZKDepositService] Split result:', split);
+      // Check if amount is too small to split (after split, parts would be below ChangeNow minimum)
+      const changenowMinAmount = this.changenowService.getMinimumAmount(request.token);
+      const minAmountDecimal = request.token === 'SOL' 
+        ? Number(changenowMinAmount) / 1e9 
+        : Number(changenowMinAmount) / 1e6;
+      
+      // If amount is <= $5 (USDC/USDT) or <= 6 SOL, don't split
+      // After splitting, each part would be below ChangeNow's $3 (USDC/USDT) or 3 SOL minimum
+      // User requested: if amount <= $5, don't split
+      let shouldSplit = request.token === 'SOL' 
+        ? request.amount > 6 // 6 SOL threshold (2 * 3 SOL minimum)
+        : request.amount > 5; // $5 threshold for USDC/USDT
+      
+      let split: { part1: number; part2: number };
+      if (shouldSplit) {
+        // Smart split amount into 2 parts
+        console.log('[ZKDepositService] Splitting amount:', request.amount, request.token);
+        split = smartSplit(request.amount, request.token);
+        console.log('[ZKDepositService] Split result:', split);
+        
+        // Verify split parts are above minimum
+        if (split.part1 < minAmountDecimal || split.part2 < minAmountDecimal) {
+          console.warn(`[ZKDepositService] Split parts would be below ChangeNow minimum (${minAmountDecimal} ${request.token}), processing as single deposit`);
+          shouldSplit = false;
+          split = { part1: request.amount, part2: 0 };
+        }
+      } else {
+        console.log(`[ZKDepositService] Amount ${request.amount} ${request.token} is too small to split (minimum for split: ${request.token === 'SOL' ? 6 : 5} ${request.token}), processing as single deposit`);
+        split = { part1: request.amount, part2: 0 };
+      }
       
       // FIX: For SOL deposits, funds arrive as native SOL (not WSOL token account)
       // For USDC/USDT, use token accounts
@@ -397,74 +500,80 @@ export class ZKDepositService {
         collectionTokenAccount = await getAssociatedTokenAddress(tokenMint, this.collectionWallet!);
       }
 
-      // Get intermediate wallet (from database if available, otherwise from pool)
-      console.log('[ZKDepositService] Getting database service...');
-      const { getDatabaseService } = await import('./databaseService.js');
-      const dbService = getDatabaseService();
-      console.log('[ZKDepositService] Database service available:', dbService.isAvailable());
-      
-      console.log('[ZKDepositService] Initializing wallet pool...');
+      // TRUE POOLING: Use shared pool (5-10 wallets), but REUSE same wallet for same user
+      // This provides true privacy - multiple users share same intermediate wallets
+      // But each user's deposits accumulate in the same User Balance PDA
+      console.log('[ZKDepositService] Initializing wallet pool for true pooling...');
       const walletPool = getIntermediateWalletPool();
       await walletPool.initialize();
       console.log('[ZKDepositService] Wallet pool initialized');
       
-      const userWallet = request.userWallet;
+      // CRITICAL FIX: Check if user already has an intermediate wallet in database
+      // If yes, reuse it so all deposits accumulate in the same User Balance PDA
+      // If no, get a random one from the pool (true pooling - multiple users can share)
+      const { getDatabaseService } = await import('./databaseService.js');
+      const dbService = getDatabaseService();
       
-      let intermediateWallet;
+      let intermediateWallet: { publicKey: string; privateKey: number[] };
+      let isReusingWallet = false;
+      
       if (dbService.isAvailable()) {
-        console.log('[ZKDepositService] Checking for existing intermediate wallet for user:', userWallet);
-        // Check if user already has an intermediate wallet for this token
-        const existingWallet = await dbService.getUserIntermediateWallet(userWallet, request.token);
-        if (existingWallet) {
-          console.log('[ZKDepositService] Found existing intermediate wallet:', existingWallet);
-          intermediateWallet = walletPool.getWalletByPublicKey(existingWallet);
-        } else {
-          console.log('[ZKDepositService] No existing intermediate wallet found');
-        }
-      }
-      
-      // Get new wallet if not found
-      if (!intermediateWallet) {
-        console.log('[ZKDepositService] Getting new intermediate wallet from pool...');
-        intermediateWallet = await walletPool.getAvailableWallet();
-        console.log('[ZKDepositService] Assigned intermediate wallet:', intermediateWallet.publicKey);
+        // Check for existing intermediate wallet first (preferred for balance accumulation)
+        const existingIntermediateWallet = await dbService.getUserIntermediateWallet(request.userWallet, request.token);
         
-        // Save to database (per token)
-        if (dbService.isAvailable()) {
-          console.log('[ZKDepositService] Saving intermediate wallet to database...');
-          await dbService.setUserIntermediateWallet(userWallet, intermediateWallet.publicKey, request.token);
-          console.log('[ZKDepositService] Intermediate wallet saved to database');
+        if (existingIntermediateWallet) {
+          // User already has an intermediate wallet - reuse it so deposits accumulate
+          console.log('[ZKDepositService] Found existing intermediate wallet for user, reusing:', existingIntermediateWallet);
+          const existingWalletData = walletPool.getWalletByPublicKey(existingIntermediateWallet);
+          
+          if (existingWalletData) {
+            intermediateWallet = existingWalletData;
+            isReusingWallet = true;
+            console.log('[ZKDepositService] ✅ Reusing existing intermediate wallet - deposits will accumulate in same User Balance PDA');
+          } else {
+            // Wallet not in current pool (might be from old pool) - get new one
+            console.log('[ZKDepositService] ⚠️ Existing intermediate wallet not in current pool, getting new one from pool...');
+            console.log('[ZKDepositService] ⚠️ NOTE: Previous deposits may be in different User Balance PDA');
+            intermediateWallet = await walletPool.getAvailableWallet();
+            console.log('[ZKDepositService] Assigned new intermediate wallet (shared pool):', intermediateWallet.publicKey);
+          }
+        } else {
+          // First deposit for this user - get random wallet from pool
+          console.log('[ZKDepositService] First deposit for this user, getting random intermediate wallet from pool (true pooling)...');
+          intermediateWallet = await walletPool.getAvailableWallet();
+          console.log('[ZKDepositService] Assigned intermediate wallet (shared pool):', intermediateWallet.publicKey);
         }
+      } else {
+        // Database not available - just get random wallet
+        console.log('[ZKDepositService] Database not available, getting random intermediate wallet from pool...');
+        intermediateWallet = await walletPool.getAvailableWallet();
+        console.log('[ZKDepositService] Assigned intermediate wallet (shared pool):', intermediateWallet.publicKey);
       }
       
       const intermediateKeypair = Keypair.fromSecretKey(Uint8Array.from(intermediateWallet.privateKey));
       const intermediatePubkey = new PublicKey(intermediateWallet.publicKey);
       console.log('[ZKDepositService] Intermediate wallet keypair created:', intermediatePubkey.toString());
 
-      // Process splits with Jupiter swaps
-      console.log('[ZKDepositService] Starting split processing (2 parts)...');
-      const splitParts: Array<{ amount: number; swapSignature?: string }> = [];
+      // Process splits (or single deposit if amount too small)
+      const numParts = shouldSplit ? 2 : 1;
+      console.log(`[ZKDepositService] Starting split processing (${numParts} part${numParts > 1 ? 's' : ''})...`);
+      const splitParts: Array<{ amount: number; exchangeId?: string; exchangeSignature?: string }> = [];
       
-      for (let i = 0; i < 2; i++) {
-        console.log(`[ZKDepositService] Processing split part ${i + 1}/2...`);
+      for (let i = 0; i < numParts; i++) {
         const splitAmount = i === 0 ? split.part1 : split.part2;
+        
+        // Skip zero amounts (when not splitting)
+        if (splitAmount <= 0) {
+          continue;
+        }
+        
+        console.log(`[ZKDepositService] Processing split part ${i + 1}/${numParts}...`);
         const splitAmountLamports = this.convertToLamports(splitAmount, request.token);
         console.log(`[ZKDepositService] Split part ${i + 1} amount: ${splitAmount} ${request.token} = ${splitAmountLamports.toString()} lamports`);
 
-        // Determine swap path for privacy
-        // Part 1: USDC → USDT → USDC (if USDC/USDT)
-        // Part 2: USDC → SOL → USDC (if USDC/USDT)
-        // For SOL: SOL → USDC → SOL
-        let swapPath: { from: 'SOL' | 'USDC' | 'USDT'; to: 'SOL' | 'USDC' | 'USDT' };
-        
-        if (request.token === 'SOL') {
-          swapPath = i === 0 ? { from: 'SOL', to: 'USDC' } : { from: 'SOL', to: 'USDT' };
-        } else if (request.token === 'USDC') {
-          swapPath = i === 0 ? { from: 'USDC', to: 'USDT' } : { from: 'USDC', to: 'SOL' };
-        } else {
-          swapPath = i === 0 ? { from: 'USDT', to: 'USDC' } : { from: 'USDT', to: 'SOL' };
-        }
-        console.log(`[ZKDepositService] Swap path for part ${i + 1}: ${swapPath.from} → ${swapPath.to}`);
+        // ChangeNow uses same token for privacy mixing (e.g., USDC → USDC)
+        // This is off-chain and hidden, providing true privacy
+        console.log(`[ZKDepositService] ChangeNow exchange path for part ${i + 1}: ${request.token} → ${request.token} (off-chain, hidden)`);
 
         // PRIVACY FIX: Use a random intermediate wallet as a "mixer" before user's final wallet
         // This breaks the direct link: Collection → Random Mixer → User's Wallet
@@ -495,7 +604,7 @@ export class ZKDepositService {
           console.log(`[ZKDepositService] Checking collection wallet balance for SOL transfer...`);
           const collectionBalance = await this.rateLimitedRpcCall(
             () => this.connection.getBalance(this.collectionWallet!),
-            2000 // 2 seconds
+            'getBalance'
           );
           console.log(`[ZKDepositService] Collection wallet balance: ${collectionBalance} lamports (${collectionBalance / 1e9} SOL), Required: ${Number(splitAmountLamports)} lamports (${Number(splitAmountLamports) / 1e9} SOL)`);
           
@@ -536,7 +645,7 @@ export class ZKDepositService {
           try {
             await this.rateLimitedRpcCall(
               () => getAccount(this.connection, mixerTokenAccount),
-              2000 // 2 seconds
+              'getAccount'
             );
             mixerAccountExists = true;
           } catch {
@@ -573,7 +682,7 @@ export class ZKDepositService {
           try {
             await this.rateLimitedRpcCall(
               () => getAccount(this.connection, intermediateTokenAccount),
-              2000 // 2 seconds
+              'getAccount'
             );
             intermediateAccountExists = true;
           } catch {
@@ -581,16 +690,22 @@ export class ZKDepositService {
           }
           
           // Create intermediate token account if needed (collection wallet pays)
-          if (!intermediateAccountExists && this.collectionKeypair) {
-            console.log(`[ZKDepositService] Adding create intermediate token account instruction...`);
-            allInstructions.push(
-              createAssociatedTokenAccountInstruction(
-                this.collectionKeypair.publicKey, // Collection wallet pays for account creation
-                intermediateTokenAccount,
-                intermediatePubkey,
-                tokenMint
-              )
-            );
+          if (!intermediateAccountExists) {
+            if (this.collectionKeypair) {
+              console.log(`[ZKDepositService] Adding create intermediate token account instruction...`);
+              allInstructions.push(
+                createAssociatedTokenAccountInstruction(
+                  this.collectionKeypair.publicKey, // Collection wallet pays for account creation
+                  intermediateTokenAccount,
+                  intermediatePubkey,
+                  tokenMint
+                )
+              );
+            } else {
+              console.warn(`[ZKDepositService] WARNING: Intermediate token account doesn't exist and collectionKeypair is not available. Account creation instruction cannot be added.`);
+            }
+          } else {
+            console.log(`[ZKDepositService] Intermediate token account already exists: ${intermediateTokenAccount.toString()}`);
           }
           
           allInstructions.push(
@@ -607,7 +722,7 @@ export class ZKDepositService {
         console.log(`[ZKDepositService] Getting blockhash for atomic multi-hop transaction...`);
         const { blockhash } = await this.rateLimitedRpcCall(
           () => this.connection.getLatestBlockhash(),
-          3000 // 3 seconds (blockhash is critical, allow more time)
+          'getLatestBlockhash'
         );
         console.log(`[ZKDepositService] Blockhash obtained: ${blockhash}`);
         
@@ -637,106 +752,815 @@ export class ZKDepositService {
             skipPreflight: false,
             maxRetries: 3,
           }),
-          3000 // 3 seconds (transaction sending is critical)
+          'sendRawTransaction'
         );
         console.log(`[ZKDepositService] Atomic transaction sent, signature: ${atomicSignature}`);
 
         console.log(`[ZKDepositService] Confirming atomic transaction...`);
-        await this.rateLimitedRpcCall(
-          () => this.connection.confirmTransaction(atomicSignature, 'confirmed'),
-          5000 // 5 seconds (confirmation can take time)
-        );
-        console.log(`[ZKDepositService] Atomic transaction confirmed: Collection → Mixer → User (all in one transaction)`);
-
-        // Now execute Jupiter swap for privacy
-        // Note: Funds are now in user's intermediate wallet after the atomic transfer
-        console.log(`[ZKDepositService] Preparing Jupiter swap for privacy mixing...`);
-        const inputMint = this.jupiterService.getMintAddress(swapPath.from);
-        const outputMint = this.jupiterService.getMintAddress(swapPath.to);
         
-        // Get current balance after transfer (with rate limiting)
-        let swapAmount: bigint;
-        if (request.token === 'SOL') {
-          // For SOL, get native balance
-          console.log(`[ZKDepositService] Getting intermediate wallet SOL balance for swap...`);
-          const solBalance = await this.rateLimitedRpcCall(
-            () => this.connection.getBalance(intermediatePubkey),
-            2000 // 2 seconds
+        // Try to confirm with timeout handling
+        let confirmed = false;
+        try {
+          const confirmationResult = await this.rateLimitedRpcCall(
+            () => this.connection.confirmTransaction(atomicSignature, 'confirmed'),
+            'confirmTransaction'
           );
-          swapAmount = BigInt(solBalance);
-          console.log(`[ZKDepositService] Intermediate wallet SOL balance: ${solBalance} lamports (${solBalance / 1e9} SOL)`);
-        } else {
-          // For tokens, get token account balance
-          console.log(`[ZKDepositService] Getting intermediate wallet token account balance for swap...`);
-          const intermediateTokenAccount = await getAssociatedTokenAddress(tokenMint, intermediatePubkey);
-          const currentBalance = await this.rateLimitedRpcCall(
-            () => getAccount(this.connection, intermediateTokenAccount),
-            2000 // 2 seconds
-          );
-          swapAmount = currentBalance.amount;
+          
+          // Verify transaction was successful
+          if (confirmationResult.value?.err) {
+            throw new Error(`Atomic transaction failed: ${JSON.stringify(confirmationResult.value.err)}`);
+          }
+          
+          confirmed = true;
+          console.log(`[ZKDepositService] Atomic transaction confirmed: Collection → Mixer → User (all in one transaction)`);
+        } catch (error: any) {
+          // If confirmation times out, check if transaction actually succeeded
+          if (error.name === 'TransactionExpiredTimeoutError' || error.message?.includes('not confirmed in')) {
+            console.warn(`[ZKDepositService] ⚠️ Transaction confirmation timed out, checking status...`);
+            
+            // Check transaction status directly
+            const status = await this.rateLimitedRpcCall(
+              () => this.connection.getSignatureStatus(atomicSignature),
+              'getSignatureStatus'
+            );
+            
+            if (status.value && !status.value.err && status.value.confirmationStatus) {
+              console.log(`[ZKDepositService] ✅ Transaction actually succeeded! Status: ${status.value.confirmationStatus}`);
+              confirmed = true;
+            } else if (status.value?.err) {
+              throw new Error(`Atomic transaction failed: ${JSON.stringify(status.value.err)}`);
+            } else {
+              // Transaction might still be processing or failed
+              throw new Error(`Transaction status unknown. Check signature ${atomicSignature} on Solana Explorer.`);
+            }
+          } else {
+            throw error;
+          }
         }
 
-        // Get quote and execute swap
-        // NOTE: If Jupiter API is unavailable, skip swap but continue deposit
-        // Funds will remain in original token (still in intermediate wallet)
+        // Now execute ChangeNow privacy exchange (replaces Jupiter - off-chain, hidden)
+        // Note: Funds are now in user's intermediate wallet after the atomic transfer
+        console.log(`[ZKDepositService] Preparing ChangeNow privacy exchange for part ${i + 1}...`);
+        
+        // CRITICAL: Use the split amount, NOT the full wallet balance
+        // The intermediate wallet may have leftover funds from previous deposits
+        // We only want to send the specific split part amount to ChangeNow
+        const exchangeAmount = splitAmountLamports;
+        console.log(`[ZKDepositService] Using split amount for ChangeNow: ${exchangeAmount.toString()} lamports (${splitAmount} ${request.token})`);
+        
+        // Verify the intermediate wallet has at least this amount
+        let actualBalance: bigint;
+        if (request.token === 'SOL') {
+          const solBalance = await this.rateLimitedRpcCall(
+            () => this.connection.getBalance(intermediatePubkey),
+            'getBalance'
+          );
+          actualBalance = BigInt(solBalance);
+          console.log(`[ZKDepositService] Intermediate wallet SOL balance: ${solBalance} lamports (${solBalance / 1e9} SOL)`);
+        } else {
+          const intermediateTokenAccount = await getAssociatedTokenAddress(tokenMint, intermediatePubkey);
+          
+          // Retry logic: account might not be immediately available after transaction confirmation
+          let currentBalance;
+          let retries = 3;
+          let accountFound = false;
+          
+          while (retries > 0 && !accountFound) {
+            try {
+              currentBalance = await this.rateLimitedRpcCall(
+                () => getAccount(this.connection, intermediateTokenAccount),
+                'getAccount'
+              );
+              accountFound = true;
+            } catch (error: any) {
+              if (error.name === 'TokenAccountNotFoundError' && retries > 1) {
+                console.log(`[ZKDepositService] Token account not found yet, retrying... (${retries - 1} retries left)`);
+                retries--;
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              } else {
+                console.error(`[ZKDepositService] Failed to get token account after retries:`, error);
+                throw error;
+              }
+            }
+          }
+          
+          if (!accountFound || !currentBalance) {
+            throw new Error(`Token account not found for intermediate wallet ${intermediatePubkey.toString()} after transaction confirmation`);
+          }
+          
+          actualBalance = currentBalance.amount;
+          console.log(`[ZKDepositService] Intermediate wallet token account balance: ${currentBalance.amount.toString()} (${Number(currentBalance.amount) / (request.token === 'USDC' || request.token === 'USDT' ? 1e6 : 1e9)} ${request.token})`);
+        }
+        
+        // Verify we have enough balance for this split part
+        if (actualBalance < exchangeAmount) {
+          throw new Error(`Insufficient balance in intermediate wallet. Required: ${exchangeAmount.toString()} lamports, Available: ${actualBalance.toString()} lamports`);
+        }
+
+        // Check minimum amount for ChangeNow
+        const minAmount = this.changenowService.getMinimumAmount(request.token);
+        if (exchangeAmount < minAmount) {
+          console.warn(`[ZKDepositService] Amount ${exchangeAmount.toString()} is below ChangeNow minimum ${minAmount.toString()}, skipping exchange for part ${i + 1}`);
+          splitParts.push({
+            amount: splitAmount,
+            exchangeId: undefined,
+            exchangeSignature: undefined,
+          });
+          continue;
+        }
+
+        // Create ChangeNow exchange (same token for privacy - e.g., USDC → USDC)
+        // This is off-chain and hidden, providing true privacy
+        let exchangeResult: { success: boolean; exchangeId?: string; payinAddress?: string; signature?: string; error?: string } | null = null;
+        
         try {
-          console.log(`[ZKDepositService] Attempting Jupiter swap for part ${i + 1}...`);
-          const quote = await this.jupiterService.getQuote(inputMint, outputMint, swapAmount);
-          const swapResult = await this.jupiterService.executeSwapAndSubmit(
-            quote,
-            intermediateKeypair,
-            swapPath.from === 'SOL' || swapPath.to === 'SOL'
+          console.log(`[ZKDepositService] Creating ChangeNow exchange for part ${i + 1} (${request.token} → ${request.token})...`);
+          
+          // Use same token for privacy mixing (like privacyusd)
+          const exchangeId = `${request.depositId}_split_${i + 1}`;
+          const changenowResult = await this.changenowService.createExchange(
+            request.token,
+            request.token, // Same token for privacy
+            exchangeAmount,
+            exchangeId
           );
 
-          // Check if swap failed
-          if (!swapResult.success) {
-            console.warn(`[ZKDepositService] Jupiter swap failed for part ${i + 1}:`, swapResult.error);
-            // Continue anyway - funds are still in intermediate wallet, just not swapped
-            // This is better than failing the entire deposit
-          } else {
-            console.log(`[ZKDepositService] Jupiter swap successful for part ${i + 1}, signature: ${swapResult.signature}`);
+          if (!changenowResult.success || !changenowResult.payinAddress) {
+            throw new Error(changenowResult.error || 'Failed to create ChangeNow exchange');
           }
-        } catch (swapError: any) {
-          // If Jupiter API is unreachable, log warning but don't fail deposit
-          console.warn(`[ZKDepositService] Jupiter swap skipped for part ${i + 1} (API unavailable):`, swapError?.message || swapError);
-          console.warn(`[ZKDepositService] Funds remain in ${swapPath.from} (not swapped to ${swapPath.to})`);
-          // Continue - deposit is still successful, just without swap
+
+          console.log(`[ZKDepositService] ChangeNow exchange created: ${changenowResult.transactionId}`);
+          console.log(`[ZKDepositService] Payin address: ${changenowResult.payinAddress}`);
+
+          // Send funds from intermediate wallet to ChangeNow payinAddress (like privacyusd)
+          const changenowPayinPubkey = new PublicKey(changenowResult.payinAddress);
+          
+          let sendSignature: string | undefined;
+          if (request.token === 'SOL') {
+            // Native SOL transfer
+            const { blockhash: exchangeBlockhash } = await this.rateLimitedRpcCall(
+              () => this.connection.getLatestBlockhash(),
+              'getLatestBlockhash'
+            );
+            
+            const exchangeTx = new VersionedTransaction(
+              new TransactionMessage({
+                payerKey: intermediatePubkey,
+                recentBlockhash: exchangeBlockhash,
+                instructions: [
+                  SystemProgram.transfer({
+                    fromPubkey: intermediatePubkey,
+                    toPubkey: changenowPayinPubkey,
+                    lamports: Number(exchangeAmount),
+                  }),
+                ],
+              }).compileToLegacyMessage()
+            );
+            
+            exchangeTx.sign([intermediateKeypair]);
+            sendSignature = await this.rateLimitedRpcCall(
+              () => this.connection.sendRawTransaction(exchangeTx.serialize(), {
+                skipPreflight: false,
+                maxRetries: 3,
+              }),
+              'sendRawTransaction'
+            );
+          } else {
+            // Token transfer (USDC/USDT)
+            const changenowTokenAccount = await getAssociatedTokenAddress(tokenMint, changenowPayinPubkey);
+            const intermediateTokenAccount = await getAssociatedTokenAddress(tokenMint, intermediatePubkey);
+            
+            // Check if ChangeNow token account exists
+            let changenowAccountExists = false;
+            try {
+              await this.rateLimitedRpcCall(
+                () => getAccount(this.connection, changenowTokenAccount),
+                'getAccount'
+              );
+              changenowAccountExists = true;
+            } catch {
+              changenowAccountExists = false;
+            }
+
+            // CRITICAL: Fund intermediate wallet with SOL for rent and fees before ChangeNow transfer
+            // Creating token accounts requires rent, and transfers need fees
+            const intermediateSolBalance = await this.rateLimitedRpcCall(
+              () => this.connection.getBalance(intermediatePubkey),
+              'getBalance'
+            );
+            
+            const MIN_SOL_FOR_CHANGENOW = 10_000_000; // 0.01 SOL (for rent + fees)
+            
+            const exchangeInstructions = [];
+            
+            // Fund intermediate wallet if needed (collection wallet pays)
+            if (intermediateSolBalance < MIN_SOL_FOR_CHANGENOW && this.collectionKeypair) {
+              console.log(`[ZKDepositService] ⚠️ Intermediate wallet has insufficient SOL (${intermediateSolBalance} lamports), funding with ${MIN_SOL_FOR_CHANGENOW} lamports for ChangeNow transfer...`);
+              exchangeInstructions.push(
+                SystemProgram.transfer({
+                  fromPubkey: this.collectionKeypair.publicKey,
+                  toPubkey: intermediatePubkey,
+                  lamports: MIN_SOL_FOR_CHANGENOW,
+                })
+              );
+            }
+            
+            const { blockhash: exchangeBlockhash } = await this.rateLimitedRpcCall(
+              () => this.connection.getLatestBlockhash(),
+              'getLatestBlockhash'
+            );
+            
+            // Create token account if needed (intermediate wallet pays)
+            if (!changenowAccountExists) {
+              exchangeInstructions.push(
+                createAssociatedTokenAccountInstruction(
+                  intermediatePubkey,
+                  changenowTokenAccount,
+                  changenowPayinPubkey,
+                  tokenMint
+                )
+              );
+            }
+
+            // Transfer token
+            exchangeInstructions.push(
+              createTransferInstruction(
+                intermediateTokenAccount,
+                changenowTokenAccount,
+                intermediatePubkey,
+                exchangeAmount
+              )
+            );
+
+            const exchangeTx = new VersionedTransaction(
+              new TransactionMessage({
+                payerKey: intermediatePubkey,
+                recentBlockhash: exchangeBlockhash,
+                instructions: exchangeInstructions,
+              }).compileToLegacyMessage()
+            );
+            
+            // Sign with intermediate wallet (and collection wallet if it funded SOL)
+            const exchangeSigners = [intermediateKeypair];
+            if (intermediateSolBalance < MIN_SOL_FOR_CHANGENOW && this.collectionKeypair) {
+              exchangeSigners.push(this.collectionKeypair);
+            }
+            exchangeTx.sign(exchangeSigners);
+            
+            // Retry logic for ChangeNow transfer (token account might not be ready immediately)
+            let transferRetries = 3;
+            let transferSuccess = false;
+            
+            while (transferRetries > 0 && !transferSuccess) {
+              try {
+                // Add a small delay before retrying (except first attempt)
+                if (transferRetries < 3) {
+                  const delay = (4 - transferRetries) * 1000; // 1s, 2s delays
+                  console.log(`[ZKDepositService] Retrying ChangeNow transfer after ${delay}ms delay... (${transferRetries} retries left)`);
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                }
+                
+                sendSignature = await this.rateLimitedRpcCall(
+                  () => this.connection.sendRawTransaction(exchangeTx.serialize(), {
+                    skipPreflight: false,
+                    maxRetries: 3,
+                  }),
+                  'sendRawTransaction'
+                );
+                transferSuccess = true;
+              } catch (error: any) {
+                transferRetries--;
+                if (transferRetries === 0) {
+                  throw error;
+                }
+                // Check if it's a simulation error (account not ready)
+                if (error.message?.includes('no record of a prior credit') || 
+                    error.message?.includes('Simulation failed') ||
+                    error.message?.includes('Attempt to debit')) {
+                  console.warn(`[ZKDepositService] Token account not ready yet, will retry... (${transferRetries} retries left)`);
+                  // Continue to retry
+                } else {
+                  throw error;
+                }
+              }
+            }
+          }
+
+          // Wait for confirmation (with timeout handling)
+          if (sendSignature) {
+            try {
+              await this.rateLimitedRpcCall(
+                () => this.connection.confirmTransaction(sendSignature, 'confirmed'),
+                'confirmTransaction'
+              );
+            } catch (error: any) {
+              // If confirmation times out, check if transaction actually succeeded
+              if (error.name === 'TransactionExpiredTimeoutError' || error.message?.includes('not confirmed in')) {
+                console.warn(`[ZKDepositService] ⚠️ ChangeNow transfer confirmation timed out, checking status...`);
+                
+                const status = await this.rateLimitedRpcCall(
+                  () => this.connection.getSignatureStatus(sendSignature),
+                  'getSignatureStatus'
+                );
+                
+                if (status.value && !status.value.err && status.value.confirmationStatus) {
+                  console.log(`[ZKDepositService] ✅ ChangeNow transfer actually succeeded! Status: ${status.value.confirmationStatus}`);
+                } else if (status.value?.err) {
+                  throw new Error(`ChangeNow transfer failed: ${JSON.stringify(status.value.err)}`);
+                } else {
+                  // Transaction might still be processing
+                  console.warn(`[ZKDepositService] ⚠️ ChangeNow transfer status unknown - may still be processing`);
+                  // Continue anyway - ChangeNow will process it
+                }
+              } else {
+                throw error;
+              }
+            }
+          }
+
+          console.log(`[ZKDepositService] ✅ ChangeNow exchange successful for part ${i + 1}`);
+          console.log(`[ZKDepositService] Exchange ID: ${changenowResult.transactionId}`);
+          console.log(`[ZKDepositService] Transaction signature: ${sendSignature}`);
+          console.log(`[ZKDepositService] Funds sent to ChangeNow, will arrive at MIXER_WITHDRAWAL_WALLET (off-chain, hidden)`);
+
+          exchangeResult = {
+            success: true,
+            exchangeId: changenowResult.transactionId,
+            payinAddress: changenowResult.payinAddress,
+            signature: sendSignature,
+          };
+        } catch (exchangeError: any) {
+          // If ChangeNow fails, log warning but continue
+          console.warn(`[ZKDepositService] ChangeNow exchange failed for part ${i + 1}:`, exchangeError?.message || exchangeError);
+          console.warn(`[ZKDepositService] Funds remain in intermediate wallet (not exchanged)`);
+          exchangeResult = { success: false, error: exchangeError?.message || 'Unknown error' };
         }
 
         splitParts.push({
           amount: splitAmount,
-          swapSignature: swapResult.signature || undefined,
+          exchangeId: exchangeResult?.exchangeId,
+          exchangeSignature: exchangeResult?.signature,
         });
 
-        // Add random delay between swaps (1-3 minutes for privacy)
-        if (i === 0) {
+        // PRIVACY FIX: If this part did NOT go through ChangeNow, deposit it immediately
+        // This prevents recombination - each part deposits separately
+        if (!exchangeResult?.success || !exchangeResult?.exchangeId) {
+          console.log(`[ZKDepositService] Part ${i + 1} did not go through ChangeNow - depositing immediately to prevent recombination...`);
+          
+          // Derive PDAs for this deposit
+          const finalTokenMint = this.getTokenMint(request.token);
+          const poolPDA = await derivePoolPDA(finalTokenMint.toBase58());
+          const userBalancePDA = await deriveUserBalancePDA(intermediatePubkey.toBase58(), finalTokenMint.toBase58());
+          const intermediateTokenAccount = await getAssociatedTokenAddress(finalTokenMint, intermediatePubkey);
+          const poolTokenAccount = await getAssociatedTokenAddress(finalTokenMint, poolPDA, true);
+          
+          // Check intermediate wallet balance for this part
+          let partBalance: bigint;
+          if (request.token === 'SOL') {
+            const solBalance = await this.rateLimitedRpcCall(
+              () => this.connection.getBalance(intermediatePubkey),
+              'getBalance'
+            );
+            partBalance = BigInt(solBalance);
+          } else {
+            const tokenBalance = await this.rateLimitedRpcCall(
+              () => getAccount(this.connection, intermediateTokenAccount),
+              'getAccount'
+            );
+            partBalance = tokenBalance.amount;
+          }
+          
+          if (partBalance > BigInt(0)) {
+            console.log(`[ZKDepositService] Depositing part ${i + 1} (${partBalance.toString()} lamports) immediately...`);
+            
+            // Deposit this part (reuse deposit logic from below)
+            // We'll create a helper function or inline it here
+            // For now, we'll mark it to be deposited and do it after the loop
+            // Actually, let's do it inline to avoid code duplication
+            await this.depositPartToPool({
+              intermediatePubkey,
+              intermediateKeypair,
+              intermediateTokenAccount,
+              partBalance,
+              finalTokenMint,
+              poolPDA,
+              userBalancePDA,
+              poolTokenAccount,
+              partIndex: i + 1,
+            });
+            
+            console.log(`[ZKDepositService] ✅ Part ${i + 1} deposited separately to pool`);
+          }
+        }
+
+        // Add random delay between swaps (1-3 minutes for privacy) - only if splitting
+        if (shouldSplit && i === 0) {
           const delay = Math.random() * 120000 + 60000; // 60-180 seconds
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
 
-      // Create ZK proof account (this will be done in Phase 3)
-      // For now, generate nonce
-      const zkProofNonce = generatePrivacyNonce(userWallet);
-
-      // SECURITY: Log deposit transaction
+      // CRITICAL: Move funds to ZK pool via deposit instruction
+      // PRIVACY FIX: Deposit each split part SEPARATELY to prevent recombination correlation
+      // This ensures the pool receives separate deposits (e.g., 4.16 and 5.84) instead of one $10 deposit
+      
+      console.log('[ZKDepositService] Moving funds to ZK pool (depositing each part separately for privacy)...');
+      
+      // Determine final token after swaps (use original token if swap failed)
+      const finalToken = request.token;
+      const finalTokenMint = this.getTokenMint(finalToken);
+      
+      // Derive PDAs for ZK pool (same for all parts - they all go to same User Balance PDA)
+      const poolPDA = await derivePoolPDA(finalTokenMint.toBase58());
+      const userBalancePDA = await deriveUserBalancePDA(intermediatePubkey.toBase58(), finalTokenMint.toBase58());
+      
+      console.log('[ZKDepositService] Pool PDA:', poolPDA.toBase58());
+      console.log('[ZKDepositService] User Balance PDA:', userBalancePDA.toBase58());
+      
+      // CRITICAL: Save database mappings EARLY (before processing parts)
+      // This ensures balance updates even if the function times out during ChangeNow polling
+      const zkProofNonce = generatePrivacyNonce(request.userWallet);
+      // dbService already imported above
       if (dbService.isAvailable()) {
+        console.log(`[ZKDepositService] Saving to database EARLY: user=${request.userWallet}, token=${request.token}, userBalancePDA=${userBalancePDA.toBase58()}, intermediateWallet=${intermediateWallet.publicKey}`);
+        
+        // Store intermediate wallet FIRST (needed for proof uploads)
+        const savedWallet = await dbService.setUserIntermediateWallet(request.userWallet, intermediateWallet.publicKey, request.token);
+        console.log(`[ZKDepositService] Intermediate wallet saved: ${savedWallet ? 'SUCCESS' : 'FAILED'}`);
+        
+        // Store User Balance PDA mapping LAST (user wallet → User Balance PDA)
+        const savedPDA = await dbService.setUserBalancePDA(request.userWallet, userBalancePDA.toBase58(), request.token);
+        console.log(`[ZKDepositService] User Balance PDA saved: ${savedPDA ? 'SUCCESS' : 'FAILED'}`);
+        console.log(`[ZKDepositService] ✅ Database mappings saved early (before deposit processing)`);
+      } else {
+        console.warn(`[ZKDepositService] ⚠️ Database not available - User Balance PDA mapping NOT saved!`);
+      }
+      
+      // Get token accounts
+      const intermediateTokenAccount = await getAssociatedTokenAddress(finalTokenMint, intermediatePubkey);
+      const poolTokenAccount = await getAssociatedTokenAddress(finalTokenMint, poolPDA, true);
+      
+      // Variable to store all deposit signatures
+      const depositSignatures: string[] = [];
+      
+      // PRIVACY FIX: Process and deposit each split part separately
+      // This prevents recombination - each part deposits individually with delays
+      for (let partIndex = 0; partIndex < splitParts.length; partIndex++) {
+        const part = splitParts[partIndex];
+        const partAmount = partIndex === 0 ? split.part1 : split.part2;
+        
+        if (partAmount <= 0) continue; // Skip zero parts
+        
+        console.log(`[ZKDepositService] Processing deposit for part ${partIndex + 1}/${splitParts.length} (${partAmount} ${request.token})...`);
+        
+        let partDepositAmountLamports: bigint = BigInt(0);
+        
+        // Check if this part went through ChangeNow
+        if (part.exchangeId && part.exchangeSignature) {
+          // This part went through ChangeNow - wait for it to complete, then deposit separately
+          console.log(`[ZKDepositService] Part ${partIndex + 1} went through ChangeNow (ID: ${part.exchangeId}) - waiting for completion...`);
+          
+          // Calculate expected amount for this part (after ChangeNow fees ~1-2%)
+          const expectedAmountLamports = this.convertToLamports(partAmount, request.token);
+          const minExpectedAmount = expectedAmountLamports * BigInt(98) / BigInt(100); // At least 98% of original
+          
+          // Poll this specific ChangeNow transaction
+          // NOTE: Vercel has a 300-second (5-minute) timeout, so we limit polling to 1 minute max
+          // If ChangeNow takes longer, funds will arrive later and can be handled via webhook or background job
+          let finished = false;
+          let attempts = 0;
+          const maxAttempts = 12; // Poll for up to 1 minute (12 * 5 seconds) to avoid Vercel timeout
+          
+          while (!finished && attempts < maxAttempts) {
+            attempts++;
+            if (attempts % 3 === 0) { // Log every 15 seconds
+              console.log(`[ZKDepositService] Checking ChangeNow status for part ${partIndex + 1} (attempt ${attempts}/${maxAttempts})...`);
+            }
+            
+            const status = await this.changenowService.getTransactionStatus(part.exchangeId!);
+            
+            if (status?.status === 'finished') {
+              finished = true;
+              console.log(`[ZKDepositService] ✅ ChangeNow transaction ${part.exchangeId} completed for part ${partIndex + 1}`);
+            } else if (status?.status === 'failed' || status?.status === 'refunded') {
+              console.warn(`[ZKDepositService] ⚠️ ChangeNow transaction ${part.exchangeId} failed for part ${partIndex + 1} - checking intermediate wallet`);
+              // Funds might still be in intermediate wallet - check there
+              break;
+            } else {
+              await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+          }
+          
+          if (!finished && attempts >= maxAttempts) {
+            console.warn(`[ZKDepositService] ⚠️ ChangeNow polling timed out after ${maxAttempts * 5} seconds for part ${partIndex + 1}`);
+            console.warn(`[ZKDepositService] ⚠️ Exchange ${part.exchangeId} is still processing - funds will arrive later at MIXER_WITHDRAWAL_WALLET`);
+            console.warn(`[ZKDepositService] ⚠️ This part will need to be handled via webhook or background job`);
+            // Don't throw error - just skip this part for now
+            // The exchange ID is saved in splitParts, so it can be checked later
+            partDepositAmountLamports = BigInt(0);
+            continue; // Skip to next part
+          }
+          
+          // After ChangeNow completes, funds are at MIXER_WITHDRAWAL_WALLET
+          // Transfer this part's amount separately and deposit it individually
+          // IMPORTANT: Use the ACTUAL amount from ChangeNow (after fees), not the expected amount
+          if (finished) {
+            const mixerWithdrawalWallet = process.env.MIXER_WITHDRAWAL_WALLET_ADDRESS;
+            const mixerWithdrawalPrivateKey = process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY;
+            
+            if (mixerWithdrawalWallet && mixerWithdrawalPrivateKey) {
+              console.log(`[ZKDepositService] Transferring part ${partIndex + 1} (${partAmount} ${request.token}) from MIXER_WITHDRAWAL_WALLET...`);
+              
+              const mixerWalletPubkey = new PublicKey(mixerWithdrawalWallet);
+              const mixerTokenAccount = await getAssociatedTokenAddress(finalTokenMint, mixerWalletPubkey);
+              
+              try {
+                const mixerBalance = await this.rateLimitedRpcCall(
+                  () => getAccount(this.connection, mixerTokenAccount),
+                  'getAccount'
+                );
+                
+                // Get actual ChangeNow transaction to see the real amount after fees
+                const changenowStatus = await this.changenowService.getTransactionStatus(part.exchangeId!);
+                let actualAmountAfterFees = expectedAmountLamports; // Default to expected if we can't get actual
+                
+                if (changenowStatus?.toAmount) {
+                  // ChangeNow returns the actual amount after fees
+                  const toAmountDecimal = parseFloat(changenowStatus.toAmount);
+                  actualAmountAfterFees = this.convertToLamports(toAmountDecimal, request.token);
+                  console.log(`[ZKDepositService] ChangeNow actual amount after fees: ${toAmountDecimal} ${request.token} = ${actualAmountAfterFees.toString()} lamports`);
+                } else if (changenowStatus?.amount) {
+                  // Fallback: use the 'amount' field if toAmount isn't available
+                  const amountDecimal = parseFloat(changenowStatus.amount);
+                  actualAmountAfterFees = this.convertToLamports(amountDecimal, request.token);
+                  console.log(`[ZKDepositService] ChangeNow amount (fallback): ${amountDecimal} ${request.token} = ${actualAmountAfterFees.toString()} lamports`);
+                } else {
+                  console.log(`[ZKDepositService] ChangeNow status doesn't have amount info yet, using expected amount: ${expectedAmountLamports.toString()} lamports`);
+                }
+                
+                if (mixerBalance.amount >= minExpectedAmount) {
+                  // Transfer the ACTUAL amount after ChangeNow fees (not the expected amount)
+                  // Use whichever is smaller: actual amount after fees, or available balance
+                  // This ensures we deposit the correct amount (e.g., $8.47 instead of $10)
+                  const transferAmount = mixerBalance.amount >= actualAmountAfterFees 
+                    ? actualAmountAfterFees 
+                    : mixerBalance.amount;
+                  
+                  console.log(`[ZKDepositService] Transferring ${transferAmount.toString()} lamports (actual after ChangeNow fees: ${Number(transferAmount) / (request.token === 'USDC' || request.token === 'USDT' ? 1e6 : 1e9)} ${request.token}) from MIXER_WITHDRAWAL_WALLET`);
+                  
+                  // Load MIXER_WITHDRAWAL_WALLET keypair
+                  let mixerKeypair: Keypair;
+                  try {
+                    mixerKeypair = Keypair.fromSecretKey(bs58.decode(mixerWithdrawalPrivateKey));
+                  } catch {
+                    try {
+                      const keyArray = JSON.parse(mixerWithdrawalPrivateKey);
+                      mixerKeypair = Keypair.fromSecretKey(Uint8Array.from(keyArray));
+                    } catch {
+                      throw new Error('Invalid MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY format');
+                    }
+                  }
+                  
+                  // Transfer this part's amount from MIXER_WITHDRAWAL_WALLET to intermediate wallet
+                  const transferInstructions = [];
+                  
+                  // Check if intermediate token account exists
+                  let intermediateAccountExists = false;
+                  try {
+                    await this.rateLimitedRpcCall(
+                      () => getAccount(this.connection, intermediateTokenAccount),
+                      'getAccount'
+                    );
+                    intermediateAccountExists = true;
+                  } catch {
+                    intermediateAccountExists = false;
+                  }
+                  
+                  // Create intermediate token account if needed
+                  if (!intermediateAccountExists && this.collectionKeypair) {
+                    transferInstructions.push(
+                      createAssociatedTokenAccountInstruction(
+                        this.collectionKeypair.publicKey,
+                        intermediateTokenAccount,
+                        intermediatePubkey,
+                        finalTokenMint
+                      )
+                    );
+                  }
+                  
+                  // Transfer this part's amount
+                  transferInstructions.push(
+                    createTransferInstruction(
+                      mixerTokenAccount,
+                      intermediateTokenAccount,
+                      mixerKeypair.publicKey,
+                      transferAmount
+                    )
+                  );
+                  
+                  // Build and send transfer transaction
+                  const { blockhash: transferBlockhash } = await this.rateLimitedRpcCall(
+                    () => this.connection.getLatestBlockhash(),
+                    'getLatestBlockhash'
+                  );
+                  
+                  const transferTx = new VersionedTransaction(
+                    new TransactionMessage({
+                      payerKey: mixerKeypair.publicKey,
+                      recentBlockhash: transferBlockhash,
+                      instructions: transferInstructions,
+                    }).compileToLegacyMessage()
+                  );
+                  
+                  const transferSigners = [mixerKeypair];
+                  if (this.collectionKeypair && !intermediateAccountExists) {
+                    transferSigners.push(this.collectionKeypair);
+                  }
+                  transferTx.sign(transferSigners);
+                  
+                  const transferSignature = await this.rateLimitedRpcCall(
+                    () => this.connection.sendRawTransaction(transferTx.serialize(), {
+                      skipPreflight: false,
+                      maxRetries: 3,
+                    }),
+                    'sendRawTransaction'
+                  );
+                  
+                  console.log(`[ZKDepositService] Transfer for part ${partIndex + 1} sent, signature:`, transferSignature);
+                  
+                  // Wait for confirmation (with timeout handling)
+                  try {
+                    await this.rateLimitedRpcCall(
+                      () => this.connection.confirmTransaction(transferSignature, 'confirmed'),
+                      'confirmTransaction'
+                    );
+                    console.log(`[ZKDepositService] ✅ Part ${partIndex + 1} transferred from MIXER_WITHDRAWAL_WALLET`);
+                  } catch (error: any) {
+                    if (error.name === 'TransactionExpiredTimeoutError' || error.message?.includes('not confirmed in')) {
+                      const status = await this.rateLimitedRpcCall(
+                        () => this.connection.getSignatureStatus(transferSignature),
+                        'getSignatureStatus'
+                      );
+                      
+                      if (status.value && !status.value.err && status.value.confirmationStatus) {
+                        console.log(`[ZKDepositService] ✅ Part ${partIndex + 1} transfer actually succeeded!`);
+                      } else if (status.value?.err) {
+                        throw new Error(`Transfer failed: ${JSON.stringify(status.value.err)}`);
+                      } else {
+                        throw new Error(`Transfer status unknown. Check signature ${transferSignature}`);
+                      }
+                    } else {
+                      throw error;
+                    }
+                  }
+                  
+                  // Use the ACTUAL amount we transferred (after ChangeNow fees), not the full wallet balance
+                  // This ensures we deposit the correct amount (e.g., $8.47 instead of $10)
+                  partDepositAmountLamports = transferAmount;
+                  console.log(`[ZKDepositService] Part ${partIndex + 1} will deposit ${partDepositAmountLamports.toString()} lamports (actual after ChangeNow fees: ${Number(partDepositAmountLamports) / (request.token === 'USDC' || request.token === 'USDT' ? 1e6 : 1e9)} ${request.token})`);
+                } else {
+                  console.warn(`[ZKDepositService] ⚠️ MIXER_WITHDRAWAL_WALLET doesn't have enough funds for part ${partIndex + 1} yet (has ${mixerBalance.amount.toString()}, need ${minExpectedAmount.toString()})`);
+                  // Check intermediate wallet in case ChangeNow failed
+                  try {
+                    const intermediateBalance = await this.rateLimitedRpcCall(
+                      () => getAccount(this.connection, intermediateTokenAccount),
+                      'getAccount'
+                    );
+                    partDepositAmountLamports = intermediateBalance.amount;
+                  } catch {
+                    partDepositAmountLamports = BigInt(0);
+                  }
+                }
+              } catch (error: any) {
+                if (error.name === 'TokenAccountNotFoundError') {
+                  console.log(`[ZKDepositService] Funds not yet at MIXER_WITHDRAWAL_WALLET for part ${partIndex + 1} - may still be processing`);
+                  // Check intermediate wallet in case ChangeNow failed
+                  try {
+                    const intermediateBalance = await this.rateLimitedRpcCall(
+                      () => getAccount(this.connection, intermediateTokenAccount),
+                      'getAccount'
+                    );
+                    partDepositAmountLamports = intermediateBalance.amount;
+                  } catch {
+                    partDepositAmountLamports = BigInt(0);
+                  }
+                } else {
+                  throw error;
+                }
+              }
+            } else {
+              console.warn(`[ZKDepositService] ⚠️ MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY not configured - cannot transfer part ${partIndex + 1} from ChangeNow`);
+              // Check intermediate wallet in case ChangeNow failed
+              try {
+                const intermediateBalance = await this.rateLimitedRpcCall(
+                  () => getAccount(this.connection, intermediateTokenAccount),
+                  'getAccount'
+                );
+                partDepositAmountLamports = intermediateBalance.amount;
+              } catch {
+                partDepositAmountLamports = BigInt(0);
+              }
+            }
+          } else {
+            // ChangeNow didn't finish - check intermediate wallet for refunded funds
+            console.log(`[ZKDepositService] ChangeNow didn't complete for part ${partIndex + 1} - checking intermediate wallet...`);
+            try {
+              const intermediateBalance = await this.rateLimitedRpcCall(
+                () => getAccount(this.connection, intermediateTokenAccount),
+                'getAccount'
+              );
+              partDepositAmountLamports = intermediateBalance.amount;
+            } catch {
+              partDepositAmountLamports = BigInt(0);
+            }
+          }
+        } else {
+          // This part did NOT go through ChangeNow - check intermediate wallet directly
+          console.log(`[ZKDepositService] Part ${partIndex + 1} did not go through ChangeNow - checking intermediate wallet...`);
+          
+          try {
+            const intermediateBalance = await this.rateLimitedRpcCall(
+              () => getAccount(this.connection, intermediateTokenAccount),
+              'getAccount'
+            );
+            partDepositAmountLamports = intermediateBalance.amount;
+            console.log(`[ZKDepositService] Part ${partIndex + 1} balance in intermediate wallet:`, partDepositAmountLamports.toString(), 'lamports');
+          } catch (error: any) {
+            if (error.name === 'TokenAccountNotFoundError') {
+              console.warn(`[ZKDepositService] ⚠️ No funds found for part ${partIndex + 1} in intermediate wallet`);
+              partDepositAmountLamports = BigInt(0);
+            } else {
+              throw error;
+            }
+          }
+        }
+        
+        // Deposit this part separately to the pool (PRIVACY: prevents recombination correlation)
+        if (partDepositAmountLamports > BigInt(0)) {
+          console.log(`[ZKDepositService] Depositing part ${partIndex + 1} (${partDepositAmountLamports.toString()} lamports) to ZK pool separately...`);
+          
+          const partDepositSig = await this.depositPartToPool({
+            intermediatePubkey,
+            intermediateKeypair,
+            intermediateTokenAccount,
+            partBalance: partDepositAmountLamports,
+            finalTokenMint,
+            poolPDA,
+            userBalancePDA,
+            poolTokenAccount,
+            partIndex: partIndex + 1,
+          });
+          
+          depositSignatures.push(partDepositSig);
+          
+          // Add delay between deposits for privacy (only if not last part)
+          if (partIndex < splitParts.length - 1) {
+            const delay = Math.random() * 60000 + 30000; // 30-90 seconds between deposits
+            console.log(`[ZKDepositService] Waiting ${Math.round(delay / 1000)}s before next deposit for privacy...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        } else {
+          console.log(`[ZKDepositService] Part ${partIndex + 1} has no funds to deposit (went through ChangeNow or failed)`);
+        }
+      }
+      
+      // Variable to store deposit signature (for return value - use last one or undefined)
+      const depositSignature = depositSignatures.length > 0 ? depositSignatures[depositSignatures.length - 1] : undefined;
+      
+      // CRITICAL: Save database mappings BEFORE any potential timeout
+      // This ensures balance updates even if ChangeNow polling times out
+      // Log deposit transaction (only count successfully deposited parts)
+      if (dbService.isAvailable()) {
+        const depositedAmount = depositSignatures.length > 0 ? request.amount : 0; // Will be updated when ChangeNow completes
         await dbService.logTransaction({
-          user_wallet: userWallet,
+          user_wallet: request.userWallet,
           intermediate_wallet: intermediateWallet.publicKey,
           type: 'deposit',
-          amount: request.amount,
+          amount: depositedAmount,
           token: request.token,
           nonce: zkProofNonce,
         });
+        console.log(`[ZKDepositService] ✅ Deposit transaction logged`);
+      }
+      
+      // If no parts were deposited (all went through ChangeNow), log a warning
+      if (depositSignatures.length === 0) {
+        console.warn('[ZKDepositService] ⚠️ No parts were deposited directly - all went through ChangeNow');
+        console.warn('[ZKDepositService] ⚠️ ChangeNow funds will arrive at MIXER_WITHDRAWAL_WALLET and need separate handling');
+        console.warn('[ZKDepositService] ⚠️ User Balance PDA has been saved - balance will update when ChangeNow completes');
+      } else {
+        console.log(`[ZKDepositService] ✅ Successfully deposited ${depositSignatures.length} part(s) separately to ZK pool`);
       }
 
       return {
         success: true,
         depositId: request.depositId,
-        intermediateWallet: intermediateWallet.publicKey,
+        intermediateWallet: intermediateWallet.publicKey, // Temporary wallet (for this deposit only)
+        userBalancePDA: userBalancePDA.toBase58(), // This is what tracks your balance
+        poolPDA: poolPDA.toBase58(), // Shared pool
         zkProofNonce,
         splitParts,
+        depositSignature,
       };
     } catch (error) {
       console.error('[ZKDepositService] processDeposit error:', error);
@@ -747,6 +1571,147 @@ export class ZKDepositService {
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
+  }
+
+  /**
+   * Helper: Deposit a specific amount to the ZK pool
+   * Used to deposit each split part separately for privacy
+   */
+  private async depositPartToPool(params: {
+    intermediatePubkey: PublicKey;
+    intermediateKeypair: Keypair;
+    intermediateTokenAccount: PublicKey;
+    partBalance: bigint;
+    finalTokenMint: PublicKey;
+    poolPDA: PublicKey;
+    userBalancePDA: PublicKey;
+    poolTokenAccount: PublicKey;
+    partIndex: number;
+  }): Promise<string> {
+    const {
+      intermediatePubkey,
+      intermediateKeypair,
+      intermediateTokenAccount,
+      partBalance,
+      finalTokenMint,
+      poolPDA,
+      userBalancePDA,
+      poolTokenAccount,
+      partIndex,
+    } = params;
+    
+    // Check if pool token account exists
+    let poolAccountExists = false;
+    try {
+      await this.rateLimitedRpcCall(
+        () => getAccount(this.connection, poolTokenAccount),
+        'getAccount'
+      );
+      poolAccountExists = true;
+    } catch {
+      poolAccountExists = false;
+    }
+    
+    // Build deposit transaction
+    const depositInstructions = [];
+    
+    // Fund intermediate wallet with SOL if needed
+    const intermediateWalletBalance = await this.rateLimitedRpcCall(
+      () => this.connection.getBalance(intermediatePubkey),
+      'getBalance'
+    );
+    
+    const MIN_SOL_FOR_DEPOSIT = 5_000_000; // 0.005 SOL
+    
+    if (intermediateWalletBalance < MIN_SOL_FOR_DEPOSIT && this.collectionKeypair) {
+      depositInstructions.push(
+        SystemProgram.transfer({
+          fromPubkey: this.collectionKeypair.publicKey,
+          toPubkey: intermediatePubkey,
+          lamports: MIN_SOL_FOR_DEPOSIT,
+        })
+      );
+    }
+    
+    // Create pool token account if needed
+    if (!poolAccountExists && this.collectionKeypair) {
+      depositInstructions.push(
+        createAssociatedTokenAccountInstruction(
+          this.collectionKeypair.publicKey,
+          poolTokenAccount,
+          poolPDA,
+          finalTokenMint
+        )
+      );
+    }
+    
+    // Build deposit instruction
+    const depositIx = this.buildDepositInstruction({
+      user: intermediatePubkey,
+      userBalance: userBalancePDA,
+      pool: poolPDA,
+      tokenMint: finalTokenMint,
+      userTokenAccount: intermediateTokenAccount,
+      poolTokenAccount: poolTokenAccount,
+      amountLamports: partBalance,
+    });
+    depositInstructions.push(depositIx);
+    
+    // Get blockhash and build transaction
+    const { blockhash: depositBlockhash } = await this.rateLimitedRpcCall(
+      () => this.connection.getLatestBlockhash(),
+      'getLatestBlockhash'
+    );
+    
+    const depositTx = new VersionedTransaction(
+      new TransactionMessage({
+        payerKey: this.collectionKeypair?.publicKey || this.collectionWallet!,
+        recentBlockhash: depositBlockhash,
+        instructions: depositInstructions,
+      }).compileToLegacyMessage()
+    );
+    
+    // Sign with collection wallet (payer) and intermediate wallet (user for deposit)
+    const depositSigners = [this.collectionKeypair!, intermediateKeypair];
+    depositTx.sign(depositSigners);
+    
+    console.log(`[ZKDepositService] Sending deposit instruction for part ${partIndex} to ZK pool...`);
+    const depositSignature = await this.rateLimitedRpcCall(
+      () => this.connection.sendRawTransaction(depositTx.serialize(), {
+        skipPreflight: false,
+        maxRetries: 3,
+      }),
+      'sendRawTransaction'
+    );
+    console.log(`[ZKDepositService] Deposit instruction for part ${partIndex} sent, signature:`, depositSignature);
+    
+    // Wait for confirmation (with timeout handling)
+    try {
+      await this.rateLimitedRpcCall(
+        () => this.connection.confirmTransaction(depositSignature, 'confirmed'),
+        'confirmTransaction'
+      );
+      console.log(`[ZKDepositService] ✅ Part ${partIndex} successfully deposited to ZK pool!`);
+    } catch (error: any) {
+      if (error.name === 'TransactionExpiredTimeoutError' || error.message?.includes('not confirmed in')) {
+        const status = await this.rateLimitedRpcCall(
+          () => this.connection.getSignatureStatus(depositSignature),
+          'getSignatureStatus'
+        );
+        
+        if (status.value && !status.value.err && status.value.confirmationStatus) {
+          console.log(`[ZKDepositService] ✅ Part ${partIndex} deposit actually succeeded!`);
+        } else if (status.value?.err) {
+          throw new Error(`Part ${partIndex} deposit failed: ${JSON.stringify(status.value.err)}`);
+        } else {
+          throw new Error(`Part ${partIndex} deposit status unknown. Check signature ${depositSignature}`);
+        }
+      } else {
+        throw error;
+      }
+    }
+    
+    return depositSignature;
   }
 
   /**
