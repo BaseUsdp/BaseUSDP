@@ -55,6 +55,7 @@ export interface ProcessDepositResult {
   zkProofPDA?: string;
   splitParts?: Array<{ amount: number; exchangeId?: string; exchangeSignature?: string }>;
   depositSignature?: string;
+  pendingChangenow?: boolean; // True if ChangeNow deposits are still processing
   error?: string;
 }
 
@@ -1217,263 +1218,36 @@ export class ZKDepositService {
         
         // Check if this part went through ChangeNow
         if (part.exchangeId && part.exchangeSignature) {
-          // This part went through ChangeNow - wait for it to complete, then deposit separately
-          console.log(`[ZKDepositService] Part ${partIndex + 1} went through ChangeNow (ID: ${part.exchangeId}) - waiting for completion...`);
+          // This part went through ChangeNow - DON'T wait for it to complete (Vercel timeout risk)
+          // Instead, save the exchange ID to database and return immediately
+          console.log(`[ZKDepositService] Part ${partIndex + 1} went through ChangeNow (ID: ${part.exchangeId}) - saving to database for later completion`);
           
-          // Calculate expected amount for this part (after ChangeNow fees ~1-2%)
-          const expectedAmountLamports = this.convertToLamports(partAmount, request.token);
-          const minExpectedAmount = expectedAmountLamports * BigInt(98) / BigInt(100); // At least 98% of original
-          
-          // Poll this specific ChangeNow transaction
-          // NOTE: Vercel has a 300-second (5-minute) timeout, so we limit polling to 1 minute max
-          // If ChangeNow takes longer, funds will arrive later and can be handled via webhook or background job
-          let finished = false;
-          let attempts = 0;
-          const maxAttempts = 12; // Poll for up to 1 minute (12 * 5 seconds) to avoid Vercel timeout
-          
-          while (!finished && attempts < maxAttempts) {
-            attempts++;
-            if (attempts % 3 === 0) { // Log every 15 seconds
-              console.log(`[ZKDepositService] Checking ChangeNow status for part ${partIndex + 1} (attempt ${attempts}/${maxAttempts})...`);
-            }
-            
-            const status = await this.changenowService.getTransactionStatus(part.exchangeId!);
-            
-            if (status?.status === 'finished') {
-              finished = true;
-              console.log(`[ZKDepositService] ✅ ChangeNow transaction ${part.exchangeId} completed for part ${partIndex + 1}`);
-            } else if (status?.status === 'failed' || status?.status === 'refunded') {
-              console.warn(`[ZKDepositService] ⚠️ ChangeNow transaction ${part.exchangeId} failed for part ${partIndex + 1} - checking intermediate wallet`);
-              // Funds might still be in intermediate wallet - check there
-              break;
-            } else {
-              await new Promise(resolve => setTimeout(resolve, 5000));
-            }
-          }
-          
-          if (!finished && attempts >= maxAttempts) {
-            console.warn(`[ZKDepositService] ⚠️ ChangeNow polling timed out after ${maxAttempts * 5} seconds for part ${partIndex + 1}`);
-            console.warn(`[ZKDepositService] ⚠️ Exchange ${part.exchangeId} is still processing - funds will arrive later at MIXER_WITHDRAWAL_WALLET`);
-            console.warn(`[ZKDepositService] ⚠️ This part will need to be handled via webhook or background job`);
-            // Don't throw error - just skip this part for now
-            // The exchange ID is saved in splitParts, so it can be checked later
-            partDepositAmountLamports = BigInt(0);
-            continue; // Skip to next part
-          }
-          
-          // After ChangeNow completes, funds are at MIXER_WITHDRAWAL_WALLET
-          // Transfer this part's amount separately and deposit it individually
-          // IMPORTANT: Use the ACTUAL amount from ChangeNow (after fees), not the expected amount
-          if (finished) {
-            const mixerWithdrawalWallet = process.env.MIXER_WITHDRAWAL_WALLET_ADDRESS;
-            const mixerWithdrawalPrivateKey = process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY;
-            
-            if (mixerWithdrawalWallet && mixerWithdrawalPrivateKey) {
-              console.log(`[ZKDepositService] Transferring part ${partIndex + 1} (${partAmount} ${request.token}) from MIXER_WITHDRAWAL_WALLET...`);
-              
-              const mixerWalletPubkey = new PublicKey(mixerWithdrawalWallet);
-              const mixerTokenAccount = await getAssociatedTokenAddress(finalTokenMint, mixerWalletPubkey);
-              
-              try {
-                const mixerBalance = await this.rateLimitedRpcCall(
-                  () => getAccount(this.connection, mixerTokenAccount),
-                  'getAccount'
-                );
-                
-                // Get actual ChangeNow transaction to see the real amount after fees
-                const changenowStatus = await this.changenowService.getTransactionStatus(part.exchangeId!);
-                let actualAmountAfterFees = expectedAmountLamports; // Default to expected if we can't get actual
-                
-                if (changenowStatus?.toAmount) {
-                  // ChangeNow returns the actual amount after fees
-                  const toAmountDecimal = parseFloat(changenowStatus.toAmount);
-                  actualAmountAfterFees = this.convertToLamports(toAmountDecimal, request.token);
-                  console.log(`[ZKDepositService] ChangeNow actual amount after fees: ${toAmountDecimal} ${request.token} = ${actualAmountAfterFees.toString()} lamports`);
-                } else if (changenowStatus?.amount) {
-                  // Fallback: use the 'amount' field if toAmount isn't available
-                  const amountDecimal = parseFloat(changenowStatus.amount);
-                  actualAmountAfterFees = this.convertToLamports(amountDecimal, request.token);
-                  console.log(`[ZKDepositService] ChangeNow amount (fallback): ${amountDecimal} ${request.token} = ${actualAmountAfterFees.toString()} lamports`);
-                } else {
-                  console.log(`[ZKDepositService] ChangeNow status doesn't have amount info yet, using expected amount: ${expectedAmountLamports.toString()} lamports`);
-                }
-                
-                if (mixerBalance.amount >= minExpectedAmount) {
-                  // Transfer the ACTUAL amount after ChangeNow fees (not the expected amount)
-                  // Use whichever is smaller: actual amount after fees, or available balance
-                  // This ensures we deposit the correct amount (e.g., $8.47 instead of $10)
-                  const transferAmount = mixerBalance.amount >= actualAmountAfterFees 
-                    ? actualAmountAfterFees 
-                    : mixerBalance.amount;
-                  
-                  console.log(`[ZKDepositService] Transferring ${transferAmount.toString()} lamports (actual after ChangeNow fees: ${Number(transferAmount) / (request.token === 'USDC' || request.token === 'USDT' ? 1e6 : 1e9)} ${request.token}) from MIXER_WITHDRAWAL_WALLET`);
-                  
-                  // Load MIXER_WITHDRAWAL_WALLET keypair
-                  let mixerKeypair: Keypair;
-                  try {
-                    mixerKeypair = Keypair.fromSecretKey(bs58.decode(mixerWithdrawalPrivateKey));
-                  } catch {
-                    try {
-                      const keyArray = JSON.parse(mixerWithdrawalPrivateKey);
-                      mixerKeypair = Keypair.fromSecretKey(Uint8Array.from(keyArray));
-                    } catch {
-                      throw new Error('Invalid MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY format');
-                    }
-                  }
-                  
-                  // Transfer this part's amount from MIXER_WITHDRAWAL_WALLET to intermediate wallet
-                  const transferInstructions = [];
-                  
-                  // Check if intermediate token account exists
-                  let intermediateAccountExists = false;
-                  try {
-                    await this.rateLimitedRpcCall(
-                      () => getAccount(this.connection, intermediateTokenAccount),
-                      'getAccount'
-                    );
-                    intermediateAccountExists = true;
-                  } catch {
-                    intermediateAccountExists = false;
-                  }
-                  
-                  // Create intermediate token account if needed
-                  if (!intermediateAccountExists && this.collectionKeypair) {
-                    transferInstructions.push(
-                      createAssociatedTokenAccountInstruction(
-                        this.collectionKeypair.publicKey,
-                        intermediateTokenAccount,
-                        intermediatePubkey,
-                        finalTokenMint
-                      )
-                    );
-                  }
-                  
-                  // Transfer this part's amount
-                  transferInstructions.push(
-                    createTransferInstruction(
-                      mixerTokenAccount,
-                      intermediateTokenAccount,
-                      mixerKeypair.publicKey,
-                      transferAmount
-                    )
-                  );
-                  
-                  // Build and send transfer transaction
-                  const { blockhash: transferBlockhash } = await this.rateLimitedRpcCall(
-                    () => this.connection.getLatestBlockhash(),
-                    'getLatestBlockhash'
-                  );
-                  
-                  const transferTx = new VersionedTransaction(
-                    new TransactionMessage({
-                      payerKey: mixerKeypair.publicKey,
-                      recentBlockhash: transferBlockhash,
-                      instructions: transferInstructions,
-                    }).compileToLegacyMessage()
-                  );
-                  
-                  const transferSigners = [mixerKeypair];
-                  if (this.collectionKeypair && !intermediateAccountExists) {
-                    transferSigners.push(this.collectionKeypair);
-                  }
-                  transferTx.sign(transferSigners);
-                  
-                  const transferSignature = await this.rateLimitedRpcCall(
-                    () => this.connection.sendRawTransaction(transferTx.serialize(), {
-                      skipPreflight: false,
-                      maxRetries: 3,
-                    }),
-                    'sendRawTransaction'
-                  );
-                  
-                  console.log(`[ZKDepositService] Transfer for part ${partIndex + 1} sent, signature:`, transferSignature);
-                  
-                  // Wait for confirmation (with timeout handling)
-                  try {
-                    await this.rateLimitedRpcCall(
-                      () => this.connection.confirmTransaction(transferSignature, 'confirmed'),
-                      'confirmTransaction'
-                    );
-                    console.log(`[ZKDepositService] ✅ Part ${partIndex + 1} transferred from MIXER_WITHDRAWAL_WALLET`);
-                  } catch (error: any) {
-                    if (error.name === 'TransactionExpiredTimeoutError' || error.message?.includes('not confirmed in')) {
-                      const status = await this.rateLimitedRpcCall(
-                        () => this.connection.getSignatureStatus(transferSignature),
-                        'getSignatureStatus'
-                      );
-                      
-                      if (status.value && !status.value.err && status.value.confirmationStatus) {
-                        console.log(`[ZKDepositService] ✅ Part ${partIndex + 1} transfer actually succeeded!`);
-                      } else if (status.value?.err) {
-                        throw new Error(`Transfer failed: ${JSON.stringify(status.value.err)}`);
-                      } else {
-                        throw new Error(`Transfer status unknown. Check signature ${transferSignature}`);
-                      }
-                    } else {
-                      throw error;
-                    }
-                  }
-                  
-                  // Use the ACTUAL amount we transferred (after ChangeNow fees), not the full wallet balance
-                  // This ensures we deposit the correct amount (e.g., $8.47 instead of $10)
-                  partDepositAmountLamports = transferAmount;
-                  console.log(`[ZKDepositService] Part ${partIndex + 1} will deposit ${partDepositAmountLamports.toString()} lamports (actual after ChangeNow fees: ${Number(partDepositAmountLamports) / (request.token === 'USDC' || request.token === 'USDT' ? 1e6 : 1e9)} ${request.token})`);
-                } else {
-                  console.warn(`[ZKDepositService] ⚠️ MIXER_WITHDRAWAL_WALLET doesn't have enough funds for part ${partIndex + 1} yet (has ${mixerBalance.amount.toString()}, need ${minExpectedAmount.toString()})`);
-                  // Check intermediate wallet in case ChangeNow failed
-                  try {
-                    const intermediateBalance = await this.rateLimitedRpcCall(
-                      () => getAccount(this.connection, intermediateTokenAccount),
-                      'getAccount'
-                    );
-                    partDepositAmountLamports = intermediateBalance.amount;
-                  } catch {
-                    partDepositAmountLamports = BigInt(0);
-                  }
-                }
-              } catch (error: any) {
-                if (error.name === 'TokenAccountNotFoundError') {
-                  console.log(`[ZKDepositService] Funds not yet at MIXER_WITHDRAWAL_WALLET for part ${partIndex + 1} - may still be processing`);
-                  // Check intermediate wallet in case ChangeNow failed
-                  try {
-                    const intermediateBalance = await this.rateLimitedRpcCall(
-                      () => getAccount(this.connection, intermediateTokenAccount),
-                      'getAccount'
-                    );
-                    partDepositAmountLamports = intermediateBalance.amount;
-                  } catch {
-                    partDepositAmountLamports = BigInt(0);
-                  }
-                } else {
-                  throw error;
-                }
-              }
-            } else {
-              console.warn(`[ZKDepositService] ⚠️ MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY not configured - cannot transfer part ${partIndex + 1} from ChangeNow`);
-              // Check intermediate wallet in case ChangeNow failed
-              try {
-                const intermediateBalance = await this.rateLimitedRpcCall(
-                  () => getAccount(this.connection, intermediateTokenAccount),
-                  'getAccount'
-                );
-                partDepositAmountLamports = intermediateBalance.amount;
-              } catch {
-                partDepositAmountLamports = BigInt(0);
-              }
-            }
-          } else {
-            // ChangeNow didn't finish - check intermediate wallet for refunded funds
-            console.log(`[ZKDepositService] ChangeNow didn't complete for part ${partIndex + 1} - checking intermediate wallet...`);
+          // Store pending ChangeNow exchange in database so it can be completed automatically
+          if (dbService.isAvailable()) {
             try {
-              const intermediateBalance = await this.rateLimitedRpcCall(
-                () => getAccount(this.connection, intermediateTokenAccount),
-                'getAccount'
-              );
-              partDepositAmountLamports = intermediateBalance.amount;
-            } catch {
-              partDepositAmountLamports = BigInt(0);
+              // Store as a transaction with type 'deposit' and exchange ID in transaction_signature field
+              // We'll use a special format: "PENDING_CHANGENOW:{exchangeId}"
+              await dbService.logTransaction({
+                user_wallet: request.userWallet,
+                intermediate_wallet: intermediateWallet.publicKey,
+                type: 'deposit',
+                amount: partAmount,
+                token: request.token,
+                transaction_signature: `PENDING_CHANGENOW:${part.exchangeId}`,
+                nonce: zkProofNonce,
+              });
+              console.log(`[ZKDepositService] ✅ Saved pending ChangeNow exchange ${part.exchangeId} to database`);
+            } catch (error) {
+              console.error(`[ZKDepositService] Failed to save pending exchange:`, error);
             }
           }
+          
+          console.log(`[ZKDepositService] ⚠️ Exchange ${part.exchangeId} will be processed automatically when balance is checked`);
+          console.log(`[ZKDepositService] ⚠️ Funds will arrive at MIXER_WITHDRAWAL_WALLET when ChangeNow completes`);
+          
+          // Skip this part - it will be handled asynchronously
+          partDepositAmountLamports = BigInt(0);
+          continue; // Skip to next part
         } else {
           // This part did NOT go through ChangeNow - check intermediate wallet directly
           console.log(`[ZKDepositService] Part ${partIndex + 1} did not go through ChangeNow - checking intermediate wallet...`);
@@ -1548,6 +1322,21 @@ export class ZKDepositService {
         console.warn('[ZKDepositService] ⚠️ No parts were deposited directly - all went through ChangeNow');
         console.warn('[ZKDepositService] ⚠️ ChangeNow funds will arrive at MIXER_WITHDRAWAL_WALLET and need separate handling');
         console.warn('[ZKDepositService] ⚠️ User Balance PDA has been saved - balance will update when ChangeNow completes');
+        console.warn('[ZKDepositService] ⚠️ Exchange IDs saved in splitParts - can be processed via webhook/background job');
+        
+        // Return success but note that deposits are pending
+        return {
+          success: true,
+          depositId: request.depositId,
+          intermediateWallet: intermediateWallet.publicKey,
+          userBalancePDA: userBalancePDA.toBase58(),
+          poolPDA: poolPDA.toBase58(),
+          zkProofNonce,
+          splitParts,
+          depositSignature: undefined,
+          // Add flag to indicate pending ChangeNow deposits
+          pendingChangenow: true,
+        };
       } else {
         console.log(`[ZKDepositService] ✅ Successfully deposited ${depositSignatures.length} part(s) separately to ZK pool`);
       }
@@ -1712,6 +1501,323 @@ export class ZKDepositService {
     }
     
     return depositSignature;
+  }
+
+  /**
+   * Complete a pending ChangeNow deposit
+   * Called when ChangeNow exchange finishes (via webhook or manual check)
+   */
+  async completeChangenowDeposit(params: {
+    exchangeId: string;
+    userWallet: string;
+    token: 'SOL' | 'USDC' | 'USDT';
+    partAmount: number;
+  }): Promise<{ success: boolean; depositSignature?: string; error?: string }> {
+    const { exchangeId, userWallet, token, partAmount } = params;
+    
+    try {
+      console.log(`[ZKDepositService] Completing ChangeNow deposit for exchange ${exchangeId}...`);
+      
+      // Get user's intermediate wallet and User Balance PDA from database
+      const { getDatabaseService } = await import('./databaseService.js');
+      const dbService = getDatabaseService();
+      
+      if (!dbService.isAvailable()) {
+        throw new Error('Database not available');
+      }
+      
+      const intermediateWalletAddress = await dbService.getUserIntermediateWallet(userWallet, token);
+      if (!intermediateWalletAddress) {
+        throw new Error('Intermediate wallet not found for user');
+      }
+      
+      // Get intermediate wallet from pool
+      const walletPool = getIntermediateWalletPool();
+      await walletPool.initialize();
+      const intermediateWallet = walletPool.getWalletByPublicKey(intermediateWalletAddress);
+      
+      if (!intermediateWallet) {
+        throw new Error(`Intermediate wallet ${intermediateWalletAddress} not found in pool`);
+      }
+      
+      const intermediateKeypair = Keypair.fromSecretKey(Uint8Array.from(intermediateWallet.privateKey));
+      const intermediatePubkey = new PublicKey(intermediateWallet.publicKey);
+      
+      // Derive PDAs
+      const finalTokenMint = this.getTokenMint(token);
+      const poolPDA = await derivePoolPDA(finalTokenMint.toBase58());
+      const userBalancePDA = await deriveUserBalancePDA(intermediatePubkey.toBase58(), finalTokenMint.toBase58());
+      const intermediateTokenAccount = await getAssociatedTokenAddress(finalTokenMint, intermediatePubkey);
+      const poolTokenAccount = await getAssociatedTokenAddress(finalTokenMint, poolPDA, true);
+      
+      // Check ChangeNow status
+      const changenowStatus = await this.changenowService.getTransactionStatus(exchangeId);
+      
+      if (!changenowStatus || changenowStatus.status !== 'finished') {
+        return {
+          success: false,
+          error: `ChangeNow exchange ${exchangeId} is not finished yet. Status: ${changenowStatus?.status || 'unknown'}`,
+        };
+      }
+      
+      // Get actual amount after fees
+      let actualAmountAfterFees: bigint;
+      if (changenowStatus.toAmount) {
+        const toAmountDecimal = parseFloat(changenowStatus.toAmount);
+        actualAmountAfterFees = this.convertToLamports(toAmountDecimal, token);
+        console.log(`[ZKDepositService] ChangeNow actual amount after fees: ${toAmountDecimal} ${token} = ${actualAmountAfterFees.toString()} lamports`);
+      } else {
+        // Fallback to expected amount
+        actualAmountAfterFees = this.convertToLamports(partAmount, token);
+        console.log(`[ZKDepositService] ChangeNow toAmount not available, using expected: ${partAmount} ${token}`);
+      }
+      
+      // Transfer from MIXER_WITHDRAWAL_WALLET to intermediate wallet
+      const mixerWithdrawalWallet = process.env.MIXER_WITHDRAWAL_WALLET_ADDRESS;
+      const mixerWithdrawalPrivateKey = process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY;
+      
+      if (!mixerWithdrawalWallet || !mixerWithdrawalPrivateKey) {
+        throw new Error('MIXER_WITHDRAWAL_WALLET not configured');
+      }
+      
+      const mixerWalletPubkey = new PublicKey(mixerWithdrawalWallet);
+      const mixerTokenAccount = await getAssociatedTokenAddress(finalTokenMint, mixerWalletPubkey);
+      
+      // Check mixer balance
+      const mixerBalance = await this.rateLimitedRpcCall(
+        () => getAccount(this.connection, mixerTokenAccount),
+        'getAccount'
+      );
+      
+      if (mixerBalance.amount < actualAmountAfterFees) {
+        return {
+          success: false,
+          error: `MIXER_WITHDRAWAL_WALLET has insufficient funds. Has: ${mixerBalance.amount.toString()}, Need: ${actualAmountAfterFees.toString()}`,
+        };
+      }
+      
+      // Load mixer keypair
+      let mixerKeypair: Keypair;
+      try {
+        mixerKeypair = Keypair.fromSecretKey(bs58.decode(mixerWithdrawalPrivateKey));
+      } catch {
+        try {
+          const keyArray = JSON.parse(mixerWithdrawalPrivateKey);
+          mixerKeypair = Keypair.fromSecretKey(Uint8Array.from(keyArray));
+        } catch {
+          throw new Error('Invalid MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY format');
+        }
+      }
+      
+      // Transfer from MIXER_WITHDRAWAL_WALLET to intermediate wallet
+      const transferInstructions = [];
+      
+      // Check if intermediate token account exists
+      let intermediateAccountExists = false;
+      try {
+        await this.rateLimitedRpcCall(
+          () => getAccount(this.connection, intermediateTokenAccount),
+          'getAccount'
+        );
+        intermediateAccountExists = true;
+      } catch {
+        intermediateAccountExists = false;
+      }
+      
+      // Create intermediate token account if needed
+      if (!intermediateAccountExists && this.collectionKeypair) {
+        transferInstructions.push(
+          createAssociatedTokenAccountInstruction(
+            this.collectionKeypair.publicKey,
+            intermediateTokenAccount,
+            intermediatePubkey,
+            finalTokenMint
+          )
+        );
+      }
+      
+      // Transfer actual amount after fees
+      transferInstructions.push(
+        createTransferInstruction(
+          mixerTokenAccount,
+          intermediateTokenAccount,
+          mixerKeypair.publicKey,
+          actualAmountAfterFees
+        )
+      );
+      
+      // Build and send transfer transaction
+      const { blockhash: transferBlockhash } = await this.rateLimitedRpcCall(
+        () => this.connection.getLatestBlockhash(),
+        'getLatestBlockhash'
+      );
+      
+      const transferTx = new VersionedTransaction(
+        new TransactionMessage({
+          payerKey: mixerKeypair.publicKey,
+          recentBlockhash: transferBlockhash,
+          instructions: transferInstructions,
+        }).compileToLegacyMessage()
+      );
+      
+      const transferSigners = [mixerKeypair];
+      if (this.collectionKeypair && !intermediateAccountExists) {
+        transferSigners.push(this.collectionKeypair);
+      }
+      transferTx.sign(transferSigners);
+      
+      const transferSignature = await this.rateLimitedRpcCall(
+        () => this.connection.sendRawTransaction(transferTx.serialize(), {
+          skipPreflight: false,
+          maxRetries: 3,
+        }),
+        'sendRawTransaction'
+      );
+      
+      console.log(`[ZKDepositService] Transfer from MIXER_WITHDRAWAL_WALLET sent, signature:`, transferSignature);
+      
+      // Wait for confirmation
+      try {
+        await this.rateLimitedRpcCall(
+          () => this.connection.confirmTransaction(transferSignature, 'confirmed'),
+          'confirmTransaction'
+        );
+        console.log(`[ZKDepositService] ✅ Funds transferred from MIXER_WITHDRAWAL_WALLET`);
+      } catch (error: any) {
+        if (error.name === 'TransactionExpiredTimeoutError' || error.message?.includes('not confirmed in')) {
+          const status = await this.rateLimitedRpcCall(
+            () => this.connection.getSignatureStatus(transferSignature),
+            'getSignatureStatus'
+          );
+          
+          if (status.value && !status.value.err && status.value.confirmationStatus) {
+            console.log(`[ZKDepositService] ✅ Transfer actually succeeded!`);
+          } else if (status.value?.err) {
+            throw new Error(`Transfer failed: ${JSON.stringify(status.value.err)}`);
+          } else {
+            throw new Error(`Transfer status unknown. Check signature ${transferSignature}`);
+          }
+        } else {
+          throw error;
+        }
+      }
+      
+      // Now deposit to pool
+      const depositSignature = await this.depositPartToPool({
+        intermediatePubkey,
+        intermediateKeypair,
+        intermediateTokenAccount,
+        partBalance: actualAmountAfterFees,
+        finalTokenMint,
+        poolPDA,
+        userBalancePDA,
+        poolTokenAccount,
+        partIndex: 1, // Single part completion
+      });
+      
+      console.log(`[ZKDepositService] ✅ ChangeNow deposit completed! Signature: ${depositSignature}`);
+      
+      return {
+        success: true,
+        depositSignature,
+      };
+    } catch (error) {
+      console.error('[ZKDepositService] Error completing ChangeNow deposit:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Complete all pending ChangeNow deposits for a user
+   * Checks database for pending exchanges and completes them
+   */
+  async completePendingChangenowDeposits(params: {
+    userWallet: string;
+    token: 'SOL' | 'USDC' | 'USDT';
+  }): Promise<{ completed: number; failed: number }> {
+    const { userWallet, token } = params;
+    let completed = 0;
+    let failed = 0;
+    
+    try {
+      console.log(`[ZKDepositService] Checking for pending ChangeNow deposits for ${userWallet} / ${token}...`);
+      
+      // Get user's intermediate wallet to find recent deposits
+      const { getDatabaseService } = await import('./databaseService.js');
+      const dbService = getDatabaseService();
+      
+      if (!dbService.isAvailable()) {
+        console.warn('[ZKDepositService] Database not available, cannot check pending deposits');
+        return { completed: 0, failed: 0 };
+      }
+      
+      // Query database for pending ChangeNow transactions
+      const pendingTransactions = await dbService.getPendingChangenowTransactions(userWallet, token);
+      
+      if (!pendingTransactions || pendingTransactions.length === 0) {
+        console.log('[ZKDepositService] No pending ChangeNow deposits found');
+        return { completed: 0, failed: 0 };
+      }
+      
+      console.log(`[ZKDepositService] Found ${pendingTransactions.length} pending ChangeNow deposit(s)`);
+      
+      // Complete each pending deposit
+      for (const tx of pendingTransactions) {
+        try {
+          // Extract exchange ID from transaction_signature
+          // Format: "PENDING_CHANGENOW:{exchangeId}"
+          const exchangeId = tx.transaction_signature?.replace('PENDING_CHANGENOW:', '');
+          if (!exchangeId) {
+            console.warn('[ZKDepositService] Invalid pending transaction format:', tx.transaction_signature);
+            continue;
+          }
+          
+          console.log(`[ZKDepositService] Completing pending ChangeNow deposit: ${exchangeId} (${tx.amount} ${tx.token})`);
+          
+          // Complete this ChangeNow deposit
+          const result = await this.completeChangenowDeposit({
+            exchangeId,
+            userWallet,
+            token: tx.token as 'SOL' | 'USDC' | 'USDT',
+            partAmount: tx.amount,
+          });
+          
+          if (result.success) {
+            completed++;
+            console.log(`[ZKDepositService] ✅ Completed ChangeNow deposit ${exchangeId}`);
+            
+            // Update transaction signature to mark as completed (remove from pending list)
+            // We'll update it to the actual deposit signature
+            if (dbService.isAvailable()) {
+              const { supabase } = dbService as any;
+              if (supabase) {
+                await supabase
+                  .from('transactions')
+                  .update({ transaction_signature: result.depositSignature || `COMPLETED:${exchangeId}` })
+                  .eq('user_wallet', userWallet)
+                  .eq('token', token)
+                  .eq('transaction_signature', tx.transaction_signature);
+              }
+            }
+          } else {
+            failed++;
+            console.warn(`[ZKDepositService] ⚠️ Failed to complete ChangeNow deposit ${exchangeId}:`, result.error);
+          }
+        } catch (error) {
+          failed++;
+          console.error(`[ZKDepositService] Error completing pending deposit:`, error);
+        }
+      }
+      
+      console.log(`[ZKDepositService] ✅ Completed ${completed} pending deposit(s), ${failed} failed`);
+      return { completed, failed };
+    } catch (error) {
+      console.error('[ZKDepositService] Error completing pending deposits:', error);
+      return { completed, failed };
+    }
   }
 
   /**

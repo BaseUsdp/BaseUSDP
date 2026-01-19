@@ -17,12 +17,29 @@ const balanceService = getZKBalanceService();
 router.get('/balance/:wallet', generalRateLimiter, async (req: Request, res: Response) => {
   try {
     const { wallet } = req.params;
+    const { token } = req.query; // Optional: specific token to check
 
     if (!wallet) {
       return res.status(400).json({
         success: false,
         error: 'Wallet address is required',
       });
+    }
+
+    // Try to complete pending ChangeNow deposits for USDC (most common)
+    // This ensures balance is up-to-date when user checks
+    if (!token || token === 'USDC') {
+      try {
+        const { getZKDepositService } = await import('../services/zkDepositService.js');
+        const depositService = getZKDepositService();
+        await depositService.completePendingChangenowDeposits({
+          userWallet: wallet,
+          token: 'USDC',
+        });
+      } catch (error) {
+        // Don't fail balance check if pending completion fails
+        console.warn('[ZK/BALANCE] Failed to complete pending deposits:', error);
+      }
     }
 
     const balances = await balanceService.getUserBalance(wallet);

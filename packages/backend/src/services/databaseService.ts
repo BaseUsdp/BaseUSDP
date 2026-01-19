@@ -445,6 +445,37 @@ export class DatabaseService {
     }
   }
 
+  /**
+   * Get pending ChangeNow transactions
+   */
+  async getPendingChangenowTransactions(
+    userWallet: string,
+    token: 'SOL' | 'USDC' | 'USDT'
+  ): Promise<Transaction[]> {
+    if (!this.isAvailable()) return [];
+
+    try {
+      const { data, error } = await this.supabase!
+        .from('transactions')
+        .select('*')
+        .eq('user_wallet', userWallet)
+        .eq('token', token)
+        .like('transaction_signature', 'PENDING_CHANGENOW:%')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('[DatabaseService] Error querying pending transactions:', error);
+        return [];
+      }
+
+      return (data || []) as Transaction[];
+    } catch (error) {
+      console.error('[DatabaseService] Error getting pending transactions:', error);
+      return [];
+    }
+  }
+
   // ============================================================================
   // Audit Logs (Security Events)
   // ============================================================================

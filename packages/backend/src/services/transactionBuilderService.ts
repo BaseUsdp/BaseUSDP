@@ -373,13 +373,20 @@ export class TransactionBuilderService {
         serializedTx = transactionBuffer;
       }
 
-      // Retry logic for network errors
+      // Use rate limiter to prevent 429 errors
+      const { getRPCRateLimiter } = await import('../lib/rpcRateLimiter.js');
+      const rateLimiter = getRPCRateLimiter();
+      
+      // Retry logic for network errors and rate limits
       let signature: string;
       let attempts = 0;
-      const maxRetries = 3;
+      const maxRetries = 5; // Increased retries for rate limit handling
       
       while (attempts < maxRetries) {
         try {
+          // Wait for rate limiter before making RPC call
+          await rateLimiter.waitIfNeeded('sendRawTransaction');
+          
           // Send the transaction
           signature = await this.connection.sendRawTransaction(serializedTx, {
             skipPreflight: false,
@@ -389,6 +396,23 @@ export class TransactionBuilderService {
         } catch (err) {
           attempts++;
           const errorMessage = err instanceof Error ? err.message : "Unknown error";
+          const errorString = JSON.stringify(err);
+          
+          // Check for 429 rate limit errors
+          if (errorMessage.includes("429") || errorString.includes("429") || errorMessage.includes("rate limit") || errorString.includes("rate limit")) {
+            console.warn(`[TransactionBuilderService] Rate limited (429), retrying after ${Math.min(2000 * attempts, 10000)}ms (attempt ${attempts}/${maxRetries})`);
+            
+            if (attempts >= maxRetries) {
+              return {
+                success: false,
+                error: "429 Too Many Requests: Connection rate limits exceeded. Please wait a moment and try again.",
+              };
+            }
+            
+            // Exponential backoff for rate limits (2s, 4s, 8s, 10s max)
+            await new Promise(resolve => setTimeout(resolve, Math.min(2000 * Math.pow(2, attempts - 1), 10000)));
+            continue;
+          }
           
           // Don't retry on non-network errors
           if (!errorMessage.includes("network") && !errorMessage.includes("ECONNREFUSED") && !errorMessage.includes("timeout")) {
@@ -415,11 +439,17 @@ export class TransactionBuilderService {
       }
 
       // Confirm the transaction with timeout
+      // Use rate limiter for getLatestBlockhash call
+      await rateLimiter.waitIfNeeded('getLatestBlockhash');
+      const latestBlockhash = await this.connection.getLatestBlockhash();
+      
+      // Use rate limiter for confirmTransaction call
+      await rateLimiter.waitIfNeeded('confirmTransaction');
       const confirmationPromise = this.connection.confirmTransaction(
         {
           signature,
           blockhash: transaction.recentBlockhash!,
-          lastValidBlockHeight: (await this.connection.getLatestBlockhash()).lastValidBlockHeight,
+          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
         },
         "confirmed"
       );

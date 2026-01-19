@@ -147,11 +147,103 @@ router.post('/deposit/process', generalRateLimiter, async (req: Request, res: Re
       intermediateWallet: result.intermediateWallet,
       zkProofNonce: result.zkProofNonce,
       splitParts: result.splitParts,
-      message: 'Deposit processed successfully. Funds are being mixed through privacy layers.',
+      pendingChangenow: result.pendingChangenow || false,
+      message: result.pendingChangenow 
+        ? 'Deposit initiated. ChangeNow deposits are processing and will complete automatically.'
+        : 'Deposit processed successfully. Funds are being mixed through privacy layers.',
     });
   } catch (error) {
     console.error('[DEPOSIT/PROCESS] Unexpected error:', error);
     console.error('[DEPOSIT/PROCESS] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /api/zk/deposit/complete-changenow
+ * Complete pending ChangeNow deposits that timed out
+ * This endpoint can be called manually or via webhook to finish deposits
+ */
+router.post('/deposit/complete-changenow', generalRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const { exchangeId, userWallet, token, partAmount } = req.body;
+
+    if (!exchangeId || !userWallet || !token || !partAmount) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: exchangeId, userWallet, token, partAmount',
+      });
+    }
+
+    console.log('[DEPOSIT/COMPLETE-CHANGENOW] Completing pending ChangeNow deposit:', {
+      exchangeId,
+      userWallet,
+      token,
+      partAmount,
+    });
+
+    const result = await depositService.completeChangenowDeposit({
+      exchangeId,
+      userWallet,
+      token,
+      partAmount,
+    });
+
+    if (!result.success) {
+      return res.status(500).json(result);
+    }
+
+    res.json({
+      success: true,
+      message: 'ChangeNow deposit completed successfully',
+      depositSignature: result.depositSignature,
+    });
+  } catch (error) {
+    console.error('[DEPOSIT/COMPLETE-CHANGENOW] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /api/zk/deposit/complete-pending
+ * Automatically check and complete all pending ChangeNow deposits for a user
+ * This endpoint can be called after a deposit to ensure balance updates
+ */
+router.post('/deposit/complete-pending', generalRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const { userWallet, token } = req.body;
+
+    if (!userWallet || !token) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: userWallet, token',
+      });
+    }
+
+    console.log('[DEPOSIT/COMPLETE-PENDING] Checking for pending ChangeNow deposits:', {
+      userWallet,
+      token,
+    });
+
+    const result = await depositService.completePendingChangenowDeposits({
+      userWallet,
+      token,
+    });
+
+    res.json({
+      success: true,
+      completed: result.completed || 0,
+      failed: result.failed || 0,
+      message: `Completed ${result.completed || 0} pending ChangeNow deposit(s)`,
+    });
+  } catch (error) {
+    console.error('[DEPOSIT/COMPLETE-PENDING] Error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
