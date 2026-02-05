@@ -208,10 +208,20 @@ class AuthService {
         body: JSON.stringify({ walletAddress, signature, nonce }),
       });
 
-      const data: VerifyResponse = await response.json();
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const msg =
+          (data?.error && typeof data.error === "object" && data.error.message) ||
+          (typeof data?.error === "string" ? data.error : null) ||
+          (typeof data?.message === "string" ? data.message : null);
+        return {
+          success: false,
+          error: msg || "Signature verification failed",
+        };
+      }
 
       if (data.success && data.sessionToken && data.expiresIn) {
-        // Store the session
         this.saveSession(data.sessionToken, data.expiresIn);
       }
 
