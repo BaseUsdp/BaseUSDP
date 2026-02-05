@@ -134,7 +134,19 @@ class AuthService {
         body: JSON.stringify({ walletAddress }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const msg =
+          (data?.error && typeof data.error === "object" && data.error.message) ||
+          (typeof data?.error === "string" ? data.error : null) ||
+          (typeof data?.message === "string" ? data.message : null);
+        return {
+          success: false,
+          error: msg || "Failed to get authentication nonce",
+        };
+      }
+
       return data;
     } catch (error) {
       console.error("Failed to get nonce:", error);

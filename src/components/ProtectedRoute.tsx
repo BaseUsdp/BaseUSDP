@@ -100,12 +100,16 @@ const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) =
       if (result.success) {
         setAuthState("authenticated");
       } else {
-        setAuthError(result.error || "Authentication failed");
+        const errMsg = result.error;
+        setAuthError(
+          typeof errMsg === "string" ? errMsg : errMsg ? String(errMsg) : "Authentication failed"
+        );
         setAuthState("connected");
       }
     } catch (error) {
       console.error("Auth error:", error);
-      setAuthError(error instanceof Error ? error.message : "Authentication failed");
+      const errMsg = error instanceof Error ? error.message : error;
+      setAuthError(typeof errMsg === "string" ? errMsg : "Authentication failed");
       setAuthState("connected");
     }
   };
