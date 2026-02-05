@@ -2,8 +2,8 @@
   "buildCommand": "npm run build:backend && npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/:path*" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
+  "functions": {
+    "api/[[...path]].ts": { "memory": 1024, "maxDuration": 60 }
+  }
 }
