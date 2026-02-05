@@ -5,7 +5,7 @@
 
 import { Router, Request, Response } from 'express';
 import { getZKDepositService } from '../services/zkDepositService.js';
-import { generalRateLimiter } from '../middleware/index.js';
+import { generalRateLimiter, requireAuth, verifyWalletOwnership } from '../middleware/index.js';
 
 const router = Router();
 const depositService = getZKDepositService();
@@ -75,10 +75,10 @@ router.post('/deposit', generalRateLimiter, async (req: Request, res: Response) 
 
 /**
  * POST /api/zk/deposit/process
- * Process deposit after user signs transaction
+ * Process deposit after user signs transaction (requires auth like Nolvipay)
  * Handles: smart split, Jupiter swaps, intermediate wallet assignment
  */
-router.post('/deposit/process', generalRateLimiter, async (req: Request, res: Response) => {
+router.post('/deposit/process', generalRateLimiter, requireAuth, verifyWalletOwnership('wallet'), async (req: Request, res: Response) => {
   try {
     console.log('[DEPOSIT/PROCESS] Received request:', {
       depositId: req.body.depositId,

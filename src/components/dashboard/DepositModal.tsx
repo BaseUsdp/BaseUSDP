@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getApiUrl } from "@/utils/apiConfig";
+import { authService } from "@/services/authService";
 import { getPhantomProvider, getSolflareProvider, WalletAdapter } from "@/services/transactionSigningService";
 
 interface DepositModalProps {
@@ -139,11 +140,14 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
 
       setTxSignature(submitResult.signature);
 
-      // Step 4: Process deposit (after transaction is confirmed)
+      // Step 4: Process deposit (after transaction is confirmed) — requires Bearer auth like Nolvipay
       setStep("processing");
+      const sessionToken = authService.getSessionToken();
+      const processHeaders: HeadersInit = { "Content-Type": "application/json" };
+      if (sessionToken) processHeaders["Authorization"] = `Bearer ${sessionToken}`;
       const processResponse = await fetch(`${apiUrl}/api/zk/deposit/process`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: processHeaders,
         body: JSON.stringify({
           depositId: createResult.depositId,
           transactionSignature: submitResult.signature,

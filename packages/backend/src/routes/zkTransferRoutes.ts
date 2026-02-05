@@ -9,7 +9,7 @@ import { getZKRelayerService } from '../services/zkRelayerService.js';
 import { getZKBalanceService } from '../services/zkBalanceService.js';
 import { getDatabaseService } from '../services/databaseService.js';
 import { generatePrivacyNonce } from '../lib/zk-privacy-protection.js';
-import { generalRateLimiter } from '../middleware/index.js';
+import { generalRateLimiter, requireAuth, verifyWalletOwnership } from '../middleware/index.js';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 
@@ -17,10 +17,9 @@ const router = Router();
 
 /**
  * POST /api/zk/transfer
- * Simplified transfer endpoint - handles proof upload and relayer submission
- * User just needs to sign a message to authorize
+ * Simplified transfer endpoint - requires auth + wallet signature (1:1 with Nolvipay)
  */
-router.post('/transfer', generalRateLimiter, async (req: Request, res: Response) => {
+router.post('/transfer', generalRateLimiter, requireAuth, verifyWalletOwnership('sender_wallet'), async (req: Request, res: Response) => {
   try {
     const {
       sender_wallet,

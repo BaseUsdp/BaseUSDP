@@ -93,6 +93,25 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     return address;
   };
 
+  // Clear wallet state and redirect to landing (used on disconnect/switch)
+  const clearWalletAndRedirect = useCallback(() => {
+    authService.logout(true).catch(() => {});
+    setIsAuthenticated(false);
+    setAuthError(null);
+    setIsConnected(false);
+    setWalletAddress("");
+    setFullWalletAddress("");
+    setWalletType(null);
+    setNetworkStatus("disconnected");
+    setChainId(null);
+    setEncryptedBalance("0");
+    localStorage.removeItem("void402_wallet");
+    // Redirect to landing when on dashboard (or any protected area)
+    if (typeof window !== "undefined" && window.location.pathname !== "/") {
+      window.location.href = "/";
+    }
+  }, []);
+
   // Check for persisted connection and auth on mount
   useEffect(() => {
     const savedWallet = localStorage.getItem("void402_wallet");
@@ -110,6 +129,45 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
     }
   }, []); // Only run once on mount
+
+  // Listen for wallet disconnect or account switch (like Nolvipay) → redirect to landing
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const phantom = getPhantomProvider();
+    const solflare = getSolflareProvider();
+    const provider = walletType === "phantom" ? phantom : walletType === "solflare" ? solflare : null;
+
+    if (!provider) return;
+
+    const handleDisconnect = () => {
+      clearWalletAndRedirect();
+    };
+
+    const handleAccountChanged = (newPubkey: unknown) => {
+      // null = disconnected; different key = switched account
+      if (newPubkey == null) {
+        clearWalletAndRedirect();
+        return;
+      }
+      // Switched to another account → treat as disconnect and send to landing
+      clearWalletAndRedirect();
+    };
+
+    try {
+      if ("on" in provider && typeof provider.on === "function") {
+        provider.on("disconnect", handleDisconnect);
+        provider.on("accountChanged", handleAccountChanged);
+        return () => {
+          provider.off?.("disconnect", handleDisconnect);
+          provider.off?.("accountChanged", handleAccountChanged);
+        };
+      }
+    } catch (err) {
+      console.warn("Wallet event listeners not supported:", err);
+    }
+    return undefined;
+  }, [isConnected, walletType, clearWalletAndRedirect]);
 
   // Fetch balance when wallet is connected
   useEffect(() => {
@@ -254,21 +312,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error("Disconnect error:", err);
     }
-    
-    // Clear auth session
-    await authService.logout(true);
-    setIsAuthenticated(false);
-    setAuthError(null);
-    
-    setIsConnected(false);
-    setWalletAddress("");
-    setFullWalletAddress("");
-    setWalletType(null);
-    setNetworkStatus("disconnected");
-    setChainId(null);
-    setEncryptedBalance("0");
-    localStorage.removeItem("void402_wallet");
-  }, [walletType]);
+    clearWalletAndRedirect();
+  }, [walletType, clearWalletAndRedirect]);
 
   // Authenticate with wallet signature
   const authenticate = useCallback(async (): Promise<boolean> => {
