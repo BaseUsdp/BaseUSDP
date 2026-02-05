@@ -111,13 +111,12 @@ export const transactionRateLimiter = createRateLimiter({
 });
 
 /**
- * Auth rate limiter - 20 per minute per wallet/IP (nonce + verify flow needs headroom)
- * Key by wallet when present so one user doesn't block others
+ * Auth rate limiter - 60/min per wallet (nonce + verify + retries; key by wallet when present)
  */
 export const authRateLimiter = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
-  maxRequests: 20,
-  message: "Too many authentication attempts. Please wait a moment and try again.",
+  maxRequests: 60,
+  message: "Too many authentication attempts. Please wait a minute and try again.",
   keyGenerator: (req) => {
     const wallet = req.body?.walletAddress ?? req.body?.wallet;
     return wallet ? `auth:${wallet}` : `auth:${req.ip || "unknown"}`;
