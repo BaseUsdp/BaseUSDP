@@ -8,26 +8,21 @@
  */
 
 /**
- * Get the backend API URL
- * 
+ * Get the backend API URL (single Vercel project: API lives on same origin).
+ *
  * Priority:
- * 1. VITE_API_URL environment variable (set in Vercel)
- * 2. Production default: https://void402-backend.vercel.app (if in production)
- * 3. Development default: http://localhost:3000
+ * 1. VITE_API_URL environment variable (override)
+ * 2. Production: same origin (relative /api)
+ * 3. Development: http://localhost:3000
  */
 export function getApiUrl(): string {
-  // Check for explicit environment variable first
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  
-  // In production, use default backend URL
-  // This should be updated to your actual backend deployment URL
+  // Production: API is on same Vercel project at /api
   if (import.meta.env.PROD) {
-    return "https://void402-backend.vercel.app";
+    return ""; // relative: same origin, so /api/auth/nonce etc.
   }
-  
-  // Development default
   return "http://localhost:3000";
 }
 
