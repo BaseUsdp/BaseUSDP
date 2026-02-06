@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Wallet, ChevronDown, LogOut, Copy, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useWallet, WalletType } from "@/contexts/WalletContext";
 import { Button } from "@/components/ui/button";
 import { getApiUrl } from "@/utils/apiConfig";
@@ -38,6 +38,27 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
   const [copied, setCopied] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
   const apiUrl = getApiUrl();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const walletSelectRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Close main dropdown
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+      // Close wallet selection
+      if (walletSelectRef.current && !walletSelectRef.current.contains(event.target as Node)) {
+        setShowWalletSelect(false);
+      }
+    };
+
+    if (isOpen || showWalletSelect) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isOpen, showWalletSelect]);
 
   // Fetch username when wallet is connected
   useEffect(() => {
@@ -113,7 +134,7 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
   // Wallet selection modal
   if (showWalletSelect) {
     return (
-      <div className="relative">
+      <div className="relative" ref={walletSelectRef}>
         <Button
           variant="outline"
           className="gap-2 border-primary/30 bg-primary/10 backdrop-blur-md hover:bg-primary/20"
@@ -195,7 +216,7 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
