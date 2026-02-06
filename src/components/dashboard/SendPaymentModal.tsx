@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Shield, QrCode, CheckCircle2, Loader2, AlertCircle, ExternalLink, Copy, X } from "lucide-react";
+import { Send, Shield, QrCode, CheckCircle2, Loader2, AlertCircle, ExternalLink, Copy, X, AtSign, User } from "lucide-react";
 import { useWallet, PrivacyLevel } from "@/contexts/WalletContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ import {
 import { executeZKTransfer } from "@/services/api";
 import { getApiUrl } from "@/utils/apiConfig";
 
+type RecipientType = "address" | "username";
+
 interface SendPaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -29,13 +31,60 @@ type TransactionStep = "form" | "preview" | "signing" | "encrypting" | "pending"
 
 const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
   const { encryptedBalance, privacyLevel, walletType, isConnected, fullWalletAddress } = useWallet();
+  const apiUrl = getApiUrl();
   
+  const [recipientType, setRecipientType] = useState<RecipientType>("address");
   const [recipient, setRecipient] = useState("");
+  const [usernameInput, setUsernameInput] = useState("");
+  const [resolvedWallet, setResolvedWallet] = useState<string | null>(null);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyLevel>(privacyLevel);
   const [step, setStep] = useState<TransactionStep>("form");
   const [txHash, setTxHash] = useState("");
   const [error, setError] = useState("");
+
+  // Username lookup effect (debounced)
+  useEffect(() => {
+    if (recipientType !== "username" || !usernameInput || usernameInput.length < 2) {
+      setResolvedWallet(null);
+      setLookupError(null);
+      return;
+    }
+
+    setIsLookingUp(true);
+    const timeoutId = setTimeout(async () => {
+      try {
+        const cleanUsername = usernameInput.startsWith("@") ? usernameInput.substring(1) : usernameInput;
+        const response = await fetch(`${apiUrl}/api/user/lookup?username=${encodeURIComponent(cleanUsername)}`);
+        const data = await response.json();
+
+        if (data.success && data.wallet_address) {
+          setResolvedWallet(data.wallet_address);
+          setLookupError(null);
+        } else {
+          setResolvedWallet(null);
+          setLookupError("Username not found");
+        }
+      } catch {
+        setResolvedWallet(null);
+        setLookupError("Failed to lookup username");
+      } finally {
+        setIsLookingUp(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timeoutId);
+  }, [usernameInput, recipientType, apiUrl]);
+
+  // Get effective recipient wallet address
+  const getEffectiveRecipient = (): string => {
+    if (recipientType === "username") {
+      return resolvedWallet || "";
+    }
+    return recipient;
+  };
 
   // Get the appropriate wallet provider based on connected wallet type
   const getWalletProvider = useCallback((): WalletAdapter | null => {
@@ -75,10 +124,19 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
   };
 
   const handlePreview = () => {
-    if (!recipient || !amount) return;
+    const effectiveRecipient = getEffectiveRecipient();
     
-    if (!isValidAddress(recipient)) {
-      setError("Please enter a valid Solana address");
+    if (!effectiveRecipient || !amount) {
+      if (recipientType === "username" && !resolvedWallet) {
+        setError("Please enter a valid username");
+        return;
+      }
+      setError("Please fill in all fields");
+      return;
+    }
+    
+    if (!isValidAddress(effectiveRecipient)) {
+      setError("Invalid recipient address");
       return;
     }
     
@@ -113,7 +171,8 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
       setStep("signing");
       
       // Create message to sign
-      const message = `Authorize Void402 transfer:\nAmount: ${amount} USDC\nTo: ${recipient}\nTimestamp: ${Date.now()}`;
+      const effectiveRecipient = getEffectiveRecipient();
+      const message = `Authorize Void402 transfer:\nAmount: ${amount} USDC\nTo: ${effectiveRecipient}\nTimestamp: ${Date.now()}`;
       
       // Sign message with wallet (Phantom/Solflare format)
       let walletSignature: string;
@@ -158,7 +217,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
       setStep("encrypting");
       const result = await executeZKTransfer({
         sender_wallet: fullWalletAddress,
-        recipient,
+        recipient: effectiveRecipient,
         token: "USDC", // Default to USDC for now
         amount: parseFloat(amount),
         wallet_signature: walletSignature,
@@ -234,6 +293,9 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
 
   const handleReset = () => {
     setRecipient("");
+    setUsernameInput("");
+    setResolvedWallet(null);
+    setLookupError(null);
     setAmount("");
     setStep("form");
     setTxHash("");
@@ -271,22 +333,92 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-5"
             >
-              {/* Recipient */}
+              {/* Recipient Type Selector */}
               <div>
                 <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-2">
-                  Recipient Address
+                  Send To
                 </label>
-                <div className="relative">
-                  <Input
-                    placeholder="Enter Solana address (e.g., 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU)"
-                    value={recipient}
-                    onChange={(e) => setRecipient(e.target.value)}
-                    className="bg-secondary border-border h-12 pr-12"
-                  />
-                  <button className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-primary/10 rounded">
-                    <QrCode className="w-5 h-5 text-muted-foreground" />
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={() => setRecipientType("address")}
+                    className={cn(
+                      "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
+                      recipientType === "address"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                    )}
+                  >
+                    <QrCode className="w-4 h-4" />
+                    Solana Address
+                  </button>
+                  <button
+                    onClick={() => setRecipientType("username")}
+                    className={cn(
+                      "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
+                      recipientType === "username"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                    )}
+                  >
+                    <AtSign className="w-4 h-4" />
+                    Username
                   </button>
                 </div>
+
+                {/* Address Input */}
+                {recipientType === "address" && (
+                  <div className="relative">
+                    <Input
+                      placeholder="Enter Solana address (e.g., 7xKXtg2CW87d97TXJSDpbD5jBk...)"
+                      value={recipient}
+                      onChange={(e) => setRecipient(e.target.value)}
+                      className="bg-secondary border-border h-12 pr-12"
+                    />
+                    <button className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-primary/10 rounded">
+                      <QrCode className="w-5 h-5 text-muted-foreground" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Username Input */}
+                {recipientType === "username" && (
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      <AtSign className="w-5 h-5" />
+                    </div>
+                    <Input
+                      placeholder="username"
+                      value={usernameInput}
+                      onChange={(e) => setUsernameInput(e.target.value.replace(/@/g, ""))}
+                      className="bg-secondary border-border h-12 pl-10 pr-12"
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {isLookingUp && (
+                        <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+                      )}
+                      {!isLookingUp && resolvedWallet && (
+                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      )}
+                      {!isLookingUp && lookupError && usernameInput && (
+                        <AlertCircle className="w-4 h-4 text-destructive" />
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Username Lookup Result */}
+                {recipientType === "username" && usernameInput && !isLookingUp && (
+                  <div className="mt-2 text-xs">
+                    {resolvedWallet ? (
+                      <p className="text-green-500 flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        Found: {resolvedWallet.slice(0, 6)}...{resolvedWallet.slice(-6)}
+                      </p>
+                    ) : lookupError ? (
+                      <p className="text-destructive">{lookupError}</p>
+                    ) : null}
+                  </div>
+                )}
               </div>
 
               {/* Amount */}
@@ -320,7 +452,11 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
               {/* Submit Button */}
               <Button
                 onClick={handlePreview}
-                disabled={!recipient || !amount}
+                disabled={
+                  !amount ||
+                  (recipientType === "address" && !recipient) ||
+                  (recipientType === "username" && (!resolvedWallet || isLookingUp))
+                }
                 className="w-full h-12 bg-primary hover:bg-primary/90"
               >
                 Preview Transaction
@@ -340,11 +476,17 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
               <div className="rounded-xl bg-secondary p-4 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Recipient</span>
-                  <span className="font-mono text-sm">
-                    {recipient.length > 20 
-                      ? `${recipient.slice(0, 6)}...${recipient.slice(-6)}`
-                      : recipient}
-                  </span>
+                  <div className="text-right">
+                    {recipientType === "username" && usernameInput && (
+                      <span className="text-primary font-medium block">@{usernameInput}</span>
+                    )}
+                    <span className="font-mono text-sm text-muted-foreground">
+                      {(() => {
+                        const addr = getEffectiveRecipient();
+                        return addr.length > 20 ? `${addr.slice(0, 6)}...${addr.slice(-6)}` : addr;
+                      })()}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Amount</span>

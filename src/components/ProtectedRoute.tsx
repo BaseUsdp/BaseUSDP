@@ -15,19 +15,37 @@ import { Icon } from "@iconify/react";
 import { useWallet } from "@/contexts/WalletContext";
 import { authService } from "@/services/authService";
 import WalletConnectPrompt from "@/components/dashboard/WalletConnectPrompt";
+import UsernameCreation from "@/components/dashboard/UsernameCreation";
 import { Button } from "@/components/ui/button";
+import { getApiUrl } from "@/utils/apiConfig";
 
 interface ProtectedRouteProps {
   children: ReactNode;
   requireAuth?: boolean; // If false, only wallet connection required
 }
 
-type AuthState = "loading" | "connected" | "authenticating" | "authenticated" | "unauthenticated";
+type AuthState = "loading" | "connected" | "authenticating" | "authenticated" | "needs_username" | "unauthenticated";
 
 const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) => {
   const { isConnected, isConnecting, fullWalletAddress } = useWallet();
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [authError, setAuthError] = useState<string | null>(null);
+  const apiUrl = getApiUrl();
+
+  // Check for custom username
+  const checkUsername = async (walletAddress: string) => {
+    try {
+      const response = await fetch(`${apiUrl}/api/user/profile?wallet=${walletAddress}`);
+      const data = await response.json();
+      if (data.success && data.profile) {
+        return data.profile.has_custom_username === true;
+      }
+      return false;
+    } catch {
+      // If check fails, allow through (don't block on error)
+      return true;
+    }
+  };
 
   // Check authentication status when wallet connects
   useEffect(() => {
@@ -52,7 +70,13 @@ const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) =
 
       // Check if already authenticated
       if (authService.isAuthenticated()) {
-        setAuthState("authenticated");
+        // Check if user has a custom username
+        const hasUsername = await checkUsername(fullWalletAddress);
+        if (!hasUsername) {
+          setAuthState("needs_username");
+        } else {
+          setAuthState("authenticated");
+        }
         return;
       }
 
@@ -61,7 +85,7 @@ const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) =
     };
 
     checkAuth();
-  }, [isConnected, isConnecting, requireAuth]);
+  }, [isConnected, isConnecting, requireAuth, fullWalletAddress]);
 
   // Handle authentication
   const handleAuthenticate = async () => {
@@ -98,7 +122,13 @@ const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) =
       const result = await authService.authenticate(walletAdapter);
 
       if (result.success) {
-        setAuthState("authenticated");
+        // Check if user has a custom username
+        const hasUsername = await checkUsername(fullWalletAddress);
+        if (!hasUsername) {
+          setAuthState("needs_username");
+        } else {
+          setAuthState("authenticated");
+        }
       } else {
         const errMsg = result.error;
         setAuthError(
@@ -112,6 +142,16 @@ const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) =
       setAuthError(typeof errMsg === "string" ? errMsg : "Authentication failed");
       setAuthState("connected");
     }
+  };
+
+  // Handle username creation complete
+  const handleUsernameComplete = () => {
+    setAuthState("authenticated");
+  };
+
+  // Handle back from username creation
+  const handleUsernameBack = () => {
+    window.location.href = "/";
   };
 
   // Loading state
@@ -137,6 +177,11 @@ const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) =
         <WalletConnectPrompt />
       </div>
     );
+  }
+
+  // Needs username creation
+  if (authState === "needs_username") {
+    return <UsernameCreation onComplete={handleUsernameComplete} onBack={handleUsernameBack} />;
   }
 
   // Connected but not authenticated (and auth required)
