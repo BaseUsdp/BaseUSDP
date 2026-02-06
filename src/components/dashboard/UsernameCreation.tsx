@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { AtSign, ArrowRight, Check, AlertCircle, Loader } from "lucide-react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWallet } from "@/contexts/WalletContext";
 import { getApiUrl } from "@/utils/apiConfig";
 
 interface UsernameCreationProps {
@@ -31,7 +31,7 @@ function validateUsername(username: string): { isValid: boolean; error?: string 
 }
 
 export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, onBack }) => {
-  const { publicKey } = useWallet();
+  const { fullWalletAddress, isConnected } = useWallet();
   const [username, setUsernameInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
@@ -66,7 +66,7 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
       try {
         const response = await fetch(`${apiUrl}/api/user/check-username?username=${encodeURIComponent(username)}`);
         const data = await response.json();
-        if (data.exists && data.wallet_address !== publicKey?.toBase58()) {
+        if (data.exists && data.wallet_address !== fullWalletAddress) {
           setError("This username is already taken");
           setIsValidating(false);
           return;
@@ -83,7 +83,7 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
       clearTimeout(timeoutId);
       setIsValidating(false);
     };
-  }, [username, publicKey, apiUrl]);
+  }, [username, fullWalletAddress, apiUrl]);
 
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -106,7 +106,7 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
       return;
     }
 
-    if (!publicKey) {
+    if (!isConnected || !fullWalletAddress) {
       setError("Wallet not connected");
       return;
     }
@@ -117,7 +117,7 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
       // Check if username is taken first
       const checkResponse = await fetch(`${apiUrl}/api/user/check-username?username=${encodeURIComponent(username)}`);
       const checkData = await checkResponse.json();
-      if (checkData.exists && checkData.wallet_address !== publicKey.toBase58()) {
+      if (checkData.exists && checkData.wallet_address !== fullWalletAddress) {
         setError("This username is already taken");
         setIsSaving(false);
         return;
@@ -128,7 +128,7 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          wallet_address: publicKey.toBase58(),
+          wallet_address: fullWalletAddress,
           username: username.trim(),
         }),
       });
@@ -179,10 +179,10 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
           </div>
 
           {/* Wallet Address Display */}
-          {publicKey && (
+          {fullWalletAddress && (
             <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
               <p className="text-xs text-white/40 mb-1 font-mono">Wallet Address</p>
-              <p className="text-sm text-white/70 font-mono break-all">{publicKey.toBase58()}</p>
+              <p className="text-sm text-white/70 font-mono break-all">{fullWalletAddress}</p>
             </div>
           )}
 
