@@ -150,12 +150,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let withdrawn = 0;
     
     try {
-      const { data: allTransactions, error: txError } = await supabase
+      // Try query with extended columns first, fall back to basic columns
+      let allTransactions: any[] | null = null;
+      let txError: any = null;
+      let hasFeeColumn = true;
+      
+      // First try with fee_percentage and transaction_type columns
+      const result1 = await supabase
         .from('zk_transactions')
-        .select('id, status, sender_wallet, recipient_wallet, amount, amount_received, token_symbol, privacy_level')
+        .select('id, status, sender_wallet, recipient_wallet, amount, fee_percentage, token_symbol, privacy_level, transaction_type')
         .or(`sender_wallet.eq.${wallet},recipient_wallet.eq.${wallet}`)
         .eq('status', 'completed')
         .order('created_at', { ascending: true });
+      
+      if (result1.error) {
+        console.warn(`[Balance] Extended query failed (${result1.error.message}), trying basic columns...`);
+        hasFeeColumn = false;
+        
+        // Fallback: only core columns
+        const result2 = await supabase
+          .from('zk_transactions')
+          .select('id, status, sender_wallet, recipient_wallet, amount, token_symbol, privacy_level')
+          .or(`sender_wallet.eq.${wallet},recipient_wallet.eq.${wallet}`)
+          .eq('status', 'completed')
+          .order('created_at', { ascending: true });
+        
+        allTransactions = result2.data;
+        txError = result2.error;
+      } else {
+        allTransactions = result1.data;
+      }
       
       // Filter transactions that affect this token's balance
       const transactions = (allTransactions || []).filter((tx: any) => {
@@ -166,31 +190,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error(`[Balance] Error querying transactions:`, txError.message);
       }
       
-      console.log(`[Balance] Found ${transactions?.length || 0} transactions for wallet ${wallet}`);
+      console.log(`[Balance] Found ${transactions?.length || 0} transactions for wallet ${wallet} (hasFeeColumn: ${hasFeeColumn})`);
       
       if (transactions && transactions.length > 0) {
         transactions.forEach((tx: any, index: number) => {
           const amount = parseFloat(tx.amount || 0);
-          const amountReceived = parseFloat(tx.amount_received || tx.amount || 0);
-          
-          console.log(`[Balance] TX ${index + 1}:`, {
-            amount,
-            amountReceived,
-            sender_wallet: tx.sender_wallet,
-            recipient: tx.recipient_wallet,
-            status: tx.status
-          });
+          const feePercent = hasFeeColumn ? parseFloat(tx.fee_percentage || 0) : 0;
+          // Calculate amount after fees from amount and fee_percentage
+          const amountAfterFees = feePercent > 0 ? amount * (1 - feePercent / 100) : amount;
           
           // Deposit: sender == recipient (depositing to self)
           if (tx.sender_wallet === wallet && tx.recipient_wallet === wallet) {
-            balance += amountReceived;
+            balance += amountAfterFees;
             deposited += amount;
-            console.log(`[Balance] +${amountReceived} (deposit)`);
+            console.log(`[Balance] +${amountAfterFees} (deposit, fee ${feePercent}%)`);
+          }
+          // Withdraw: transaction_type is 'withdraw' (if column exists)
+          else if (tx.transaction_type === 'withdraw' && tx.sender_wallet === wallet) {
+            balance -= amount;
+            withdrawn += amount;
+            console.log(`[Balance] -${amount} (withdrawal)`);
           }
           // Transfer received
           else if (tx.recipient_wallet === wallet && tx.sender_wallet !== wallet) {
-            balance += amountReceived;
-            console.log(`[Balance] +${amountReceived} (received transfer)`);
+            balance += amountAfterFees;
+            console.log(`[Balance] +${amountAfterFees} (received transfer)`);
           }
           // Transfer sent
           else if (tx.sender_wallet === wallet && tx.recipient_wallet !== wallet) {

@@ -312,18 +312,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const isWithdrawal = sender_wallet === recipient;
     const transactionType = isWithdrawal ? 'withdraw' : 'transfer';
 
-    await supabase.from('zk_transactions').insert({
-      sender_wallet: sender_wallet,
-      recipient_wallet: recipient,
-      amount: amount,
-      amount_received: amountAfterFees,
-      fee_percentage: feePercentage,
-      token_symbol: token,
-      tx_hash: signature,
-      status: 'completed',
-      privacy_level: 'full',
-      transaction_type: transactionType,
-    });
+    try {
+      const { error: insertError } = await supabase.from('zk_transactions').insert({
+        sender_wallet: sender_wallet,
+        recipient_wallet: recipient,
+        amount: amount,
+        fee_percentage: feePercentage,
+        token_symbol: token,
+        tx_hash: signature,
+        status: 'completed',
+        privacy_level: 'full',
+        transaction_type: transactionType,
+      });
+      if (insertError) {
+        console.warn(`⚠️ Full insert failed (${insertError.message}), trying minimal insert...`);
+        const { error: minimalError } = await supabase.from('zk_transactions').insert({
+          sender_wallet: sender_wallet,
+          recipient_wallet: recipient,
+          amount: amount,
+          token_symbol: token,
+          tx_hash: signature,
+          status: 'completed',
+          privacy_level: 'full',
+        });
+        if (minimalError) {
+          console.error('❌ Minimal insert also failed:', minimalError.message);
+        } else {
+          console.log(`✅ Withdrawal logged (minimal) to database`);
+        }
+      }
+    } catch (logError: any) {
+      console.error('❌ Error logging withdrawal:', logError);
+    }
 
     console.log(`✅ ${transactionType}: ${sender_wallet.slice(0, 8)}... → ${recipient.slice(0, 8)}... | ${amountAfterFees} ${token} | tx: ${signature}`);
 

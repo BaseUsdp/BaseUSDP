@@ -606,19 +606,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Log transaction
+    // Log transaction to database
     try {
-      await supabase.from('zk_transactions').insert({
+      // Try with all columns first
+      const { error: insertError } = await supabase.from('zk_transactions').insert({
         sender_wallet: wallet,
         recipient_wallet: wallet,
         amount: originalDepositAmount,
-        amount_received: amountAfterFees,
         fee_percentage: feePercentage,
         token_symbol: token,
         tx_hash: signature,
         status: 'completed',
         privacy_level: 'full',
+        transaction_type: 'deposit',
       });
+      if (insertError) {
+        console.warn(`⚠️ Full insert failed (${insertError.message}), trying minimal insert...`);
+        // Fallback: insert with only core columns (in case fee_percentage or transaction_type don't exist)
+        const { error: minimalError } = await supabase.from('zk_transactions').insert({
+          sender_wallet: wallet,
+          recipient_wallet: wallet,
+          amount: originalDepositAmount,
+          token_symbol: token,
+          tx_hash: signature,
+          status: 'completed',
+          privacy_level: 'full',
+        });
+        if (minimalError) {
+          console.error('❌ Minimal insert also failed:', minimalError.message);
+        } else {
+          console.log(`✅ Deposit logged (minimal) to database: ${originalDepositAmount} ${token}`);
+        }
+      } else {
+        console.log(`✅ Deposit logged to database: ${originalDepositAmount} ${token} (fee: ${feePercentage}%, after fees: ${amountAfterFees})`);
+      }
     } catch (logError: any) {
       console.error('❌ Error logging deposit:', logError);
     }

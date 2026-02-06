@@ -31,7 +31,7 @@ interface DepositModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type DepositStep = "form" | "signing" | "processing" | "success" | "failed";
+type DepositStep = "form" | "signing" | "submitting" | "processing" | "success" | "failed";
 
 const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
   const { fullWalletAddress, isConnected, walletType, refreshBalance } = useWallet();
@@ -42,6 +42,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
   const [depositId, setDepositId] = useState("");
   const [txSignature, setTxSignature] = useState("");
   const [error, setError] = useState("");
+  const [processingStatus, setProcessingStatus] = useState("");
 
   const getWalletProvider = useCallback((): WalletAdapter | null => {
     if (!isConnected || !walletType) return null;
@@ -122,7 +123,10 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
       }
       const signedBase64 = btoa(binary);
 
-      // Step 3: Submit signed transaction first
+      // Step 3: Submit signed transaction to blockchain
+      setStep("submitting");
+      setProcessingStatus("Sending transaction to Solana...");
+      
       const submitResponse = await fetch(`${apiUrl}/api/solana/submit-transaction`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -140,11 +144,24 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
 
       setTxSignature(submitResult.signature);
 
-      // Step 4: Process deposit (after transaction is confirmed) — requires Bearer auth like Nolvipay
+      // Step 4: Process deposit through privacy layers
       setStep("processing");
+      setProcessingStatus("Transferring to collection wallet...");
+      
       const sessionToken = authService.getSessionToken();
       const processHeaders: HeadersInit = { "Content-Type": "application/json" };
       if (sessionToken) processHeaders["Authorization"] = `Bearer ${sessionToken}`;
+      
+      // Show progress updates while waiting
+      const statusInterval = setInterval(() => {
+        setProcessingStatus((prev) => {
+          if (prev.includes("collection wallet")) return "Routing through intermediate wallet...";
+          if (prev.includes("intermediate wallet")) return "Processing through privacy layers...";
+          if (prev.includes("privacy layers")) return "Finalizing deposit...";
+          return prev;
+        });
+      }, 5000);
+      
       const processResponse = await fetch(`${apiUrl}/api/zk/process-deposit`, {
         method: "POST",
         headers: processHeaders,
@@ -156,11 +173,13 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
         }),
       });
 
+      clearInterval(statusInterval);
       const processResult = await processResponse.json();
 
       if (!processResult.success) {
         throw new Error(processResult.error || "Failed to process deposit");
       }
+      
       setStep("success");
       
       // Refresh balance
@@ -181,6 +200,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
     setDepositId("");
     setTxSignature("");
     setError("");
+    setProcessingStatus("");
   };
 
   const handleClose = () => {
@@ -303,18 +323,56 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
             </motion.div>
           )}
 
-          {step === "processing" && (
+          {step === "submitting" && (
             <motion.div
-              key="processing"
+              key="submitting"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="flex flex-col items-center justify-center py-12 space-y-4"
             >
               <Loader2 className="w-12 h-12 text-primary animate-spin" />
-              <p className="text-lg font-semibold">Processing Deposit</p>
+              <p className="text-lg font-semibold">Submitting Transaction</p>
               <p className="text-sm text-muted-foreground text-center">
-                Your deposit is being processed through privacy layers...
+                {processingStatus || "Sending to Solana blockchain..."}
               </p>
+            </motion.div>
+          )}
+
+          {step === "processing" && (
+            <motion.div
+              key="processing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center py-12 space-y-6"
+            >
+              <Loader2 className="w-12 h-12 text-primary animate-spin" />
+              <p className="text-lg font-semibold">Processing Deposit</p>
+              <div className="w-full max-w-xs space-y-3">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-muted-foreground">Transaction signed</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-sm text-muted-foreground">Submitted to blockchain</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
+                  <span className="text-sm text-white font-medium">
+                    {processingStatus || "Processing through privacy layers..."}
+                  </span>
+                </div>
+              </div>
+              {txSignature && (
+                <a
+                  href={`https://solscan.io/tx/${txSignature}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline"
+                >
+                  View initial transaction on Solscan
+                </a>
+              )}
             </motion.div>
           )}
 
