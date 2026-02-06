@@ -179,24 +179,38 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const fetchBalance = async () => {
       setIsBalanceLoading(true);
       try {
-        const result = await getZKBalance(fullWalletAddress);
+        // Fetch USDC and USDT balances separately
+        let usdcBalance = 0;
+        let usdtBalance = 0;
         
-        if (result.success && result.balances) {
-          // Sum all token balances (SOL + USDC + USDT)
-          const totalBalance = result.balances.sol + result.balances.usdc + result.balances.usdt;
-          
-          const formattedBalance = totalBalance.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          });
-          
-          setEncryptedBalance(formattedBalance);
-        } else {
-          console.error("Failed to fetch balance:", result.error);
-          setEncryptedBalance("0");
+        try {
+          const usdcResult = await getZKBalance(fullWalletAddress, 'USDC');
+          if (usdcResult && typeof usdcResult.balance === 'number') {
+            usdcBalance = usdcResult.balance;
+          }
+        } catch (e) {
+          console.log("[WalletContext] USDC balance fetch failed, using 0");
         }
+        
+        try {
+          const usdtResult = await getZKBalance(fullWalletAddress, 'USDT');
+          if (usdtResult && typeof usdtResult.balance === 'number') {
+            usdtBalance = usdtResult.balance;
+          }
+        } catch (e) {
+          console.log("[WalletContext] USDT balance fetch failed, using 0");
+        }
+        
+        const totalBalance = usdcBalance + usdtBalance;
+        
+        const formattedBalance = totalBalance.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+        
+        setEncryptedBalance(formattedBalance);
       } catch (error) {
-        console.error("Error fetching balance:", error);
+        console.error("[WalletContext] Error fetching balance:", error);
         setEncryptedBalance("0");
       } finally {
         setIsBalanceLoading(false);
@@ -389,27 +403,38 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     setIsBalanceLoading(true);
     try {
-      // Call backend API to get ZK balance (from intermediate wallet)
-      const result = await getZKBalance(fullWalletAddress);
+      // Fetch USDC and USDT balances separately
+      let usdcBalance = 0;
+      let usdtBalance = 0;
       
-      if (result.success && result.balances) {
-        // Sum all token balances (SOL + USDC + USDT)
-        const totalBalance = result.balances.sol + result.balances.usdc + result.balances.usdt;
-        
-        // Format balance for display
-        const formattedBalance = totalBalance.toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        });
-        
-        setEncryptedBalance(formattedBalance);
-      } else {
-        // If API fails, set to 0 or show error
-        console.error("Failed to fetch balance:", result.error);
-        setEncryptedBalance("0");
+      try {
+        const usdcResult = await getZKBalance(fullWalletAddress, 'USDC');
+        if (usdcResult && typeof usdcResult.balance === 'number') {
+          usdcBalance = usdcResult.balance;
+        }
+      } catch (e) {
+        console.log("[WalletContext] USDC balance fetch failed, using 0");
       }
+      
+      try {
+        const usdtResult = await getZKBalance(fullWalletAddress, 'USDT');
+        if (usdtResult && typeof usdtResult.balance === 'number') {
+          usdtBalance = usdtResult.balance;
+        }
+      } catch (e) {
+        console.log("[WalletContext] USDT balance fetch failed, using 0");
+      }
+      
+      const totalBalance = usdcBalance + usdtBalance;
+      
+      const formattedBalance = totalBalance.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      
+      setEncryptedBalance(formattedBalance);
     } catch (error) {
-      console.error("Error fetching balance:", error);
+      console.error("[WalletContext] Error fetching balance:", error);
       setEncryptedBalance("0");
     } finally {
       setIsBalanceLoading(false);
