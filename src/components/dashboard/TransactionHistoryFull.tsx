@@ -13,12 +13,12 @@ interface TransactionHistoryFullProps {
 }
 
 type TransactionStatus = "success" | "pending" | "failed";
-type TransactionType = "transfer" | "x402";
+type TransactionType = "transfer" | "x402" | "deposit";
 
 interface Transaction {
   id: string;
   type: TransactionType;
-  direction: "sent" | "received";
+  direction: "sent" | "received" | "deposit";
   amount: number;
   amountDisplay: string;
   counterparty: string;
@@ -32,16 +32,23 @@ interface Transaction {
 
 // Convert API transaction to UI transaction format
 const convertApiTransaction = (tx: TransactionHistoryResponse["transactions"][0], walletAddress: string): Transaction => {
-  const direction = tx.from === walletAddress ? "sent" : "received";
+  const isDeposit = tx.type === "deposit";
+  const direction = isDeposit ? "deposit" : (tx.from === walletAddress ? "sent" : "received");
   const amount = tx.amount || 0;
-  const counterparty = direction === "sent" ? tx.to : tx.from;
+  const counterparty = isDeposit ? "Your Wallet" : (direction === "sent" ? tx.to : tx.from);
+  
+  let type: TransactionType = "transfer";
+  if (tx.type === "payment") type = "x402";
+  else if (tx.type === "deposit") type = "deposit";
+  
+  const amountPrefix = direction === "sent" ? "-" : "+";
   
   return {
     id: tx.signature,
-    type: tx.type === "payment" ? "x402" : "transfer",
+    type,
     direction,
     amount,
-    amountDisplay: `${direction === "sent" ? "-" : "+"}$${Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    amountDisplay: `${amountPrefix}$${Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     counterparty: counterparty || "Unknown",
     timestamp: new Date(tx.timestamp).toLocaleString(),
     date: new Date(tx.timestamp),
@@ -104,9 +111,9 @@ const TransactionHistoryFull = ({ showBalance }: TransactionHistoryFullProps) =>
     if (filter !== "all") {
       result = result.filter(tx => {
         if (filter === "sent") return tx.direction === "sent";
-        if (filter === "received") return tx.direction === "received";
+        if (filter === "received") return tx.direction === "received" || tx.direction === "deposit";
         if (filter === "x402") return tx.type === "x402";
-        if (filter === "transfer") return tx.type === "transfer";
+        if (filter === "transfer") return tx.type === "transfer" || tx.type === "deposit";
         return true;
       });
     }
@@ -222,10 +229,13 @@ const TransactionHistoryFull = ({ showBalance }: TransactionHistoryFullProps) =>
               {/* Direction Icon */}
               <div className={cn(
                 "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-                tx.direction === "sent" ? "bg-red-500/20" : "bg-green-500/20"
+                tx.direction === "sent" ? "bg-red-500/20" : 
+                tx.direction === "deposit" ? "bg-sky-500/20" : "bg-green-500/20"
               )}>
                 {tx.direction === "sent" ? (
                   <Icon icon="ph:arrow-up-right-bold" className="w-5 h-5 text-red-500" />
+                ) : tx.direction === "deposit" ? (
+                  <Icon icon="ph:download-bold" className="w-5 h-5 text-sky-500" />
                 ) : (
                   <Icon icon="ph:arrow-down-left-bold" className="w-5 h-5 text-green-500" />
                 )}
@@ -235,11 +245,18 @@ const TransactionHistoryFull = ({ showBalance }: TransactionHistoryFullProps) =>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="font-medium truncate">
-                    {tx.direction === "sent" ? `Sent to ${tx.counterparty}` : `Received from ${tx.counterparty}`}
+                    {tx.direction === "sent" ? `Sent to ${tx.counterparty}` : 
+                     tx.direction === "deposit" ? `Deposit from ${tx.counterparty}` :
+                     `Received from ${tx.counterparty}`}
                   </p>
                   {tx.type === "x402" && (
                     <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">
                       x402
+                    </span>
+                  )}
+                  {tx.type === "deposit" && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 font-medium">
+                      Deposit
                     </span>
                   )}
                 </div>
@@ -259,7 +276,8 @@ const TransactionHistoryFull = ({ showBalance }: TransactionHistoryFullProps) =>
                 <div className="flex items-center justify-end gap-2">
                   <p className={cn(
                     "font-bold",
-                    tx.direction === "sent" ? "text-red-500" : "text-green-500"
+                    tx.direction === "sent" ? "text-red-500" : 
+                    tx.direction === "deposit" ? "text-sky-500" : "text-green-500"
                   )}>
                     {getAmountDisplay(tx)}
                   </p>
@@ -275,7 +293,7 @@ const TransactionHistoryFull = ({ showBalance }: TransactionHistoryFullProps) =>
 
               {/* External Link */}
               <a
-                href={`https://sepolia.basescan.org/tx/${tx.txHash}`}
+                href={`https://solscan.io/tx/${tx.txHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-secondary rounded-lg"

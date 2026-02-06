@@ -11,6 +11,7 @@ import PayX402Modal from "./PayX402Modal";
 import PrivacyLevelSelector from "./PrivacyLevelSelector";
 import SettingsSection from "./sections/SettingsSection";
 import PaymentsSection from "./sections/PaymentsSection";
+import HistorySection from "./sections/HistorySection";
 import { getTransactionHistory, TransactionHistoryResponse, getZKBalance } from "@/services/api";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
 
@@ -167,10 +168,18 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
     );
   }
 
-  if (activeTab === "payments" || activeTab === "history") {
+  if (activeTab === "payments") {
     return (
       <div className="p-4 sm:p-6">
         <PaymentsSection showBalance={showBalance} />
+      </div>
+    );
+  }
+
+  if (activeTab === "history") {
+    return (
+      <div className="p-4 sm:p-6">
+        <HistorySection showBalance={showBalance} />
       </div>
     );
   }

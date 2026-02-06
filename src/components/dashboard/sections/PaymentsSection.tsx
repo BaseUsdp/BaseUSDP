@@ -8,7 +8,6 @@ import SendPaymentModal from "../SendPaymentModal";
 import X402PaymentModal from "../X402PaymentModal";
 import PayX402Modal from "../PayX402Modal";
 import X402RequestsManagement from "../X402RequestsManagement";
-import TransactionHistoryFull from "../TransactionHistoryFull";
 
 interface PaymentsSectionProps {
   showBalance: boolean;
@@ -56,15 +55,11 @@ const PaymentsSection = ({ showBalance }: PaymentsSectionProps) => {
           </TabsTrigger>
           <TabsTrigger value="x402" className="gap-2">
             <Icon icon="ph:download-bold" className="w-4 h-4" />
-            x402 Requests
+            Requests
           </TabsTrigger>
           <TabsTrigger value="pay" className="gap-2">
             <Icon icon="ph:credit-card-bold" className="w-4 h-4" />
             Pay Request
-          </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2">
-            <Icon icon="ph:clock-counter-clockwise-bold" className="w-4 h-4" />
-            History
           </TabsTrigger>
         </TabsList>
 
@@ -238,10 +233,6 @@ const PaymentsSection = ({ showBalance }: PaymentsSectionProps) => {
           </motion.div>
         </TabsContent>
 
-        {/* History Tab */}
-        <TabsContent value="history">
-          <TransactionHistoryFull showBalance={showBalance} />
-        </TabsContent>
       </Tabs>
 
       {/* Modals */}
