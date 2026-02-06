@@ -10,7 +10,6 @@ const SettingsSection = () => {
   const { privacyLevel, setPrivacyLevel } = useWallet();
   const [notifications, setNotifications] = useState({
     payments: true,
-    x402: true,
     transactions: true,
     security: true,
   });
@@ -103,7 +102,7 @@ const SettingsSection = () => {
         <div className="rounded-xl bg-secondary/50 p-4 flex items-center justify-between">
           <div>
             <p className="font-medium">Current Network</p>
-            <p className="text-sm text-muted-foreground">Base Sepolia (Chain ID: 84532)</p>
+            <p className="text-sm text-muted-foreground">Solana Mainnet</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
