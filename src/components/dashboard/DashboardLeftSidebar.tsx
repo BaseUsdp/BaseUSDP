@@ -49,8 +49,8 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance }: Dashboar
 
   const categories = [
     { name: "Transfers", color: "bg-sky-500", amount: isLoadingStats ? "..." : formatAmount(stats.transfers) },
-    { name: "x402 Payments", color: "bg-purple-500", amount: isLoadingStats ? "..." : formatAmount(stats.payments) },
-    { name: "Yield Earnings", color: "bg-emerald-500", amount: isLoadingStats ? "..." : formatAmount(stats.yieldEarnings) },
+    { name: "Stables (USDC/USDT)", color: "bg-emerald-500", amount: isLoadingStats ? "..." : formatAmount(stats.payments) },
+    { name: "Yield Earnings", color: "bg-purple-500", amount: isLoadingStats ? "..." : formatAmount(stats.yieldEarnings) },
     { name: "Gas Fees", color: "bg-red-500", amount: isLoadingStats ? "..." : formatAmount(stats.gasFees) },
   ];
 

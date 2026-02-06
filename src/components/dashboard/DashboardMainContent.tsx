@@ -271,25 +271,32 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
             className="rounded-xl p-4 bg-gradient-to-br from-black/0 via-black/10 to-black/0 backdrop-blur border border-white/5"
           >
             <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-medium text-neutral-300">x402 Payments</div>
-              <span className="text-xs text-sky-400">Active</span>
+              <div className="text-sm font-medium text-neutral-300">Stable Currencies</div>
+              <span className="text-xs text-emerald-400">Supported</span>
             </div>
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => setX402ModalOpen(true)}
-                size="sm" 
-                className="flex-1 bg-purple-600 hover:bg-purple-500 text-white text-xs"
-              >
-                Request
-              </Button>
-              <Button 
-                onClick={() => setPayX402ModalOpen(true)}
-                size="sm" 
-                variant="outline"
-                className="flex-1 border-white/10 bg-white/5 hover:bg-white/10 text-xs"
-              >
-                Pay
-              </Button>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5" title="USDC">
+                <img 
+                  src="https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png" 
+                  alt="USDC" 
+                  className="w-6 h-6 rounded-full"
+                />
+                <span className="text-xs text-neutral-400">USDC</span>
+              </div>
+              <div className="flex items-center gap-1.5" title="USDT">
+                <img 
+                  src="https://assets.coingecko.com/coins/images/325/small/Tether.png" 
+                  alt="USDT" 
+                  className="w-6 h-6 rounded-full"
+                />
+                <span className="text-xs text-neutral-400">USDT</span>
+              </div>
+              <div className="flex items-center gap-1.5" title="X402">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-white">X</span>
+                </div>
+                <span className="text-xs text-neutral-400">X402</span>
+              </div>
             </div>
           </motion.div>
 

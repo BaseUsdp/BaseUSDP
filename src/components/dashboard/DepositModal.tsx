@@ -37,7 +37,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
   const { fullWalletAddress, isConnected, walletType, refreshBalance } = useWallet();
   
   const [amount, setAmount] = useState("");
-  const [token, setToken] = useState<"SOL" | "USDC" | "USDT">("USDC");
+  const [token, setToken] = useState<"USDC" | "USDT" | "X402">("USDC");
   const [step, setStep] = useState<DepositStep>("form");
   const [depositId, setDepositId] = useState("");
   const [txSignature, setTxSignature] = useState("");
@@ -215,14 +215,31 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                 <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-2">
                   Token
                 </label>
-                <Select value={token} onValueChange={(value) => setToken(value as "SOL" | "USDC" | "USDT")}>
+                <Select value={token} onValueChange={(value) => setToken(value as "USDC" | "USDT" | "X402")}>
                   <SelectTrigger className="bg-secondary border-border h-12">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="SOL">SOL</SelectItem>
-                    <SelectItem value="USDC">USDC</SelectItem>
-                    <SelectItem value="USDT">USDT</SelectItem>
+                    <SelectItem value="USDC">
+                      <div className="flex items-center gap-2">
+                        <img src="https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png" alt="USDC" className="w-5 h-5 rounded-full" />
+                        USDC
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="USDT">
+                      <div className="flex items-center gap-2">
+                        <img src="https://assets.coingecko.com/coins/images/325/small/Tether.png" alt="USDT" className="w-5 h-5 rounded-full" />
+                        USDT
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="X402">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                          <span className="text-[8px] font-bold text-white">X</span>
+                        </div>
+                        X402
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
