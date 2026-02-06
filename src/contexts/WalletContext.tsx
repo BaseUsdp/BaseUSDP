@@ -84,6 +84,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  // Track if initial reconnect attempt is complete
+  const [initialReconnectComplete, setInitialReconnectComplete] = useState(false);
 
   // Format address for display
   const formatAddress = (address: string) => {
@@ -112,22 +114,95 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Check for persisted connection and auth on mount
+  // Check for persisted connection and auth on mount - eagerly reconnect like Nolvipay
   useEffect(() => {
     const savedWallet = localStorage.getItem("void402_wallet");
-    if (savedWallet) {
-      const { type, address, fullAddress } = JSON.parse(savedWallet);
-      setWalletType(type);
-      setWalletAddress(address);
-      setFullWalletAddress(fullAddress || address);
-      setIsConnected(true);
-      setNetworkStatus("connected");
-      
-      // Check if user has valid session
-      if (authService.isAuthenticated()) {
-        setIsAuthenticated(true);
-      }
+    if (!savedWallet) {
+      setInitialReconnectComplete(true);
+      return;
     }
+
+    const { type, address, fullAddress } = JSON.parse(savedWallet);
+    
+    // Set initial state from localStorage
+    setWalletType(type);
+    setWalletAddress(address);
+    setFullWalletAddress(fullAddress || address);
+    setIsConnected(true);
+    setNetworkStatus("connected");
+    
+    // Check if user has valid session
+    if (authService.isAuthenticated()) {
+      setIsAuthenticated(true);
+    }
+
+    // Eagerly reconnect to the wallet (like Nolvipay does)
+    // This ensures the wallet provider is properly connected after page refresh
+    const eagerReconnect = async () => {
+      try {
+        // Wait a bit for wallet extension to initialize
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        if (type === "phantom") {
+          const phantom = getPhantomProvider();
+          if (phantom) {
+            // Use onlyIfTrusted to auto-connect without popup if previously approved
+            try {
+              const response = await phantom.connect({ onlyIfTrusted: true });
+              const reconnectedAddress = response.publicKey.toString();
+              console.log("[WalletContext] Phantom eagerly reconnected:", reconnectedAddress);
+              
+              // Verify it's the same wallet
+              if (reconnectedAddress !== fullAddress) {
+                console.log("[WalletContext] Wallet address changed during reconnect");
+                clearWalletAndRedirect();
+                return;
+              }
+            } catch (err) {
+              // onlyIfTrusted failed - wallet was disconnected by user
+              console.log("[WalletContext] Phantom eager reconnect failed (not trusted):", err);
+              clearWalletAndRedirect();
+              return;
+            }
+          }
+        } else if (type === "solflare") {
+          const solflare = getSolflareProvider();
+          if (solflare) {
+            // Solflare auto-connects if previously approved
+            try {
+              await solflare.connect();
+              await new Promise(resolve => setTimeout(resolve, 100));
+              
+              if (solflare.publicKey) {
+                const reconnectedAddress = solflare.publicKey.toString();
+                console.log("[WalletContext] Solflare eagerly reconnected:", reconnectedAddress);
+                
+                if (reconnectedAddress !== fullAddress) {
+                  console.log("[WalletContext] Wallet address changed during reconnect");
+                  clearWalletAndRedirect();
+                  return;
+                }
+              } else {
+                console.log("[WalletContext] Solflare reconnect failed - no public key");
+                clearWalletAndRedirect();
+                return;
+              }
+            } catch (err) {
+              console.log("[WalletContext] Solflare eager reconnect failed:", err);
+              clearWalletAndRedirect();
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[WalletContext] Eager reconnect error:", err);
+      } finally {
+        // Mark reconnect as complete - now polling can start
+        setInitialReconnectComplete(true);
+      }
+    };
+
+    eagerReconnect();
   }, []); // Only run once on mount
 
   // Listen for wallet disconnect or account switch (like Nolvipay) → redirect to landing
@@ -181,7 +256,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }, [isConnected, walletType, fullWalletAddress, clearWalletAndRedirect]);
 
   // Poll for wallet state changes (backup for when events don't fire)
+  // Only start polling AFTER initial reconnect is complete
   useEffect(() => {
+    // Don't poll until initial reconnect attempt is done
+    if (!initialReconnectComplete) return;
     if (!isConnected || !fullWalletAddress) return;
 
     const checkWalletState = () => {
@@ -212,14 +290,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    // Check immediately
-    checkWalletState();
-
+    // Don't check immediately - wait a bit after reconnect completes
     // Then poll every 1 second
     const interval = setInterval(checkWalletState, 1000);
 
     return () => clearInterval(interval);
-  }, [isConnected, walletType, fullWalletAddress, clearWalletAndRedirect]);
+  }, [isConnected, walletType, fullWalletAddress, initialReconnectComplete, clearWalletAndRedirect]);
 
   // Fetch balance when wallet is connected
   useEffect(() => {
