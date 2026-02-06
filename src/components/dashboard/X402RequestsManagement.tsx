@@ -13,7 +13,8 @@ import {
   ExternalLink,
   QrCode,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getPaymentStatus } from "@/services/api";
 import { useWallet } from "@/contexts/WalletContext";
+import QRCode from "qrcode";
 
 type RequestStatus = "pending" | "settled" | "failed" | "expired" | "cancelled";
 
@@ -55,6 +57,14 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
   const [copied, setCopied] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [qrModal, setQrModal] = useState<{ id: string; qrCode: string } | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Get the payment URL for a request
+  const getPaymentUrl = (id: string) => {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/pay/${id}`;
+  };
 
   // Load payment requests from localStorage (in production, this would come from backend)
   const loadRequests = useCallback(() => {
@@ -82,35 +92,47 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
     }
   }, []);
 
-  // Refresh payment statuses
+  // Refresh payment requests - reload from localStorage and check API for status updates
   const refreshStatuses = useCallback(async () => {
-    if (requests.length === 0) return;
-    
+    setIsRefreshing(true);
     try {
-      const updatedRequests = await Promise.all(
-        requests.map(async (req) => {
-          try {
-            const result = await getPaymentStatus(req.id);
-            if (result.success && result.payment) {
-              return {
-                ...req,
-                status: result.payment.status as RequestStatus,
-              };
+      // First reload from localStorage
+      const storedRequests = localStorage.getItem("void402_payment_requests");
+      if (storedRequests) {
+        const parsed = JSON.parse(storedRequests);
+        const userRequests = parsed.filter((r: PaymentRequest) => 
+          r.id && r.id.startsWith("x402_")
+        );
+        
+        // Try to update statuses from API
+        const updatedRequests = await Promise.all(
+          userRequests.map(async (req: PaymentRequest) => {
+            try {
+              const result = await getPaymentStatus(req.id);
+              if (result.success && result.payment) {
+                return {
+                  ...req,
+                  status: result.payment.status as RequestStatus,
+                };
+              }
+              return req;
+            } catch {
+              return req;
             }
-            return req;
-          } catch {
-            return req;
-          }
-        })
-      );
-      setRequests(updatedRequests);
-      
-      // Update localStorage
-      localStorage.setItem("void402_payment_requests", JSON.stringify(updatedRequests));
+          })
+        );
+        
+        setRequests(updatedRequests);
+        localStorage.setItem("void402_payment_requests", JSON.stringify(updatedRequests));
+      } else {
+        setRequests([]);
+      }
     } catch (err) {
       console.error("Error refreshing statuses:", err);
+    } finally {
+      setIsRefreshing(false);
     }
-  }, [requests]);
+  }, []);
 
   useEffect(() => {
     loadRequests();
@@ -156,16 +178,63 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
   };
 
   const handleCopy = (id: string) => {
-    navigator.clipboard.writeText(`https://void402.app/pay/${id}`);
+    navigator.clipboard.writeText(getPaymentUrl(id));
     setCopied(id);
     setTimeout(() => setCopied(null), 2000);
   };
 
   const handleCancel = (id: string) => {
-    setRequests(prev => 
-      prev.map(r => r.id === id ? { ...r, status: "cancelled" as RequestStatus } : r)
+    const updatedRequests = requests.map(r => 
+      r.id === id ? { ...r, status: "cancelled" as RequestStatus } : r
     );
+    setRequests(updatedRequests);
+    // Persist to localStorage
+    localStorage.setItem("void402_payment_requests", JSON.stringify(updatedRequests));
     setCancelDialog(null);
+  };
+
+  const handleShowQR = async (id: string) => {
+    try {
+      const url = getPaymentUrl(id);
+      const qrCodeDataUrl = await QRCode.toDataURL(url, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#ffffff',
+        },
+      });
+      setQrModal({ id, qrCode: qrCodeDataUrl });
+    } catch (err) {
+      console.error("Error generating QR code:", err);
+    }
+  };
+
+  const handleShare = async (request: PaymentRequest) => {
+    const url = getPaymentUrl(request.id);
+    const shareData = {
+      title: `Payment Request: ${request.serviceName}`,
+      text: `Pay $${request.amount} for ${request.description}`,
+      url: url,
+    };
+
+    try {
+      if (navigator.share && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback: copy to clipboard
+        await navigator.clipboard.writeText(url);
+        setCopied(request.id);
+        setTimeout(() => setCopied(null), 2000);
+      }
+    } catch (err) {
+      // User cancelled or share failed, fallback to copy
+      if ((err as Error).name !== 'AbortError') {
+        await navigator.clipboard.writeText(url);
+        setCopied(request.id);
+        setTimeout(() => setCopied(null), 2000);
+      }
+    }
   };
 
   const statusFilters: { id: RequestStatus | "all"; label: string }[] = [
@@ -197,10 +266,10 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
             variant="outline"
             size="sm"
             onClick={refreshStatuses}
-            disabled={isLoading}
+            disabled={isRefreshing}
             className="h-9"
           >
-            <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
+            <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
           </Button>
           <Button onClick={onCreateNew} className="bg-accent hover:bg-accent/90 h-9">
             <Icon icon="ph:plus-bold" className="w-4 h-4 mr-2" />
@@ -340,11 +409,19 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
                       )}
                     </Button>
                     
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleShowQR(request.id)}
+                    >
                       <QrCode className="w-4 h-4" />
                     </Button>
                     
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleShare(request)}
+                    >
                       <Share2 className="w-4 h-4" />
                     </Button>
 
@@ -399,6 +476,48 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
               onClick={() => cancelDialog && handleCancel(cancelDialog)}
             >
               Cancel Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Code Modal */}
+      <Dialog open={!!qrModal} onOpenChange={() => setQrModal(null)}>
+        <DialogContent className="sm:max-w-[350px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="w-5 h-5 text-primary" />
+              Payment QR Code
+            </DialogTitle>
+            <DialogDescription>
+              Scan this QR code to pay this request
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center py-4">
+            {qrModal && (
+              <>
+                <img 
+                  src={qrModal.qrCode} 
+                  alt="Payment QR Code" 
+                  className="w-64 h-64 rounded-lg border border-border"
+                />
+                <p className="mt-4 text-xs text-muted-foreground font-mono">
+                  {qrModal.id}
+                </p>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => qrModal && handleCopy(qrModal.id)}
+              className="flex-1"
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Copy Link
+            </Button>
+            <Button onClick={() => setQrModal(null)}>
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>
