@@ -27,32 +27,48 @@ const BalanceDisplay = ({ showBalance }: BalanceDisplayProps) => {
       
       // Fetch balances for both USDC and USDT
       const [usdcResult, usdtResult] = await Promise.all([
-        getZKBalance(fullWalletAddress, 'USDC'),
-        getZKBalance(fullWalletAddress, 'USDT'),
+        getZKBalance(fullWalletAddress, 'USDC').catch(e => ({ error: e?.message || 'USDC fetch failed', balance: 0 })),
+        getZKBalance(fullWalletAddress, 'USDT').catch(e => ({ error: e?.message || 'USDT fetch failed', balance: 0 })),
       ]);
+      
+      // Check for API errors
+      if (usdcResult.error && usdtResult.error) {
+        // Both failed - show error
+        throw new Error(usdcResult.error);
+      }
       
       // Handle both the old format (result.balances) and new format (result.balance)
       let usdcBalance = 0;
       let usdtBalance = 0;
       
-      if (usdcResult.balance !== undefined) {
-        usdcBalance = usdcResult.balance;
-      } else if (usdcResult.balances?.usdc !== undefined) {
-        usdcBalance = usdcResult.balances.usdc;
+      if (!usdcResult.error) {
+        if (usdcResult.balance !== undefined) {
+          usdcBalance = usdcResult.balance;
+        } else if (usdcResult.balances?.usdc !== undefined) {
+          usdcBalance = usdcResult.balances.usdc;
+        }
       }
       
-      if (usdtResult.balance !== undefined) {
-        usdtBalance = usdtResult.balance;
-      } else if (usdtResult.balances?.usdt !== undefined) {
-        usdtBalance = usdtResult.balances.usdt;
+      if (!usdtResult.error) {
+        if (usdtResult.balance !== undefined) {
+          usdtBalance = usdtResult.balance;
+        } else if (usdtResult.balances?.usdt !== undefined) {
+          usdtBalance = usdtResult.balances.usdt;
+        }
       }
       
       setTokenBalance(usdcBalance + usdtBalance);
       setSolBalance(0); // SOL balance not tracked in ZK pool
       setError(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching balance:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch balance");
+      // Handle various error formats
+      const errorMessage = 
+        err?.message || 
+        err?.error || 
+        (typeof err === 'string' ? err : null) ||
+        "Failed to fetch balance";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
       setIsDecrypting(false);
