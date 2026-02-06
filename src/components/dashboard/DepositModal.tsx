@@ -248,7 +248,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                   <br />
                   • Smart split (2 parts)
                   <br />
-                  • Jupiter swaps (privacy mixing)
+                  • Privacy mixer (obfuscation)
                   <br />
                   • Intermediate wallet assignment
                 </p>
