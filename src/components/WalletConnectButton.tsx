@@ -4,37 +4,17 @@ import { useState, useEffect } from "react";
 import { useWallet, WalletType } from "@/contexts/WalletContext";
 import { Button } from "@/components/ui/button";
 import { getApiUrl } from "@/utils/apiConfig";
+import phantomLogo from "@/assets/phantom.svg";
+import solflareLogo from "@/assets/solflare.jpeg";
 
-// Official Phantom logo
+// Phantom logo component using the actual asset
 const PhantomLogo = ({ size = 20 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="64" cy="64" r="64" fill="url(#phantom-gradient-btn)" />
-    <path d="M110.584 64.9142H99.142C99.142 41.7651 80.173 23 56.7724 23C33.6612 23 14.8716 41.3057 14.4118 64.0452C13.9361 87.5724 35.3331 108 59.0296 108H62.2325C82.9503 108 110.584 89.1451 110.584 64.9142ZM40.4578 67.3909C40.4578 71.0469 37.4903 74.0095 33.8285 74.0095C30.1667 74.0095 27.1992 71.0469 27.1992 67.3909V57.6052C27.1992 53.9493 30.1667 50.9866 33.8285 50.9866C37.4903 50.9866 40.4578 53.9493 40.4578 57.6052V67.3909ZM63.8593 67.3909C63.8593 71.0469 60.8918 74.0095 57.23 74.0095C53.5682 74.0095 50.6007 71.0469 50.6007 67.3909V57.6052C50.6007 53.9493 53.5682 50.9866 57.23 50.9866C60.8918 50.9866 63.8593 53.9493 63.8593 57.6052V67.3909Z" fill="white"/>
-    <defs>
-      <linearGradient id="phantom-gradient-btn" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#534BB1"/>
-        <stop offset="1" stopColor="#551BF9"/>
-      </linearGradient>
-    </defs>
-  </svg>
+  <img src={phantomLogo} alt="Phantom" width={size} height={size} className="rounded-md" />
 );
 
-// Official Solflare logo
+// Solflare logo component using the actual asset
 const SolflareLogo = ({ size = 20 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="50" fill="url(#solflare-gradient-btn)" />
-    <path d="M72.5 35L50 25L27.5 35L50 45L72.5 35Z" fill="white"/>
-    <path d="M27.5 35V55L50 65V45L27.5 35Z" fill="white" fillOpacity="0.8"/>
-    <path d="M72.5 35V55L50 65V45L72.5 35Z" fill="white" fillOpacity="0.6"/>
-    <path d="M50 70L27.5 60V55L50 65L72.5 55V60L50 70Z" fill="white" fillOpacity="0.9"/>
-    <path d="M50 78L27.5 68V63L50 73L72.5 63V68L50 78Z" fill="white" fillOpacity="0.7"/>
-    <defs>
-      <linearGradient id="solflare-gradient-btn" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#FC9965"/>
-        <stop offset="1" stopColor="#FE7B01"/>
-      </linearGradient>
-    </defs>
-  </svg>
+  <img src={solflareLogo} alt="Solflare" width={size} height={size} className="rounded-md" />
 );
 
 interface WalletConnectButtonProps {
