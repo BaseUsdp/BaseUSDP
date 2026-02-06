@@ -24,6 +24,7 @@ const BalanceDisplay = ({ showBalance }: BalanceDisplayProps) => {
 
     try {
       setIsDecrypting(true);
+      console.log("[BalanceDisplay v2] Fetching balance for", fullWalletAddress?.slice(0, 8));
       
       // Fetch USDC balance (primary)
       let usdcBalance = 0;
