@@ -11,7 +11,7 @@ import PayX402Modal from "./PayX402Modal";
 import PrivacyLevelSelector from "./PrivacyLevelSelector";
 import SettingsSection from "./sections/SettingsSection";
 import PaymentsSection from "./sections/PaymentsSection";
-import { getTransactionHistory, TransactionHistoryResponse } from "@/services/api";
+import { getTransactionHistory, TransactionHistoryResponse, getZKBalance } from "@/services/api";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
 
 interface DashboardMainContentProps {
@@ -30,6 +30,31 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
   const [payX402ModalOpen, setPayX402ModalOpen] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
+  const [tokenBalances, setTokenBalances] = useState({ usdc: 0, usdt: 0, x402: 0 });
+
+  // Fetch token balances
+  useEffect(() => {
+    const fetchBalances = async () => {
+      if (!isConnected || !fullWalletAddress) return;
+      
+      try {
+        const [usdcResult, usdtResult] = await Promise.all([
+          getZKBalance(fullWalletAddress, 'USDC').catch(() => ({ balance: 0 })),
+          getZKBalance(fullWalletAddress, 'USDT').catch(() => ({ balance: 0 })),
+        ]);
+        
+        setTokenBalances({
+          usdc: usdcResult?.balance || 0,
+          usdt: usdtResult?.balance || 0,
+          x402: 0, // X402 balance - placeholder for now
+        });
+      } catch (e) {
+        console.log("Error fetching token balances");
+      }
+    };
+    
+    fetchBalances();
+  }, [isConnected, fullWalletAddress]);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -270,32 +295,36 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
             transition={{ delay: 0.1 }}
             className="rounded-xl p-4 bg-gradient-to-br from-black/0 via-black/10 to-black/0 backdrop-blur border border-white/5"
           >
-            <div className="flex items-center justify-between mb-3">
+            <div className="mb-3">
               <div className="text-sm font-medium text-neutral-300">Stable Currencies</div>
-              <span className="text-xs text-emerald-400">Supported</span>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-1.5" title="USDC">
+              <div className="flex flex-col items-center gap-1" title="USDC">
                 <img 
                   src="https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png" 
                   alt="USDC" 
                   className="w-6 h-6 rounded-full"
                 />
                 <span className="text-xs text-neutral-400">USDC</span>
+                <span className="text-xs font-medium text-white">${tokenBalances.usdc.toFixed(2)}</span>
               </div>
-              <div className="flex items-center gap-1.5" title="USDT">
+              <div className="flex flex-col items-center gap-1" title="USDT">
                 <img 
                   src="https://assets.coingecko.com/coins/images/325/small/Tether.png" 
                   alt="USDT" 
                   className="w-6 h-6 rounded-full"
                 />
                 <span className="text-xs text-neutral-400">USDT</span>
+                <span className="text-xs font-medium text-white">${tokenBalances.usdt.toFixed(2)}</span>
               </div>
-              <div className="flex items-center gap-1.5" title="X402">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-white">X</span>
-                </div>
+              <div className="flex flex-col items-center gap-1" title="X402">
+                <img 
+                  src="https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png" 
+                  alt="X402" 
+                  className="w-6 h-6 rounded-full"
+                />
                 <span className="text-xs text-neutral-400">X402</span>
+                <span className="text-xs font-medium text-white">${tokenBalances.x402.toFixed(2)}</span>
               </div>
             </div>
           </motion.div>

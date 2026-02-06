@@ -234,9 +234,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                     </SelectItem>
                     <SelectItem value="X402">
                       <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                          <span className="text-[8px] font-bold text-white">X</span>
-                        </div>
+                        <img src="https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png" alt="X402" className="w-5 h-5 rounded-full" />
                         X402
                       </div>
                     </SelectItem>
