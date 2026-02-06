@@ -139,4 +139,3 @@ export function getPrivacyUsdWalletPool(): IntermediateWalletPool {
   return privacyUsdPoolInstance;
 }
 
-export type { IntermediateWallet };
