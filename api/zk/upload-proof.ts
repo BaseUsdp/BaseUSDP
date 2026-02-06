@@ -1,0 +1,304 @@
+/**
+ * Void402 Upload Proof API (1:1 with Nolvipay)
+ * POST /api/zk/upload-proof
+ * 
+ * Creates transaction to upload zero-knowledge proof for withdrawals.
+ * This creates an on-chain proof account that authorizes the withdrawal.
+ */
+
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { 
+  SystemProgram,
+  PublicKey,
+  TransactionMessage,
+  VersionedTransaction,
+  Keypair,
+} from '@solana/web3.js';
+import { 
+  getSolanaConnection,
+  deriveProofPDA,
+  isValidSolanaAddress,
+  VOID402_PROGRAM_ID,
+} from '../lib/void402-solana.js';
+import { getPrivacyUsdWalletPool } from '../lib/intermediate-wallet-pool.js';
+import { extractBearerToken, verifyBearerToken } from '../lib/bearer-auth.js';
+import { createClient } from '@supabase/supabase-js';
+import bs58 from 'bs58';
+
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+
+// USDC and USDT mint addresses on Solana
+const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+const USDT_MINT = new PublicKey('Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB');
+
+// Instruction discriminator for upload_proof: [57, 235, 171, 213, 237, 91, 79, 2]
+const UPLOAD_PROOF_DISCRIMINATOR = Buffer.from([57, 235, 171, 213, 237, 91, 79, 2]);
+
+const ALLOWED_ORIGINS = [
+  "https://void402.com",
+  "https://www.void402.com",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+function getAllowedOrigin(origin: string | undefined): string {
+  if (!origin) return "https://www.void402.com";
+  if (ALLOWED_ORIGINS.includes(origin)) return origin;
+  if (origin.match(/^https:\/\/code-whisperer-33[\w-]*\.vercel\.app/)) return origin;
+  return "https://www.void402.com";
+}
+
+function buildUploadProofInstruction({
+  sender,
+  proof,
+  tokenMint,
+  nonce,
+  amount,
+  proofBytes,
+  commitmentBytes,
+  blindingFactorBytes,
+}: {
+  sender: PublicKey;
+  proof: PublicKey;
+  tokenMint: PublicKey;
+  nonce: number;
+  amount: number;
+  proofBytes: Buffer;
+  commitmentBytes: Buffer;
+  blindingFactorBytes: Buffer;
+}) {
+  // Encode nonce (u64, 8 bytes)
+  const nonceBuffer = Buffer.allocUnsafe(8);
+  const nonceBigInt = BigInt(nonce);
+  for (let i = 0; i < 8; i++) {
+    nonceBuffer[i] = Number((nonceBigInt >> BigInt(i * 8)) & BigInt(0xff));
+  }
+
+  // Encode amount (u64, 8 bytes)
+  const amountBuffer = Buffer.allocUnsafe(8);
+  const amountBigInt = BigInt(amount);
+  for (let i = 0; i < 8; i++) {
+    amountBuffer[i] = Number((amountBigInt >> BigInt(i * 8)) & BigInt(0xff));
+  }
+
+  // Encode Vec<u8> fields (4 bytes length + data)
+  const proofLengthBuffer = Buffer.allocUnsafe(4);
+  proofLengthBuffer.writeUInt32LE(proofBytes.length, 0);
+
+  const commitmentLengthBuffer = Buffer.allocUnsafe(4);
+  commitmentLengthBuffer.writeUInt32LE(commitmentBytes.length, 0);
+
+  const blindingLengthBuffer = Buffer.allocUnsafe(4);
+  blindingLengthBuffer.writeUInt32LE(blindingFactorBytes.length, 0);
+
+  // Combine all data
+  const instructionData = Buffer.concat([
+    UPLOAD_PROOF_DISCRIMINATOR,
+    nonceBuffer,
+    amountBuffer,
+    proofLengthBuffer,
+    proofBytes,
+    commitmentLengthBuffer,
+    commitmentBytes,
+    blindingLengthBuffer,
+    blindingFactorBytes,
+  ]);
+
+  return {
+    programId: VOID402_PROGRAM_ID,
+    keys: [
+      { pubkey: sender, isSigner: true, isWritable: true },
+      { pubkey: proof, isSigner: false, isWritable: true },
+      { pubkey: tokenMint, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data: instructionData,
+  };
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const origin = getAllowedOrigin(req.headers.origin as string | undefined);
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  if (req.method === "OPTIONS") return res.status(204).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  if (!supabase) {
+    return res.status(500).json({ success: false, error: "Database not configured" });
+  }
+
+  try {
+    const { sender_wallet, token, amount, nonce, server_sign } = req.body;
+
+    if (!sender_wallet || !token || !amount || nonce === undefined) {
+      return res.status(400).json({ 
+        error: 'sender_wallet, token, amount, and nonce are required' 
+      });
+    }
+
+    const nonceNumber = typeof nonce === 'string' ? parseInt(nonce, 10) : Number(nonce);
+    if (isNaN(nonceNumber) || !Number.isInteger(nonceNumber) || nonceNumber < 0) {
+      return res.status(400).json({ 
+        error: 'nonce must be a valid positive integer' 
+      });
+    }
+
+    if (!isValidSolanaAddress(sender_wallet)) {
+      return res.status(400).json({ error: 'Invalid sender wallet address' });
+    }
+
+    if (amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be greater than zero' });
+    }
+
+    if (!['USDC', 'USDT'].includes(token)) {
+      return res.status(400).json({ error: 'Token must be USDC or USDT' });
+    }
+
+    // Require authentication
+    const bearerToken = extractBearerToken(req);
+    if (!bearerToken) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const tokenVerification = await verifyBearerToken(bearerToken, sender_wallet);
+    if (!tokenVerification.valid) {
+      return res.status(403).json({ error: 'Invalid authentication' });
+    }
+
+    const connection = getSolanaConnection();
+    const tokenMint = token === 'USDC' ? USDC_MINT : USDT_MINT;
+
+    // Get user's intermediate wallet from database
+    const { data: walletMapping, error: dbError } = await supabase
+      .from('zk_user_wallets')
+      .select('intermediate_wallet')
+      .eq('user_wallet', sender_wallet)
+      .eq('token', token)
+      .maybeSingle();
+
+    if (dbError || !walletMapping || !walletMapping.intermediate_wallet) {
+      return res.status(400).json({ 
+        error: 'No deposit found. You must deposit funds first before withdrawing.' 
+      });
+    }
+
+    // For server_sign mode (user doesn't need to sign), use intermediate wallet to sign
+    if (server_sign) {
+      const intermediatePool = getPrivacyUsdWalletPool();
+      await intermediatePool.initialize();
+      const intermediateWallet = await intermediatePool.getWalletByPublicKey(walletMapping.intermediate_wallet);
+      
+      if (!intermediateWallet) {
+        return res.status(400).json({ error: 'Intermediate wallet not found in pool' });
+      }
+
+      const intermediateKeypair = Keypair.fromSecretKey(Uint8Array.from(intermediateWallet.privateKey));
+      const intermediatePubkey = intermediateKeypair.publicKey;
+
+      // Derive proof PDA
+      const proofPDA = await deriveProofPDA(nonceNumber);
+
+      // Convert amount to lamports
+      const amountLamports = Math.floor(amount * 1_000_000);
+
+      // Generate placeholder proof bytes (in production, this would be a real ZK proof)
+      const proofBytes = Buffer.alloc(32, 0); // Placeholder
+      const commitmentBytes = Buffer.alloc(32, 0); // Placeholder
+      const blindingFactorBytes = Buffer.alloc(32, 0); // Placeholder
+
+      // Build instruction
+      const instruction = buildUploadProofInstruction({
+        sender: intermediatePubkey,
+        proof: proofPDA,
+        tokenMint: tokenMint,
+        nonce: nonceNumber,
+        amount: amountLamports,
+        proofBytes: proofBytes,
+        commitmentBytes: commitmentBytes,
+        blindingFactorBytes: blindingFactorBytes,
+      });
+
+      // Build transaction
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
+      const txMessage = new TransactionMessage({
+        payerKey: intermediatePubkey,
+        recentBlockhash: blockhash,
+        instructions: [instruction],
+      }).compileToLegacyMessage();
+
+      const transaction = new VersionedTransaction(txMessage);
+      transaction.sign([intermediateKeypair]);
+
+      // Send and confirm
+      const signature = await connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: false,
+        maxRetries: 3,
+      });
+
+      await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight,
+      }, 'confirmed');
+
+      console.log(`✅ Proof uploaded: nonce=${nonceNumber}, amount=${amount} ${token}, tx=${signature}`);
+
+      return res.status(200).json({
+        success: true,
+        signature: signature,
+        nonce: nonceNumber,
+        proofPDA: proofPDA.toString(),
+      });
+    } else {
+      // Client-side signing mode - return transaction for user to sign
+      const walletPubkey = new PublicKey(sender_wallet);
+      const proofPDA = await deriveProofPDA(nonceNumber);
+      const amountLamports = Math.floor(amount * 1_000_000);
+
+      const proofBytes = Buffer.alloc(32, 0);
+      const commitmentBytes = Buffer.alloc(32, 0);
+      const blindingFactorBytes = Buffer.alloc(32, 0);
+
+      const instruction = buildUploadProofInstruction({
+        sender: walletPubkey,
+        proof: proofPDA,
+        tokenMint: tokenMint,
+        nonce: nonceNumber,
+        amount: amountLamports,
+        proofBytes: proofBytes,
+        commitmentBytes: commitmentBytes,
+        blindingFactorBytes: blindingFactorBytes,
+      });
+
+      const { blockhash } = await connection.getLatestBlockhash('finalized');
+      const txMessage = new TransactionMessage({
+        payerKey: walletPubkey,
+        recentBlockhash: blockhash,
+        instructions: [instruction],
+      }).compileToLegacyMessage();
+
+      const transaction = new VersionedTransaction(txMessage);
+      const serializedTx = Buffer.from(transaction.serialize()).toString('base64');
+
+      return res.status(200).json({
+        success: true,
+        transaction: serializedTx,
+        nonce: nonceNumber,
+        proofPDA: proofPDA.toString(),
+      });
+    }
+  } catch (error: any) {
+    console.error('❌ Error uploading proof:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: 'Failed to upload proof', 
+      message: error?.message || 'Unknown error',
+    });
+  }
+}

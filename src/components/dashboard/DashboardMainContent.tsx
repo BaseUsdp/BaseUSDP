@@ -12,6 +12,7 @@ import PrivacyLevelSelector from "./PrivacyLevelSelector";
 import SettingsSection from "./sections/SettingsSection";
 import PaymentsSection from "./sections/PaymentsSection";
 import HistorySection from "./sections/HistorySection";
+import WithdrawSection from "./sections/WithdrawSection";
 import { getTransactionHistory, TransactionHistoryResponse, getZKBalance } from "@/services/api";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
 
@@ -180,6 +181,14 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
     return (
       <div className="p-4 sm:p-6">
         <HistorySection showBalance={showBalance} />
+      </div>
+    );
+  }
+
+  if (activeTab === "withdraw") {
+    return (
+      <div className="p-4 sm:p-6">
+        <WithdrawSection showBalance={showBalance} />
       </div>
     );
   }

@@ -9,7 +9,8 @@ import {
   Send,
   Download,
   Settings,
-  History
+  History,
+  ArrowUpRight
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance }: Dashboar
   const navItems = [
     { id: "overview", label: "Dashboard", icon: LayoutDashboard },
     { id: "payments", label: "Payments", icon: Send },
+    { id: "withdraw", label: "Withdraw", icon: ArrowUpRight },
     { id: "history", label: "History", icon: History },
     { id: "settings", label: "Settings", icon: Settings },
   ];
