@@ -24,17 +24,32 @@ const BalanceDisplay = ({ showBalance }: BalanceDisplayProps) => {
 
     try {
       setIsDecrypting(true);
-      const result = await getZKBalance(fullWalletAddress);
       
-      if (result.success && result.balances) {
-        // Sum all token balances for total
-        const total = result.balances.sol + result.balances.usdc + result.balances.usdt;
-        setTokenBalance(result.balances.usdc + result.balances.usdt); // USDC + USDT
-        setSolBalance(result.balances.sol);
-        setError(null);
-      } else {
-        setError(result.error || "Failed to fetch balance");
+      // Fetch balances for both USDC and USDT
+      const [usdcResult, usdtResult] = await Promise.all([
+        getZKBalance(fullWalletAddress, 'USDC'),
+        getZKBalance(fullWalletAddress, 'USDT'),
+      ]);
+      
+      // Handle both the old format (result.balances) and new format (result.balance)
+      let usdcBalance = 0;
+      let usdtBalance = 0;
+      
+      if (usdcResult.balance !== undefined) {
+        usdcBalance = usdcResult.balance;
+      } else if (usdcResult.balances?.usdc !== undefined) {
+        usdcBalance = usdcResult.balances.usdc;
       }
+      
+      if (usdtResult.balance !== undefined) {
+        usdtBalance = usdtResult.balance;
+      } else if (usdtResult.balances?.usdt !== undefined) {
+        usdtBalance = usdtResult.balances.usdt;
+      }
+      
+      setTokenBalance(usdcBalance + usdtBalance);
+      setSolBalance(0); // SOL balance not tracked in ZK pool
+      setError(null);
     } catch (err) {
       console.error("Error fetching balance:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch balance");

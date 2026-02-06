@@ -6,7 +6,7 @@
  * between user deposits and recipient transfers.
  */
 
-interface IntermediateWallet {
+export interface IntermediateWallet {
   index: number;
   publicKey: string;
   privateKey: number[];

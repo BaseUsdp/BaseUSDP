@@ -470,9 +470,14 @@ export interface ZKProcessDepositResponse {
 }
 
 export interface ZKBalanceResponse {
-  success: boolean;
-  wallet: string;
-  balances: {
+  success?: boolean;
+  wallet?: string;
+  balance?: number;
+  token?: string;
+  available?: number;
+  deposited?: number;
+  withdrawn?: number;
+  balances?: {
     sol: number;
     usdc: number;
     usdt: number;
@@ -505,12 +510,13 @@ export const processZKDeposit = async (
 };
 
 /**
- * Get ZK balance (SOL, USDC, USDT)
+ * Get ZK balance for a specific token
  */
 export const getZKBalance = async (
-  wallet: string
+  wallet: string,
+  token: "USDC" | "USDT" = "USDC"
 ): Promise<ZKBalanceResponse> => {
-  return api.request<ZKBalanceResponse>(`/api/zk/balance/${wallet}`);
+  return api.request<ZKBalanceResponse>(`/api/zk/balance/${wallet}?token=${token}`);
 };
 
 // ==========================================================================

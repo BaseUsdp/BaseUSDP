@@ -14,6 +14,7 @@ import {
   VersionedTransaction,
   Keypair,
   SystemProgram,
+  TransactionInstruction,
 } from '@solana/web3.js';
 import { 
   TOKEN_PROGRAM_ID, 
@@ -29,7 +30,7 @@ import {
   getSolanaConnection,
   VOID402_PROGRAM_ID,
 } from '../lib/void402-solana.js';
-import { getPrivacyUsdWalletPool } from '../lib/intermediate-wallet-pool.js';
+import { getPrivacyUsdWalletPool, IntermediateWallet } from '../lib/intermediate-wallet-pool.js';
 import { extractBearerToken, verifyBearerToken } from '../lib/bearer-auth.js';
 import { createClient } from '@supabase/supabase-js';
 import { getUSDPHolderTier, calculateFeePercentage } from '../lib/tier-service.js';
@@ -77,7 +78,7 @@ function buildDepositInstruction({
   userTokenAccount: PublicKey;
   poolTokenAccount: PublicKey;
   amountLamports: bigint;
-}) {
+}): TransactionInstruction {
   const args = Buffer.alloc(8);
   args.writeBigUInt64LE(amountLamports, 0);
   
@@ -113,18 +114,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { transaction_signature, mixer_exchange_id, wallet, amount, token, source_network, wallet_signature, message_to_sign } = req.body;
+    const { transaction_signature, mixer_exchange_id, wallet, amount, token } = req.body;
 
     // Check if this is a Privacy Mixer deposit or regular deposit
     const isMixerDeposit = !!mixer_exchange_id;
 
     if (isMixerDeposit) {
-      // Privacy Mixer deposit - only need exchange_id, wallet, amount, token
       if (!mixer_exchange_id || !wallet || !amount || !token) {
         return res.status(400).json({ error: 'Mixer exchange ID, wallet, amount, and token are required for Privacy Mixer deposits' });
       }
     } else {
-      // Regular deposit - need transaction_signature
       if (!transaction_signature || !wallet || !amount || !token) {
         return res.status(400).json({ error: 'Transaction signature, wallet, amount, and token are required' });
       }
@@ -141,18 +140,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error(`❌ SECURITY: Missing bearer token for process-deposit. Wallet: ${wallet}`);
       return res.status(401).json({ 
         error: 'Authentication required',
-        message: 'You must authenticate first. Please call /api/auth/nonce and /api/auth/verify to get a bearer token.'
+        message: 'You must authenticate first.'
       });
     }
 
-    // Verify bearer token
     const tokenVerification = await verifyBearerToken(bearerToken, wallet);
     
     if (!tokenVerification.valid) {
       console.error(`❌ SECURITY: Invalid bearer token for process-deposit. Wallet: ${wallet}, Error: ${tokenVerification.error}`);
       return res.status(403).json({ 
         error: 'Invalid authentication',
-        message: tokenVerification.error || 'Bearer token is invalid or expired. Please authenticate again.'
+        message: tokenVerification.error || 'Bearer token is invalid or expired.'
       });
     }
 
@@ -182,13 +180,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let intermediateWalletPublicKey: string;
 
     if (dbError || !walletMapping) {
-      // No intermediate wallet assigned - assign one from the pool
       console.log(`[Process Deposit] No intermediate wallet found for ${wallet}, auto-assigning for ${token}...`);
       
       const intermediatePool = getPrivacyUsdWalletPool();
       await intermediatePool.initialize();
       
-      // Get all currently assigned intermediate wallets to avoid reuse
       const { data: assignedWallets } = await supabase
         .from('zk_user_wallets')
         .select('intermediate_wallet')
@@ -196,8 +192,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       const assignedWalletSet = new Set((assignedWallets || []).map((w: any) => w.intermediate_wallet));
       
-      // Try to find an available wallet that's not already assigned
-      let intermediateWallet = null;
+      let intermediateWallet: IntermediateWallet | null = null;
       let attempts = 0;
       const maxAttempts = 100;
       
@@ -210,15 +205,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         attempts++;
       }
       
-      // If still no wallet found after checking all, allow reuse of least recently used wallet
       if (!intermediateWallet) {
-        console.warn('[Process Deposit] All wallets assigned, reusing least recently used wallet for privacy');
         const allWallets = intermediatePool.getAllWallets();
         if (allWallets.length === 0) {
-          return res.status(500).json({ 
-            error: 'No intermediate wallets available', 
-            message: 'Intermediate wallet pool is empty. Please contact support.' 
-          });
+          return res.status(500).json({ error: 'No intermediate wallets available' });
         }
         const sorted = [...allWallets].sort((a, b) => {
           if (!a.lastUsed && !b.lastUsed) return 0;
@@ -227,12 +217,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return a.lastUsed.getTime() - b.lastUsed.getTime();
         });
         intermediateWallet = sorted[0];
-        console.log(`[Process Deposit] Reusing wallet ${intermediateWallet.publicKey} (last used: ${intermediateWallet.lastUsed || 'never'})`);
       }
       
       intermediateWalletPublicKey = intermediateWallet.publicKey;
       
-      // Store the mapping in database
       const { error: insertError } = await supabase
         .from('zk_user_wallets')
         .insert({
@@ -242,8 +230,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
       if (insertError) {
-        console.error('[Process Deposit] Error storing intermediate wallet mapping:', insertError);
-        // If insert fails due to unique constraint, try to fetch existing record
         const { data: existingMapping } = await supabase
           .from('zk_user_wallets')
           .select('intermediate_wallet')
@@ -251,34 +237,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .maybeSingle();
         
         if (existingMapping) {
-          console.log(`[Process Deposit] Found existing intermediate wallet for ${wallet}, reusing it`);
           intermediateWalletPublicKey = existingMapping.intermediate_wallet;
         } else {
           return res.status(500).json({ error: 'Failed to assign intermediate wallet' });
         }
-      } else {
-        console.log(`[Process Deposit] Assigned intermediate wallet ${intermediateWalletPublicKey} to ${wallet} for ${token}`);
       }
     } else {
       intermediateWalletPublicKey = walletMapping.intermediate_wallet;
-      if (walletMapping.token !== token) {
-        console.log(`[Process Deposit] Reusing intermediate wallet ${intermediateWalletPublicKey} (originally for ${walletMapping.token}, now for ${token})`);
-      }
     }
 
-    // Determine source wallet (mixer withdrawal wallet for Privacy Mixer, collection wallet for regular deposits)
+    // Determine source wallet
     let sourceKeypair: Keypair;
     let sourcePubkey: PublicKey;
     let sourceWalletName: string;
     let mixerBalanceBeforeTransfer: bigint | null = null;
     
     if (isMixerDeposit) {
-      // Privacy Mixer deposit - use mixer withdrawal wallet
       const mixerWithdrawalAddress = process.env.MIXER_WITHDRAWAL_WALLET_ADDRESS;
       const mixerWithdrawalPrivateKey = process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY;
       
       if (!mixerWithdrawalAddress || !mixerWithdrawalPrivateKey) {
-        throw new Error('MIXER_WITHDRAWAL_WALLET_ADDRESS and MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY environment variables not set');
+        throw new Error('MIXER_WITHDRAWAL_WALLET_ADDRESS and MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY not set');
       }
       
       try {
@@ -292,22 +271,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       console.log(`🔒 PRIVACY MIXER: Processing deposit from mixer withdrawal wallet (exchange: ${mixer_exchange_id})`);
       
-      // Update database with mixer exchange info
       await supabase
         .from('zk_user_wallets')
-        .update({
-          mixer_exchange_id: mixer_exchange_id,
-          mixer_status: 'processing',
-        })
+        .update({ mixer_exchange_id, mixer_status: 'processing' })
         .eq('user_wallet', wallet)
         .eq('token', token);
     } else {
-      // Regular deposit - use collection wallet
       const collectionWalletAddress = process.env.COLLECTION_WALLET_ADDRESS || process.env.COLLECTION_WALLET;
       const collectionWalletPrivateKey = process.env.COLLECTION_WALLET_PRIVATE_KEY;
       
       if (!collectionWalletAddress || !collectionWalletPrivateKey) {
-        throw new Error('COLLECTION_WALLET_ADDRESS and COLLECTION_WALLET_PRIVATE_KEY environment variables not set');
+        throw new Error('COLLECTION_WALLET_ADDRESS and COLLECTION_WALLET_PRIVATE_KEY not set');
       }
       
       try {
@@ -331,7 +305,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Intermediate wallet not found in pool' });
     }
 
-    // Create intermediate wallet keypair
     const intermediateKeypair = Keypair.fromSecretKey(Uint8Array.from(intermediateWallet.privateKey));
     const intermediatePubkey = intermediateKeypair.publicKey;
 
@@ -340,163 +313,231 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userBalancePDA = await deriveUserBalancePDA(intermediateWallet.publicKey, tokenMint.toBase58());
 
     // Get associated token accounts
-    const sourceTokenAccount = await getAssociatedTokenAddress(
-      tokenMint,
-      sourcePubkey
-    );
-    
-    const intermediateTokenAccount = await getAssociatedTokenAddress(
-      tokenMint,
-      intermediatePubkey
-    );
-    
-    const poolTokenAccount = await getAssociatedTokenAddress(
-      tokenMint,
-      poolPDA,
-      true // allowOwnerOffCurve
-    );
+    const sourceTokenAccount = await getAssociatedTokenAddress(tokenMint, sourcePubkey);
+    const intermediateTokenAccount = await getAssociatedTokenAddress(tokenMint, intermediatePubkey);
+    const poolTokenAccount = await getAssociatedTokenAddress(tokenMint, poolPDA, true);
 
-    // Calculate deposit amount after fees (tier-based fee)
-    let baseAmount = parseFloat(amount);
+    // =========================================================================
+    // CHANGENOW API LOGIC (1:1 with Nolvipay)
+    // =========================================================================
+    let actualReceivedAmount: number | null = null;
+    
+    if (isMixerDeposit) {
+      // Query ChangeNow API to get actual amount received
+      try {
+        const CHANGENOW_API_KEY = process.env.CHANGENOW_API_KEY;
+        const CHANGENOW_BASE_URL = 'https://api.changenow.io/v1';
+        
+        if (CHANGENOW_API_KEY) {
+          console.log(`🔍 PRIVACY MIXER: Querying ChangeNow API for exchange ${mixer_exchange_id}...`);
+          
+          const changenowResponse = await fetch(`${CHANGENOW_BASE_URL}/transactions/${mixer_exchange_id}/${CHANGENOW_API_KEY}`, {
+            method: 'GET',
+            headers: {
+              'User-Agent': 'Void402/1.0',
+              'Accept': 'application/json',
+            },
+          });
+          
+          if (changenowResponse.ok) {
+            const changenowData = await changenowResponse.json();
+            console.log(`📋 PRIVACY MIXER: ChangeNow API response:`, JSON.stringify(changenowData, null, 2));
+            
+            const amountReceive = changenowData.amountReceive;
+            const expectedReceiveAmount = changenowData.expectedReceiveAmount;
+            
+            console.log(`💰 PRIVACY MIXER: amountSend: ${changenowData.amountSend}, amountReceive: ${amountReceive}, expectedReceiveAmount: ${expectedReceiveAmount}`);
+            
+            if (amountReceive && parseFloat(amountReceive) > 0) {
+              actualReceivedAmount = parseFloat(amountReceive);
+              console.log(`💰 PRIVACY MIXER: Using amountReceive: ${actualReceivedAmount.toFixed(6)} ${token}`);
+            } else if (expectedReceiveAmount && parseFloat(expectedReceiveAmount) > 0) {
+              actualReceivedAmount = parseFloat(expectedReceiveAmount);
+              console.log(`💰 PRIVACY MIXER: Using expectedReceiveAmount: ${actualReceivedAmount.toFixed(6)} ${token}`);
+            }
+          } else {
+            console.warn(`⚠️ PRIVACY MIXER: ChangeNow API failed. Status: ${changenowResponse.status}`);
+          }
+        }
+      } catch (error: any) {
+        console.error(`❌ Error querying ChangeNow API:`, error);
+      }
+      
+      // Verify funds have arrived in mixer wallet
+      const expectedAmountLamports = BigInt(Math.floor(parseFloat(amount) * 1_000_000));
+      const minExpectedAmount = expectedAmountLamports - (expectedAmountLamports / BigInt(20)); // 5% variance
+      
+      let mixerWalletBalance = BigInt(0);
+      let fundsArrived = false;
+      const maxRetries = 12;
+      let retryCount = 0;
+      
+      console.log(`🔍 PRIVACY MIXER: Verifying funds in mixer wallet...`);
+      console.log(`   Expected: ${(Number(expectedAmountLamports) / 1_000_000).toFixed(6)} ${token}`);
+      console.log(`   Minimum: ${(Number(minExpectedAmount) / 1_000_000).toFixed(6)} ${token}`);
+      
+      while (!fundsArrived && retryCount < maxRetries) {
+        try {
+          const sourceAccount = await getAccount(connection, sourceTokenAccount);
+          mixerWalletBalance = sourceAccount.amount;
+          
+          console.log(`   Balance: ${(Number(mixerWalletBalance) / 1_000_000).toFixed(6)} ${token} (attempt ${retryCount + 1}/${maxRetries})`);
+          
+          if (mixerWalletBalance >= minExpectedAmount) {
+            fundsArrived = true;
+            console.log(`✅ PRIVACY MIXER: Funds confirmed!`);
+            break;
+          } else {
+            console.log(`⏳ Waiting 5s...`);
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            retryCount++;
+          }
+        } catch (error: any) {
+          if (error.name === 'TokenAccountNotFoundError' || error.message?.includes('AccountNotFound')) {
+            console.log(`⏳ Token account doesn't exist yet. Waiting 5s...`);
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            retryCount++;
+          } else {
+            throw error;
+          }
+        }
+      }
+      
+      if (!fundsArrived) {
+        return res.status(400).json({ 
+          error: 'Funds not yet arrived in mixer wallet',
+          message: `Funds have not arrived after ${maxRetries * 5} seconds. Please try again.`,
+          details: {
+            mixerWallet: sourcePubkey.toString(),
+            expectedAmount: (Number(expectedAmountLamports) / 1_000_000).toFixed(6),
+            currentBalance: (Number(mixerWalletBalance) / 1_000_000).toFixed(6),
+            exchangeId: mixer_exchange_id
+          }
+        });
+      }
+      
+      // Use actual balance if ChangeNow API didn't provide amount
+      if (actualReceivedAmount === null && mixerWalletBalance > BigInt(0)) {
+        actualReceivedAmount = Number(mixerWalletBalance) / 1_000_000;
+        console.log(`💰 PRIVACY MIXER: Using mixer wallet balance: ${actualReceivedAmount.toFixed(6)} ${token}`);
+      }
+      
+      mixerBalanceBeforeTransfer = mixerWalletBalance;
+    }
+
+    // Use actual received amount or original amount
+    let baseAmount = actualReceivedAmount !== null ? actualReceivedAmount : parseFloat(amount);
     const originalDepositAmount = parseFloat(amount);
     
-    // Get user's tier
+    // For mixer deposits, ensure we don't transfer more than available
+    if (isMixerDeposit) {
+      try {
+        const sourceAccount = await getAccount(connection, sourceTokenAccount);
+        const actualMixerBalance = Number(sourceAccount.amount) / 1_000_000;
+        
+        if (baseAmount > actualMixerBalance) {
+          console.log(`⚠️ PRIVACY MIXER: Adjusting amount from ${baseAmount.toFixed(6)} to ${actualMixerBalance.toFixed(6)} ${token}`);
+          baseAmount = actualMixerBalance;
+        }
+      } catch (error: any) {
+        console.warn(`⚠️ Could not verify mixer wallet balance:`, error);
+      }
+    }
+    
+    // Calculate fee
     const tierInfo = await getUSDPHolderTier(wallet);
     const feePercentage = calculateFeePercentage(10.0, tierInfo.tier, 'deposit');
-    
     const feeAmount = baseAmount * (feePercentage / 100);
     const amountAfterFees = baseAmount - feeAmount;
     
-    console.log(`💰 Deposit fee calculation (Tier ${tierInfo.tier}): ${baseAmount} ${token} - ${feeAmount.toFixed(6)} ${token} (${feePercentage}%) = ${amountAfterFees.toFixed(6)} ${token} deposited`);
+    if (isMixerDeposit && actualReceivedAmount !== null) {
+      const changeNowFee = originalDepositAmount - actualReceivedAmount;
+      console.log(`💰 PRIVACY MIXER FEE BREAKDOWN:`);
+      console.log(`   Original: ${originalDepositAmount.toFixed(6)} ${token}`);
+      console.log(`   ChangeNow fee: ${changeNowFee.toFixed(6)} ${token}`);
+      console.log(`   Received: ${actualReceivedAmount.toFixed(6)} ${token}`);
+      console.log(`   Our fee (Tier ${tierInfo.tier}): ${feeAmount.toFixed(6)} ${token} (${feePercentage}%)`);
+      console.log(`   Final: ${amountAfterFees.toFixed(6)} ${token}`);
+    } else {
+      console.log(`💰 Deposit fee (Tier ${tierInfo.tier}): ${baseAmount} - ${feeAmount.toFixed(6)} (${feePercentage}%) = ${amountAfterFees.toFixed(6)} ${token}`);
+    }
     
-    // Convert to lamports (USDC/USDT have 6 decimals)
     const amountLamports = BigInt(Math.floor(amountAfterFees * 1_000_000));
 
-    // Check intermediate wallet SOL balance
+    // Check balances and account existence
     const intermediateSolBalance = await connection.getBalance(intermediatePubkey);
     
-    // Check if user balance PDA exists
     let userBalanceExists = false;
     try {
-      const userBalanceAccountInfo = await connection.getAccountInfo(userBalancePDA);
-      if (userBalanceAccountInfo && userBalanceAccountInfo.owner.equals(VOID402_PROGRAM_ID)) {
-        userBalanceExists = true;
-      }
-    } catch {
-      userBalanceExists = false;
-    }
+      const info = await connection.getAccountInfo(userBalancePDA);
+      if (info && info.owner.equals(VOID402_PROGRAM_ID)) userBalanceExists = true;
+    } catch {}
     
-    // Check if pool PDA exists
     let poolExists = false;
     try {
-      const poolAccountInfo = await connection.getAccountInfo(poolPDA);
-      if (poolAccountInfo && poolAccountInfo.owner.equals(VOID402_PROGRAM_ID)) {
-        poolExists = true;
-      }
-    } catch {
-      poolExists = false;
-    }
+      const info = await connection.getAccountInfo(poolPDA);
+      if (info && info.owner.equals(VOID402_PROGRAM_ID)) poolExists = true;
+    } catch {}
     
-    // Get actual rent exemption requirements
     const SYSTEM_ACCOUNT_RENT = await connection.getMinimumBalanceForRentExemption(0);
     const ASSOCIATED_TOKEN_ACCOUNT_RENT = await connection.getMinimumBalanceForRentExemption(165);
     
-    // Check if intermediate wallet's token account exists
     let intermediateAccountExists = false;
     try {
       await connection.getTokenAccountBalance(intermediateTokenAccount);
       intermediateAccountExists = true;
-    } catch {
-      intermediateAccountExists = false;
-    }
+    } catch {}
     
     // Check source wallet balance
-    const TRANSACTION_FEE_ESTIMATE = 10_000;
-    const TOTAL_INSTRUCTIONS = 3 + (intermediateAccountExists ? 0 : 1) + (userBalanceExists ? 0 : 1) + (poolExists ? 0 : 1);
-    const ESTIMATED_TX_FEES = TRANSACTION_FEE_ESTIMATE * TOTAL_INSTRUCTIONS;
-    const RENT_FOR_ATA = intermediateAccountExists ? 0 : ASSOCIATED_TOKEN_ACCOUNT_RENT;
-    const MIN_SOURCE_BALANCE_NEEDED = ESTIMATED_TX_FEES + RENT_FOR_ATA + (SYSTEM_ACCOUNT_RENT * 2);
-    
     const sourceBalance = await connection.getBalance(sourcePubkey);
+    const MIN_SOURCE_BALANCE_NEEDED = 50_000 + (intermediateAccountExists ? 0 : ASSOCIATED_TOKEN_ACCOUNT_RENT) + (SYSTEM_ACCOUNT_RENT * 2);
     
     if (sourceBalance < MIN_SOURCE_BALANCE_NEEDED) {
       return res.status(400).json({ 
-        error: `${sourceWalletName} has insufficient SOL balance`,
+        error: `${sourceWalletName} has insufficient SOL`,
         details: {
-          message: `${sourceWalletName} needs at least ${(MIN_SOURCE_BALANCE_NEEDED / 1_000_000_000).toFixed(6)} SOL for transaction fees and account creation. Current balance: ${(sourceBalance / 1_000_000_000).toFixed(6)} SOL`,
-          sourceWallet: sourcePubkey.toString(),
           currentBalance: sourceBalance / 1e9,
           required: MIN_SOURCE_BALANCE_NEEDED / 1e9,
         }
       });
     }
     
-    // Check if we can close the source token account after transfer
+    // Check if we can close source account
     let shouldCloseSourceAccount = false;
-    let sourceAccountBalance = BigInt(0);
     try {
       const sourceAccount = await getAccount(connection, sourceTokenAccount);
-      sourceAccountBalance = sourceAccount.amount;
-      if (sourceAccountBalance === amountLamports) {
+      if (sourceAccount.amount === amountLamports) {
         shouldCloseSourceAccount = true;
-        console.log(`💰 OPTIMIZATION: Will close source token account after transfer to return rent to ${sourceWalletName}`);
       }
-    } catch {
-      shouldCloseSourceAccount = false;
-    }
+    } catch {}
 
     // Build transaction
-    const instructions = [];
+    const instructions: TransactionInstruction[] = [];
 
-    // Step 1: Create intermediate wallet ATA (funded by source directly)
     if (!intermediateAccountExists) {
       instructions.push(
-        createAssociatedTokenAccountInstruction(
-          sourcePubkey,
-          intermediateTokenAccount,
-          intermediatePubkey,
-          tokenMint
-        )
+        createAssociatedTokenAccountInstruction(sourcePubkey, intermediateTokenAccount, intermediatePubkey, tokenMint)
       );
     }
 
-    // Step 2: Transfer SPL tokens from source to intermediate
     instructions.push(
-      createTransferInstruction(
-        sourceTokenAccount,
-        intermediateTokenAccount,
-        sourcePubkey,
-        amountLamports
-      )
+      createTransferInstruction(sourceTokenAccount, intermediateTokenAccount, sourcePubkey, amountLamports)
     );
 
-    // Step 3: Close source token account if it will be empty
     if (shouldCloseSourceAccount) {
       instructions.push(
-        createCloseAccountInstruction(
-          sourceTokenAccount,
-          sourcePubkey,
-          sourcePubkey,
-          []
-        )
+        createCloseAccountInstruction(sourceTokenAccount, sourcePubkey, sourcePubkey, [])
       );
     }
 
-    // Step 4: Deposit from intermediate wallet to pool
     try {
       await connection.getTokenAccountBalance(poolTokenAccount);
     } catch {
       instructions.push(
-        createAssociatedTokenAccountInstruction(
-          sourcePubkey,
-          poolTokenAccount,
-          poolPDA,
-          tokenMint
-        )
+        createAssociatedTokenAccountInstruction(sourcePubkey, poolTokenAccount, poolPDA, tokenMint)
       );
     }
 
-    // Build deposit instruction
     const depositIx = buildDepositInstruction({
       user: intermediatePubkey,
       userBalance: userBalancePDA,
@@ -509,15 +550,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     instructions.push(depositIx);
 
-    // Step 5: Transfer remaining SOL from intermediate wallet back to source
-    const MIN_INTERMEDIATE_SOL_BUFFER = SYSTEM_ACCOUNT_RENT + 50_000;
-    const ESTIMATED_DEPOSIT_FEE = 10_000;
-    const ESTIMATED_TRANSFER_FEE = 10_000;
-    const SAFETY_MARGIN = 100_000;
-    const REQUIRED_BUFFER = MIN_INTERMEDIATE_SOL_BUFFER + ESTIMATED_DEPOSIT_FEE + ESTIMATED_TRANSFER_FEE + SAFETY_MARGIN;
-    
-    if (intermediateSolBalance > REQUIRED_BUFFER) {
-      const solToReturn = intermediateSolBalance - REQUIRED_BUFFER;
+    // Return excess SOL from intermediate wallet
+    const MIN_BUFFER = SYSTEM_ACCOUNT_RENT + 150_000;
+    if (intermediateSolBalance > MIN_BUFFER) {
+      const solToReturn = intermediateSolBalance - MIN_BUFFER;
       if (solToReturn > 0) {
         instructions.push(
           SystemProgram.transfer({
@@ -526,15 +562,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             lamports: solToReturn,
           })
         );
-        console.log(`💰 OPTIMIZATION: Added SOL transfer to return ${(solToReturn / 1e9).toFixed(6)} SOL from intermediate wallet to ${sourceWalletName}`);
       }
     }
 
     // Build and sign transaction
     console.log(`📝 Building transaction: ${instructions.length} instructions`);
-    console.log(`   Source wallet (${sourceWalletName}): ${sourcePubkey.toString()}`);
-    console.log(`   Intermediate wallet: ${intermediatePubkey.toString()}`);
-    console.log(`   Transfer amount: ${(Number(amountLamports) / 1_000_000).toFixed(6)} ${token}`);
     
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
     const txMessage = new TransactionMessage({
@@ -544,112 +576,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }).compileToLegacyMessage();
 
     const transaction = new VersionedTransaction(txMessage);
-    
-    // Sign with both source and intermediate wallets
-    console.log(`🔐 Signing transaction with:`);
-    console.log(`   1. Source keypair (${sourceWalletName}): ${sourceKeypair.publicKey.toString()}`);
-    console.log(`   2. Intermediate keypair: ${intermediateKeypair.publicKey.toString()}`);
-    
-    try {
-      transaction.sign([sourceKeypair, intermediateKeypair]);
-      console.log(`✅ Transaction signed successfully`);
-    } catch (signError: any) {
-      console.error(`❌ Error signing transaction:`, signError);
-      throw new Error(`Failed to sign transaction: ${signError.message}`);
-    }
+    transaction.sign([sourceKeypair, intermediateKeypair]);
 
     // Send transaction
-    console.log(`📤 Sending transaction to Solana network...`);
-    let signature: string;
-    try {
-      signature = await connection.sendRawTransaction(transaction.serialize(), {
-        skipPreflight: false,
-        maxRetries: 3,
-      });
-      console.log(`✅ Transaction sent with signature: ${signature}`);
-    } catch (sendError: any) {
-      console.error(`❌ Error sending transaction:`, sendError);
-      throw new Error(`Failed to send transaction: ${sendError.message}`);
-    }
-
-    console.log(`✅ Void402: ${sourceWalletName} → Intermediate wallet → Pool - TX: ${signature}`);
+    console.log(`📤 Sending transaction...`);
+    const signature = await connection.sendRawTransaction(transaction.serialize(), {
+      skipPreflight: false,
+      maxRetries: 3,
+    });
+    console.log(`✅ Transaction sent: ${signature}`);
 
     // Wait for confirmation
-    let transactionConfirmed = false;
     try {
-      console.log(`⏳ Waiting for transaction confirmation: ${signature}...`);
       await Promise.race([
-        connection.confirmTransaction({
-          signature,
-          blockhash,
-          lastValidBlockHeight,
-        }, 'confirmed'),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Transaction confirmation timeout after 90s')), 90000)
-        )
+        connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed'),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 90000))
       ]);
-      transactionConfirmed = true;
       console.log(`✅ Transaction confirmed: ${signature}`);
     } catch (confirmError: any) {
-      console.error(`❌ Transaction confirmation error:`, confirmError);
-      // Check if transaction was actually successful
-      if (confirmError.message?.includes('timeout')) {
-        try {
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          const status = await connection.getSignatureStatus(signature);
-          
-          if (status.value && (status.value.confirmationStatus === 'confirmed' || status.value.confirmationStatus === 'finalized')) {
-            if (!status.value.err) {
-              console.log(`✅ Transaction confirmed (after timeout check): ${signature}`);
-              transactionConfirmed = true;
-            }
-          }
-        } catch (statusError) {
-          console.error(`❌ Error checking transaction status:`, statusError);
+      if (confirmError.message?.includes('Timeout')) {
+        const status = await connection.getSignatureStatus(signature);
+        if (status.value && !status.value.err) {
+          console.log(`✅ Transaction confirmed (after timeout check): ${signature}`);
+        } else {
+          throw confirmError;
         }
-      }
-      
-      if (!transactionConfirmed) {
+      } else {
         throw confirmError;
       }
     }
 
-    // Log transaction to history
-    const transactionAmountReceived = amountAfterFees;
-    
+    // Log transaction
     try {
-      console.log('💾 Recording deposit to database:', {
+      await supabase.from('zk_transactions').insert({
         sender_wallet: wallet,
+        recipient_wallet: wallet,
         amount: originalDepositAmount,
-        amount_received: transactionAmountReceived,
+        amount_received: amountAfterFees,
         fee_percentage: feePercentage,
+        token_symbol: token,
         tx_hash: signature,
         status: 'completed',
+        privacy_level: 'full',
       });
-      
-      const { data: insertData, error: insertError } = await supabase
-        .from('zk_transactions')
-        .insert({
-          sender_wallet: wallet,
-          recipient_wallet: wallet,
-          amount: originalDepositAmount,
-          amount_received: transactionAmountReceived,
-          fee_percentage: feePercentage,
-          token_symbol: token,
-          tx_hash: signature,
-          status: 'completed',
-          privacy_level: 'full',
-        })
-        .select();
-        
-      if (insertError) {
-        console.error('❌ Database insert error:', insertError);
-      } else {
-        console.log('✅ Deposit recorded successfully:', insertData);
-      }
     } catch (logError: any) {
-      console.error('❌ Exception logging deposit transaction:', logError);
-      // Don't fail the deposit if logging fails
+      console.error('❌ Error logging deposit:', logError);
     }
 
     return res.status(200).json({
@@ -657,18 +628,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       signature: signature,
       message: 'Deposit processed successfully',
       amount: originalDepositAmount,
-      amount_received: transactionAmountReceived,
+      amount_received: amountAfterFees,
       fee: feeAmount,
       fee_percentage: feePercentage,
     });
   } catch (error: any) {
     console.error('❌ Error processing deposit:', error);
-    console.error('❌ Error stack:', error?.stack);
-    
     return res.status(500).json({ 
       success: false,
       error: 'Failed to process deposit', 
-      message: error?.message || 'Unknown error occurred',
+      message: error?.message || 'Unknown error',
     });
   }
 }

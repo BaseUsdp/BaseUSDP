@@ -26,10 +26,14 @@ interface ProtectedRouteProps {
 
 type AuthState = "loading" | "connected" | "authenticating" | "authenticated" | "needs_username" | "unauthenticated";
 
+// Delay before showing unauthenticated state (allows wallet to auto-reconnect)
+const WALLET_RECONNECT_GRACE_PERIOD = 1500;
+
 const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) => {
   const { isConnected, isConnecting, fullWalletAddress } = useWallet();
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [authError, setAuthError] = useState<string | null>(null);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const apiUrl = getApiUrl();
 
   // Check for custom username
@@ -47,6 +51,15 @@ const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) =
     }
   };
 
+  // Grace period for wallet auto-reconnect on page refresh
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setInitialLoadComplete(true);
+    }, WALLET_RECONNECT_GRACE_PERIOD);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   // Check authentication status when wallet connects
   useEffect(() => {
     const checkAuth = async () => {
@@ -56,8 +69,13 @@ const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) =
         return;
       }
 
-      // Not connected
+      // Not connected - but wait for grace period before showing unauth
       if (!isConnected) {
+        // If we have a stored session token, keep loading during grace period
+        if (authService.isAuthenticated() && !initialLoadComplete) {
+          setAuthState("loading");
+          return;
+        }
         setAuthState("unauthenticated");
         return;
       }
@@ -85,7 +103,7 @@ const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) =
     };
 
     checkAuth();
-  }, [isConnected, isConnecting, requireAuth, fullWalletAddress]);
+  }, [isConnected, isConnecting, requireAuth, fullWalletAddress, initialLoadComplete]);
 
   // Handle authentication
   const handleAuthenticate = async () => {

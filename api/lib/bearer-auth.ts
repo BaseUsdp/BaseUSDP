@@ -1,10 +1,17 @@
 /**
  * Bearer Token Authentication Utilities
  * 1:1 with Nolvipay's bearer-auth.ts
+ * 
+ * Verifies session tokens stored in Supabase auth_sessions table
  */
 
 import type { VercelRequest } from '@vercel/node';
-import crypto from 'crypto';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 /**
  * Extract bearer token from request headers
@@ -18,43 +25,34 @@ export function extractBearerToken(req: VercelRequest): string | null {
 }
 
 /**
- * Verify bearer token
+ * Verify bearer token against Supabase auth_sessions table
  */
 export async function verifyBearerToken(
   token: string,
   wallet: string
 ): Promise<{ valid: boolean; error?: string }> {
   try {
-    // Parse token (format: payloadBase64.signature)
-    const parts = token.split('.');
-    if (parts.length !== 2) {
-      return { valid: false, error: 'Invalid token format' };
+    if (!supabase) {
+      return { valid: false, error: 'Database not configured' };
     }
 
-    const [payloadBase64, signature] = parts;
-    
-    // Verify signature
-    const secret = process.env.JWT_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || 'default-secret-change-in-production';
-    const expectedSignature = crypto
-      .createHmac('sha256', secret)
-      .update(payloadBase64)
-      .digest('base64');
+    // Look up session in database
+    const { data: session, error } = await supabase
+      .from('auth_sessions')
+      .select('*')
+      .eq('session_token', token)
+      .eq('user_wallet', wallet)
+      .single();
 
-    if (signature !== expectedSignature) {
-      return { valid: false, error: 'Invalid token signature' };
-    }
-
-    // Parse payload
-    const payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString());
-    
-    // Verify wallet matches
-    if (payload.wallet !== wallet) {
-      return { valid: false, error: 'Token wallet mismatch' };
+    if (error || !session) {
+      return { valid: false, error: 'Invalid session token' };
     }
 
     // Check expiration
-    if (payload.expiresAt < Date.now()) {
-      return { valid: false, error: 'Token expired' };
+    if (new Date(session.expires_at) < new Date()) {
+      // Delete expired session
+      await supabase.from('auth_sessions').delete().eq('session_token', token);
+      return { valid: false, error: 'Session expired' };
     }
 
     return { valid: true };
