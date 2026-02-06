@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Lock, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Lock, AlertCircle, ChevronRight } from "lucide-react";
 import { useWallet, PrivacyLevel } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
 import {
@@ -16,9 +16,10 @@ import { Button } from "@/components/ui/button";
 interface PrivacyLevelSelectorProps {
   compact?: boolean;
   onChange?: (level: PrivacyLevel) => void;
+  onNavigateToSettings?: () => void;
 }
 
-const PrivacyLevelSelector = ({ compact = false, onChange }: PrivacyLevelSelectorProps) => {
+const PrivacyLevelSelector = ({ compact = false, onChange, onNavigateToSettings }: PrivacyLevelSelectorProps) => {
   const { privacyLevel, setPrivacyLevel } = useWallet();
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingLevel, setPendingLevel] = useState<PrivacyLevel | null>(null);
@@ -63,18 +64,34 @@ const PrivacyLevelSelector = ({ compact = false, onChange }: PrivacyLevelSelecto
 
   if (compact) {
     return (
-      <div className="flex items-center gap-2">
-        <div className={cn(
-          "p-1.5 rounded-lg",
-          privacyLevel === "public" ? "bg-yellow-500/20 text-yellow-500" :
-          privacyLevel === "partial" ? "bg-blue-500/20 text-blue-500" :
-          "bg-green-500/20 text-green-500"
-        )}>
-          {currentLevel && <currentLevel.icon className="w-4 h-4" />}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              "p-1.5 rounded-lg",
+              privacyLevel === "public" ? "bg-yellow-500/20 text-yellow-500" :
+              privacyLevel === "partial" ? "bg-blue-500/20 text-blue-500" :
+              "bg-green-500/20 text-green-500"
+            )}>
+              {currentLevel && <currentLevel.icon className="w-4 h-4" />}
+            </div>
+            <span className="text-xs font-medium uppercase tracking-wider">
+              {currentLevel?.label}
+            </span>
+          </div>
+          {onNavigateToSettings && (
+            <button 
+              onClick={onNavigateToSettings}
+              className="p-1 hover:bg-white/10 rounded transition-colors"
+              title="Go to Settings"
+            >
+              <ChevronRight className="w-4 h-4 text-neutral-400" />
+            </button>
+          )}
         </div>
-        <span className="text-xs font-medium uppercase tracking-wider">
-          {currentLevel?.label}
-        </span>
+        <p className="text-[10px] text-neutral-500 leading-tight">
+          {currentLevel?.description}
+        </p>
       </div>
     );
   }

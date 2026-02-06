@@ -32,29 +32,38 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [tokenBalances, setTokenBalances] = useState({ usdc: 0, usdt: 0, x402: 0 });
 
-  // Fetch token balances
-  useEffect(() => {
-    const fetchBalances = async () => {
-      if (!isConnected || !fullWalletAddress) return;
-      
-      try {
-        const [usdcResult, usdtResult] = await Promise.all([
-          getZKBalance(fullWalletAddress, 'USDC').catch(() => ({ balance: 0 })),
-          getZKBalance(fullWalletAddress, 'USDT').catch(() => ({ balance: 0 })),
-        ]);
-        
-        setTokenBalances({
-          usdc: usdcResult?.balance || 0,
-          usdt: usdtResult?.balance || 0,
-          x402: 0, // X402 balance - placeholder for now
-        });
-      } catch (e) {
-        console.log("Error fetching token balances");
-      }
-    };
+  // Function to fetch token balances (extractable for refresh)
+  const fetchTokenBalances = async () => {
+    if (!isConnected || !fullWalletAddress) return;
     
-    fetchBalances();
+    try {
+      const [usdcResult, usdtResult] = await Promise.all([
+        getZKBalance(fullWalletAddress, 'USDC').catch(() => ({ balance: 0 })),
+        getZKBalance(fullWalletAddress, 'USDT').catch(() => ({ balance: 0 })),
+      ]);
+      
+      setTokenBalances({
+        usdc: usdcResult?.balance || 0,
+        usdt: usdtResult?.balance || 0,
+        x402: 0, // X402 balance - placeholder for now
+      });
+    } catch (e) {
+      console.log("Error fetching token balances");
+    }
+  };
+
+  // Fetch token balances on mount
+  useEffect(() => {
+    fetchTokenBalances();
   }, [isConnected, fullWalletAddress]);
+
+  // Handler for refresh button - refreshes all balances
+  const handleRefreshAll = async () => {
+    await Promise.all([
+      refreshBalance(),
+      fetchTokenBalances(),
+    ]);
+  };
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -211,9 +220,10 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
                   )}
                 </button>
                 <button
-                  onClick={() => refreshBalance()}
+                  onClick={() => handleRefreshAll()}
                   disabled={isBalanceLoading}
                   className="p-1 hover:bg-white/10 rounded transition-colors"
+                  title="Refresh all balances"
                 >
                   <Icon icon="ph:arrows-clockwise-bold" className={cn(
                     "w-4 h-4 text-neutral-400",
@@ -306,7 +316,9 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
                   className="w-6 h-6 rounded-full"
                 />
                 <span className="text-xs text-neutral-400">USDC</span>
-                <span className="text-xs font-medium text-white">${tokenBalances.usdc.toFixed(2)}</span>
+                <span className="text-xs font-medium text-white">
+                  {showBalance ? `$${tokenBalances.usdc.toFixed(2)}` : "••••"}
+                </span>
               </div>
               <div className="flex flex-col items-center gap-1" title="USDT">
                 <img 
@@ -315,7 +327,9 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
                   className="w-6 h-6 rounded-full"
                 />
                 <span className="text-xs text-neutral-400">USDT</span>
-                <span className="text-xs font-medium text-white">${tokenBalances.usdt.toFixed(2)}</span>
+                <span className="text-xs font-medium text-white">
+                  {showBalance ? `$${tokenBalances.usdt.toFixed(2)}` : "••••"}
+                </span>
               </div>
               <div className="flex flex-col items-center gap-1" title="X402">
                 <img 
@@ -324,7 +338,9 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
                   className="w-6 h-6 rounded-full"
                 />
                 <span className="text-xs text-neutral-400">X402</span>
-                <span className="text-xs font-medium text-white">${tokenBalances.x402.toFixed(2)}</span>
+                <span className="text-xs font-medium text-white">
+                  {showBalance ? `$${tokenBalances.x402.toFixed(2)}` : "••••"}
+                </span>
               </div>
             </div>
           </motion.div>
@@ -338,7 +354,7 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
             <div className="flex items-center justify-between mb-3">
               <div className="text-sm font-medium text-neutral-300">Privacy Level</div>
             </div>
-            <PrivacyLevelSelector compact />
+            <PrivacyLevelSelector compact onNavigateToSettings={() => setActiveTab("settings")} />
           </motion.div>
         </div>
 
