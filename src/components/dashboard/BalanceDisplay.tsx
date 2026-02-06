@@ -25,36 +25,26 @@ const BalanceDisplay = ({ showBalance }: BalanceDisplayProps) => {
     try {
       setIsDecrypting(true);
       
-      // Fetch balances for both USDC and USDT
-      const [usdcResult, usdtResult] = await Promise.all([
-        getZKBalance(fullWalletAddress, 'USDC').catch(e => ({ error: e?.message || 'USDC fetch failed', balance: 0 })),
-        getZKBalance(fullWalletAddress, 'USDT').catch(e => ({ error: e?.message || 'USDT fetch failed', balance: 0 })),
-      ]);
-      
-      // Check for API errors
-      if (usdcResult.error && usdtResult.error) {
-        // Both failed - show error
-        throw new Error(usdcResult.error);
-      }
-      
-      // Handle both the old format (result.balances) and new format (result.balance)
+      // Fetch USDC balance (primary)
       let usdcBalance = 0;
       let usdtBalance = 0;
       
-      if (!usdcResult.error) {
-        if (usdcResult.balance !== undefined) {
+      try {
+        const usdcResult = await getZKBalance(fullWalletAddress, 'USDC');
+        if (usdcResult && typeof usdcResult.balance === 'number') {
           usdcBalance = usdcResult.balance;
-        } else if (usdcResult.balances?.usdc !== undefined) {
-          usdcBalance = usdcResult.balances.usdc;
         }
+      } catch (e) {
+        console.log("USDC balance fetch failed, using 0");
       }
       
-      if (!usdtResult.error) {
-        if (usdtResult.balance !== undefined) {
+      try {
+        const usdtResult = await getZKBalance(fullWalletAddress, 'USDT');
+        if (usdtResult && typeof usdtResult.balance === 'number') {
           usdtBalance = usdtResult.balance;
-        } else if (usdtResult.balances?.usdt !== undefined) {
-          usdtBalance = usdtResult.balances.usdt;
         }
+      } catch (e) {
+        console.log("USDT balance fetch failed, using 0");
       }
       
       setTokenBalance(usdcBalance + usdtBalance);
@@ -62,13 +52,10 @@ const BalanceDisplay = ({ showBalance }: BalanceDisplayProps) => {
       setError(null);
     } catch (err: any) {
       console.error("Error fetching balance:", err);
-      // Handle various error formats
-      const errorMessage = 
-        err?.message || 
-        err?.error || 
-        (typeof err === 'string' ? err : null) ||
-        "Failed to fetch balance";
-      setError(errorMessage);
+      // On any error, just show 0 balance instead of error message
+      setTokenBalance(0);
+      setSolBalance(0);
+      setError(null);
     } finally {
       setIsLoading(false);
       setIsDecrypting(false);
