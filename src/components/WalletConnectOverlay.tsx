@@ -3,38 +3,8 @@ import { Wallet, Loader2, ArrowLeft, X, Shield, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useWallet, WalletType } from "@/contexts/WalletContext";
 import { Button } from "@/components/ui/button";
-
-// Official Phantom logo
-const PhantomLogo = () => (
-  <svg width="28" height="28" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="64" cy="64" r="64" fill="url(#phantom-gradient-overlay)" />
-    <path d="M110.584 64.9142H99.142C99.142 41.7651 80.173 23 56.7724 23C33.6612 23 14.8716 41.3057 14.4118 64.0452C13.9361 87.5724 35.3331 108 59.0296 108H62.2325C82.9503 108 110.584 89.1451 110.584 64.9142ZM40.4578 67.3909C40.4578 71.0469 37.4903 74.0095 33.8285 74.0095C30.1667 74.0095 27.1992 71.0469 27.1992 67.3909V57.6052C27.1992 53.9493 30.1667 50.9866 33.8285 50.9866C37.4903 50.9866 40.4578 53.9493 40.4578 57.6052V67.3909ZM63.8593 67.3909C63.8593 71.0469 60.8918 74.0095 57.23 74.0095C53.5682 74.0095 50.6007 71.0469 50.6007 67.3909V57.6052C50.6007 53.9493 53.5682 50.9866 57.23 50.9866C60.8918 50.9866 63.8593 53.9493 63.8593 57.6052V67.3909Z" fill="white"/>
-    <defs>
-      <linearGradient id="phantom-gradient-overlay" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#534BB1"/>
-        <stop offset="1" stopColor="#551BF9"/>
-      </linearGradient>
-    </defs>
-  </svg>
-);
-
-// Official Solflare logo
-const SolflareLogo = () => (
-  <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="50" fill="url(#solflare-gradient-overlay)" />
-    <path d="M72.5 35L50 25L27.5 35L50 45L72.5 35Z" fill="white"/>
-    <path d="M27.5 35V55L50 65V45L27.5 35Z" fill="white" fillOpacity="0.8"/>
-    <path d="M72.5 35V55L50 65V45L72.5 35Z" fill="white" fillOpacity="0.6"/>
-    <path d="M50 70L27.5 60V55L50 65L72.5 55V60L50 70Z" fill="white" fillOpacity="0.9"/>
-    <path d="M50 78L27.5 68V63L50 73L72.5 63V68L50 78Z" fill="white" fillOpacity="0.7"/>
-    <defs>
-      <linearGradient id="solflare-gradient-overlay" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#FC9965"/>
-        <stop offset="1" stopColor="#FE7B01"/>
-      </linearGradient>
-    </defs>
-  </svg>
-);
+import phantomLogo from "@/assets/phantom.svg";
+import solflareLogo from "@/assets/solflare.jpeg";
 
 interface WalletConnectOverlayProps {
   isOpen: boolean;
@@ -112,11 +82,11 @@ const WalletConnectOverlay = ({ isOpen, onClose }: WalletConnectOverlayProps) =>
                     <div className="relative">
                       <div className="relative mx-auto mb-8 w-24 h-24">
                         <motion.div 
-                          className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center border border-primary/40 shadow-2xl"
+                          className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center border border-white/20 shadow-2xl"
                           animate={{ rotate: [0, 5, -5, 0] }}
                           transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                         >
-                          <Wallet className="w-12 h-12 text-primary" />
+                          <Wallet className="w-12 h-12 text-white" />
                         </motion.div>
                         <motion.div 
                           className="absolute inset-0 rounded-2xl bg-primary/40 blur-2xl"
@@ -175,8 +145,8 @@ const WalletConnectOverlay = ({ isOpen, onClose }: WalletConnectOverlayProps) =>
                     
                     <div className="relative text-center mb-8 pt-4">
                       <div className="relative mx-auto mb-4 w-16 h-16">
-                        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary/25 to-accent/25 flex items-center justify-center border border-primary/30">
-                          <Wallet className="w-8 h-8 text-primary" />
+                        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary/25 to-accent/25 flex items-center justify-center border border-white/20">
+                          <Wallet className="w-8 h-8 text-white" />
                         </div>
                       </div>
                       
@@ -198,7 +168,7 @@ const WalletConnectOverlay = ({ isOpen, onClose }: WalletConnectOverlayProps) =>
                         className="w-full flex items-center gap-4 px-6 py-5 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.06] to-white/[0.02] hover:from-purple-500/20 hover:to-purple-500/10 hover:border-purple-500/40 transition-all disabled:opacity-50 group shadow-lg"
                       >
                         <div className="relative">
-                          <PhantomLogo />
+                          <img src={phantomLogo} alt="Phantom" width={28} height={28} className="rounded-md" />
                           <div className="absolute inset-0 rounded-full bg-purple-500/30 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <div className="text-left flex-1">
@@ -223,7 +193,7 @@ const WalletConnectOverlay = ({ isOpen, onClose }: WalletConnectOverlayProps) =>
                         className="w-full flex items-center gap-4 px-6 py-5 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.06] to-white/[0.02] hover:from-orange-500/20 hover:to-orange-500/10 hover:border-orange-500/40 transition-all disabled:opacity-50 group shadow-lg"
                       >
                         <div className="relative">
-                          <SolflareLogo />
+                          <img src={solflareLogo} alt="Solflare" width={28} height={28} className="rounded-md" />
                           <div className="absolute inset-0 rounded-full bg-orange-500/30 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <div className="text-left flex-1">
