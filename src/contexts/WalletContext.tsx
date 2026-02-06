@@ -132,7 +132,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   // Listen for wallet disconnect or account switch (like Nolvipay) → redirect to landing
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected || !fullWalletAddress) return;
 
     const phantom = getPhantomProvider();
     const solflare = getSolflareProvider();
@@ -141,23 +141,34 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!provider) return;
 
     const handleDisconnect = () => {
+      console.log("[WalletContext] Wallet disconnected event");
       clearWalletAndRedirect();
     };
 
     const handleAccountChanged = (newPubkey: unknown) => {
+      console.log("[WalletContext] Account changed event:", newPubkey);
       // null = disconnected; different key = switched account
       if (newPubkey == null) {
         clearWalletAndRedirect();
         return;
       }
-      // Switched to another account → treat as disconnect and send to landing
-      clearWalletAndRedirect();
+      // Get the new address string
+      const newAddress = typeof newPubkey === 'object' && newPubkey !== null && 'toString' in newPubkey 
+        ? (newPubkey as { toString: () => string }).toString() 
+        : String(newPubkey);
+      
+      // If the address changed, treat as disconnect and send to landing
+      if (newAddress !== fullWalletAddress) {
+        console.log("[WalletContext] Account switched from", fullWalletAddress, "to", newAddress);
+        clearWalletAndRedirect();
+      }
     };
 
     try {
       if ("on" in provider && typeof provider.on === "function") {
         provider.on("disconnect", handleDisconnect);
         provider.on("accountChanged", handleAccountChanged);
+        console.log("[WalletContext] Wallet event listeners attached for", walletType);
         return () => {
           provider.off?.("disconnect", handleDisconnect);
           provider.off?.("accountChanged", handleAccountChanged);
@@ -167,7 +178,48 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       console.warn("Wallet event listeners not supported:", err);
     }
     return undefined;
-  }, [isConnected, walletType, clearWalletAndRedirect]);
+  }, [isConnected, walletType, fullWalletAddress, clearWalletAndRedirect]);
+
+  // Poll for wallet state changes (backup for when events don't fire)
+  useEffect(() => {
+    if (!isConnected || !fullWalletAddress) return;
+
+    const checkWalletState = () => {
+      const phantom = getPhantomProvider();
+      const solflare = getSolflareProvider();
+      const provider = walletType === "phantom" ? phantom : walletType === "solflare" ? solflare : null;
+
+      if (!provider) {
+        // Provider disappeared (e.g., extension removed)
+        console.log("[WalletContext] Wallet provider no longer available");
+        clearWalletAndRedirect();
+        return;
+      }
+
+      // Check if wallet is still connected
+      if (!provider.isConnected) {
+        console.log("[WalletContext] Wallet no longer connected (poll)");
+        clearWalletAndRedirect();
+        return;
+      }
+
+      // Check if the address changed
+      const currentAddress = provider.publicKey?.toString();
+      if (currentAddress && currentAddress !== fullWalletAddress) {
+        console.log("[WalletContext] Wallet address changed (poll):", currentAddress, "vs", fullWalletAddress);
+        clearWalletAndRedirect();
+        return;
+      }
+    };
+
+    // Check immediately
+    checkWalletState();
+
+    // Then poll every 1 second
+    const interval = setInterval(checkWalletState, 1000);
+
+    return () => clearInterval(interval);
+  }, [isConnected, walletType, fullWalletAddress, clearWalletAndRedirect]);
 
   // Fetch balance when wallet is connected
   useEffect(() => {
