@@ -20,13 +20,11 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
   const { fullWalletAddress, encryptedBalance } = useWallet();
   const [step, setStep] = useState<WithdrawStep>("form");
   const [amount, setAmount] = useState("");
-  const [recipientAddress, setRecipientAddress] = useState("");
   const [token, setToken] = useState<Token>("USDC");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);
   const [tokenBalances, setTokenBalances] = useState({ usdc: 0, usdt: 0 });
-  const [withdrawToSelf, setWithdrawToSelf] = useState(true);
   
   const apiUrl = getApiUrl();
 
@@ -68,13 +66,6 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
       return;
     }
 
-    const recipient = withdrawToSelf ? fullWalletAddress : recipientAddress;
-
-    if (!recipient || recipient.length < 32) {
-      setError("Please enter a valid recipient address");
-      return;
-    }
-
     if (parseFloat(amount) > availableBalance) {
       setError("Insufficient balance");
       return;
@@ -88,7 +79,7 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
     setError(null);
 
     try {
-      const recipient = withdrawToSelf ? fullWalletAddress : recipientAddress;
+      const recipient = fullWalletAddress;
       const authToken = authService.getToken();
 
       if (!authToken) {
@@ -154,7 +145,6 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
   const resetForm = () => {
     setStep("form");
     setAmount("");
-    setRecipientAddress("");
     setError(null);
     setTxSignature(null);
   };
@@ -175,7 +165,7 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
           Withdraw<span className="text-primary">.</span>
         </h1>
         <p className="text-muted-foreground mt-1">
-          Withdraw funds from your private balance to any Solana wallet
+          Withdraw funds from your private balance to your wallet
         </p>
       </div>
 
@@ -224,44 +214,6 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
                 </p>
               </div>
 
-              {/* Withdraw To */}
-              <div className="mb-4">
-                <Label className="text-neutral-300 mb-2 block">Withdraw To</Label>
-                <div className="flex gap-2 mb-3">
-                  <button
-                    onClick={() => setWithdrawToSelf(true)}
-                    className={`flex-1 py-3 rounded-xl text-sm font-medium transition-colors ${
-                      withdrawToSelf
-                        ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
-                        : "bg-white/5 text-neutral-400 hover:bg-white/10 border border-white/10"
-                    }`}
-                  >
-                    <Icon icon="ph:wallet-bold" className="w-4 h-4 inline mr-2" />
-                    My Wallet
-                  </button>
-                  <button
-                    onClick={() => setWithdrawToSelf(false)}
-                    className={`flex-1 py-3 rounded-xl text-sm font-medium transition-colors ${
-                      !withdrawToSelf
-                        ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
-                        : "bg-white/5 text-neutral-400 hover:bg-white/10 border border-white/10"
-                    }`}
-                  >
-                    <Icon icon="ph:arrow-square-out-bold" className="w-4 h-4 inline mr-2" />
-                    External Wallet
-                  </button>
-                </div>
-
-                {!withdrawToSelf && (
-                  <Input
-                    placeholder="Enter Solana wallet address"
-                    value={recipientAddress}
-                    onChange={(e) => setRecipientAddress(e.target.value)}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-neutral-500"
-                  />
-                )}
-              </div>
-
               {/* Amount Input */}
               <div className="mb-6">
                 <Label className="text-neutral-300 mb-2 block">Amount</Label>
@@ -292,7 +244,7 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
               {/* Submit Button */}
               <Button
                 onClick={handleWithdraw}
-                disabled={!amount || parseFloat(amount) <= 0 || (!withdrawToSelf && !recipientAddress)}
+                disabled={!amount || parseFloat(amount) <= 0}
                 className="w-full bg-gradient-to-r from-sky-600 to-purple-600 hover:from-sky-500 hover:to-purple-500 text-white py-6"
               >
                 <Icon icon="ph:arrow-up-right-bold" className="w-5 h-5 mr-2" />
@@ -331,9 +283,7 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
                 </div>
                 <div className="flex justify-between p-3 rounded-lg bg-white/5">
                   <span className="text-neutral-400">Recipient</span>
-                  <span className="text-white font-mono text-sm">
-                    {withdrawToSelf ? "Your Wallet" : `${recipientAddress.slice(0, 8)}...${recipientAddress.slice(-8)}`}
-                  </span>
+                  <span className="text-white font-mono text-sm">Your Wallet</span>
                 </div>
                 <div className="flex justify-between p-3 rounded-lg bg-white/5">
                   <span className="text-neutral-400">Network</span>
