@@ -1,12 +1,15 @@
 /**
- * Void402 Generate Nonce API (1:1 with Nolvipay)
+ * Void402 Generate Nonce API (1:1 with Nolvipay - uses Supabase)
  * POST /api/auth/nonce
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 
-// In-memory nonce store (per serverless instance). Fine for auth flow.
-const nonces = new Map<string, { nonce: string; expiresAt: number }>();
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 const NONCE_EXPIRATION_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -40,8 +43,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const nonce = crypto.randomBytes(32).toString("hex").slice(0, 32);
-    const expiresAt = Date.now() + NONCE_EXPIRATION_MS;
-    nonces.set(walletAddress, { nonce, expiresAt });
+    const expiresAt = new Date(Date.now() + NONCE_EXPIRATION_MS);
+
+    // Store nonce in Supabase (like Nolvipay)
+    if (supabase) {
+      // Delete any existing nonces for this wallet first
+      await supabase.from("auth_nonces").delete().eq("user_wallet", walletAddress);
+
+      const { error } = await supabase.from("auth_nonces").insert({
+        user_wallet: walletAddress,
+        nonce: nonce,
+        expires_at: expiresAt.toISOString(),
+      });
+
+      if (error) {
+        console.error("Error storing nonce:", error);
+        // Continue anyway - will use message-based verification
+      }
+    }
 
     const message = `Sign this message to authenticate with Void402.\n\nNonce: ${nonce}\n\nThis signature will not trigger any blockchain transaction.`;
 
@@ -53,6 +72,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ success: false, error: error.message || "Internal error" });
   }
 }
-
-// Export nonces map so verify can access it (same serverless instance)
-export { nonces };
