@@ -182,14 +182,14 @@ export const VERIFIED_USER_DISCOUNT = 0.5; // 0.5% discount for verified account
  * Calculate fee percentage based on tier and verification status
  * @param baseFee - Base fee percentage (e.g., 10 for 10%)
  * @param tier - Holder tier (0-3)
- * @param transactionType - 'deposit' | 'swap' | 'transfer'
+ * @param transactionType - 'deposit' | 'swap' | 'transfer' | 'withdraw'
  * @param isVerified - Whether user has 2FA + email verified
  * @returns Fee percentage
  */
 export function calculateFeePercentage(
   baseFee: number, 
   tier: HolderTier, 
-  transactionType: 'deposit' | 'swap' | 'transfer',
+  transactionType: 'deposit' | 'swap' | 'transfer' | 'withdraw',
   isVerified: boolean = false
 ): number {
   // Fee structure based on tier
@@ -212,6 +212,12 @@ export function calculateFeePercentage(
       2: 3.75,  // Tier 2: 3.75%
       3: 3.5,   // Tier 3: 3.5% (above 3.0% minimum)
     },
+    withdraw: {
+      0: 5.0,   // Regular: 5.0% (same as transfer)
+      1: 4.25,  // Tier 1: 4.25%
+      2: 3.75,  // Tier 2: 3.75%
+      3: 3.5,   // Tier 3: 3.5% (above 3.0% minimum)
+    },
   };
 
   let fee = feeStructure[transactionType][tier];
@@ -226,6 +232,7 @@ export function calculateFeePercentage(
     deposit: 2.0,  // Lowered minimum for verified users
     swap: 0.5,
     transfer: 2.5, // Lowered minimum for verified users
+    withdraw: 2.5, // Same as transfer
   };
   
   return Math.max(fee, minimums[transactionType]);
