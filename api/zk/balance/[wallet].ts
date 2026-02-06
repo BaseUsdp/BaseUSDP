@@ -67,25 +67,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: "Token must be USDC or USDT" });
     }
 
-    // CRITICAL SECURITY: Require bearer token authentication
+    // Check bearer token authentication (soft check - return 0 balance if not authenticated)
     const bearerToken = extractBearerToken(req);
     
     if (!bearerToken) {
-      console.error(`❌ SECURITY: Missing bearer token for balance query. Wallet: ${wallet}`);
-      return res.status(401).json({ 
-        error: 'Authentication required',
-        message: 'You must authenticate first. Please call /api/auth/nonce and /api/auth/verify to get a bearer token.'
+      console.log(`[Balance] No bearer token for ${wallet} - returning 0 balance`);
+      return res.status(200).json({
+        balance: 0,
+        token: token,
+        available: 0,
+        deposited: 0,
+        withdrawn: 0,
+        message: 'Not authenticated - showing 0 balance'
       });
     }
 
-    // Verify bearer token
+    // Verify bearer token (soft check)
     const tokenVerification = await verifyBearerToken(bearerToken, wallet);
     
     if (!tokenVerification.valid) {
-      console.error(`❌ SECURITY: Invalid bearer token for balance query. Wallet: ${wallet}, Error: ${tokenVerification.error}`);
-      return res.status(403).json({ 
-        error: 'Invalid authentication',
-        message: tokenVerification.error || 'Bearer token is invalid or expired. Please authenticate again.'
+      console.log(`[Balance] Invalid token for ${wallet}: ${tokenVerification.error} - returning 0 balance`);
+      return res.status(200).json({
+        balance: 0,
+        token: token,
+        available: 0,
+        deposited: 0,
+        withdrawn: 0,
+        message: tokenVerification.error || 'Session invalid - showing 0 balance'
       });
     }
 
