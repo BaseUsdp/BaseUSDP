@@ -1,8 +1,9 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Wallet, ChevronDown, LogOut, Copy, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWallet, WalletType } from "@/contexts/WalletContext";
 import { Button } from "@/components/ui/button";
+import { getApiUrl } from "@/utils/apiConfig";
 
 // Official Phantom logo
 const PhantomLogo = ({ size = 20 }: { size?: number }) => (
@@ -43,7 +44,8 @@ interface WalletConnectButtonProps {
 const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) => {
   const { 
     isConnected, 
-    walletAddress, 
+    walletAddress,
+    fullWalletAddress,
     walletType, 
     isConnecting, 
     networkStatus,
@@ -54,9 +56,40 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
   const [isOpen, setIsOpen] = useState(false);
   const [showWalletSelect, setShowWalletSelect] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [username, setUsername] = useState<string | null>(null);
+  const apiUrl = getApiUrl();
+
+  // Fetch username when wallet is connected
+  useEffect(() => {
+    const fetchUsername = async () => {
+      if (!isConnected || !fullWalletAddress) {
+        setUsername(null);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${apiUrl}/api/user/profile?wallet=${encodeURIComponent(fullWalletAddress)}`);
+        const data = await response.json();
+        
+        if (data.success && data.profile?.username) {
+          setUsername(data.profile.username);
+        } else {
+          setUsername(null);
+        }
+      } catch (err) {
+        console.log("Could not fetch username:", err);
+        setUsername(null);
+      }
+    };
+
+    fetchUsername();
+  }, [isConnected, fullWalletAddress, apiUrl]);
+
+  // Display name - username or truncated wallet address
+  const displayName = username ? `@${username}` : walletAddress;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(walletAddress);
+    navigator.clipboard.writeText(fullWalletAddress || walletAddress);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -196,7 +229,7 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
         </div>
         <div className="text-left">
           <p className="text-xs text-white/50">{getWalletName()}</p>
-          <p className="text-sm font-mono font-medium text-white">{walletAddress}</p>
+          <p className={`text-sm font-medium text-white ${username ? '' : 'font-mono'}`}>{displayName}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-500 font-medium">
@@ -214,10 +247,16 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             className="absolute right-0 top-full mt-2 w-72 p-2 bg-[#0a0a0a]/95 border border-primary/20 rounded-xl shadow-2xl backdrop-blur-xl z-50"
           >
+            {username && (
+              <div className="p-3 mb-2 bg-primary/10 rounded-lg">
+                <p className="text-xs text-white/50 mb-1">Username</p>
+                <p className="text-sm font-medium text-white">@{username}</p>
+              </div>
+            )}
             <div className="p-3 mb-2 bg-primary/10 rounded-lg">
               <p className="text-xs text-white/50 mb-1">Wallet Address</p>
               <p className="text-xs font-mono break-all text-white">
-                {walletAddress}
+                {fullWalletAddress || walletAddress}
               </p>
             </div>
 
