@@ -10,14 +10,18 @@ import {
   PublicKey,
   TransactionMessage,
   VersionedTransaction,
-  Connection,
-} from "@solana/web3.js";
+} from '@solana/web3.js';
 import { 
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
   createTransferInstruction,
-} from "@solana/spl-token";
-import { createClient } from "@supabase/supabase-js";
+} from '@solana/spl-token';
+import { 
+  isValidSolanaAddress,
+  getSolanaConnection,
+} from '../lib/void402-solana.js';
+import { getPrivacyUsdWalletPool } from '../lib/intermediate-wallet-pool.js';
+import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -25,8 +29,8 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SU
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 // USDC and USDT mint addresses on Solana
-const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
-const USDT_MINT = new PublicKey("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB");
+const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+const USDT_MINT = new PublicKey('Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB');
 
 const ALLOWED_ORIGINS = [
   "https://void402.com",
@@ -42,20 +46,6 @@ function getAllowedOrigin(origin: string | undefined): string {
   return "https://www.void402.com";
 }
 
-function isValidSolanaAddress(address: string): boolean {
-  try {
-    new PublicKey(address);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function getSolanaConnection(): Connection {
-  const rpcUrl = process.env.SOLANA_RPC_URL || process.env.VITE_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
-  return new Connection(rpcUrl, "confirmed");
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const origin = getAllowedOrigin(req.headers.origin as string | undefined);
   res.setHeader("Access-Control-Allow-Origin", origin);
@@ -65,74 +55,104 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
+  if (!supabase) {
+    return res.status(500).json({ success: false, error: "Database not configured" });
+  }
+
   try {
     const { wallet, amount, token } = req.body;
 
     if (!wallet || !amount || !token) {
-      return res.status(400).json({ error: "Wallet, amount, and token are required" });
+      return res.status(400).json({ error: 'Wallet, amount, and token are required' });
     }
 
     if (!isValidSolanaAddress(wallet)) {
-      return res.status(400).json({ error: "Invalid Solana wallet address" });
+      return res.status(400).json({ error: 'Invalid Solana wallet address' });
     }
 
     if (amount <= 0) {
-      return res.status(400).json({ error: "Amount must be greater than zero" });
+      return res.status(400).json({ error: 'Amount must be greater than zero' });
     }
 
-    if (!["USDC", "USDT"].includes(token)) {
-      return res.status(400).json({ error: "Token must be USDC or USDT" });
+    if (!['USDC', 'USDT'].includes(token)) {
+      return res.status(400).json({ error: 'Token must be USDC or USDT' });
     }
 
     const connection = getSolanaConnection();
     const walletPubkey = new PublicKey(wallet);
-    const tokenMint = token === "USDC" ? USDC_MINT : USDT_MINT;
-
+    const tokenMint = token === 'USDC' ? USDC_MINT : USDT_MINT;
+    
     // Get collection wallet (shared by all users)
-    const collectionWalletAddress = process.env.COLLECTION_WALLET_ADDRESS;
+    const collectionWalletAddress = process.env.COLLECTION_WALLET_ADDRESS || process.env.COLLECTION_WALLET;
     if (!collectionWalletAddress) {
-      return res.status(500).json({ error: "Collection wallet not configured" });
+      throw new Error('COLLECTION_WALLET_ADDRESS environment variable not set');
     }
     const collectionWalletPubkey = new PublicKey(collectionWalletAddress);
-
+    
     // Get or assign intermediate wallet for this user (privacy layer)
-    let intermediateWalletPublicKey: string | null = null;
-
-    if (supabase) {
-      const { data: existingMapping } = await supabase
-        .from("zk_user_wallets")
-        .select("intermediate_wallet")
-        .eq("user_wallet", wallet)
-        .eq("token", token)
-        .single();
-
-      if (existingMapping) {
-        intermediateWalletPublicKey = existingMapping.intermediate_wallet;
-      }
-      // Note: If no existing mapping, process-deposit will assign one
+    // Check if user already has an intermediate wallet assigned
+    const { data: existingMapping } = await supabase
+      .from('zk_user_wallets')
+      .select('intermediate_wallet')
+      .eq('user_wallet', wallet)
+      .eq('token', token)
+      .single();
+    
+    let intermediateWalletPublicKey: string;
+    
+    if (existingMapping) {
+      // User already has an intermediate wallet assigned - use it
+      intermediateWalletPublicKey = existingMapping.intermediate_wallet;
+    } else {
+      // First deposit - assign a new intermediate wallet from pool
+      const intermediatePool = getPrivacyUsdWalletPool();
+      await intermediatePool.initialize();
+      const intermediateWallet = await intermediatePool.getAvailableWallet();
+      intermediateWalletPublicKey = intermediateWallet.publicKey;
+      
+      // Store the mapping in database
+      await supabase
+        .from('zk_user_wallets')
+        .insert({
+          user_wallet: wallet,
+          intermediate_wallet: intermediateWalletPublicKey,
+          token: token,
+        });
     }
-
+    
     // Get token accounts
-    const userTokenAccount = await getAssociatedTokenAddress(tokenMint, walletPubkey);
-    const collectionTokenAccount = await getAssociatedTokenAddress(tokenMint, collectionWalletPubkey);
-
+    const userTokenAccount = await getAssociatedTokenAddress(
+      tokenMint,
+      walletPubkey
+    );
+    
+    const collectionTokenAccount = await getAssociatedTokenAddress(
+      tokenMint,
+      collectionWalletPubkey
+    );
+    
     // Convert amount to lamports (USDC/USDT have 6 decimals)
     const amountLamports = BigInt(Math.floor(amount * 1_000_000));
-
+    
     // Build transaction
     const instructions = [];
-
+    
     // Check if collection wallet's token account exists
     let collectionAccountExists = false;
     try {
       const collectionAccountInfo = await connection.getAccountInfo(collectionTokenAccount);
       if (collectionAccountInfo) {
-        collectionAccountExists = true;
+        try {
+          await connection.getTokenAccountBalance(collectionTokenAccount);
+          collectionAccountExists = true;
+        } catch {
+          collectionAccountExists = false;
+        }
       }
     } catch {
       collectionAccountExists = false;
     }
-
+    
     if (!collectionAccountExists) {
       instructions.push(
         createAssociatedTokenAccountInstruction(
@@ -143,8 +163,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         )
       );
     }
-
-    // Transfer tokens from user to collection wallet
+    
+    // Transfer tokens from user to collection wallet (Layer 1 of privacy stack)
     instructions.push(
       createTransferInstruction(
         userTokenAccount,
@@ -153,7 +173,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         amountLamports
       )
     );
-
+    
     // Build transaction
     const { blockhash } = await connection.getLatestBlockhash();
     const txMessage = new TransactionMessage({
@@ -161,24 +181,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       recentBlockhash: blockhash,
       instructions: instructions,
     }).compileToLegacyMessage();
-
+    
     const transaction = new VersionedTransaction(txMessage);
-    const serializedTx = Buffer.from(transaction.serialize()).toString("base64");
-
-    console.log(`✅ Created deposit transaction for wallet ${wallet.slice(0, 8)}... amount: ${amount} ${token}`);
-
+    const serializedTx = Buffer.from(transaction.serialize()).toString('base64');
+    
+    console.log(`✅ Deposit prepared: ${wallet.slice(0, 8)}... | ${amount} ${token}`);
+    
     return res.status(200).json({
       success: true,
       transaction: serializedTx,
       amount: amount,
       token: token,
+      // Don't expose wallet addresses to user
     });
   } catch (error: any) {
-    console.error("❌ Error creating deposit:", error);
-    return res.status(500).json({
+    console.error('❌ Error creating deposit:', error);
+    return res.status(500).json({ 
       success: false,
-      error: "Failed to create deposit transaction",
-      message: error?.message || "Unknown error occurred",
+      error: 'Failed to create deposit transaction', 
+      message: error?.message || 'Unknown error occurred',
     });
   }
 }
