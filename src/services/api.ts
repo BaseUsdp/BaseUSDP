@@ -503,7 +503,7 @@ export const createZKDeposit = async (
 export const processZKDeposit = async (
   params: ZKProcessDepositRequest
 ): Promise<ZKProcessDepositResponse> => {
-  return api.request<ZKProcessDepositResponse>("/api/zk/deposit/process", {
+  return api.request<ZKProcessDepositResponse>("/api/zk/process-deposit", {
     method: "POST",
     body: JSON.stringify(params),
   });
@@ -608,11 +608,12 @@ export const settleZKX402Payment = async (
 
 export interface ZKTransferRequest {
   sender_wallet: string;
-  recipient: string;
-  token: "SOL" | "USDC" | "USDT";
+  recipient_wallet: string;
+  token: "USDC" | "USDT";
   amount: number;
-  wallet_signature: string;
-  message_to_sign: string;
+  nonce: number;
+  wallet_signature?: string;
+  message_to_sign?: string;
 }
 
 export interface ZKTransferResponse {

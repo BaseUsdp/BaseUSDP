@@ -215,11 +215,13 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
 
       // Step 2: Execute ZK transfer (backend handles proof generation and relayer)
       setStep("encrypting");
+      const nonce = Date.now() + Math.floor(Math.random() * 1000000);
       const result = await executeZKTransfer({
         sender_wallet: fullWalletAddress,
-        recipient: effectiveRecipient,
+        recipient_wallet: effectiveRecipient,
         token: "USDC", // Default to USDC for now
         amount: parseFloat(amount),
+        nonce: nonce,
         wallet_signature: walletSignature,
         message_to_sign: message,
       });

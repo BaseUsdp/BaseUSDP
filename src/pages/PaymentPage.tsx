@@ -166,11 +166,13 @@ const PaymentPage = () => {
 
       setStep("processing");
       
+      const nonce = Date.now() + Math.floor(Math.random() * 1000000);
       const result = await executeZKTransfer({
         sender_wallet: fullWalletAddress,
-        recipient: recipientWallet,
+        recipient_wallet: recipientWallet,
         token: "USDC",
         amount: parseFloat(request.amount),
+        nonce: nonce,
         wallet_signature: walletSignature,
         message_to_sign: message,
       });

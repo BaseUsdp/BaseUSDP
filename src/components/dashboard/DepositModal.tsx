@@ -145,12 +145,11 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
       const sessionToken = authService.getSessionToken();
       const processHeaders: HeadersInit = { "Content-Type": "application/json" };
       if (sessionToken) processHeaders["Authorization"] = `Bearer ${sessionToken}`;
-      const processResponse = await fetch(`${apiUrl}/api/zk/deposit/process`, {
+      const processResponse = await fetch(`${apiUrl}/api/zk/process-deposit`, {
         method: "POST",
         headers: processHeaders,
         body: JSON.stringify({
-          depositId: createResult.depositId,
-          transactionSignature: submitResult.signature,
+          transaction_signature: submitResult.signature,
           wallet: fullWalletAddress,
           amount: parseFloat(amount),
           token,
