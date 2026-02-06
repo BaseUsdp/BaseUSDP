@@ -51,7 +51,8 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
         const response = await fetch(`${apiUrl}/api/user/profile?wallet=${encodeURIComponent(fullWalletAddress)}`);
         const data = await response.json();
         
-        if (data.success && data.profile?.username) {
+        // Only show username if it's a custom one (not the default wallet address format)
+        if (data.success && data.profile?.username && data.profile?.has_custom_username) {
           setUsername(data.profile.username);
         } else {
           setUsername(null);
