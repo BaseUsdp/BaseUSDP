@@ -622,7 +622,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       if (insertError) {
         console.warn(`⚠️ Full insert failed (${insertError.message}), trying minimal insert...`);
-        // Fallback: insert with only core columns (in case fee_percentage or transaction_type don't exist)
         const { error: minimalError } = await supabase.from('zk_transactions').insert({
           sender_wallet: wallet,
           recipient_wallet: wallet,
@@ -631,6 +630,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           tx_hash: signature,
           status: 'completed',
           privacy_level: 'full',
+          transaction_type: 'deposit',
         });
         if (minimalError) {
           console.error('❌ Minimal insert also failed:', minimalError.message);
