@@ -407,21 +407,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Check if sender is verified (2FA + email)
-    const { data: senderProfile } = await supabase
-      .from('user_profiles')
-      .select('two_factor_enabled, email_verified')
-      .eq('wallet_address', sender_wallet)
-      .maybeSingle();
-    
-    const isVerified = !!(senderProfile?.two_factor_enabled && senderProfile?.email_verified);
-
-    // Calculate amount after fees (tier-based fee + verified discount)
-    const tierInfo = await getUSDPHolderTier(sender_wallet);
-    const feePercentage = calculateFeePercentage(5.0, tierInfo.tier, 'transfer', isVerified);
+    // Internal transfers (username to username) are fee-free
+    // Only external transfers/withdrawals have fees
     const transferAmount = parseFloat(amount);
-    const feeAmount = transferAmount * (feePercentage / 100);
-    const amountAfterFees = transferAmount - feeAmount;
+    const feePercentage = 0;
+    const feeAmount = 0;
+    const amountAfterFees = transferAmount;
 
     // Build internal_transfer instruction
     const internalTransferIx = buildInternalTransferInstruction({

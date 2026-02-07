@@ -193,25 +193,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log(`[Balance] Found ${transactions?.length || 0} transactions for wallet ${wallet} (hasFeeColumn: ${hasFeeColumn})`);
       
       if (transactions && transactions.length > 0) {
-        const DEFAULT_FEE_PERCENT = 10; // Default 10% fee when fee_percentage is missing
+        const DEFAULT_FEE_PERCENT = 10; // Default 10% fee for deposits
         
         transactions.forEach((tx: any, index: number) => {
           const amount = parseFloat(tx.amount || 0);
           
-          // Get fee percentage: use stored value if available, otherwise default 10%
-          let feePercent = DEFAULT_FEE_PERCENT;
+          // Get fee percentage from DB if available
+          let feePercent = 0;
           if (hasFeeColumn && tx.fee_percentage !== null && tx.fee_percentage !== undefined) {
             feePercent = parseFloat(tx.fee_percentage);
           }
           
-          // Calculate amount after fees
-          const amountAfterFees = feePercent > 0 ? amount * (1 - feePercent / 100) : amount;
-          
           // Deposit: sender == recipient (depositing to self)
           if (tx.sender_wallet === wallet && tx.recipient_wallet === wallet) {
+            // Deposits always have fees (default 10% if not stored)
+            const depositFee = feePercent > 0 ? feePercent : DEFAULT_FEE_PERCENT;
+            const amountAfterFees = amount * (1 - depositFee / 100);
             balance += amountAfterFees;
             deposited += amount;
-            console.log(`[Balance] +${amountAfterFees.toFixed(4)} (deposit $${amount}, fee ${feePercent}%)`);
+            console.log(`[Balance] +${amountAfterFees.toFixed(4)} (deposit $${amount}, fee ${depositFee}%)`);
           }
           // Withdraw: transaction_type is 'withdraw' (if column exists)
           else if (tx.transaction_type === 'withdraw' && tx.sender_wallet === wallet) {
@@ -219,10 +219,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             withdrawn += amount;
             console.log(`[Balance] -${amount} (withdrawal)`);
           }
-          // Transfer received
+          // Internal transfer received (username to username) - NO fee
           else if (tx.recipient_wallet === wallet && tx.sender_wallet !== wallet) {
+            // Internal transfers are fee-free; use stored fee (should be 0)
+            const transferFee = feePercent; // 0 for internal transfers
+            const amountAfterFees = transferFee > 0 ? amount * (1 - transferFee / 100) : amount;
             balance += amountAfterFees;
-            console.log(`[Balance] +${amountAfterFees.toFixed(4)} (received transfer, fee ${feePercent}%)`);
+            console.log(`[Balance] +${amountAfterFees.toFixed(4)} (received transfer, fee ${transferFee}%)`);
           }
           // Transfer sent
           else if (tx.sender_wallet === wallet && tx.recipient_wallet !== wallet) {
