@@ -66,11 +66,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Format transactions for frontend
     const formattedTransactions = (transactions || []).map((tx: any) => {
       // Determine transaction type from database or infer from wallets
+      // IMPORTANT: Check withdraw BEFORE deposit, because both have sender == recipient == wallet
       let type = "transfer";
-      if (tx.transaction_type === "deposit" || (tx.sender_wallet === wallet && tx.recipient_wallet === wallet)) {
-        type = "deposit";
-      } else if (tx.transaction_type === "withdraw") {
+      if (tx.transaction_type === "withdraw") {
         type = "withdraw";
+      } else if (tx.transaction_type === "deposit" || (tx.sender_wallet === wallet && tx.recipient_wallet === wallet)) {
+        type = "deposit";
       } else if (tx.sender_wallet === wallet) {
         type = "sent";
       } else {

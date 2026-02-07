@@ -167,10 +167,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.warn(`[Balance] Extended query failed (${result1.error.message}), trying basic columns...`);
         hasFeeColumn = false;
         
-        // Fallback: only core columns
+        // Fallback: core columns + transaction_type (needed to distinguish withdraw from deposit)
         const result2 = await supabase
           .from('zk_transactions')
-          .select('id, status, sender_wallet, recipient_wallet, amount, token_symbol, privacy_level')
+          .select('id, status, sender_wallet, recipient_wallet, amount, token_symbol, privacy_level, transaction_type')
           .or(`sender_wallet.eq.${wallet},recipient_wallet.eq.${wallet}`)
           .eq('status', 'completed')
           .order('created_at', { ascending: true });
