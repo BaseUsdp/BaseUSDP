@@ -102,8 +102,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log('🔍 process-pending-exchanges: Handler started');
 
   try {
-    const { wallet } = req.body;
-    console.log(`📋 Processing exchanges for wallet: ${wallet || 'ALL'}`);
+    const { wallet, depositId } = req.body;
+    console.log(`📋 Processing exchanges for wallet: ${wallet || 'ALL'}, depositId: ${depositId || 'ALL'}`);
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -122,8 +122,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .order('created_at', { ascending: true })
       .limit(20);
     
-    // Filter by wallet if provided
-    if (wallet) {
+    // Filter by depositId first (most specific)
+    if (depositId) {
+      query = query.eq('deposit_id', depositId);
+      console.log(`📋 Filtering exchanges by depositId: ${depositId}`);
+    } else if (wallet) {
+      // Fallback: filter by wallet's holding wallets
       const { data: holdingWallets } = await supabase
         .from('zk_holding_wallets')
         .select('deposit_id')
@@ -134,8 +138,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         query = query.in('deposit_id', depositIds);
         console.log(`📋 Filtering exchanges by ${depositIds.length} deposit(s) for wallet ${wallet}`);
       } else {
-        query = query.or(`deposit_id.ilike.${wallet}_%,user_wallet.eq.${wallet}`);
-        console.log(`📋 No holding wallets found, checking by deposit_id pattern or user_wallet`);
+        query = query.eq('user_wallet', wallet);
+        console.log(`📋 No holding wallets found, filtering by user_wallet`);
       }
     }
     
@@ -149,40 +153,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log(`📋 Found ${exchanges?.length || 0} exchanges to process`);
 
     if (!exchanges || exchanges.length === 0) {
-      // Check for recently completed deposits
-      if (wallet) {
-        const { data: recentDeposits } = await supabase
-          .from('zk_transactions')
-          .select('tx_hash, created_at, amount')
-          .eq('sender_wallet', wallet)
-          .eq('recipient_wallet', wallet)
-          .eq('status', 'completed')
-          .order('created_at', { ascending: false })
-          .limit(5);
-        
-        if (recentDeposits && recentDeposits.length > 0) {
-          const mostRecent = recentDeposits[0];
-          const minutesAgo = (Date.now() - new Date(mostRecent.created_at).getTime()) / 1000 / 60;
-          
-          if (minutesAgo < 10) {
-            return res.status(200).json({ 
-              success: true, 
-              message: 'Deposit was processed directly',
-              processed: 0,
-              results: [{
-                status: 'already_processed',
-                message: 'Deposit completed',
-                amount: mostRecent.amount
-              }]
-            });
-          }
-        }
-      }
-      
+      // No exchanges found - do NOT return false positives
+      // The frontend must keep polling until exchanges appear
       return res.status(200).json({ 
         success: true, 
-        message: 'No pending exchanges',
-        processed: 0
+        message: 'No pending exchanges yet',
+        processed: 0,
+        depositId: depositId || null,
       });
     }
 

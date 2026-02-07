@@ -193,17 +193,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log(`[Balance] Found ${transactions?.length || 0} transactions for wallet ${wallet} (hasFeeColumn: ${hasFeeColumn})`);
       
       if (transactions && transactions.length > 0) {
+        const DEFAULT_FEE_PERCENT = 10; // Default 10% fee when fee_percentage is missing
+        
         transactions.forEach((tx: any, index: number) => {
           const amount = parseFloat(tx.amount || 0);
-          const feePercent = hasFeeColumn ? parseFloat(tx.fee_percentage || 0) : 0;
-          // Calculate amount after fees from amount and fee_percentage
+          
+          // Get fee percentage: use stored value if available, otherwise default 10%
+          let feePercent = DEFAULT_FEE_PERCENT;
+          if (hasFeeColumn && tx.fee_percentage !== null && tx.fee_percentage !== undefined) {
+            feePercent = parseFloat(tx.fee_percentage);
+          }
+          
+          // Calculate amount after fees
           const amountAfterFees = feePercent > 0 ? amount * (1 - feePercent / 100) : amount;
           
           // Deposit: sender == recipient (depositing to self)
           if (tx.sender_wallet === wallet && tx.recipient_wallet === wallet) {
             balance += amountAfterFees;
             deposited += amount;
-            console.log(`[Balance] +${amountAfterFees} (deposit, fee ${feePercent}%)`);
+            console.log(`[Balance] +${amountAfterFees.toFixed(4)} (deposit $${amount}, fee ${feePercent}%)`);
           }
           // Withdraw: transaction_type is 'withdraw' (if column exists)
           else if (tx.transaction_type === 'withdraw' && tx.sender_wallet === wallet) {
@@ -214,7 +222,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // Transfer received
           else if (tx.recipient_wallet === wallet && tx.sender_wallet !== wallet) {
             balance += amountAfterFees;
-            console.log(`[Balance] +${amountAfterFees} (received transfer)`);
+            console.log(`[Balance] +${amountAfterFees.toFixed(4)} (received transfer, fee ${feePercent}%)`);
           }
           // Transfer sent
           else if (tx.sender_wallet === wallet && tx.recipient_wallet !== wallet) {

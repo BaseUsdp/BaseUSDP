@@ -399,25 +399,28 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
       setProcessedExchanges(0);
       setProcessingStatus("Waiting for privacy mixer to process...");
 
+      let mixerProcessedTotal = 0;
+
       // Poll process-pending-exchanges until all are deposited
       await pollEndpoint(
         `${apiUrl}/api/zk/process-pending-exchanges`,
-        { wallet: fullWalletAddress },
+        { wallet: fullWalletAddress, depositId: newDepositId },
         (data) => {
           if (data.processed > 0) {
-            setProcessedExchanges((prev) => prev + data.processed);
+            mixerProcessedTotal += data.processed;
+            setProcessedExchanges(mixerProcessedTotal);
           }
 
           // Check if all exchanges are processed
-          if (data.results) {
-            const allProcessed = data.results.every(
-              (r: any) => r.status === "processed" || r.status === "already_processed"
+          if (data.results && data.results.length > 0) {
+            const processedResults = data.results.filter(
+              (r: any) => r.status === "processed"
             );
-            const waitingCount = data.results.filter(
-              (r: any) => r.status === "waiting" || r.status === "waiting_for_funds" || r.status === "exchanging" || r.status === "confirming"
-            ).length;
+            const waitingResults = data.results.filter(
+              (r: any) => r.status !== "processed" && r.status !== "error"
+            );
 
-            if (allProcessed && waitingCount === 0 && data.results.length > 0) {
+            if (processedResults.length > 0 && waitingResults.length === 0) {
               return { done: true, data };
             }
 
@@ -434,17 +437,9 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
             }
           }
 
-          // If no pending exchanges found, check if deposit was already processed
-          if (
-            data.processed === 0 &&
-            (!data.results || data.results.length === 0) &&
-            data.message === "No pending exchanges"
-          ) {
-            // Check if there are results indicating already processed
-            if (data.results?.some((r: any) => r.status === "already_processed")) {
-              return { done: true, data };
-            }
-            setProcessingStatus("Waiting for privacy mixer exchanges to complete...");
+          // No exchanges found yet - keep polling, they may not have been created yet
+          if (!data.results || data.results.length === 0) {
+            setProcessingStatus("Waiting for privacy mixer exchanges to appear...");
           }
 
           return { done: false };
