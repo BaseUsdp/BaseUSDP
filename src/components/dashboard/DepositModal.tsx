@@ -352,15 +352,25 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
       });
 
       console.log(`[x402] Base USDC transfer sent: ${txHash}`);
-      setProcessingStatus("Base USDC sent! Waiting for confirmation...");
+      setProcessingStatus("Base USDC sent! Processing deposit...");
 
       // ============================================
-      // STEP 4: Poll for bridge progress
+      // STEP 4: Trigger process-deposits immediately & poll for status
       // ============================================
       setStep("x402_bridging");
-      setProcessingStatus("Base USDC sent! Detecting and bridging to Solana...");
+      setProcessingStatus("Base USDC sent! Detecting transfer...");
 
-      // Poll check-deposit endpoint
+      // Immediately trigger process-deposits to detect the Base transfer
+      // (don't wait for the 2-minute cron — process it NOW)
+      console.log(`[x402] Triggering immediate deposit processing...`);
+      try {
+        fetch(`${apiUrl}/api/x402/process-deposits`, { method: "POST" }).catch(() => {});
+      } catch (_) {
+        // Fire and forget — the cron will pick it up if this fails
+      }
+
+      // Poll check-deposit endpoint, and re-trigger processing periodically
+      let triggerCount = 0;
       await pollEndpoint(
         `${apiUrl}/api/x402/check-deposit?depositId=${newDepositId}`,
         {},
@@ -381,21 +391,23 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
 
           if (deposit.status === "received") {
             setStep("x402_received");
-            setProcessingStatus(deposit.description || "USDC received! Initiating bridge...");
-          }
-
-          if (deposit.status === "bridging") {
+            setProcessingStatus(deposit.description || "USDC received on Base! Initiating bridge...");
+          } else if (deposit.status === "bridging") {
             setStep("x402_bridging");
-            setProcessingStatus(deposit.description || "Cross-chain bridge in progress...");
-          }
-
-          if (deposit.status === "pending") {
-            setProcessingStatus("Waiting for Base transaction to be detected...");
+            setProcessingStatus(deposit.bridge_progress || deposit.description || "Cross-chain bridge in progress...");
+          } else if (deposit.status === "pending") {
+            setProcessingStatus("Detecting Base USDC transfer...");
+            // Re-trigger process-deposits every 3rd poll while still pending
+            triggerCount++;
+            if (triggerCount % 3 === 0) {
+              console.log(`[x402] Re-triggering deposit processing (attempt ${triggerCount})...`);
+              fetch(`${apiUrl}/api/x402/process-deposits`, { method: "POST" }).catch(() => {});
+            }
           }
 
           return { done: false };
         },
-        8000,     // Poll every 8 seconds
+        6000,     // Poll every 6 seconds
         3600000,  // 60 minute timeout (cross-chain bridging can take time)
         "GET"
       );
@@ -1246,7 +1258,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
               className="flex flex-col items-center justify-center py-12 space-y-6"
             >
               <Loader2 className="w-12 h-12 text-primary animate-spin" />
-              <p className="text-lg font-semibold">Bridging to Solana</p>
+              <p className="text-lg font-semibold">Processing x402 Deposit</p>
 
               <div className="w-full max-w-xs space-y-3">
                 <div className="flex items-center gap-3">
@@ -1255,14 +1267,26 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span className="text-sm text-muted-foreground">USDC received on Base</span>
+                  <span className="text-sm text-muted-foreground">Base USDC sent via Phantom</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
-                  <span className="text-sm text-white font-medium">
-                    {processingStatus || "Cross-chain bridge in progress..."}
+                  {x402Status?.status === "bridging" || x402Status?.status === "received" ? (
+                    <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  ) : (
+                    <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
+                  )}
+                  <span className={`text-sm ${x402Status?.status === "bridging" || x402Status?.status === "received" ? "text-muted-foreground" : "text-white font-medium"}`}>
+                    {x402Status?.status === "bridging" || x402Status?.status === "received" ? "Transfer detected on Base" : "Detecting transfer on Base..."}
                   </span>
                 </div>
+                {(x402Status?.status === "bridging" || x402Status?.status === "received") && (
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
+                    <span className="text-sm text-white font-medium">
+                      {processingStatus || "Bridging to Solana..."}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="w-full max-w-xs">
@@ -1274,7 +1298,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground/70 mt-2 text-center">
-                  Cross-chain bridge may take 10-30 minutes
+                  Cross-chain bridge may take 5-15 minutes
                 </p>
               </div>
 

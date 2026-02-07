@@ -160,6 +160,148 @@ async function transferBaseUsdc(
   return tx.hash;
 }
 
+/**
+ * Check ChangeNow bridge status and complete deposit if finished.
+ * Polls ChangeNow up to 15 times (~75 seconds) in one call so the
+ * entire deposit can complete without waiting for the next cron run.
+ */
+async function checkAndCompleteBridge(
+  supabase: ReturnType<typeof createClient>,
+  deposit: any
+): Promise<{ completed: boolean; result: any }> {
+  const MAX_POLLS = 15;
+  const POLL_INTERVAL_MS = 5000; // 5 seconds between polls
+
+  for (let attempt = 1; attempt <= MAX_POLLS; attempt++) {
+    console.log(`[x402] Checking ChangeNow status for ${deposit.bridge_exchange_id} (attempt ${attempt}/${MAX_POLLS})`);
+    
+    const statusResponse = await fetch(
+      `${CHANGENOW_BASE_URL}/transactions/${deposit.bridge_exchange_id}/${CHANGENOW_API_KEY}`
+    );
+    const statusData = await statusResponse.json();
+    
+    console.log(`[x402] ChangeNow status: ${statusData.status}`);
+
+    if (statusData.status === 'finished') {
+      // No platform fee — users get full amount
+      const amountToCredit = deposit.received_amount;
+
+      // ATOMIC CLAIM: Only complete if still 'bridging' (prevents double-credit)
+      const { data: completeClaim, error: completeErr } = await supabase
+        .from('x402_deposits')
+        .update({
+          status: 'completed',
+          bridge_status: 'finished',
+          bridge_progress: 'Bridge complete!',
+          fee_amount: 0,
+          amount_credited: amountToCredit,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('deposit_id', deposit.deposit_id)
+        .eq('status', 'bridging')
+        .select('deposit_id');
+
+      if (completeErr || !completeClaim || completeClaim.length === 0) {
+        console.log(`[x402] Deposit ${deposit.deposit_id} already completed by another instance`);
+        return { completed: false, result: { depositId: deposit.deposit_id, status: 'already_completed' } };
+      }
+
+      // Record transaction in zk_transactions for user's balance
+      try {
+        await supabase.from('zk_transactions').insert({
+          sender_wallet: deposit.user_wallet,
+          recipient_wallet: deposit.user_wallet,
+          amount: amountToCredit,
+          fee_percentage: 0,
+          token_symbol: 'USDC',
+          tx_hash: `x402_${deposit.deposit_id}`,
+          status: 'completed',
+          privacy_level: 'full',
+          transaction_type: 'deposit',
+        });
+      } catch (txInsertError: any) {
+        console.warn(`[x402] Transaction insert warning:`, txInsertError.message);
+        try {
+          await supabase.from('zk_transactions').insert({
+            sender_wallet: deposit.user_wallet,
+            recipient_wallet: deposit.user_wallet,
+            amount: amountToCredit,
+            token_symbol: 'USDC',
+            tx_hash: `x402_${deposit.deposit_id}`,
+            status: 'completed',
+            privacy_level: 'full',
+          });
+        } catch (fallbackErr: any) {
+          console.error(`[x402] Fallback insert also failed:`, fallbackErr.message);
+        }
+      }
+
+      // Ensure user has intermediate wallet assigned
+      const { data: existingMapping } = await supabase
+        .from('zk_user_wallets')
+        .select('intermediate_wallet')
+        .eq('user_wallet', deposit.user_wallet)
+        .maybeSingle();
+
+      if (!existingMapping) {
+        try {
+          const { getPrivacyUsdWalletPool } = await import('../lib/intermediate-wallet-pool.js');
+          const intermediatePool = getPrivacyUsdWalletPool();
+          await intermediatePool.initialize();
+          const availableWallet = await intermediatePool.getAvailableWallet();
+          
+          await supabase.from('zk_user_wallets').upsert({
+            user_wallet: deposit.user_wallet,
+            intermediate_wallet: availableWallet.publicKey,
+            token: 'USDC',
+          }, { onConflict: 'user_wallet,token' });
+
+          console.log(`[x402] Assigned intermediate wallet to ${deposit.user_wallet}`);
+        } catch (walletError: any) {
+          console.warn(`[x402] Could not assign intermediate wallet:`, walletError.message);
+        }
+      }
+
+      console.log(`[x402] Deposit ${deposit.deposit_id} COMPLETED! Credited $${amountToCredit.toFixed(2)}`);
+      return { completed: true, result: { depositId: deposit.deposit_id, status: 'completed', amountReceived: amountToCredit } };
+      
+    } else if (statusData.status === 'failed' || statusData.status === 'refunded') {
+      await supabase.from('x402_deposits').update({
+        status: 'failed',
+        bridge_status: statusData.status,
+        error_message: statusData.message || 'Bridge failed',
+        updated_at: new Date().toISOString(),
+      }).eq('deposit_id', deposit.deposit_id);
+      
+      console.log(`[x402] Deposit ${deposit.deposit_id} failed: ${statusData.status}`);
+      return { completed: false, result: { depositId: deposit.deposit_id, status: 'failed', error: 'Bridge failed' } };
+    }
+
+    // Update bridge progress in DB so the frontend can see the current status
+    const progressLabel = statusData.status === 'waiting' ? 'Waiting for ChangeNow...'
+      : statusData.status === 'confirming' ? 'Confirming Base transaction...'
+      : statusData.status === 'exchanging' ? 'Exchanging USDC (Base → Solana)...'
+      : statusData.status === 'sending' ? 'Sending USDC to Solana...'
+      : `Bridge status: ${statusData.status}`;
+
+    await supabase.from('x402_deposits').update({
+      bridge_status: statusData.status,
+      bridge_progress: progressLabel,
+      updated_at: new Date().toISOString(),
+    }).eq('deposit_id', deposit.deposit_id);
+
+    // Don't wait on the last attempt
+    if (attempt < MAX_POLLS) {
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+    }
+  }
+
+  // After all polls, still bridging
+  console.log(`[x402] Deposit ${deposit.deposit_id} still bridging after ${MAX_POLLS} polls`);
+  return { completed: false, result: { depositId: deposit.deposit_id, status: 'bridging', message: 'Still waiting for bridge' } };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
@@ -341,8 +483,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 updated_at: new Date().toISOString(),
               }).eq('deposit_id', deposit.deposit_id);
 
-              console.log(`[x402] Deposit ${deposit.deposit_id} is now bridging`);
-              results.push({ depositId: deposit.deposit_id, status: 'bridging', exchangeId: cnData.id, txHash });
+              console.log(`[x402] Deposit ${deposit.deposit_id} is now bridging, checking status immediately...`);
+
+              // IMMEDIATELY check ChangeNow status (don't wait for next cron run)
+              const bridgeResult = await checkAndCompleteBridge(supabase, {
+                ...deposit,
+                status: 'bridging',
+                bridge_exchange_id: cnData.id,
+                received_amount: matchingTransfer.amount,
+              });
+
+              if (bridgeResult.completed) {
+                completedCount++;
+              }
+              results.push(bridgeResult.result);
             } catch (txError: any) {
               console.error(`[x402] Transfer to ChangeNow failed:`, txError);
               await supabase.from('x402_deposits').update({
@@ -366,123 +520,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // ========== BRIDGING: Check ChangeNow status ==========
         else if (deposit.status === 'bridging' && deposit.bridge_exchange_id) {
-          console.log(`[x402] Checking ChangeNow status for ${deposit.bridge_exchange_id}`);
-          
-          const statusResponse = await fetch(
-            `${CHANGENOW_BASE_URL}/transactions/${deposit.bridge_exchange_id}/${CHANGENOW_API_KEY}`
-          );
-          const statusData = await statusResponse.json();
-          
-          console.log(`[x402] ChangeNow status: ${statusData.status}`);
-
-          if (statusData.status === 'finished') {
-            // No platform fee — users get full amount (1:1 with current deposit policy)
-            const amountToCredit = deposit.received_amount;
-
-            // ATOMIC CLAIM: Only complete if still 'bridging' (prevents double-credit)
-            const { data: completeClaim, error: completeErr } = await supabase
-              .from('x402_deposits')
-              .update({
-                status: 'completed',
-                bridge_status: 'finished',
-                bridge_progress: 'Bridge complete!',
-                fee_amount: 0,
-                amount_credited: amountToCredit,
-                completed_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              })
-              .eq('deposit_id', deposit.deposit_id)
-              .eq('status', 'bridging')
-              .select('deposit_id');
-
-            if (completeErr || !completeClaim || completeClaim.length === 0) {
-              console.log(`[x402] Deposit ${deposit.deposit_id} already completed by another instance, skipping`);
-              results.push({ depositId: deposit.deposit_id, status: 'already_completed' });
-              continue;
-            }
-
-            // Record transaction in zk_transactions for user's balance
-            try {
-              await supabase.from('zk_transactions').insert({
-                sender_wallet: deposit.user_wallet,
-                recipient_wallet: deposit.user_wallet,
-                amount: amountToCredit,
-                fee_percentage: 0,
-                token_symbol: 'USDC',
-                tx_hash: `x402_${deposit.deposit_id}`,
-                status: 'completed',
-                privacy_level: 'full',
-                transaction_type: 'deposit',
-              });
-            } catch (txInsertError: any) {
-              console.warn(`[x402] Transaction insert warning:`, txInsertError.message);
-              // Fallback insert without optional columns
-              try {
-                await supabase.from('zk_transactions').insert({
-                  sender_wallet: deposit.user_wallet,
-                  recipient_wallet: deposit.user_wallet,
-                  amount: amountToCredit,
-                  token_symbol: 'USDC',
-                  tx_hash: `x402_${deposit.deposit_id}`,
-                  status: 'completed',
-                  privacy_level: 'full',
-                });
-              } catch (fallbackErr: any) {
-                console.error(`[x402] Fallback insert also failed:`, fallbackErr.message);
-              }
-            }
-
-            // Ensure user has intermediate wallet assigned
-            const { data: existingMapping } = await supabase
-              .from('zk_user_wallets')
-              .select('intermediate_wallet')
-              .eq('user_wallet', deposit.user_wallet)
-              .maybeSingle();
-
-            if (!existingMapping) {
-              // Assign an intermediate wallet from the pool
-              try {
-                const { getPrivacyUsdWalletPool } = await import('../lib/intermediate-wallet-pool.js');
-                const intermediatePool = getPrivacyUsdWalletPool();
-                await intermediatePool.initialize();
-                const availableWallet = await intermediatePool.getAvailableWallet();
-                
-                await supabase.from('zk_user_wallets').upsert({
-                  user_wallet: deposit.user_wallet,
-                  intermediate_wallet: availableWallet.publicKey,
-                  token: 'USDC',
-                }, { onConflict: 'user_wallet,token' });
-
-                console.log(`[x402] Assigned intermediate wallet to ${deposit.user_wallet}`);
-              } catch (walletError: any) {
-                console.warn(`[x402] Could not assign intermediate wallet:`, walletError.message);
-              }
-            }
-
+          const bridgeResult = await checkAndCompleteBridge(supabase, deposit);
+          if (bridgeResult.completed) {
             completedCount++;
-            console.log(`[x402] Deposit ${deposit.deposit_id} COMPLETED! Credited $${amountToCredit.toFixed(2)}`);
-            results.push({ depositId: deposit.deposit_id, status: 'completed', amountReceived: amountToCredit });
-            
-          } else if (statusData.status === 'failed' || statusData.status === 'refunded') {
-            await supabase.from('x402_deposits').update({
-              status: 'failed',
-              bridge_status: statusData.status,
-              error_message: statusData.message || 'Bridge failed',
-              updated_at: new Date().toISOString(),
-            }).eq('deposit_id', deposit.deposit_id);
-            
-            console.log(`[x402] Deposit ${deposit.deposit_id} failed: ${statusData.status}`);
-            results.push({ depositId: deposit.deposit_id, status: 'failed', error: 'Bridge failed' });
-            
-          } else {
-            await supabase.from('x402_deposits').update({
-              bridge_status: statusData.status,
-              bridge_progress: statusData.status,
-              updated_at: new Date().toISOString(),
-            }).eq('deposit_id', deposit.deposit_id);
-            
-            results.push({ depositId: deposit.deposit_id, status: 'bridging', bridgeStatus: statusData.status });
           }
+          results.push(bridgeResult.result);
         }
 
         // ========== RECEIVED: Edge case ==========
