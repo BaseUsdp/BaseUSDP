@@ -33,13 +33,15 @@ interface Transaction {
 // Convert API transaction to UI transaction format
 const convertApiTransaction = (tx: TransactionHistoryResponse["transactions"][0], walletAddress: string): Transaction => {
   const isDeposit = tx.type === "deposit";
-  const direction = isDeposit ? "deposit" : (tx.from === walletAddress ? "sent" : "received");
+  const isWithdraw = tx.type === "withdraw";
+  const direction = isDeposit ? "deposit" : isWithdraw ? "sent" : (tx.from === walletAddress ? "sent" : "received");
   const amount = tx.amount || 0;
-  const counterparty = isDeposit ? "Your Wallet" : (direction === "sent" ? tx.to : tx.from);
+  const counterparty = isDeposit ? "Your Wallet" : isWithdraw ? "External Wallet" : (direction === "sent" ? tx.to : tx.from);
   
   let type: TransactionType = "transfer";
   if (tx.type === "payment") type = "x402";
   else if (tx.type === "deposit") type = "deposit";
+  else if (tx.type === "withdraw") type = "transfer";
   
   const amountPrefix = direction === "sent" ? "-" : "+";
   

@@ -123,10 +123,15 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
               color = "text-purple-400";
               bgColor = "bg-purple-500/20";
             } else if (tx.type === "deposit") {
-              type = "yield";
-              icon = "ph:trend-up-bold";
-              color = "text-sky-400";
-              bgColor = "bg-sky-500/20";
+              type = "deposit";
+              icon = "ph:arrow-down-left-bold";
+              color = "text-emerald-400";
+              bgColor = "bg-emerald-500/20";
+            } else if (tx.type === "withdraw") {
+              type = "withdraw";
+              icon = "ph:arrow-up-right-bold";
+              color = "text-red-400";
+              bgColor = "bg-red-500/20";
             } else if (direction === "sent") {
               icon = "ph:arrow-up-right-bold";
               color = "text-red-400";
@@ -413,9 +418,11 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
                   </div>
                   <div className="flex-1">
                     <div className="text-sm text-neutral-300">
-                      {tx.type === "sent" ? `Sent to ${tx.to}` : 
+                      {tx.type === "deposit" ? "Deposit" :
+                       tx.type === "withdraw" ? "Withdrawal" :
+                       tx.type === "sent" ? `Sent to ${tx.to}` : 
                        tx.type === "received" ? `Received from ${tx.from}` :
-                       tx.type === "x402" ? `x402 from ${tx.from || "Service"}` : `Yield from ${tx.from || "Vault"}`}
+                       tx.type === "x402" ? `x402 from ${tx.from || "Service"}` : `Transfer`}
                     </div>
                     <div className="text-[11px] text-neutral-500">{tx.time}</div>
                   </div>

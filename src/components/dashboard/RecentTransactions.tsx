@@ -85,7 +85,9 @@ const RecentTransactions = ({ showBalance, limit = 5, onViewAll }: RecentTransac
   };
 
   const getDirection = (tx: TransactionHistoryResponse["transactions"][0]) => {
-    if (tx.type === "deposit" || tx.type === "payment") {
+    if (tx.type === "deposit") return "received";
+    if (tx.type === "withdraw") return "sent";
+    if (tx.type === "payment") {
       return tx.to === fullWalletAddress ? "received" : "sent";
     }
     return tx.from === fullWalletAddress ? "sent" : "received";
@@ -155,7 +157,9 @@ const RecentTransactions = ({ showBalance, limit = 5, onViewAll }: RecentTransac
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-medium truncate">
-                      {direction === "sent" ? `Sent to ${formatAddress(counterparty)}` : `Received from ${formatAddress(counterparty)}`}
+                      {tx.type === "deposit" ? "Deposit" :
+                       tx.type === "withdraw" ? "Withdrawal" :
+                       direction === "sent" ? `Sent to ${formatAddress(counterparty)}` : `Received from ${formatAddress(counterparty)}`}
                     </p>
                     {tx.type === "payment" && (
                       <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">

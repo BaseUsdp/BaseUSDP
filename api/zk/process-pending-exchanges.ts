@@ -568,11 +568,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log(`\n✅ Done: ${processedCount} processed, ${updatedCount} updated`);
 
+    // Get total exchange counts for this deposit to help frontend track progress
+    let totalExchangeCount = 0;
+    let completedExchangeCount = 0;
+    if (depositId) {
+      const { data: allExchanges } = await supabase
+        .from('zk_exchanges')
+        .select('id, deposit_processed')
+        .eq('deposit_id', depositId);
+      
+      if (allExchanges) {
+        totalExchangeCount = allExchanges.length;
+        completedExchangeCount = allExchanges.filter((e: any) => e.deposit_processed === true).length;
+      }
+    }
+
     return res.status(200).json({
       success: true,
       processed: processedCount,
       updated: updatedCount,
-      results
+      results,
+      totalExchanges: totalExchangeCount,
+      completedExchanges: completedExchangeCount,
+      allComplete: totalExchangeCount > 0 && completedExchangeCount === totalExchangeCount,
     });
 
   } catch (error: any) {

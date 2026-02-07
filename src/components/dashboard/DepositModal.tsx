@@ -321,32 +321,27 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
       setProcessedExchanges(0);
       setProcessingStatus("Waiting for privacy mixer to process...");
 
-      let mixerProcessedTotal = 0;
-
-      // Poll process-pending-exchanges until all are deposited
+      // Poll process-pending-exchanges until ALL exchanges are deposited
       await pollEndpoint(
         `${apiUrl}/api/zk/process-pending-exchanges`,
         { wallet: fullWalletAddress, depositId: newDepositId },
         (data) => {
-          if (data.processed > 0) {
-            mixerProcessedTotal += data.processed;
-            setProcessedExchanges(mixerProcessedTotal);
+          // Track progress from backend counts
+          if (data.completedExchanges !== undefined) {
+            setProcessedExchanges(data.completedExchanges);
+          }
+          if (data.totalExchanges !== undefined && data.totalExchanges > 0) {
+            setTotalExchanges(data.totalExchanges);
           }
 
-          // Check if all exchanges are processed
+          // Backend tells us when ALL exchanges are complete
+          if (data.allComplete === true) {
+            setProcessingStatus("All exchanges processed!");
+            return { done: true, data };
+          }
+
+          // Update status message based on exchange states
           if (data.results && data.results.length > 0) {
-            const processedResults = data.results.filter(
-              (r: any) => r.status === "processed"
-            );
-            const waitingResults = data.results.filter(
-              (r: any) => r.status !== "processed" && r.status !== "error"
-            );
-
-            if (processedResults.length > 0 && waitingResults.length === 0) {
-              return { done: true, data };
-            }
-
-            // Update status message based on exchange states
             const statuses = data.results.map((r: any) => r.status);
             if (statuses.includes("waiting")) {
               setProcessingStatus("Privacy mixer is processing your funds...");
@@ -357,11 +352,10 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
             } else if (statuses.includes("waiting_for_funds")) {
               setProcessingStatus("Waiting for mixer to receive funds...");
             }
-          }
-
-          // No exchanges found yet - keep polling, they may not have been created yet
-          if (!data.results || data.results.length === 0) {
-            setProcessingStatus("Waiting for privacy mixer exchanges to appear...");
+          } else {
+            const completed = data.completedExchanges || 0;
+            const total = data.totalExchanges || numSplits;
+            setProcessingStatus(`Processing exchanges (${completed}/${total})...`);
           }
 
           return { done: false };
