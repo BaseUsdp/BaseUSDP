@@ -571,6 +571,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               tx_hash: sig2,
               status: 'completed',
               privacy_level: 'full',
+              transaction_type: 'deposit',
             });
           }
         } catch (logError: any) {

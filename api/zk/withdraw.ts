@@ -333,6 +333,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           tx_hash: signature,
           status: 'completed',
           privacy_level: 'full',
+          transaction_type: transactionType,
         });
         if (minimalError) {
           console.error('❌ Minimal insert also failed:', minimalError.message);
