@@ -34,9 +34,9 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
       if (!fullWalletAddress) return;
       
       try {
-        const token = authService.getToken();
+        const sessionToken = authService.getSessionToken();
         const headers: HeadersInit = { "Content-Type": "application/json" };
-        if (token) headers["Authorization"] = `Bearer ${token}`;
+        if (sessionToken) headers["Authorization"] = `Bearer ${sessionToken}`;
 
         const [usdcRes, usdtRes] = await Promise.all([
           fetch(`${apiUrl}/api/zk/balance/${fullWalletAddress}?token=USDC`, { headers }),

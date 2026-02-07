@@ -32,7 +32,7 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
   const [payX402ModalOpen, setPayX402ModalOpen] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
-  const [tokenBalances, setTokenBalances] = useState({ usdc: 0, usdt: 0, x402: 0 });
+  const [tokenBalances, setTokenBalances] = useState({ usdc: 0, usdt: 0 });
 
   // Function to fetch token balances (extractable for refresh)
   const fetchTokenBalances = async () => {
@@ -47,7 +47,6 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
       setTokenBalances({
         usdc: usdcResult?.balance || 0,
         usdt: usdtResult?.balance || 0,
-        x402: 0, // X402 balance - placeholder for now
       });
     } catch (e) {
       console.log("Error fetching token balances");
@@ -360,17 +359,6 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
                 <span className="text-xs text-neutral-400">USDT</span>
                 <span className="text-xs font-medium text-white">
                   {showBalance ? `$${tokenBalances.usdt.toFixed(2)}` : "••••"}
-                </span>
-              </div>
-              <div className="flex flex-col items-center gap-1" title="X402">
-                <img 
-                  src="https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png" 
-                  alt="X402" 
-                  className="w-6 h-6 rounded-full"
-                />
-                <span className="text-xs text-neutral-400">X402</span>
-                <span className="text-xs font-medium text-white">
-                  {showBalance ? `$${tokenBalances.x402.toFixed(2)}` : "••••"}
                 </span>
               </div>
             </div>
