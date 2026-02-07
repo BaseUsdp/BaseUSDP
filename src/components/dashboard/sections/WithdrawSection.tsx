@@ -80,7 +80,7 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
 
     try {
       const recipient = fullWalletAddress;
-      const authToken = authService.getToken();
+      const authToken = authService.getSessionToken();
 
       if (!authToken) {
         throw new Error("Not authenticated. Please sign in again.");
