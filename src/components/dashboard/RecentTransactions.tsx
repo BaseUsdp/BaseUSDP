@@ -79,7 +79,15 @@ const RecentTransactions = ({ showBalance, limit = 5, onViewAll }: RecentTransac
 
   const formatAmount = (amount?: number, type?: string, from?: string, to?: string) => {
     if (!showBalance || amount === undefined) return "••••••";
-    const isSent = from === fullWalletAddress;
+    // Deposits are always positive, withdrawals always negative
+    let isSent: boolean;
+    if (type === "deposit") {
+      isSent = false;
+    } else if (type === "withdraw") {
+      isSent = true;
+    } else {
+      isSent = from === fullWalletAddress;
+    }
     const sign = isSent ? "-" : "+";
     return `${sign}$${Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };

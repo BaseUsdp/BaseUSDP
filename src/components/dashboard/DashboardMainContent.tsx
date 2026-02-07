@@ -80,7 +80,15 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
         if (result && result.success) {
           // Convert API transactions to UI format
           const converted = result.transactions.map(tx => {
-            const direction = tx.from === fullWalletAddress ? "sent" : "received";
+            // Deposits are always incoming, withdrawals always outgoing
+            let direction: string;
+            if (tx.type === "deposit") {
+              direction = "received";
+            } else if (tx.type === "withdraw") {
+              direction = "sent";
+            } else {
+              direction = tx.from === fullWalletAddress ? "sent" : "received";
+            }
             const counterparty = direction === "sent" ? tx.to : tx.from;
             const amount = tx.amount || 0;
             
