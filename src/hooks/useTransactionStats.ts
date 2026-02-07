@@ -77,9 +77,18 @@ export function useTransactionStats() {
 
     transactions.forEach(tx => {
       const txDate = new Date(tx.timestamp);
-      const isSent = tx.from === fullWalletAddress;
       const amount = tx.amount || 0;
       const fee = tx.fee || 0;
+
+      // Determine direction: deposits are incoming, withdrawals are outgoing
+      let isSent: boolean;
+      if (tx.type === "deposit") {
+        isSent = false;
+      } else if (tx.type === "withdraw") {
+        isSent = true;
+      } else {
+        isSent = tx.from === fullWalletAddress;
+      }
 
       // All-time stats
       if (isSent) {
@@ -88,12 +97,10 @@ export function useTransactionStats() {
         received += amount;
       }
 
-      if (tx.type === "transfer") {
+      if (tx.type === "transfer" || tx.type === "sent" || tx.type === "received") {
         transfers += amount;
       } else if (tx.type === "payment") {
         payments += amount;
-      } else if (tx.type === "deposit") {
-        yieldEarnings += amount;
       }
 
       gasFees += fee;
@@ -104,9 +111,6 @@ export function useTransactionStats() {
           monthlySent += amount;
         } else {
           monthlyReceived += amount;
-        }
-        if (tx.type === "deposit") {
-          monthlyYield += amount;
         }
       }
     });
