@@ -258,22 +258,6 @@ const X402PaymentModal = ({ open, onOpenChange }: X402PaymentModalProps) => {
                   </p>
                 )}
 
-                {/* QR Code */}
-                <div className="flex justify-center mb-4">
-                  <div className="w-32 h-32 bg-white rounded-xl p-2">
-                    <div className="w-full h-full bg-foreground rounded-lg relative overflow-hidden">
-                      <div className="absolute inset-1 grid grid-cols-6 gap-0.5">
-                        {Array(36).fill(0).map((_, i) => (
-                          <div
-                            key={i}
-                            className={`w-full aspect-square ${Math.random() > 0.5 ? 'bg-white' : 'bg-transparent'}`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Payment ID */}
                 <div className="rounded-lg bg-secondary/50 p-3">
                   <p className="text-xs text-muted-foreground mb-1">Payment ID</p>

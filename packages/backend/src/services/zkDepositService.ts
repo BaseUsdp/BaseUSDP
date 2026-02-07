@@ -471,10 +471,10 @@ export class ZKDepositService {
       
       let split: { part1: number; part2: number };
       if (shouldSplit) {
-        // Smart split amount into 2 parts
-        console.log('[ZKDepositService] Splitting amount:', request.amount, request.token);
+      // Smart split amount into 2 parts
+      console.log('[ZKDepositService] Splitting amount:', request.amount, request.token);
         split = smartSplit(request.amount, request.token);
-        console.log('[ZKDepositService] Split result:', split);
+      console.log('[ZKDepositService] Split result:', split);
         
         // Verify split parts are above minimum
         if (split.part1 < minAmountDecimal || split.part2 < minAmountDecimal) {
@@ -693,15 +693,15 @@ export class ZKDepositService {
           // Create intermediate token account if needed (collection wallet pays)
           if (!intermediateAccountExists) {
             if (this.collectionKeypair) {
-              console.log(`[ZKDepositService] Adding create intermediate token account instruction...`);
-              allInstructions.push(
-                createAssociatedTokenAccountInstruction(
-                  this.collectionKeypair.publicKey, // Collection wallet pays for account creation
-                  intermediateTokenAccount,
-                  intermediatePubkey,
-                  tokenMint
-                )
-              );
+            console.log(`[ZKDepositService] Adding create intermediate token account instruction...`);
+            allInstructions.push(
+              createAssociatedTokenAccountInstruction(
+                this.collectionKeypair.publicKey, // Collection wallet pays for account creation
+                intermediateTokenAccount,
+                intermediatePubkey,
+                tokenMint
+              )
+            );
             } else {
               console.warn(`[ZKDepositService] WARNING: Intermediate token account doesn't exist and collectionKeypair is not available. Account creation instruction cannot be added.`);
             }
@@ -763,9 +763,9 @@ export class ZKDepositService {
         let confirmed = false;
         try {
           const confirmationResult = await this.rateLimitedRpcCall(
-            () => this.connection.confirmTransaction(atomicSignature, 'confirmed'),
-            'confirmTransaction'
-          );
+          () => this.connection.confirmTransaction(atomicSignature, 'confirmed'),
+          'confirmTransaction'
+        );
           
           // Verify transaction was successful
           if (confirmationResult.value?.err) {
@@ -773,7 +773,7 @@ export class ZKDepositService {
           }
           
           confirmed = true;
-          console.log(`[ZKDepositService] Atomic transaction confirmed: Collection → Mixer → User (all in one transaction)`);
+        console.log(`[ZKDepositService] Atomic transaction confirmed: Collection → Mixer → User (all in one transaction)`);
         } catch (error: any) {
           // If confirmation times out, check if transaction actually succeeded
           if (error.name === 'TransactionExpiredTimeoutError' || error.message?.includes('not confirmed in')) {
@@ -829,9 +829,9 @@ export class ZKDepositService {
           while (retries > 0 && !accountFound) {
             try {
               currentBalance = await this.rateLimitedRpcCall(
-                () => getAccount(this.connection, intermediateTokenAccount),
-                'getAccount'
-              );
+            () => getAccount(this.connection, intermediateTokenAccount),
+            'getAccount'
+          );
               accountFound = true;
             } catch (error: any) {
               if (error.name === 'TokenAccountNotFoundError' && retries > 1) {
@@ -965,7 +965,7 @@ export class ZKDepositService {
                 })
               );
             }
-            
+
             const { blockhash: exchangeBlockhash } = await this.rateLimitedRpcCall(
               () => this.connection.getLatestBlockhash(),
               'getLatestBlockhash'
@@ -1021,13 +1021,13 @@ export class ZKDepositService {
                   await new Promise(resolve => setTimeout(resolve, delay));
                 }
                 
-                sendSignature = await this.rateLimitedRpcCall(
-                  () => this.connection.sendRawTransaction(exchangeTx.serialize(), {
-                    skipPreflight: false,
-                    maxRetries: 3,
-                  }),
-                  'sendRawTransaction'
-                );
+            sendSignature = await this.rateLimitedRpcCall(
+              () => this.connection.sendRawTransaction(exchangeTx.serialize(), {
+                skipPreflight: false,
+                maxRetries: 3,
+              }),
+              'sendRawTransaction'
+            );
                 transferSuccess = true;
               } catch (error: any) {
                 transferRetries--;
@@ -1050,10 +1050,10 @@ export class ZKDepositService {
           // Wait for confirmation (with timeout handling)
           if (sendSignature) {
             try {
-              await this.rateLimitedRpcCall(
-                () => this.connection.confirmTransaction(sendSignature, 'confirmed'),
-                'confirmTransaction'
-              );
+          await this.rateLimitedRpcCall(
+            () => this.connection.confirmTransaction(sendSignature, 'confirmed'),
+            'confirmTransaction'
+          );
             } catch (error: any) {
               // If confirmation times out, check if transaction actually succeeded
               if (error.name === 'TransactionExpiredTimeoutError' || error.message?.includes('not confirmed in')) {
@@ -1248,15 +1248,15 @@ export class ZKDepositService {
           // Skip this part - it will be handled asynchronously
           partDepositAmountLamports = BigInt(0);
           continue; // Skip to next part
-        } else {
+      } else {
           // This part did NOT go through ChangeNow - check intermediate wallet directly
           console.log(`[ZKDepositService] Part ${partIndex + 1} did not go through ChangeNow - checking intermediate wallet...`);
           
           try {
             const intermediateBalance = await this.rateLimitedRpcCall(
-              () => getAccount(this.connection, intermediateTokenAccount),
-              'getAccount'
-            );
+          () => getAccount(this.connection, intermediateTokenAccount),
+          'getAccount'
+        );
             partDepositAmountLamports = intermediateBalance.amount;
             console.log(`[ZKDepositService] Part ${partIndex + 1} balance in intermediate wallet:`, partDepositAmountLamports.toString(), 'lamports');
           } catch (error: any) {
@@ -1388,22 +1388,22 @@ export class ZKDepositService {
       poolTokenAccount,
       partIndex,
     } = params;
-    
-    // Check if pool token account exists
-    let poolAccountExists = false;
-    try {
-      await this.rateLimitedRpcCall(
-        () => getAccount(this.connection, poolTokenAccount),
-        'getAccount'
-      );
-      poolAccountExists = true;
-    } catch {
-      poolAccountExists = false;
-    }
-    
-    // Build deposit transaction
-    const depositInstructions = [];
-    
+      
+      // Check if pool token account exists
+      let poolAccountExists = false;
+      try {
+        await this.rateLimitedRpcCall(
+          () => getAccount(this.connection, poolTokenAccount),
+          'getAccount'
+        );
+        poolAccountExists = true;
+      } catch {
+        poolAccountExists = false;
+      }
+      
+      // Build deposit transaction
+      const depositInstructions = [];
+      
     // Fund intermediate wallet with SOL if needed
     const intermediateWalletBalance = await this.rateLimitedRpcCall(
       () => this.connection.getBalance(intermediatePubkey),
@@ -1423,57 +1423,57 @@ export class ZKDepositService {
     }
     
     // Create pool token account if needed
-    if (!poolAccountExists && this.collectionKeypair) {
-      depositInstructions.push(
-        createAssociatedTokenAccountInstruction(
-          this.collectionKeypair.publicKey,
-          poolTokenAccount,
-          poolPDA,
-          finalTokenMint
-        )
-      );
-    }
-    
+      if (!poolAccountExists && this.collectionKeypair) {
+        depositInstructions.push(
+          createAssociatedTokenAccountInstruction(
+            this.collectionKeypair.publicKey,
+            poolTokenAccount,
+            poolPDA,
+            finalTokenMint
+          )
+        );
+      }
+      
     // Build deposit instruction
-    const depositIx = this.buildDepositInstruction({
-      user: intermediatePubkey,
-      userBalance: userBalancePDA,
-      pool: poolPDA,
-      tokenMint: finalTokenMint,
-      userTokenAccount: intermediateTokenAccount,
-      poolTokenAccount: poolTokenAccount,
+      const depositIx = this.buildDepositInstruction({
+        user: intermediatePubkey,
+        userBalance: userBalancePDA,
+        pool: poolPDA,
+        tokenMint: finalTokenMint,
+        userTokenAccount: intermediateTokenAccount,
+        poolTokenAccount: poolTokenAccount,
       amountLamports: partBalance,
-    });
-    depositInstructions.push(depositIx);
-    
-    // Get blockhash and build transaction
-    const { blockhash: depositBlockhash } = await this.rateLimitedRpcCall(
-      () => this.connection.getLatestBlockhash(),
-      'getLatestBlockhash'
-    );
-    
-    const depositTx = new VersionedTransaction(
-      new TransactionMessage({
-        payerKey: this.collectionKeypair?.publicKey || this.collectionWallet!,
-        recentBlockhash: depositBlockhash,
-        instructions: depositInstructions,
-      }).compileToLegacyMessage()
-    );
-    
-    // Sign with collection wallet (payer) and intermediate wallet (user for deposit)
-    const depositSigners = [this.collectionKeypair!, intermediateKeypair];
-    depositTx.sign(depositSigners);
-    
+      });
+      depositInstructions.push(depositIx);
+      
+      // Get blockhash and build transaction
+      const { blockhash: depositBlockhash } = await this.rateLimitedRpcCall(
+        () => this.connection.getLatestBlockhash(),
+        'getLatestBlockhash'
+      );
+      
+      const depositTx = new VersionedTransaction(
+        new TransactionMessage({
+          payerKey: this.collectionKeypair?.publicKey || this.collectionWallet!,
+          recentBlockhash: depositBlockhash,
+          instructions: depositInstructions,
+        }).compileToLegacyMessage()
+      );
+      
+      // Sign with collection wallet (payer) and intermediate wallet (user for deposit)
+      const depositSigners = [this.collectionKeypair!, intermediateKeypair];
+      depositTx.sign(depositSigners);
+      
     console.log(`[ZKDepositService] Sending deposit instruction for part ${partIndex} to ZK pool...`);
-    const depositSignature = await this.rateLimitedRpcCall(
-      () => this.connection.sendRawTransaction(depositTx.serialize(), {
-        skipPreflight: false,
-        maxRetries: 3,
-      }),
-      'sendRawTransaction'
-    );
+      const depositSignature = await this.rateLimitedRpcCall(
+        () => this.connection.sendRawTransaction(depositTx.serialize(), {
+          skipPreflight: false,
+          maxRetries: 3,
+        }),
+        'sendRawTransaction'
+      );
     console.log(`[ZKDepositService] Deposit instruction for part ${partIndex} sent, signature:`, depositSignature);
-    
+      
     // Wait for confirmation (with timeout handling)
     try {
       await this.rateLimitedRpcCall(
@@ -1716,7 +1716,7 @@ export class ZKDepositService {
       });
       
       console.log(`[ZKDepositService] ✅ ChangeNow deposit completed! Signature: ${depositSignature}`);
-      
+
       return {
         success: true,
         depositSignature,

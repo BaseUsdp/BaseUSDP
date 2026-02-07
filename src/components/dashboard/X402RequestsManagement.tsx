@@ -165,22 +165,18 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
   const handleCancel = async (id: string) => {
     try {
       const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/api/payments/cancel`, {
+      await fetch(`${apiUrl}/api/payments/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ payment_id: id, wallet: fullWalletAddress }),
       });
-      const data = await response.json();
-
-      if (data.success) {
-        // Optimistically update UI
-        setRequests(prev => prev.map(r => 
-          r.id === id ? { ...r, status: "cancelled" as RequestStatus } : r
-        ));
-      }
     } catch (err) {
       console.error("Error cancelling payment:", err);
     }
+    // Always update UI — even if API fails (e.g., old localStorage requests)
+    setRequests(prev => prev.map(r => 
+      r.id === id ? { ...r, status: "cancelled" as RequestStatus } : r
+    ));
     setCancelDialog(null);
   };
 
