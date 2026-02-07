@@ -212,7 +212,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .from('zk_user_wallets')
       .select('intermediate_wallet')
       .eq('user_wallet', sender_wallet)
-      .eq('token', token)
       .maybeSingle();
 
     if (dbError || !walletMapping || !walletMapping.intermediate_wallet) {

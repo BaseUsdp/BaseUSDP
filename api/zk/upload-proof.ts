@@ -175,11 +175,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tokenMint = token === 'USDC' ? USDC_MINT : USDT_MINT;
 
     // Get user's intermediate wallet from database
+    // NOTE: Don't filter by token - intermediate wallet is shared across all tokens for a user
     const { data: walletMapping, error: dbError } = await supabase
       .from('zk_user_wallets')
       .select('intermediate_wallet')
       .eq('user_wallet', sender_wallet)
-      .eq('token', token)
       .maybeSingle();
 
     if (dbError || !walletMapping || !walletMapping.intermediate_wallet) {
@@ -208,9 +208,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const amountLamports = Math.floor(amount * 1_000_000);
 
       // Generate placeholder proof bytes (in production, this would be a real ZK proof)
-      const proofBytes = Buffer.alloc(32, 0); // Placeholder
-      const commitmentBytes = Buffer.alloc(32, 0); // Placeholder
-      const blindingFactorBytes = Buffer.alloc(32, 0); // Placeholder
+      const proofBytes = Buffer.alloc(32, 0);
+      const commitmentBytes = Buffer.alloc(32, 0);
+      const blindingFactorBytes = Buffer.alloc(32, 0);
 
       // Build instruction
       const instruction = buildUploadProofInstruction({
@@ -224,7 +224,71 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         blindingFactorBytes: blindingFactorBytes,
       });
 
-      // Build transaction
+      // CRITICAL: Check if intermediate wallet has enough SOL for proof account rent
+      // (1:1 with NolviPay - fund from main wallet if needed)
+      const intermediateBalance = await connection.getBalance(intermediatePubkey);
+      const PROOF_ACCOUNT_RENT = 9_396_000; // ~0.009396 SOL
+      const TRANSACTION_FEE = 5_000;
+      const MIN_REQUIRED_BALANCE = PROOF_ACCOUNT_RENT + TRANSACTION_FEE + 1_000_000; // buffer
+
+      if (intermediateBalance < MIN_REQUIRED_BALANCE) {
+        console.log(`[UploadProof] Intermediate wallet needs SOL. Balance: ${intermediateBalance}, Required: ${MIN_REQUIRED_BALANCE}`);
+        
+        // Fund from main wallet (MAIN_WALLET_PRIVATE_KEY or COLLECTION_WALLET_PRIVATE_KEY)
+        const mainWalletKey = process.env.MAIN_WALLET_PRIVATE_KEY || process.env.COLLECTION_WALLET_PRIVATE_KEY;
+        if (!mainWalletKey) {
+          return res.status(500).json({ error: 'No funding wallet configured for proof account rent' });
+        }
+
+        let mainKeypair: Keypair;
+        try {
+          const keyArray = JSON.parse(mainWalletKey);
+          mainKeypair = Keypair.fromSecretKey(Uint8Array.from(keyArray));
+        } catch {
+          const bs58Module = (await import('bs58')).default;
+          mainKeypair = Keypair.fromSecretKey(bs58Module.decode(mainWalletKey) as Uint8Array);
+        }
+
+        const solToSend = MIN_REQUIRED_BALANCE - intermediateBalance;
+        
+        const { blockhash: fundBlockhash } = await connection.getLatestBlockhash('finalized');
+        const fundTx = new VersionedTransaction(
+          new TransactionMessage({
+            payerKey: mainKeypair.publicKey,
+            recentBlockhash: fundBlockhash,
+            instructions: [
+              SystemProgram.transfer({
+                fromPubkey: mainKeypair.publicKey,
+                toPubkey: intermediatePubkey,
+                lamports: solToSend,
+              })
+            ],
+          }).compileToLegacyMessage()
+        );
+        fundTx.sign([mainKeypair]);
+
+        const fundSig = await connection.sendRawTransaction(fundTx.serialize(), {
+          skipPreflight: false,
+          maxRetries: 3,
+        });
+
+        // Wait for funding to confirm
+        try {
+          await connection.confirmTransaction(fundSig, 'confirmed');
+          console.log(`[UploadProof] Funded intermediate wallet: ${fundSig}`);
+        } catch (confirmErr: any) {
+          const status = await connection.getSignatureStatus(fundSig);
+          if (status.value?.confirmationStatus === 'confirmed' || status.value?.confirmationStatus === 'finalized') {
+            console.log(`[UploadProof] Funding confirmed despite timeout: ${fundSig}`);
+          } else {
+            throw new Error(`Failed to fund intermediate wallet for proof: ${confirmErr.message}`);
+          }
+        }
+        
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
+      // Build transaction with fresh blockhash
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
       const txMessage = new TransactionMessage({
         payerKey: intermediatePubkey,
@@ -241,11 +305,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         maxRetries: 3,
       });
 
-      await connection.confirmTransaction({
-        signature,
-        blockhash,
-        lastValidBlockHeight,
-      }, 'confirmed');
+      try {
+        await connection.confirmTransaction({
+          signature,
+          blockhash,
+          lastValidBlockHeight,
+        }, 'confirmed');
+      } catch (confirmErr: any) {
+        const status = await connection.getSignatureStatus(signature);
+        if (status.value?.confirmationStatus === 'confirmed' || status.value?.confirmationStatus === 'finalized') {
+          console.log(`[UploadProof] Proof upload confirmed despite timeout: ${signature}`);
+        } else {
+          throw new Error(`Proof upload not confirmed: ${confirmErr.message}`);
+        }
+      }
 
       console.log(`✅ Proof uploaded: nonce=${nonceNumber}, amount=${amount} ${token}, tx=${signature}`);
 
