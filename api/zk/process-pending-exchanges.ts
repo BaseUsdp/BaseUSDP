@@ -243,6 +243,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           continue;
         }
 
+        // ======== ATOMIC CLAIM: prevent duplicate processing ========
+        // Set deposit_processed = true BEFORE doing any transfers.
+        // If another concurrent poll already claimed it, this returns 0 rows
+        // and we skip. This prevents the race condition where two polls
+        // both see the same exchange as "not processed" and both send tokens.
+        const { data: claimed, error: claimError } = await supabase
+          .from('zk_exchanges')
+          .update({ deposit_processed: true })
+          .eq('id', exchange.id)
+          .or('deposit_processed.is.null,deposit_processed.eq.false')
+          .select('id');
+
+        if (claimError || !claimed || claimed.length === 0) {
+          console.log(`  ⏭️ Already claimed by another process, skipping`);
+          results.push({ exchangeId: exchange.exchange_id, status: 'already_claimed' });
+          continue;
+        }
+
+        console.log(`  🔒 Claimed exchange ${exchange.exchange_id} for processing`);
+
         // Exchange is finished - process it
         console.log(`  💰 Processing for user ${userWallet}`);
 
@@ -559,9 +579,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         console.log(`  ✅ Recorded: $${amountReceived.toFixed(2)} ${token}`);
 
-        // Mark exchange as processed
+        // Mark exchange with final metadata (deposit_processed already set to true by claim)
         await supabase.from('zk_exchanges')
-          .update({ status: 'finished', user_wallet: userWallet, deposit_processed: true })
+          .update({ status: 'finished', user_wallet: userWallet })
           .eq('id', exchange.id);
 
         processedCount++;
@@ -569,6 +589,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       } catch (error: any) {
         console.error(`  ❌ Error: ${error.message}`);
+        
+        // Release the claim so it can be retried on the next poll
+        try {
+          await supabase.from('zk_exchanges')
+            .update({ deposit_processed: false })
+            .eq('id', exchange.id);
+          console.log(`  🔓 Released claim on ${exchange.exchange_id} for retry`);
+        } catch (releaseErr) {
+          console.error(`  ❌ Failed to release claim:`, releaseErr);
+        }
+        
         results.push({ exchangeId: exchange.exchange_id, status: 'error', error: error.message });
       }
     }
