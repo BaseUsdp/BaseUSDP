@@ -48,27 +48,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'payment_id and wallet required' });
     }
 
-    // Only cancel if the requester is the creator and status is pending
-    const { data: updated, error: updateError } = await supabase
-      .from('payment_requests')
-      .update({
-        status: 'cancelled',
-      })
-      .eq('payment_id', payment_id)
-      .eq('user_wallet', wallet)
-      .eq('status', 'pending')
-      .select('payment_id');
+    console.log(`[Payments] Attempting to cancel payment ${payment_id} for wallet ${wallet}`);
 
-    if (updateError) {
-      console.error('[Payments] Cancel error:', updateError);
+    // First, check if the payment request exists
+    const { data: existing, error: fetchError } = await supabase
+      .from('payment_requests')
+      .select('payment_id, status, user_wallet')
+      .eq('payment_id', payment_id)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('[Payments] Fetch error:', fetchError);
       return res.status(500).json({ error: 'Database error' });
     }
 
-    if (!updated || updated.length === 0) {
-      return res.status(400).json({ error: 'Payment request not found, already settled, or not owned by you' });
+    if (!existing) {
+      console.error(`[Payments] Payment ${payment_id} not found`);
+      return res.status(400).json({ error: 'Payment request not found' });
     }
 
-    console.log(`[Payments] Cancelled payment ${payment_id}`);
+    console.log(`[Payments] Found payment: status=${existing.status}, user_wallet=${existing.user_wallet}`);
+
+    if (existing.status !== 'pending') {
+      return res.status(400).json({ error: `Cannot cancel: payment is ${existing.status}` });
+    }
+
+    // Check ownership - try both user_wallet and recipient columns
+    const ownerMatch = existing.user_wallet === wallet;
+    if (!ownerMatch) {
+      console.error(`[Payments] Wallet mismatch: DB=${existing.user_wallet}, Request=${wallet}`);
+      return res.status(403).json({ error: 'Not authorized to cancel this payment' });
+    }
+
+    // Perform the update
+    const { error: updateError } = await supabase
+      .from('payment_requests')
+      .update({ status: 'cancelled' })
+      .eq('payment_id', payment_id);
+
+    if (updateError) {
+      console.error('[Payments] Update error:', updateError);
+      return res.status(500).json({ error: 'Failed to cancel payment' });
+    }
+
+    console.log(`[Payments] Successfully cancelled payment ${payment_id}`);
 
     return res.status(200).json({
       success: true,

@@ -296,7 +296,7 @@ const PaymentsSection = ({ showBalance }: PaymentsSectionProps) => {
           Confidential Payments<span className="text-primary">.</span>
         </h1>
         <p className="text-muted-foreground mt-1">
-          Send, receive, and manage encrypted payments via x402 protocol
+          Send, receive, and manage encrypted payments
         </p>
       </div>
 
@@ -311,9 +311,10 @@ const PaymentsSection = ({ showBalance }: PaymentsSectionProps) => {
             <Icon icon="ph:download-bold" className="w-4 h-4" />
             Requests
           </TabsTrigger>
-          <TabsTrigger value="pay" className="gap-2">
+          <TabsTrigger value="pay" className="gap-2 opacity-40 cursor-not-allowed" disabled>
             <Icon icon="ph:credit-card-bold" className="w-4 h-4" />
             Pay Request
+            <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full">Soon</span>
           </TabsTrigger>
         </TabsList>
 
@@ -674,9 +675,9 @@ const PaymentsSection = ({ showBalance }: PaymentsSectionProps) => {
               <div className="w-16 h-16 rounded-2xl bg-accent/20 flex items-center justify-center mx-auto mb-6">
                 <Icon icon="ph:credit-card-bold" className="w-8 h-8 text-accent" />
               </div>
-              <h3 className="text-2xl font-display font-bold mb-3">Pay x402 Request</h3>
+              <h3 className="text-2xl font-display font-bold mb-3">Pay Request</h3>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                Enter a payment ID or scan a QR code to pay an existing x402 payment request with encrypted funds.
+                Enter a payment ID or scan a QR code to pay an existing payment request with encrypted funds.
               </p>
               <Button 
                 onClick={() => setPayX402ModalOpen(true)}

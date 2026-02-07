@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Bell } from "lucide-react";
 import WalletConnectButton from "@/components/WalletConnectButton";
 import NotificationCenter from "./NotificationCenter";
@@ -11,6 +11,8 @@ interface DashboardHeaderProps {
 
 const DashboardHeader = ({ showBalance, setShowBalance, isConnected }: DashboardHeaderProps) => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false);
+  const handleUnreadChange = useCallback((unread: boolean) => setHasUnread(unread), []);
 
   return (
     <header className="h-16 border-b border-border bg-card/30 flex items-center justify-between px-6">
@@ -36,12 +38,15 @@ const DashboardHeader = ({ showBalance, setShowBalance, isConnected }: Dashboard
           >
             <Bell className="w-4 h-4 text-muted-foreground" />
             {/* Unread indicator */}
-            <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-primary border-2 border-card" />
+            {hasUnread && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-primary border-2 border-card" />
+            )}
           </button>
           
           <NotificationCenter 
             isOpen={notificationsOpen} 
-            onClose={() => setNotificationsOpen(false)} 
+            onClose={() => setNotificationsOpen(false)}
+            onUnreadChange={handleUnreadChange}
           />
         </div>
       </div>

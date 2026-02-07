@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icon } from "@iconify/react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ interface Notification {
 interface NotificationCenterProps {
   isOpen: boolean;
   onClose: () => void;
+  onUnreadChange?: (hasUnread: boolean) => void;
 }
 
 function timeAgo(dateStr: string): string {
@@ -36,7 +37,7 @@ function timeAgo(dateStr: string): string {
   return date.toLocaleDateString();
 }
 
-const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
+const NotificationCenter = ({ isOpen, onClose, onUnreadChange }: NotificationCenterProps) => {
   const { fullWalletAddress, isConnected } = useWallet();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -51,77 +52,92 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
   });
 
   // Fetch real transactions and convert to notifications
-  useEffect(() => {
-    if (!isOpen || !isConnected || !fullWalletAddress) return;
-
-    const fetchNotifications = async () => {
-      setIsLoading(true);
-      try {
-        const apiUrl = getApiUrl();
-        const sessionToken = authService.getSessionToken();
-        const headers: Record<string, string> = { "Content-Type": "application/json" };
-        if (sessionToken) {
-          headers["Authorization"] = `Bearer ${sessionToken}`;
-        }
-
-        const response = await fetch(
-          `${apiUrl}/api/history/${fullWalletAddress}?limit=20`,
-          { headers }
-        );
-        const data = await response.json();
-
-        if (data.success && data.transactions) {
-          const notifs: Notification[] = data.transactions.map((tx: any) => {
-            const amount = parseFloat(tx.amount || 0);
-            const formattedAmount = `$${amount.toFixed(2)}`;
-            const txType = tx.type || "transfer";
-            const created = tx.created_at || tx.timestamp || new Date().toISOString();
-
-            let type: Notification["type"];
-            let title: string;
-            let message: string;
-
-            if (txType === "deposit") {
-              type = "deposit";
-              title = "Deposit Received";
-              message = `Your deposit of ${formattedAmount} ${tx.token || "USDC"} has been processed`;
-            } else if (txType === "withdraw") {
-              type = "withdraw";
-              title = "Withdrawal Completed";
-              message = `Your withdrawal of ${formattedAmount} ${tx.token || "USDC"} has been sent`;
-            } else if (tx.from === fullWalletAddress) {
-              type = "transfer_sent";
-              title = "Transfer Sent";
-              message = `You sent ${formattedAmount} ${tx.token || "USDC"}`;
-            } else {
-              type = "transfer_received";
-              title = "Transfer Received";
-              message = `You received ${formattedAmount} ${tx.token || "USDC"}`;
-            }
-
-            return {
-              id: tx.id || tx.tx_hash || `${created}-${amount}`,
-              type,
-              title,
-              message,
-              timestamp: timeAgo(created),
-              read: readIds.has(tx.id || tx.tx_hash || `${created}-${amount}`),
-            };
-          });
-
-          setNotifications(notifs);
-        }
-      } catch (err) {
-        console.error("[NotificationCenter] Error fetching:", err);
-      } finally {
-        setIsLoading(false);
+  const fetchNotifications = useCallback(async (showLoading = true) => {
+    if (!isConnected || !fullWalletAddress) return;
+    
+    if (showLoading) setIsLoading(true);
+    try {
+      const apiUrl = getApiUrl();
+      const sessionToken = authService.getSessionToken();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (sessionToken) {
+        headers["Authorization"] = `Bearer ${sessionToken}`;
       }
-    };
 
-    fetchNotifications();
-  }, [isOpen, isConnected, fullWalletAddress]);
+      const response = await fetch(
+        `${apiUrl}/api/history/${fullWalletAddress}?limit=20`,
+        { headers }
+      );
+      const data = await response.json();
+
+      if (data.success && data.transactions) {
+        const notifs: Notification[] = data.transactions.map((tx: any) => {
+          const amount = parseFloat(tx.amount || 0);
+          const formattedAmount = `$${amount.toFixed(2)}`;
+          const txType = tx.type || "transfer";
+          const created = tx.created_at || tx.timestamp || new Date().toISOString();
+
+          let type: Notification["type"];
+          let title: string;
+          let message: string;
+
+          if (txType === "deposit") {
+            type = "deposit";
+            title = "Deposit Received";
+            message = `Your deposit of ${formattedAmount} ${tx.token || "USDC"} has been processed`;
+          } else if (txType === "withdraw") {
+            type = "withdraw";
+            title = "Withdrawal Completed";
+            message = `Your withdrawal of ${formattedAmount} ${tx.token || "USDC"} has been sent`;
+          } else if (tx.from === fullWalletAddress) {
+            type = "transfer_sent";
+            title = "Transfer Sent";
+            message = `You sent ${formattedAmount} ${tx.token || "USDC"}`;
+          } else {
+            type = "transfer_received";
+            title = "Transfer Received";
+            message = `You received ${formattedAmount} ${tx.token || "USDC"}`;
+          }
+
+          return {
+            id: tx.id || tx.tx_hash || `${created}-${amount}`,
+            type,
+            title,
+            message,
+            timestamp: timeAgo(created),
+            read: readIds.has(tx.id || tx.tx_hash || `${created}-${amount}`),
+          };
+        });
+
+        setNotifications(notifs);
+      }
+    } catch (err) {
+      console.error("[NotificationCenter] Error fetching:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isConnected, fullWalletAddress, readIds]);
+
+  // Fetch on mount (silently) to determine unread state for the dot indicator
+  useEffect(() => {
+    if (isConnected && fullWalletAddress) {
+      fetchNotifications(false);
+    }
+  }, [isConnected, fullWalletAddress]);
+
+  // Re-fetch when panel opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchNotifications(true);
+    }
+  }, [isOpen]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Notify parent about unread state changes
+  useEffect(() => {
+    onUnreadChange?.(unreadCount > 0);
+  }, [unreadCount, onUnreadChange]);
 
   const markAsRead = (id: string) => {
     setNotifications(prev =>

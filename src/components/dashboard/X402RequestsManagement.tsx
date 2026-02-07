@@ -165,18 +165,34 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
   const handleCancel = async (id: string) => {
     try {
       const apiUrl = getApiUrl();
-      await fetch(`${apiUrl}/api/payments/cancel`, {
+      const response = await fetch(`${apiUrl}/api/payments/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ payment_id: id, wallet: fullWalletAddress }),
       });
+      const data = await response.json();
+
+      if (data.success) {
+        // Update UI locally
+        setRequests(prev => prev.map(r => 
+          r.id === id ? { ...r, status: "cancelled" as RequestStatus } : r
+        ));
+      } else {
+        console.error("Cancel API returned error:", data.error);
+        // Still update UI locally for better UX, then reload from DB
+        setRequests(prev => prev.map(r => 
+          r.id === id ? { ...r, status: "cancelled" as RequestStatus } : r
+        ));
+        // Reload from backend after a short delay to sync
+        setTimeout(() => loadRequests(), 1000);
+      }
     } catch (err) {
       console.error("Error cancelling payment:", err);
+      // Update UI locally even if network fails
+      setRequests(prev => prev.map(r => 
+        r.id === id ? { ...r, status: "cancelled" as RequestStatus } : r
+      ));
     }
-    // Always update UI — even if API fails (e.g., old localStorage requests)
-    setRequests(prev => prev.map(r => 
-      r.id === id ? { ...r, status: "cancelled" as RequestStatus } : r
-    ));
     setCancelDialog(null);
   };
 
@@ -244,7 +260,7 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
           <div>
             <h3 className="font-display text-lg font-bold">Payment Requests</h3>
             <p className="text-xs text-muted-foreground uppercase tracking-wider">
-              Manage your x402 payment requests
+              Manage your payment requests
             </p>
           </div>
         </div>
