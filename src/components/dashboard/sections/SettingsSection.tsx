@@ -1,26 +1,57 @@
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { useWallet, PrivacyLevel } from "@/contexts/WalletContext";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+
+const SETTINGS_STORAGE_KEY = "void402_settings";
+
+interface UserSettings {
+  notifications: {
+    payments: boolean;
+    transactions: boolean;
+    security: boolean;
+  };
+  autoApprove: boolean;
+}
+
+function loadSettings(): UserSettings {
+  try {
+    const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return {
+    notifications: { payments: true, transactions: true, security: true },
+    autoApprove: false,
+  };
+}
 
 const SettingsSection = () => {
-  const { privacyLevel, setPrivacyLevel } = useWallet();
-  const [notifications, setNotifications] = useState({
-    payments: true,
-    transactions: true,
-    security: true,
-  });
-  const [autoApprove, setAutoApprove] = useState(false);
-  const [sessionTimeout, setSessionTimeout] = useState("30");
+  const { privacyLevel } = useWallet();
+  const { toast } = useToast();
+  const [notifications, setNotifications] = useState(loadSettings().notifications);
+  const [autoApprove, setAutoApprove] = useState(loadSettings().autoApprove);
+  const [saved, setSaved] = useState(false);
 
-  const privacyLevels: { id: PrivacyLevel; label: string; description: string; icon: string }[] = [
-    { id: "public", label: "Public", description: "Fully visible transactions", icon: "ph:eye-bold" },
-    { id: "partial", label: "Partial", description: "Amount hidden, parties visible", icon: "ph:eye-slash-bold" },
-    { id: "full", label: "Full", description: "Maximum privacy with ZK proofs", icon: "ph:lock-bold" },
+  const privacyLevels: { id: PrivacyLevel; label: string; description: string; icon: string; disabled: boolean }[] = [
+    { id: "public", label: "Public", description: "Fully visible transactions", icon: "ph:eye-bold", disabled: true },
+    { id: "partial", label: "Partial", description: "Amount hidden, parties visible", icon: "ph:eye-slash-bold", disabled: true },
+    { id: "full", label: "Full", description: "Maximum privacy with ZK proofs", icon: "ph:lock-bold", disabled: false },
   ];
+
+  const handleSave = () => {
+    const settings: UserSettings = { notifications, autoApprove };
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    setSaved(true);
+    toast({
+      title: "Settings saved",
+      description: "Your preferences have been updated.",
+    });
+    setTimeout(() => setSaved(false), 2000);
+  };
 
   return (
     <motion.div
@@ -57,19 +88,26 @@ const SettingsSection = () => {
           {privacyLevels.map((level) => (
             <button
               key={level.id}
-              onClick={() => setPrivacyLevel(level.id)}
+              disabled={level.disabled}
               className={cn(
-                "p-4 rounded-xl border-2 text-left transition-all",
-                privacyLevel === level.id
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-primary/50"
+                "p-4 rounded-xl border-2 text-left transition-all relative",
+                level.disabled
+                  ? "border-border opacity-40 cursor-not-allowed"
+                  : privacyLevel === level.id
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
               )}
             >
+              {level.disabled && (
+                <span className="absolute top-2 right-2 text-[10px] uppercase tracking-wider font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                  Coming soon
+                </span>
+              )}
               <Icon icon={level.icon} className={cn(
                 "w-6 h-6 mb-3",
-                privacyLevel === level.id ? "text-primary" : "text-muted-foreground"
+                level.disabled ? "text-muted-foreground/50" : privacyLevel === level.id ? "text-primary" : "text-muted-foreground"
               )} />
-              <p className="font-bold">{level.label}</p>
+              <p className={cn("font-bold", level.disabled && "text-muted-foreground/60")}>{level.label}</p>
               <p className="text-xs text-muted-foreground mt-1">{level.description}</p>
             </button>
           ))}
@@ -77,7 +115,7 @@ const SettingsSection = () => {
 
         <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
           <p className="text-sm text-muted-foreground">
-            Your privacy level affects all future transactions. Changes require an on-chain transaction.
+            Full privacy is currently the only supported mode. All transactions use ZK proofs for maximum privacy.
           </p>
         </div>
       </motion.div>
@@ -170,9 +208,21 @@ const SettingsSection = () => {
       </motion.div>
 
       {/* Save Button */}
-      <Button className="w-full h-12 bg-primary hover:bg-primary/90">
-        <Icon icon="ph:floppy-disk-bold" className="w-4 h-4 mr-2" />
-        Save Settings
+      <Button
+        className="w-full h-12 bg-primary hover:bg-primary/90"
+        onClick={handleSave}
+      >
+        {saved ? (
+          <>
+            <Icon icon="ph:check-bold" className="w-4 h-4 mr-2" />
+            Saved!
+          </>
+        ) : (
+          <>
+            <Icon icon="ph:floppy-disk-bold" className="w-4 h-4 mr-2" />
+            Save Settings
+          </>
+        )}
       </Button>
     </motion.div>
   );
