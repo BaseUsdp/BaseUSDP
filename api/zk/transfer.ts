@@ -341,15 +341,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log(`📤 External transfer to non-Void402 address: ${recipient_wallet}`);
     }
 
-    // Get sender's intermediate wallet
-    const { data: senderMapping, error: senderError } = await supabase
+    // Get sender's intermediate wallet (try with token first, then any token)
+    let senderMapping: any = null;
+    
+    const { data: senderByToken } = await supabase
       .from('zk_user_wallets')
       .select('intermediate_wallet')
       .eq('user_wallet', sender_wallet)
       .eq('token', token)
       .maybeSingle();
 
-    if (senderError || !senderMapping || !senderMapping.intermediate_wallet) {
+    if (senderByToken?.intermediate_wallet) {
+      senderMapping = senderByToken;
+    } else {
+      // Fallback: look up without token filter (user may have deposited a different token)
+      const { data: senderAny } = await supabase
+        .from('zk_user_wallets')
+        .select('intermediate_wallet')
+        .eq('user_wallet', sender_wallet)
+        .limit(1)
+        .maybeSingle();
+      
+      if (senderAny?.intermediate_wallet) {
+        senderMapping = senderAny;
+      }
+    }
+
+    if (!senderMapping || !senderMapping.intermediate_wallet) {
       return res.status(400).json({ error: 'Sender has not deposited funds yet' });
     }
 
