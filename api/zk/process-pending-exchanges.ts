@@ -343,9 +343,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const privateKeyArray = JSON.parse(mixerPrivateKey);
           mixerKeypair = Keypair.fromSecretKey(Uint8Array.from(privateKeyArray));
         } catch {
-          const bs58Module = await import('bs58');
-          const bs58 = bs58Module.default || bs58Module;
-          mixerKeypair = Keypair.fromSecretKey(bs58.decode(mixerPrivateKey));
+          const bs58 = (await import('bs58')).default;
+          mixerKeypair = Keypair.fromSecretKey(bs58.decode(mixerPrivateKey) as Uint8Array);
         }
 
         const mixerPubkey = new PublicKey(mixerAddress);

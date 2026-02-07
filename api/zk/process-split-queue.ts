@@ -276,9 +276,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               const privateKeyArray = JSON.parse(MAIN_WALLET_PRIVATE_KEY);
               mainKeypair = Keypair.fromSecretKey(Uint8Array.from(privateKeyArray));
             } catch {
-              const bs58Module = await import('bs58');
-              const bs58 = bs58Module.default || bs58Module;
-              mainKeypair = Keypair.fromSecretKey(bs58.decode(MAIN_WALLET_PRIVATE_KEY));
+              const bs58 = (await import('bs58')).default;
+              mainKeypair = Keypair.fromSecretKey(bs58.decode(MAIN_WALLET_PRIVATE_KEY) as Uint8Array);
             }
             feePayerKeypair = mainKeypair;
           } catch (error: any) {
