@@ -533,6 +533,33 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                 />
               </div>
 
+              {/* Fee Breakdown */}
+              {amount && parseFloat(amount) >= 3 && (
+                <div className="rounded-xl bg-secondary/50 border border-border p-4 space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Deposit amount</span>
+                    <span className="text-foreground font-medium">${parseFloat(amount).toFixed(2)} {token}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Privacy mixer fee (~0.5%)</span>
+                    <span className="text-red-400">-${(parseFloat(amount) * 0.005).toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Protocol fee (10%)</span>
+                    <span className="text-red-400">-${(parseFloat(amount) * 0.10).toFixed(2)}</span>
+                  </div>
+                  <div className="border-t border-border pt-2 flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">You will receive (est.)</span>
+                    <span className="text-base font-bold text-emerald-400">
+                      ~${(parseFloat(amount) * (1 - 0.005 - 0.10)).toFixed(2)} {token}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/60 leading-tight">
+                    Mixer fee varies slightly per split. Actual amount may differ by a few cents.
+                  </p>
+                </div>
+              )}
+
               {/* Info */}
               <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
                 <p className="text-sm text-muted-foreground">
