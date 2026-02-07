@@ -166,7 +166,7 @@ async function transferBaseUsdc(
  * entire deposit can complete without waiting for the next cron run.
  */
 async function checkAndCompleteBridge(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   deposit: any
 ): Promise<{ completed: boolean; result: any }> {
   const MAX_POLLS = 15;
