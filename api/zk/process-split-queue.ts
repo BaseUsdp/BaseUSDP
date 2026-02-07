@@ -423,6 +423,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .eq('id', split.id);
 
       // Add to zk_exchanges for tracking
+      let exchangeInserted = false;
       const { error: exchangeInsertError } = await supabase
         .from('zk_exchanges')
         .insert({
@@ -438,8 +439,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       
       if (exchangeInsertError) {
-        console.error(`❌ Failed to insert exchange record:`, exchangeInsertError);
+        console.warn(`⚠️ Full insert failed (${exchangeInsertError.message}), trying without deposit_processed...`);
+        // deposit_processed column might not exist - try without it
+        const { error: fallbackError } = await supabase
+          .from('zk_exchanges')
+          .insert({
+            deposit_id: split.deposit_id,
+            exchange_id: changenowData.id,
+            split_index: split.split_index,
+            user_wallet: split.user_wallet,
+            token: split.token,
+            split_amount: splitAmountInCurrency,
+            status: 'waiting',
+          });
+        if (fallbackError) {
+          console.error(`❌ Failed to insert exchange record:`, fallbackError);
+        } else {
+          exchangeInserted = true;
+        }
       } else {
+        exchangeInserted = true;
+      }
+      
+      if (exchangeInserted) {
         console.log(`✅ Exchange ${changenowData.id} recorded in database for wallet ${split.user_wallet}`);
       }
 

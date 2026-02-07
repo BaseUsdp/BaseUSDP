@@ -92,17 +92,17 @@ function buildDepositInstruction({
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const origin = getAllowedOrigin(req.headers.origin as string | undefined);
   res.setHeader("Access-Control-Allow-Origin", origin);
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Access-Control-Allow-Credentials", "true");
 
   if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST' && req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   console.log('🔍 process-pending-exchanges: Handler started');
 
   try {
-    const { wallet, depositId } = req.body;
+    const { wallet, depositId } = req.method === 'POST' ? (req.body || {}) : (req.query || {});
     console.log(`📋 Processing exchanges for wallet: ${wallet || 'ALL'}, depositId: ${depositId || 'ALL'}`);
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -115,10 +115,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Find exchanges that haven't been credited to user yet
+    // Use status to track processing: 'deposit_complete' means done, skip those
+    // Also skip 'processing' — another instance is actively working on it
     let query = supabase
       .from('zk_exchanges')
       .select('*')
-      .or('deposit_processed.is.null,deposit_processed.eq.false')
+      .not('status', 'in', '("deposit_complete","processing")')
       .order('created_at', { ascending: true })
       .limit(20);
     
@@ -215,20 +217,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const cnStatus = await cnResponse.json();
         console.log(`  📊 ChangeNow status: ${cnStatus.status}, amountTo: ${cnStatus.amountTo}`);
 
-        // Update status in DB
-        if (cnStatus.status !== exchange.status) {
-          await supabase
-            .from('zk_exchanges')
-            .update({ 
-              status: cnStatus.status,
-              changenow_status: cnStatus.status,
-            })
-            .eq('id', exchange.id);
+        // Update ChangeNow status in DB (track separately from our processing status)
+        const cnStatusStr = cnStatus.status;
+        if (cnStatusStr !== exchange.changenow_status && cnStatusStr !== exchange.status) {
+          try {
+            await supabase
+              .from('zk_exchanges')
+              .update({ 
+                changenow_status: cnStatusStr,
+                // Only update status to ChangeNow's status if we haven't started processing
+                ...(exchange.status !== 'deposit_complete' && exchange.status !== 'processing' 
+                  ? { status: cnStatusStr } : {}),
+              })
+              .eq('id', exchange.id);
+          } catch {
+            // changenow_status column might not exist
+            await supabase
+              .from('zk_exchanges')
+              .update({ status: cnStatusStr })
+              .eq('id', exchange.id);
+          }
           updatedCount++;
         }
 
-        if (cnStatus.status !== 'finished') {
-          results.push({ exchangeId: exchange.exchange_id, status: cnStatus.status, action: 'waiting' });
+        if (cnStatusStr !== 'finished') {
+          results.push({ exchangeId: exchange.exchange_id, status: cnStatusStr, action: 'waiting' });
           continue;
         }
 
@@ -236,32 +249,72 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         changenowOutputAmount = cnStatus.amountTo ? parseFloat(cnStatus.amountTo) : null;
         console.log(`  💰 ChangeNow output: ${changenowOutputAmount} ${token}`);
 
-        // Skip if already processed
-        if (exchange.deposit_processed === true) {
+        // Skip if already processed AND status confirms it
+        if (exchange.deposit_processed === true && exchange.status === 'deposit_complete') {
           console.log(`  ✅ Already processed`);
           results.push({ exchangeId: exchange.exchange_id, status: 'already_processed' });
           continue;
         }
+        
+        // If deposit_processed is true but status is NOT deposit_complete,
+        // another instance might still be working on it. DO NOT reset the claim
+        // mid-flight — only the error handler at the bottom resets claims on failure.
+        if (exchange.deposit_processed === true) {
+          console.log(`  ⏭️ Exchange is being processed by another instance, skipping`);
+          results.push({ exchangeId: exchange.exchange_id, status: 'in_progress' });
+          continue;
+        }
 
         // ======== ATOMIC CLAIM: prevent duplicate processing ========
-        // Set deposit_processed = true BEFORE doing any transfers.
-        // If another concurrent poll already claimed it, this returns 0 rows
-        // and we skip. This prevents the race condition where two polls
-        // both see the same exchange as "not processed" and both send tokens.
-        const { data: claimed, error: claimError } = await supabase
-          .from('zk_exchanges')
-          .update({ deposit_processed: true })
-          .eq('id', exchange.id)
-          .or('deposit_processed.is.null,deposit_processed.eq.false')
-          .select('id');
+        // Use TWO locks simultaneously: deposit_processed AND status='processing'
+        // This ensures even if one column doesn't exist, the other blocks duplicates.
+        let claimSucceeded = false;
+        try {
+          const { data: claimed, error: claimError } = await supabase
+            .from('zk_exchanges')
+            .update({ deposit_processed: true, status: 'processing' })
+            .eq('id', exchange.id)
+            .eq('status', 'finished')
+            .neq('deposit_processed', true)
+            .select('id');
 
-        if (claimError || !claimed || claimed.length === 0) {
+          if (claimError) {
+            // Column might not exist - try status-only locking
+            console.warn(`  ⚠️ Claim error (column may not exist): ${claimError.message}`);
+            const { data: statusClaim } = await supabase
+              .from('zk_exchanges')
+              .update({ status: 'processing' })
+              .eq('id', exchange.id)
+              .eq('status', 'finished')
+              .select('id');
+            
+            claimSucceeded = !!(statusClaim && statusClaim.length > 0);
+          } else {
+            claimSucceeded = !!(claimed && claimed.length > 0);
+          }
+        } catch (claimErr: any) {
+          console.warn(`  ⚠️ Claim exception: ${claimErr.message}`);
+          // Try status-only claim as last resort
+          try {
+            const { data: statusClaim } = await supabase
+              .from('zk_exchanges')
+              .update({ status: 'processing' })
+              .eq('id', exchange.id)
+              .eq('status', 'finished')
+              .select('id');
+            claimSucceeded = !!(statusClaim && statusClaim.length > 0);
+          } catch {
+            claimSucceeded = false;
+          }
+        }
+
+        if (!claimSucceeded) {
           console.log(`  ⏭️ Already claimed by another process, skipping`);
           results.push({ exchangeId: exchange.exchange_id, status: 'already_claimed' });
           continue;
         }
 
-        console.log(`  🔒 Claimed exchange ${exchange.exchange_id} for processing`);
+        console.log(`  🔒 Claimed exchange ${exchange.exchange_id} for processing (status=processing)`);
 
         // Exchange is finished - process it
         console.log(`  💰 Processing for user ${userWallet}`);
@@ -486,6 +539,60 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log(`  🔐 Smart contract deposit: Intermediate → Pool`);
         console.log(`     Amount: ${(intBalance / 1_000_000).toFixed(6)} ${token}`);
 
+        // Fund intermediate wallet with SOL for rent if needed
+        // The Deposit instruction creates a UserBalance PDA which requires rent
+        const MIN_REQUIRED_SOL = 0.003; // ~0.001566 for PDA rent + buffer for fees
+        const intermediateSOLBalance = await connection.getBalance(intermediatePubkey);
+        const intermediateSOLInSol = intermediateSOLBalance / 1_000_000_000;
+        console.log(`  💰 Intermediate SOL balance: ${intermediateSOLInSol.toFixed(6)} SOL`);
+        
+        if (intermediateSOLInSol < MIN_REQUIRED_SOL) {
+          console.log(`  ⚡ Funding intermediate wallet with SOL for rent...`);
+          const mainWalletKey = process.env.MAIN_WALLET_PRIVATE_KEY || process.env.COLLECTION_WALLET_PRIVATE_KEY;
+          
+          if (mainWalletKey) {
+            try {
+              let mainKeypair: Keypair;
+              try {
+                const keyArray = JSON.parse(mainWalletKey);
+                mainKeypair = Keypair.fromSecretKey(Uint8Array.from(keyArray));
+              } catch {
+                const bs58Module = (await import('bs58')).default;
+                mainKeypair = Keypair.fromSecretKey(bs58Module.decode(mainWalletKey) as Uint8Array);
+              }
+              
+              const fundAmount = 0.005 * 1_000_000_000; // 0.005 SOL
+              const { blockhash: fundBlockhash } = await connection.getLatestBlockhash();
+              const fundTx = new Transaction();
+              fundTx.recentBlockhash = fundBlockhash;
+              fundTx.feePayer = mainKeypair.publicKey;
+              fundTx.add(SystemProgram.transfer({
+                fromPubkey: mainKeypair.publicKey,
+                toPubkey: intermediatePubkey,
+                lamports: Math.floor(fundAmount),
+              }));
+              fundTx.sign(mainKeypair);
+              
+              const fundSig = await connection.sendRawTransaction(fundTx.serialize(), { skipPreflight: true });
+              console.log(`  ✅ Funded intermediate with 0.005 SOL: ${fundSig}`);
+              
+              // Wait for confirmation
+              for (let i = 0; i < 15; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                const fundStatus = await connection.getSignatureStatus(fundSig);
+                if (fundStatus.value?.confirmationStatus === 'confirmed' || fundStatus.value?.confirmationStatus === 'finalized') {
+                  break;
+                }
+              }
+            } catch (fundErr: any) {
+              console.error(`  ⚠️ Failed to fund intermediate wallet: ${fundErr.message}`);
+              // Try to continue anyway - the deposit might still work if there's enough SOL
+            }
+          } else {
+            console.warn(`  ⚠️ No MAIN_WALLET_PRIVATE_KEY set - cannot fund intermediate wallet`);
+          }
+        }
+
         // Build smart contract deposit transaction
         const { blockhash: blockhash2 } = await connection.getLatestBlockhash();
         const tx2 = new Transaction();
@@ -543,10 +650,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log(`  ✅ Smart contract deposit confirmed!`);
 
         // Calculate amounts - use the actual ChangeNow output, not the full intermediate balance
+        // No platform fee on deposits — users get the full amount from ChangeNow
         const finalAmount = actualOutputAmount;
-        const FEE_PERCENTAGE = 10.0;
-        const feeAmount = finalAmount * (FEE_PERCENTAGE / 100);
-        const amountReceived = finalAmount - feeAmount;
+        const FEE_PERCENTAGE = 0;
+        const feeAmount = 0;
+        const amountReceived = finalAmount;
 
         // Record deposit in zk_transactions
         try {
@@ -580,10 +688,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         console.log(`  ✅ Recorded: $${amountReceived.toFixed(2)} ${token}`);
 
-        // Mark exchange with final metadata (deposit_processed already set to true by claim)
-        await supabase.from('zk_exchanges')
-          .update({ status: 'finished', user_wallet: userWallet })
-          .eq('id', exchange.id);
+        // Mark exchange as fully processed
+        try {
+          await supabase.from('zk_exchanges')
+            .update({ status: 'deposit_complete', user_wallet: userWallet, deposit_processed: true })
+            .eq('id', exchange.id);
+        } catch {
+          // If deposit_processed column doesn't exist, just update status
+          await supabase.from('zk_exchanges')
+            .update({ status: 'deposit_complete', user_wallet: userWallet })
+            .eq('id', exchange.id);
+        }
 
         processedCount++;
         results.push({ exchangeId: exchange.exchange_id, status: 'processed', amount: amountReceived });
@@ -594,11 +709,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Release the claim so it can be retried on the next poll
         try {
           await supabase.from('zk_exchanges')
-            .update({ deposit_processed: false })
+            .update({ deposit_processed: false, status: 'finished' })
             .eq('id', exchange.id);
           console.log(`  🔓 Released claim on ${exchange.exchange_id} for retry`);
         } catch (releaseErr) {
-          console.error(`  ❌ Failed to release claim:`, releaseErr);
+          // If deposit_processed column doesn't exist, just reset status
+          try {
+            await supabase.from('zk_exchanges')
+              .update({ status: 'finished' })
+              .eq('id', exchange.id);
+            console.log(`  🔓 Released claim via status reset on ${exchange.exchange_id}`);
+          } catch (releaseErr2) {
+            console.error(`  ❌ Failed to release claim:`, releaseErr2);
+          }
         }
         
         results.push({ exchangeId: exchange.exchange_id, status: 'error', error: error.message });
@@ -611,14 +734,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let totalExchangeCount = 0;
     let completedExchangeCount = 0;
     if (depositId) {
-      const { data: allExchanges } = await supabase
+      let allExchanges: any[] | null = null;
+      const { data: exData, error: exError } = await supabase
         .from('zk_exchanges')
-        .select('id, deposit_processed')
+        .select('id, status, deposit_processed')
         .eq('deposit_id', depositId);
+      
+      if (exError) {
+        // deposit_processed column might not exist, try without it
+        const { data: exData2 } = await supabase
+          .from('zk_exchanges')
+          .select('id, status')
+          .eq('deposit_id', depositId);
+        allExchanges = exData2;
+      } else {
+        allExchanges = exData;
+      }
       
       if (allExchanges) {
         totalExchangeCount = allExchanges.length;
-        completedExchangeCount = allExchanges.filter((e: any) => e.deposit_processed === true).length;
+        // Only count 'deposit_complete' as truly finished (not 'processing' which is mid-flight)
+        completedExchangeCount = allExchanges.filter(
+          (e: any) => e.status === 'deposit_complete'
+        ).length;
       }
     }
 

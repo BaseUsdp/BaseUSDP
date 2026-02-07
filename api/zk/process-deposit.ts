@@ -444,11 +444,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
     
-    // Calculate fee
+    // No platform fee on deposits — users get the full amount from ChangeNow
     const tierInfo = await getUSDPHolderTier(wallet);
-    const feePercentage = calculateFeePercentage(10.0, tierInfo.tier, 'deposit');
-    const feeAmount = baseAmount * (feePercentage / 100);
-    const amountAfterFees = baseAmount - feeAmount;
+    const feePercentage = 0;
+    const feeAmount = 0;
+    const amountAfterFees = baseAmount;
     
     if (isMixerDeposit && actualReceivedAmount !== null) {
       const changeNowFee = originalDepositAmount - actualReceivedAmount;

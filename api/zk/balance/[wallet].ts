@@ -193,7 +193,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log(`[Balance] Found ${transactions?.length || 0} transactions for wallet ${wallet} (hasFeeColumn: ${hasFeeColumn})`);
       
       if (transactions && transactions.length > 0) {
-        const DEFAULT_FEE_PERCENT = 10; // Default 10% fee for deposits
+        const DEFAULT_FEE_PERCENT = 0; // No platform fee on deposits — users get what ChangeNow returns
         
         transactions.forEach((tx: any, index: number) => {
           const amount = parseFloat(tx.amount || 0);
@@ -213,9 +213,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
           // Deposit: sender == recipient (depositing to self)
           else if (tx.sender_wallet === wallet && tx.recipient_wallet === wallet) {
-            // Deposits always have fees (default 10% if not stored)
+            // No platform fee on deposits — users get the full amount from ChangeNow
             const depositFee = feePercent > 0 ? feePercent : DEFAULT_FEE_PERCENT;
-            const amountAfterFees = amount * (1 - depositFee / 100);
+            const amountAfterFees = depositFee > 0 ? amount * (1 - depositFee / 100) : amount;
             balance += amountAfterFees;
             deposited += amount;
             console.log(`[Balance] +${amountAfterFees.toFixed(4)} (deposit $${amount}, fee ${depositFee}%)`);

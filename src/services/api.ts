@@ -608,7 +608,8 @@ export const settleZKX402Payment = async (
 
 export interface ZKTransferRequest {
   sender_wallet: string;
-  recipient_wallet: string;
+  recipient_wallet?: string; // For direct address transfers
+  recipient_username?: string; // For username transfers (resolved server-side for privacy)
   token: "USDC" | "USDT";
   amount: number;
   nonce: number;

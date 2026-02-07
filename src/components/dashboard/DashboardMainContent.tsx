@@ -53,21 +53,16 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
     }
   };
 
-  // Fetch token balances on mount
+  // Fetch token balances and global balance on mount and when returning to overview tab
   useEffect(() => {
-    fetchTokenBalances();
-  }, [isConnected, fullWalletAddress]);
+    if (activeTab === "overview" || activeTab === "dashboard") {
+      fetchTokenBalances();
+      refreshBalance();
+    }
+  }, [isConnected, fullWalletAddress, activeTab]);
 
-  // Handler for refresh button - refreshes all balances
-  const handleRefreshAll = async () => {
-    await Promise.all([
-      refreshBalance(),
-      fetchTokenBalances(),
-    ]);
-  };
-
-  useEffect(() => {
-    const fetchTransactions = async () => {
+  // Fetch recent transactions
+  const fetchTransactions = async () => {
       if (!isConnected || !fullWalletAddress) {
         setIsLoadingTransactions(false);
         return;
@@ -167,11 +162,37 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
       }
     };
 
+  useEffect(() => {
     fetchTransactions();
     // Refresh every 60 seconds
     const interval = setInterval(fetchTransactions, 60000);
     return () => clearInterval(interval);
-  }, [fullWalletAddress, isConnected]);
+  }, [fullWalletAddress, isConnected, activeTab]);
+
+  // Handler for refresh button - refreshes all balances and transactions
+  const handleRefreshAll = async () => {
+    await Promise.all([
+      refreshBalance(),
+      fetchTokenBalances(),
+      fetchTransactions(),
+    ]);
+  };
+
+  // Called when deposit or send modals close — refresh everything
+  const handleDepositModalChange = (open: boolean) => {
+    setDepositModalOpen(open);
+    if (!open) {
+      // Modal just closed — refresh all data after a short delay
+      setTimeout(() => handleRefreshAll(), 1500);
+    }
+  };
+
+  const handleSendModalChange = (open: boolean) => {
+    setSendModalOpen(open);
+    if (!open) {
+      setTimeout(() => handleRefreshAll(), 1500);
+    }
+  };
 
   if (activeTab === "settings") {
     return (
@@ -436,8 +457,8 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
       </div>
 
       {/* Modals */}
-      <DepositModal open={depositModalOpen} onOpenChange={setDepositModalOpen} />
-      <SendPaymentModal open={sendModalOpen} onOpenChange={setSendModalOpen} />
+      <DepositModal open={depositModalOpen} onOpenChange={handleDepositModalChange} />
+      <SendPaymentModal open={sendModalOpen} onOpenChange={handleSendModalChange} />
       <X402PaymentModal open={x402ModalOpen} onOpenChange={setX402ModalOpen} />
       <PayX402Modal open={payX402ModalOpen} onOpenChange={setPayX402ModalOpen} />
     </>

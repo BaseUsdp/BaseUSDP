@@ -4,5 +4,15 @@
   "framework": "vite",
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/zk/process-pending-exchanges",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/x402/process-deposits",
+      "schedule": "*/2 * * * *"
+    }
   ]
 }

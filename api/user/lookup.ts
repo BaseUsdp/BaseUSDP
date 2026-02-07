@@ -68,11 +68,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    // Check if recipient has deposited (has an intermediate wallet or completed transactions)
+    // This is required for internal transfers to work
+    let hasDeposited = false;
+    
+    // Check zk_user_wallets first
+    const { data: walletMapping } = await supabase
+      .from("zk_user_wallets")
+      .select("id")
+      .eq("user_wallet", data.wallet_address)
+      .maybeSingle();
+    
+    if (walletMapping) {
+      hasDeposited = true;
+    } else {
+      // Fallback: check if they have any completed transactions
+      const { data: txHistory } = await supabase
+        .from("zk_transactions")
+        .select("id")
+        .or(`sender_wallet.eq.${data.wallet_address},recipient_wallet.eq.${data.wallet_address}`)
+        .in("status", ["confirmed", "completed"])
+        .limit(1);
+      
+      hasDeposited = !!(txHistory && txHistory.length > 0);
+    }
+
+    // PRIVACY: Do NOT return ANY wallet address information in the lookup response.
+    // Anyone can call this endpoint — even a masked hint leaks info.
+    // The transfer API resolves usernames to wallet addresses internally.
     return res.status(200).json({
       success: true,
-      wallet_address: data.wallet_address,
       username: data.username,
       profile_picture: data.profile_picture || null,
+      has_deposited: hasDeposited,
     });
   } catch (error: any) {
     console.error("Error in username lookup:", error);

@@ -17,8 +17,10 @@ import {
   getSolflareProvider,
   WalletAdapter,
 } from "@/services/transactionSigningService";
-import { executeZKTransfer } from "@/services/api";
+import { executeZKTransfer, getZKBalance } from "@/services/api";
 import { getApiUrl } from "@/utils/apiConfig";
+
+const MAX_AMOUNT = 999999.99;
 
 type RecipientType = "address" | "username";
 
@@ -30,45 +32,131 @@ interface SendPaymentModalProps {
 type TransactionStep = "form" | "preview" | "signing" | "encrypting" | "pending" | "success" | "failed";
 
 const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
-  const { encryptedBalance, privacyLevel, walletType, isConnected, fullWalletAddress } = useWallet();
+  const { encryptedBalance, privacyLevel, walletType, isConnected, fullWalletAddress, refreshBalance } = useWallet();
   const apiUrl = getApiUrl();
   
   const [recipientType, setRecipientType] = useState<RecipientType>("address");
   const [recipient, setRecipient] = useState("");
   const [usernameInput, setUsernameInput] = useState("");
   const [resolvedWallet, setResolvedWallet] = useState<string | null>(null);
+  const [walletHint, setWalletHint] = useState<string | null>(null);
+  const [recipientHasDeposited, setRecipientHasDeposited] = useState<boolean>(true);
+  const [isSelfSend, setIsSelfSend] = useState<boolean>(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
+  const [selectedToken, setSelectedToken] = useState<"USDC" | "USDT">("USDC");
   const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyLevel>(privacyLevel);
   const [step, setStep] = useState<TransactionStep>("form");
   const [txHash, setTxHash] = useState("");
   const [error, setError] = useState("");
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+  const [tokenBalances, setTokenBalances] = useState<{ usdc: number; usdt: number }>({ usdc: 0, usdt: 0 });
+
+  // Fetch per-token balances
+  useEffect(() => {
+    const fetchBalances = async () => {
+      if (!isConnected || !fullWalletAddress) return;
+      try {
+        const [usdcResult, usdtResult] = await Promise.all([
+          getZKBalance(fullWalletAddress, 'USDC').catch(() => ({ balance: 0 })),
+          getZKBalance(fullWalletAddress, 'USDT').catch(() => ({ balance: 0 })),
+        ]);
+        setTokenBalances({
+          usdc: usdcResult?.balance || 0,
+          usdt: usdtResult?.balance || 0,
+        });
+      } catch {
+        // keep defaults
+      }
+    };
+    if (open) fetchBalances();
+  }, [isConnected, fullWalletAddress, open]);
+
+  const availableBalance = selectedToken === "USDC" ? tokenBalances.usdc : tokenBalances.usdt;
+
+  // Sanitize amount input — no negatives, max 999,999.99
+  const handleAmountChange = (value: string) => {
+    // Strip any minus signs
+    let clean = value.replace(/-/g, '');
+    // Allow empty or valid number
+    if (clean === '' || clean === '.') {
+      setAmount(clean);
+      return;
+    }
+    const num = parseFloat(clean);
+    if (!isNaN(num) && num > MAX_AMOUNT) {
+      clean = MAX_AMOUNT.toString();
+    }
+    setAmount(clean);
+  };
+
+  // Fetch current user's username to prevent self-sends
+  useEffect(() => {
+    const fetchOwnUsername = async () => {
+      if (!isConnected || !fullWalletAddress) {
+        setCurrentUsername(null);
+        return;
+      }
+      try {
+        const response = await fetch(`${apiUrl}/api/user/profile?wallet=${encodeURIComponent(fullWalletAddress)}`);
+        const data = await response.json();
+        if (data.success && data.profile?.username && data.profile?.has_custom_username) {
+          setCurrentUsername(data.profile.username.toLowerCase());
+        }
+      } catch {
+        setCurrentUsername(null);
+      }
+    };
+    fetchOwnUsername();
+  }, [isConnected, fullWalletAddress, apiUrl]);
 
   // Username lookup effect (debounced)
   useEffect(() => {
     if (recipientType !== "username" || !usernameInput || usernameInput.length < 2) {
       setResolvedWallet(null);
+      setWalletHint(null);
+      setRecipientHasDeposited(true);
+      setIsSelfSend(false);
       setLookupError(null);
       return;
     }
 
+    // Check for self-send before making the API call
+    const cleanUsername = usernameInput.startsWith("@") ? usernameInput.substring(1) : usernameInput;
+    if (currentUsername && cleanUsername.toLowerCase() === currentUsername) {
+      setResolvedWallet(null);
+      setWalletHint(null);
+      setRecipientHasDeposited(true);
+      setIsSelfSend(true);
+      setLookupError(null);
+      setIsLookingUp(false);
+      return;
+    }
+
+    setIsSelfSend(false);
     setIsLookingUp(true);
     const timeoutId = setTimeout(async () => {
       try {
-        const cleanUsername = usernameInput.startsWith("@") ? usernameInput.substring(1) : usernameInput;
         const response = await fetch(`${apiUrl}/api/user/lookup?username=${encodeURIComponent(cleanUsername)}`);
         const data = await response.json();
 
-        if (data.success && data.wallet_address) {
-          setResolvedWallet(data.wallet_address);
+        if (data.success) {
+          // PRIVACY: We no longer receive the full wallet address from lookup
+          // The transfer API resolves usernames server-side
+          setResolvedWallet("username_resolved"); // Sentinel value — actual address resolved server-side
+          setWalletHint(data.wallet_hint || null);
+          setRecipientHasDeposited(data.has_deposited !== false);
           setLookupError(null);
         } else {
           setResolvedWallet(null);
+          setWalletHint(null);
+          setRecipientHasDeposited(true);
           setLookupError("Username not found");
         }
       } catch {
         setResolvedWallet(null);
+        setWalletHint(null);
         setLookupError("Failed to lookup username");
       } finally {
         setIsLookingUp(false);
@@ -76,7 +164,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
     }, 400);
 
     return () => clearTimeout(timeoutId);
-  }, [usernameInput, recipientType, apiUrl]);
+  }, [usernameInput, recipientType, apiUrl, currentUsername]);
 
   // Get effective recipient wallet address
   const getEffectiveRecipient = (): string => {
@@ -124,24 +212,53 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
   };
 
   const handlePreview = () => {
-    const effectiveRecipient = getEffectiveRecipient();
-    
-    if (!effectiveRecipient || !amount) {
-      if (recipientType === "username" && !resolvedWallet) {
-        setError("Please enter a valid username");
-        return;
-      }
+    if (!amount) {
       setError("Please fill in all fields");
       return;
     }
     
-    if (!isValidAddress(effectiveRecipient)) {
-      setError("Invalid recipient address");
-      return;
+    if (recipientType === "username") {
+      // For username transfers: just need a resolved username
+      if (!resolvedWallet || !usernameInput) {
+        setError("Please enter a valid username");
+        return;
+      }
+      if (isSelfSend) {
+        setError("You cannot send to yourself");
+        return;
+      }
+      if (!recipientHasDeposited) {
+        setError("This user hasn't deposited yet — they must deposit before they can receive transfers");
+        return;
+      }
+    } else {
+      // For address transfers: validate the Solana address
+      if (!recipient) {
+        setError("Please enter a recipient address");
+        return;
+      }
+      if (!isValidAddress(recipient)) {
+        setError("Invalid recipient address");
+        return;
+      }
+      // Prevent sending to own wallet address
+      if (fullWalletAddress && recipient === fullWalletAddress) {
+        setError("You cannot send to yourself");
+        return;
+      }
     }
     
-    if (parseFloat(amount) <= 0) {
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
       setError("Amount must be greater than 0");
+      return;
+    }
+    if (parsedAmount > MAX_AMOUNT) {
+      setError(`Maximum amount is $${MAX_AMOUNT.toLocaleString()}`);
+      return;
+    }
+    if (parsedAmount > availableBalance) {
+      setError(`Insufficient ${selectedToken} balance. Available: $${availableBalance.toFixed(2)}`);
       return;
     }
     
@@ -172,7 +289,8 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
       
       // Create message to sign
       const effectiveRecipient = getEffectiveRecipient();
-      const message = `Authorize Void402 transfer:\nAmount: ${amount} USDC\nTo: ${effectiveRecipient}\nTimestamp: ${Date.now()}`;
+      const displayRecipient = recipientType === "username" ? `@${usernameInput}` : effectiveRecipient;
+      const message = `Authorize Void402 transfer:\nAmount: ${amount} ${selectedToken}\nTo: ${displayRecipient}\nTimestamp: ${Date.now()}`;
       
       // Sign message with wallet (Phantom/Solflare format)
       let walletSignature: string;
@@ -216,15 +334,25 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
       // Step 2: Execute ZK transfer (backend handles proof generation and relayer)
       setStep("encrypting");
       const nonce = Date.now() + Math.floor(Math.random() * 1000000);
-      const result = await executeZKTransfer({
+      
+      // PRIVACY: For username transfers, send the username so the backend resolves it server-side
+      // The frontend never sees or sends the recipient's full wallet address
+      const transferPayload: any = {
         sender_wallet: fullWalletAddress,
-        recipient_wallet: effectiveRecipient,
-        token: "USDC", // Default to USDC for now
+        token: selectedToken,
         amount: parseFloat(amount),
         nonce: nonce,
         wallet_signature: walletSignature,
         message_to_sign: message,
-      });
+      };
+      
+      if (recipientType === "username" && usernameInput) {
+        transferPayload.recipient_username = usernameInput;
+      } else {
+        transferPayload.recipient_wallet = effectiveRecipient;
+      }
+      
+      const result = await executeZKTransfer(transferPayload);
 
       // Check if wallet disconnected during transaction
       if (!wallet.connected || !wallet.publicKey) {
@@ -242,6 +370,11 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         setStep("success");
+
+        // Refresh balance after successful transfer
+        if (refreshBalance) {
+          setTimeout(() => refreshBalance(), 1000);
+        }
       } else {
         // Transaction failed
         const errorStep = result.step || "unknown";
@@ -297,8 +430,12 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
     setRecipient("");
     setUsernameInput("");
     setResolvedWallet(null);
+    setWalletHint(null);
+    setRecipientHasDeposited(true);
+    setIsSelfSend(false);
     setLookupError(null);
     setAmount("");
+    setSelectedToken("USDC");
     setStep("form");
     setTxHash("");
     setError("");
@@ -410,12 +547,25 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
 
                 {/* Username Lookup Result */}
                 {recipientType === "username" && usernameInput && !isLookingUp && (
-                  <div className="mt-2 text-xs">
-                    {resolvedWallet ? (
-                      <p className="text-green-500 flex items-center gap-1">
-                        <User className="w-3 h-3" />
-                        Found: {resolvedWallet.slice(0, 6)}...{resolvedWallet.slice(-6)}
+                  <div className="mt-2 text-xs space-y-1">
+                    {isSelfSend ? (
+                      <p className="text-destructive flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        You cannot send to yourself
                       </p>
+                    ) : resolvedWallet ? (
+                      <>
+                        <p className="text-green-500 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          User found
+                        </p>
+                        {!recipientHasDeposited && (
+                          <p className="text-amber-500 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            This user hasn't deposited yet — they must deposit before they can receive transfers
+                          </p>
+                        )}
+                      </>
                     ) : lookupError ? (
                       <p className="text-destructive">{lookupError}</p>
                     ) : null}
@@ -423,20 +573,55 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
                 )}
               </div>
 
+              {/* Token Selector */}
+              <div>
+                <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-2">
+                  Token
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedToken("USDC")}
+                    className={cn(
+                      "flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
+                      selectedToken === "USDC"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                    )}
+                  >
+                    <img src="https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png" alt="USDC" className="w-5 h-5 rounded-full" />
+                    USDC
+                  </button>
+                  <button
+                    onClick={() => setSelectedToken("USDT")}
+                    className={cn(
+                      "flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
+                      selectedToken === "USDT"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                    )}
+                  >
+                    <img src="https://assets.coingecko.com/coins/images/325/small/Tether.png" alt="USDT" className="w-5 h-5 rounded-full" />
+                    USDT
+                  </button>
+                </div>
+              </div>
+
               {/* Amount */}
               <div>
                 <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-2">
-                  Amount (USDC)
+                  Amount ({selectedToken})
                 </label>
                 <Input
                   type="number"
                   placeholder="0.00"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => handleAmountChange(e.target.value)}
+                  min="0"
+                  max={MAX_AMOUNT}
                   className="bg-secondary border-border h-14 text-2xl font-mono"
                 />
                 <p className="text-xs text-muted-foreground mt-2">
-                  Available: ${encryptedBalance}
+                  Available: ${availableBalance.toFixed(2)} {selectedToken}
                 </p>
               </div>
 
@@ -456,8 +641,8 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
                 onClick={handlePreview}
                 disabled={
                   !amount ||
-                  (recipientType === "address" && !recipient) ||
-                  (recipientType === "username" && (!resolvedWallet || isLookingUp))
+                  (recipientType === "address" && (!recipient || recipient === fullWalletAddress)) ||
+                  (recipientType === "username" && (!resolvedWallet || isLookingUp || !recipientHasDeposited || isSelfSend))
                 }
                 className="w-full h-12 bg-primary hover:bg-primary/90"
               >
@@ -479,16 +664,21 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Recipient</span>
                   <div className="text-right">
-                    {recipientType === "username" && usernameInput && (
-                      <span className="text-primary font-medium block">@{usernameInput}</span>
+                    {recipientType === "username" && usernameInput ? (
+                      <span className="text-primary font-medium">@{usernameInput}</span>
+                    ) : (
+                      <span className="font-mono text-sm text-muted-foreground">
+                        {(() => {
+                          const addr = getEffectiveRecipient();
+                          return addr.length > 20 ? `${addr.slice(0, 4)}••••${addr.slice(-4)}` : addr;
+                        })()}
+                      </span>
                     )}
-                    <span className="font-mono text-sm text-muted-foreground">
-                      {(() => {
-                        const addr = getEffectiveRecipient();
-                        return addr.length > 20 ? `${addr.slice(0, 6)}...${addr.slice(-6)}` : addr;
-                      })()}
-                    </span>
                   </div>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Token</span>
+                  <span className="font-medium">{selectedToken}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Amount</span>

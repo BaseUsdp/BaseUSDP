@@ -17,7 +17,7 @@ type Token = "USDC" | "USDT";
 type WithdrawStep = "form" | "confirm" | "processing" | "success" | "error";
 
 const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
-  const { fullWalletAddress, encryptedBalance } = useWallet();
+  const { fullWalletAddress, encryptedBalance, refreshBalance } = useWallet();
   const [step, setStep] = useState<WithdrawStep>("form");
   const [amount, setAmount] = useState("");
   const [token, setToken] = useState<Token>("USDC");
@@ -58,15 +58,36 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
     fetchBalances();
   }, [fullWalletAddress, apiUrl]);
 
+  const MAX_AMOUNT = 999999.99;
   const availableBalance = token === "USDC" ? tokenBalances.usdc : tokenBalances.usdt;
 
+  // Sanitize amount input — no negatives, max 999,999.99
+  const handleAmountChange = (value: string) => {
+    let clean = value.replace(/-/g, '');
+    if (clean === '' || clean === '.') {
+      setAmount(clean);
+      return;
+    }
+    const num = parseFloat(clean);
+    if (!isNaN(num) && num > MAX_AMOUNT) {
+      clean = MAX_AMOUNT.toString();
+    }
+    setAmount(clean);
+  };
+
   const handleWithdraw = async () => {
-    if (!fullWalletAddress || !amount || parseFloat(amount) <= 0) {
+    const parsedAmount = parseFloat(amount);
+    if (!fullWalletAddress || !amount || isNaN(parsedAmount) || parsedAmount <= 0) {
       setError("Please enter a valid amount");
       return;
     }
 
-    if (parseFloat(amount) > availableBalance) {
+    if (parsedAmount > MAX_AMOUNT) {
+      setError(`Maximum withdrawal amount is $${MAX_AMOUNT.toLocaleString()}`);
+      return;
+    }
+
+    if (parsedAmount > availableBalance) {
       setError("Insufficient balance");
       return;
     }
@@ -135,6 +156,28 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
 
       setTxSignature(withdrawData.signature);
       setStep("success");
+
+      // Refresh balance after successful withdrawal
+      if (refreshBalance) {
+        setTimeout(() => refreshBalance(), 1000);
+      }
+      // Also refresh local token balances
+      try {
+        const sessionToken = authService.getSessionToken();
+        const headers: HeadersInit = { "Content-Type": "application/json" };
+        if (sessionToken) headers["Authorization"] = `Bearer ${sessionToken}`;
+
+        const [usdcRes, usdtRes] = await Promise.all([
+          fetch(`${apiUrl}/api/zk/balance/${fullWalletAddress}?token=USDC`, { headers }),
+          fetch(`${apiUrl}/api/zk/balance/${fullWalletAddress}?token=USDT`, { headers }),
+        ]);
+        const usdcData = await usdcRes.json();
+        const usdtData = await usdtRes.json();
+        setTokenBalances({
+          usdc: usdcData.balance || 0,
+          usdt: usdtData.balance || 0,
+        });
+      } catch {}
     } catch (err: any) {
       console.error("Withdraw error:", err);
       setError(err.message || "Withdrawal failed");
@@ -150,7 +193,7 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
   };
 
   const setMaxAmount = () => {
-    setAmount(availableBalance.toString());
+    setAmount(Math.min(availableBalance, MAX_AMOUNT).toString());
   };
 
   return (
@@ -222,7 +265,9 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
                     type="number"
                     placeholder="0.00"
                     value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    onChange={(e) => handleAmountChange(e.target.value)}
+                    min="0"
+                    max={MAX_AMOUNT}
                     className="bg-white/5 border-white/10 text-white placeholder:text-neutral-500 pr-20"
                   />
                   <button

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
 import { authService } from "@/services/authService";
 import { getZKBalance } from "@/services/api";
+import { getApiUrl } from "@/utils/apiConfig";
 
 export type WalletType = "phantom" | "solflare" | null;
 export type PrivacyLevel = "public" | "partial" | "full";
@@ -96,8 +97,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Clear wallet state and redirect to landing (used on disconnect/switch)
-  const clearWalletAndRedirect = useCallback(() => {
-    authService.logout(true).catch(() => {});
+  const clearWalletAndRedirect = useCallback(async () => {
+    // IMPORTANT: Await the backend logout to ensure session is deleted from DB
+    // This prevents stale sessions from bypassing re-authentication on reconnect
+    try {
+      await authService.logout(true);
+    } catch {
+      // If backend logout fails, still clear locally
+      console.warn("[WalletContext] Backend logout failed, clearing locally");
+    }
     setIsAuthenticated(false);
     setAuthError(null);
     setIsConnected(false);
@@ -131,10 +139,68 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setIsConnected(true);
     setNetworkStatus("connected");
     
-    // Check if user has valid session
-    if (authService.isAuthenticated()) {
+    // Check if user has valid session locally
+    const hasLocalSession = authService.isAuthenticated();
+    if (hasLocalSession) {
       setIsAuthenticated(true);
     }
+
+    // Helper: verify session is valid with backend, re-auth if not
+    const verifyAndReauth = async (walletProvider: any, isPhantom: boolean) => {
+      // First check: does the token exist locally?
+      const sessionToken = authService.getSessionToken();
+      let sessionValid = false;
+      
+      if (sessionToken) {
+        // Verify with backend that the session is still valid
+        try {
+          const apiUrl = getApiUrl();
+          const verifyRes = await fetch(`${apiUrl}/api/zk/balance/${fullAddress}?token=USDC`, {
+            headers: { 'Authorization': `Bearer ${sessionToken}` },
+          });
+          const verifyData = await verifyRes.json();
+          // If the response has a message about auth, session is invalid
+          if (verifyData.message && (verifyData.message.includes('Not authenticated') || verifyData.message.includes('Session invalid') || verifyData.message.includes('invalid'))) {
+            console.log("[WalletContext] Backend session invalid, need re-auth");
+            sessionValid = false;
+          } else {
+            sessionValid = true;
+            console.log("[WalletContext] Backend session verified OK");
+          }
+        } catch {
+          // Network error - assume session might be valid
+          sessionValid = true;
+        }
+      }
+      
+      if (!sessionValid) {
+        // Session is stale or missing - re-authenticate
+        console.log("[WalletContext] Re-authenticating...");
+        try {
+          const walletAdapter = {
+            publicKey: walletProvider.publicKey ? { toBase58: () => walletProvider.publicKey!.toString() } : null,
+            signMessage: async (message: Uint8Array) => {
+              if (isPhantom) {
+                const { signature } = await (walletProvider as any).signMessage(message, "utf8");
+                return signature;
+              } else {
+                return await (walletProvider as any).signMessage(message, "utf8");
+              }
+            },
+            connected: walletProvider.isConnected || false,
+          };
+          const authResult = await authService.authenticate(walletAdapter);
+          if (authResult.success) {
+            setIsAuthenticated(true);
+            console.log("[WalletContext] Re-authenticated successfully");
+          } else {
+            console.warn("[WalletContext] Re-auth failed:", authResult.error);
+          }
+        } catch (authErr) {
+          console.warn("[WalletContext] Re-auth error:", authErr);
+        }
+      }
+    };
 
     // Eagerly reconnect to the wallet (like Nolvipay does)
     // This ensures the wallet provider is properly connected after page refresh
@@ -158,6 +224,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
                 clearWalletAndRedirect();
                 return;
               }
+              
+              // Verify session with backend and re-auth if needed
+              await verifyAndReauth(phantom, true);
             } catch (err) {
               // onlyIfTrusted failed - wallet was disconnected by user
               console.log("[WalletContext] Phantom eager reconnect failed (not trusted):", err);
@@ -182,6 +251,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
                   clearWalletAndRedirect();
                   return;
                 }
+                
+                // Verify session with backend and re-auth if needed
+                await verifyAndReauth(solflare, false);
               } else {
                 console.log("[WalletContext] Solflare reconnect failed - no public key");
                 clearWalletAndRedirect();
@@ -428,10 +500,39 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           fullAddress: publicKey
         }));
         
-        // Fetch balance immediately after connecting
-        setTimeout(() => {
-          // Balance will be fetched automatically by useEffect when isConnected/fullWalletAddress changes
-        }, 100);
+        // Always authenticate after connecting (like NolviPay)
+        // This ensures a fresh, valid session token for the balance API
+        try {
+          const phantom = getPhantomProvider();
+          const solflare = getSolflareProvider();
+          const wallet = phantom || solflare;
+          
+          if (wallet) {
+            const walletAdapter = {
+              publicKey: wallet.publicKey ? { toBase58: () => wallet.publicKey!.toString() } : null,
+              signMessage: async (message: Uint8Array) => {
+                if (phantom?.isPhantom) {
+                  const { signature } = await (phantom as any).signMessage(message, "utf8");
+                  return signature;
+                } else if (solflare?.isSolflare) {
+                  return await (solflare as any).signMessage(message, "utf8");
+                }
+                throw new Error("Wallet does not support message signing");
+              },
+              connected: wallet.isConnected || false,
+            };
+            
+            const result = await authService.authenticate(walletAdapter);
+            if (result.success) {
+              setIsAuthenticated(true);
+              console.log("[WalletContext] Auto-authenticated after connect");
+            } else {
+              console.warn("[WalletContext] Auto-auth failed:", result.error);
+            }
+          }
+        } catch (authErr) {
+          console.warn("[WalletContext] Auto-auth error:", authErr);
+        }
       }
     } catch (error) {
       console.error("Failed to connect wallet:", error);
@@ -454,7 +555,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error("Disconnect error:", err);
     }
-    clearWalletAndRedirect();
+    await clearWalletAndRedirect();
   }, [walletType, clearWalletAndRedirect]);
 
   // Authenticate with wallet signature
