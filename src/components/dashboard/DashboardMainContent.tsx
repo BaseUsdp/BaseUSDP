@@ -338,15 +338,15 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
             <div className="mb-3">
               <div className="text-sm font-medium text-neutral-300">Stable Currencies</div>
             </div>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-evenly">
               <div className="flex flex-col items-center gap-1" title="USDC">
                 <img 
                   src="https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png" 
                   alt="USDC" 
-                  className="w-6 h-6 rounded-full"
+                  className="w-7 h-7 rounded-full"
                 />
                 <span className="text-xs text-neutral-400">USDC</span>
-                <span className="text-xs font-medium text-white">
+                <span className="text-sm font-medium text-white">
                   {showBalance ? `$${tokenBalances.usdc.toFixed(2)}` : "••••"}
                 </span>
               </div>
@@ -354,10 +354,10 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
                 <img 
                   src="https://assets.coingecko.com/coins/images/325/small/Tether.png" 
                   alt="USDT" 
-                  className="w-6 h-6 rounded-full"
+                  className="w-7 h-7 rounded-full"
                 />
                 <span className="text-xs text-neutral-400">USDT</span>
-                <span className="text-xs font-medium text-white">
+                <span className="text-sm font-medium text-white">
                   {showBalance ? `$${tokenBalances.usdt.toFixed(2)}` : "••••"}
                 </span>
               </div>
