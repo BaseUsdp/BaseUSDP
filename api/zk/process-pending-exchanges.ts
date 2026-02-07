@@ -198,39 +198,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           continue;
         }
 
-        // Check ChangeNow status
-        if (exchange.status !== 'finished') {
-          const cnResponse = await fetch(
-            `https://api.changenow.io/v1/transactions/${exchange.exchange_id}/${CHANGENOW_API_KEY}`,
-            { method: 'GET', headers: { 'Content-Type': 'application/json' } }
-          );
-          
-          if (!cnResponse.ok) {
-            console.log(`  ⚠️ ChangeNow API error: ${cnResponse.status}`);
-            results.push({ exchangeId: exchange.exchange_id, status: 'api_error' });
-            continue;
-          }
-
-          const cnStatus = await cnResponse.json();
-          console.log(`  📊 ChangeNow status: ${cnStatus.status}`);
-
-          // Update status in DB
-          if (cnStatus.status !== exchange.status) {
-            await supabase
-              .from('zk_exchanges')
-              .update({ 
-                status: cnStatus.status,
-                changenow_status: cnStatus.status,
-              })
-              .eq('id', exchange.id);
-            updatedCount++;
-          }
-
-          if (cnStatus.status !== 'finished') {
-            results.push({ exchangeId: exchange.exchange_id, status: cnStatus.status, action: 'waiting' });
-            continue;
-          }
+        // Check ChangeNow status and get actual output amount
+        let changenowOutputAmount: number | null = null;
+        
+        const cnResponse = await fetch(
+          `https://api.changenow.io/v1/transactions/${exchange.exchange_id}/${CHANGENOW_API_KEY}`,
+          { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+        );
+        
+        if (!cnResponse.ok) {
+          console.log(`  ⚠️ ChangeNow API error: ${cnResponse.status}`);
+          results.push({ exchangeId: exchange.exchange_id, status: 'api_error' });
+          continue;
         }
+
+        const cnStatus = await cnResponse.json();
+        console.log(`  📊 ChangeNow status: ${cnStatus.status}, amountTo: ${cnStatus.amountTo}`);
+
+        // Update status in DB
+        if (cnStatus.status !== exchange.status) {
+          await supabase
+            .from('zk_exchanges')
+            .update({ 
+              status: cnStatus.status,
+              changenow_status: cnStatus.status,
+            })
+            .eq('id', exchange.id);
+          updatedCount++;
+        }
+
+        if (cnStatus.status !== 'finished') {
+          results.push({ exchangeId: exchange.exchange_id, status: cnStatus.status, action: 'waiting' });
+          continue;
+        }
+
+        // Get actual output amount from ChangeNow (what they actually sent to mixer)
+        changenowOutputAmount = cnStatus.amountTo ? parseFloat(cnStatus.amountTo) : null;
+        console.log(`  💰 ChangeNow output: ${changenowOutputAmount} ${token}`);
 
         // Skip if already processed
         if (exchange.deposit_processed === true) {
@@ -362,9 +366,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const splitAmount = parseFloat(exchange.split_amount);
+        // Use actual ChangeNow output amount (what they sent to mixer), NOT the original split amount
+        const actualOutputAmount = changenowOutputAmount || splitAmount * 0.85;
         
-        // If intermediate already has funds >= 80% of split, skip mixer transfer
-        if (intermediateBalance >= splitAmount * 0.8) {
+        // If intermediate already has funds >= 80% of the actual output, skip mixer transfer
+        if (intermediateBalance >= actualOutputAmount * 0.8) {
           console.log(`  💰 Funds already in intermediate: ${intermediateBalance.toFixed(6)} ${token}`);
         } else {
           // Check mixer balance
@@ -379,14 +385,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             continue;
           }
 
-          if (mixerBalance < 0.5) {
-            console.log(`  ⚠️ Balance too low: ${mixerBalance}`);
+          if (mixerBalance < actualOutputAmount * 0.5) {
+            console.log(`  ⚠️ Balance too low: ${mixerBalance}, need ~${actualOutputAmount}`);
             results.push({ exchangeId: exchange.exchange_id, status: 'waiting_for_funds', balance: mixerBalance });
             continue;
           }
 
-          // Transfer from mixer to intermediate
-          const transferAmount = Math.min(mixerBalance - 0.001, splitAmount * 1.1);
+          // Transfer ONLY the actual ChangeNow output amount from mixer to intermediate
+          // Do NOT use splitAmount * 1.1 as that pulls from other users' funds
+          const transferAmount = Math.min(mixerBalance - 0.001, actualOutputAmount);
           const transferLamports = Math.floor(transferAmount * 1_000_000);
 
           console.log(`  📤 Transferring ${transferAmount.toFixed(6)} ${token}`);
@@ -515,8 +522,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         console.log(`  ✅ Smart contract deposit confirmed!`);
 
-        // Calculate amounts
-        const finalAmount = intBalance / 1_000_000;
+        // Calculate amounts - use the actual ChangeNow output, not the full intermediate balance
+        const finalAmount = actualOutputAmount;
         const FEE_PERCENTAGE = 10.0;
         const feeAmount = finalAmount * (FEE_PERCENTAGE / 100);
         const amountReceived = finalAmount - feeAmount;

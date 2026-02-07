@@ -64,17 +64,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Format transactions for frontend
-    const formattedTransactions = (transactions || []).map((tx: any) => ({
-      id: tx.id,
-      type: tx.sender_wallet === wallet ? "sent" : "received",
-      amount: tx.amount,
-      token: tx.token_symbol || "USDC",
-      counterparty: tx.sender_wallet === wallet ? tx.recipient_wallet : tx.sender_wallet,
-      status: tx.status,
-      timestamp: tx.created_at,
-      txHash: tx.tx_hash,
-      privacyLevel: tx.privacy_level || "full",
-    }));
+    const formattedTransactions = (transactions || []).map((tx: any) => {
+      // Determine transaction type from database or infer from wallets
+      let type = "transfer";
+      if (tx.transaction_type === "deposit" || (tx.sender_wallet === wallet && tx.recipient_wallet === wallet)) {
+        type = "deposit";
+      } else if (tx.transaction_type === "withdraw") {
+        type = "withdraw";
+      } else if (tx.sender_wallet === wallet) {
+        type = "sent";
+      } else {
+        type = "received";
+      }
+
+      return {
+        id: tx.id,
+        type,
+        amount: tx.amount,
+        token: tx.token_symbol || "USDC",
+        from: tx.sender_wallet,
+        to: tx.recipient_wallet,
+        counterparty: tx.sender_wallet === wallet ? tx.recipient_wallet : tx.sender_wallet,
+        status: tx.status === "completed" ? "success" : tx.status,
+        timestamp: tx.created_at,
+        signature: tx.tx_hash,
+        txHash: tx.tx_hash,
+        privacyLevel: tx.privacy_level || "full",
+      };
+    });
 
     return res.status(200).json({
       success: true,
