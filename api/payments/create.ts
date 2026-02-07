@@ -66,19 +66,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .update(paymentId + parsedAmount.toString() + recipient_wallet + Date.now().toString())
       .digest('hex');
 
-    // Insert into database
-    const { error: insertError } = await supabase
+    // Insert into database (matches existing NolviPay schema + extra columns)
+    let insertError: any = null;
+    
+    // Try with service_name and description columns first
+    const { error: err1 } = await supabase
       .from('payment_requests')
       .insert({
         payment_id: paymentId,
-        recipient_wallet: recipient_wallet,
+        user_wallet: recipient_wallet,
+        recipient: recipient_wallet,
         amount: parsedAmount,
         token: token || 'USDC',
-        service_name: service_name,
-        description: description || '',
+        nonce: Date.now(),
         payment_hash: paymentHash,
         status: 'pending',
+        service_name: service_name,
+        description: description || '',
       });
+
+    if (err1) {
+      // Fallback: insert without service_name/description (columns might not exist)
+      console.warn('[Payments] Insert with extra columns failed, trying fallback:', err1.message);
+      const { error: err2 } = await supabase
+        .from('payment_requests')
+        .insert({
+          payment_id: paymentId,
+          user_wallet: recipient_wallet,
+          recipient: recipient_wallet,
+          amount: parsedAmount,
+          token: token || 'USDC',
+          nonce: Date.now(),
+          payment_hash: paymentHash,
+          status: 'pending',
+        });
+      insertError = err2;
+    }
 
     if (insertError) {
       console.error('[Payments] Insert error:', insertError);

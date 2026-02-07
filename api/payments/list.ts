@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { data: payments, error } = await supabase
       .from('payment_requests')
       .select('*')
-      .eq('recipient_wallet', wallet as string)
+      .eq('user_wallet', wallet as string)
       .order('created_at', { ascending: false })
       .limit(50);
 
@@ -62,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const formattedPayments = (payments || []).map((p: any) => ({
       id: p.payment_id,
-      serviceName: p.service_name,
+      serviceName: p.service_name || 'Payment Request',
       amount: p.amount?.toString() || '0',
       token: p.token || 'USDC',
       description: p.description || '',

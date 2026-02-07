@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         status: 'cancelled',
       })
       .eq('payment_id', payment_id)
-      .eq('recipient_wallet', wallet)
+      .eq('user_wallet', wallet)
       .eq('status', 'pending')
       .select('payment_id');
 
