@@ -3,10 +3,21 @@
  * POST /api/zk/create-holding-wallet
  * 
  * Creates a deterministic holding wallet address for the user to send their full deposit to.
- * Once funds are detected, the system will automatically split and send to multiple Privacy Mixer exchanges.
+ * Also builds the unsigned transaction for the user to sign (so frontend doesn't need RPC access).
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Keypair } from '@solana/web3.js';
+import { 
+  Connection, 
+  Keypair, 
+  PublicKey, 
+  Transaction, 
+  SystemProgram,
+} from '@solana/web3.js';
+import { 
+  getAssociatedTokenAddress, 
+  createAssociatedTokenAccountInstruction, 
+  createTransferInstruction,
+} from '@solana/spl-token';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
@@ -31,10 +42,6 @@ function getAllowedOrigin(origin: string | undefined): string {
   return "https://www.void402.com";
 }
 
-/**
- * Generate a unique keypair deterministically from depositId
- * This ensures each deposit gets a unique holding wallet address
- */
 function generateHoldingWalletKeypair(depositId: string): Keypair {
   try {
     const seed = crypto.createHash('sha256').update(depositId).digest();
@@ -43,6 +50,11 @@ function generateHoldingWalletKeypair(depositId: string): Keypair {
   } catch (error: any) {
     throw new Error(`Failed to generate keypair: ${error.message}`);
   }
+}
+
+function getSolanaConnection(): Connection {
+  const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
+  return new Connection(rpcUrl, 'confirmed');
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -77,41 +89,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const connection = getSolanaConnection();
 
     // Generate unique deposit ID: wallet_timestamp_token
     const depositId = `${wallet}_${Date.now()}_${token}`;
 
-    // Check if a holding wallet already exists for this depositId
-    try {
-      const { data: existingWallet, error: checkError } = await supabase
-        .from('zk_holding_wallets')
-        .select('holding_wallet_address, status')
-        .eq('deposit_id', depositId)
-        .single();
-
-      if (!checkError && existingWallet) {
-        return res.status(200).json({
-          success: true,
-          holdingWalletAddress: existingWallet.holding_wallet_address,
-          depositId: depositId,
-          amount: amount,
-          token: token,
-          message: 'Send your full deposit to this address. The system will automatically split and process it through multiple Privacy Mixer exchanges.'
-        });
-      }
-    } catch {
-      // Table might not exist yet, continue
-    }
-
     // Generate a unique holding wallet for this deposit
     const holdingKeypair = generateHoldingWalletKeypair(depositId);
     const holdingAddress = holdingKeypair.publicKey.toString();
-
-    const tokenMint = token === 'USDC' ? USDC_MINT : USDT_MINT;
+    const tokenMintStr = token === 'USDC' ? USDC_MINT : USDT_MINT;
+    const tokenMint = new PublicKey(tokenMintStr);
+    const userPubkey = new PublicKey(wallet);
+    const holdingPubkey = holdingKeypair.publicKey;
 
     // Store deposit info in database
     try {
-      const { data: insertedWallet, error: dbError } = await supabase
+      const { error: dbError } = await supabase
         .from('zk_holding_wallets')
         .insert({
           deposit_id: depositId,
@@ -119,46 +112,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           holding_wallet_address: holdingAddress,
           amount: amount.toString(),
           token: token,
-          token_mint: tokenMint,
+          token_mint: tokenMintStr,
           status: 'pending',
-        })
-        .select()
-        .single();
+        });
 
       if (dbError) {
-        // Check for duplicate (race condition)
         if (dbError.code === '23505' || dbError.message?.includes('duplicate') || dbError.message?.includes('unique')) {
-          console.log(`⚠️ Duplicate deposit_id detected, fetching existing: ${depositId}`);
-          const { data: existing, error: fetchError } = await supabase
-            .from('zk_holding_wallets')
-            .select('holding_wallet_address')
-            .eq('deposit_id', depositId)
-            .single();
-          
-          if (existing && !fetchError) {
-            return res.status(200).json({
-              success: true,
-              holdingWalletAddress: existing.holding_wallet_address,
-              depositId: depositId,
-              amount: amount,
-              token: token,
-              message: 'Send your full deposit to this address. The system will automatically split and process it through multiple Privacy Mixer exchanges.'
-            });
-          }
+          console.log(`⚠️ Duplicate deposit_id, continuing: ${depositId}`);
+        } else {
+          console.error(`❌ Failed to store holding wallet:`, dbError);
+          return res.status(500).json({
+            error: 'Database error',
+            message: `Failed to store deposit: ${dbError.message || 'Unknown database error'}`,
+          });
         }
-        
-        console.error(`❌ Failed to store holding wallet:`, dbError);
-        return res.status(500).json({
-          error: 'Database error',
-          message: `Failed to store deposit: ${dbError.message || 'Unknown database error'}`,
-        });
-      }
-      
-      if (!insertedWallet) {
-        return res.status(500).json({
-          error: 'Database error',
-          message: 'Failed to store deposit: No data returned from insert'
-        });
       }
       
       console.log(`✅ Holding wallet created: ${depositId} -> ${holdingAddress}`);
@@ -170,13 +137,60 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    // Build unsigned transaction: User -> Holding Wallet
+    const depositAmount = parseFloat(amount);
+    const transferAmount = BigInt(Math.floor(depositAmount * 1_000_000));
+
+    const userTokenAccount = await getAssociatedTokenAddress(tokenMint, userPubkey);
+    const holdingTokenAccount = await getAssociatedTokenAddress(tokenMint, holdingPubkey);
+
+    const tx = new Transaction();
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+    tx.recentBlockhash = blockhash;
+    tx.lastValidBlockHeight = lastValidBlockHeight;
+    tx.feePayer = userPubkey;
+
+    // Check if holding wallet ATA exists
+    let holdingATAExists = false;
+    try {
+      const accountInfo = await connection.getAccountInfo(holdingTokenAccount);
+      holdingATAExists = accountInfo !== null;
+    } catch {
+      holdingATAExists = false;
+    }
+
+    if (!holdingATAExists) {
+      tx.add(
+        createAssociatedTokenAccountInstruction(
+          userPubkey,
+          holdingTokenAccount,
+          holdingPubkey,
+          tokenMint
+        )
+      );
+    }
+
+    tx.add(
+      createTransferInstruction(
+        userTokenAccount,
+        holdingTokenAccount,
+        userPubkey,
+        transferAmount
+      )
+    );
+
+    // Serialize to base64 for frontend
+    const serializedTx = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
+    const txBase64 = Buffer.from(serializedTx).toString('base64');
+
     return res.status(200).json({
       success: true,
       holdingWalletAddress: holdingAddress,
       depositId: depositId,
       amount: amount,
       token: token,
-      message: 'Send your full deposit to this address. The system will automatically split and process it through multiple Privacy Mixer exchanges.'
+      transaction: txBase64,
+      message: 'Sign and submit this transaction to deposit to the holding wallet.'
     });
 
   } catch (error: any) {

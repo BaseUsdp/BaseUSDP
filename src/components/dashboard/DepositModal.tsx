@@ -32,13 +32,6 @@ import {
 import { getApiUrl } from "@/utils/apiConfig";
 import { getPhantomProvider, getSolflareProvider, WalletAdapter } from "@/services/transactionSigningService";
 
-// Token mint addresses
-const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-const USDT_MINT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
-
-// Solana RPC
-const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
-
 interface DepositModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -197,127 +190,56 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
       console.log(`[Deposit] Deposit ID: ${newDepositId}`);
 
       // ============================================
-      // STEP 2: Build SPL token transfer transaction
-      // User wallet -> Holding wallet
-      // ============================================
-      setProcessingStatus("Building transaction...");
-
-      const {
-        Connection,
-        PublicKey,
-        Transaction,
-      } = await import("@solana/web3.js");
-
-      const {
-        getAssociatedTokenAddress,
-        createAssociatedTokenAccountInstruction,
-        createTransferInstruction,
-        TOKEN_PROGRAM_ID,
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-      } = await import("@solana/spl-token");
-
-      const connection = new Connection(SOLANA_RPC_URL, "confirmed");
-      const tokenMint = new PublicKey(token === "USDC" ? USDC_MINT : USDT_MINT);
-      const userPubkey = new PublicKey(fullWalletAddress);
-      const holdingPubkey = new PublicKey(holdingWalletAddress);
-
-      // Get token accounts
-      const userTokenAccount = await getAssociatedTokenAddress(tokenMint, userPubkey);
-      const holdingTokenAccount = await getAssociatedTokenAddress(tokenMint, holdingPubkey);
-
-      // Build transaction
-      const tx = new Transaction();
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
-      tx.recentBlockhash = blockhash;
-      tx.lastValidBlockHeight = lastValidBlockHeight;
-      tx.feePayer = userPubkey;
-
-      // Check if holding wallet token account exists
-      let holdingATAExists = false;
-      try {
-        const holdingAccountInfo = await connection.getAccountInfo(holdingTokenAccount);
-        holdingATAExists = holdingAccountInfo !== null;
-      } catch {
-        holdingATAExists = false;
-      }
-
-      // Create ATA for holding wallet if it doesn't exist
-      if (!holdingATAExists) {
-        tx.add(
-          createAssociatedTokenAccountInstruction(
-            userPubkey,          // payer
-            holdingTokenAccount, // ATA address
-            holdingPubkey,       // owner
-            tokenMint            // token mint
-          )
-        );
-      }
-
-      // Add transfer instruction
-      const transferAmount = BigInt(Math.floor(depositAmount * 1_000_000)); // 6 decimals for USDC/USDT
-      tx.add(
-        createTransferInstruction(
-          userTokenAccount,     // source
-          holdingTokenAccount,  // destination
-          userPubkey,           // owner/authority
-          transferAmount        // amount in smallest units
-        )
-      );
-
-      // ============================================
-      // STEP 3: Sign transaction with wallet
+      // STEP 2: Sign the transaction built by backend
       // ============================================
       setProcessingStatus("Please approve in your wallet...");
 
-      const wallet = getWalletProvider();
-      if (!wallet || !wallet.publicKey) {
+      const { Transaction } = await import("@solana/web3.js");
+
+      // Decode base64 transaction from backend
+      const txBase64 = holdingResult.transaction;
+      const txBytes = Uint8Array.from(atob(txBase64), (c) => c.charCodeAt(0));
+      const tx = Transaction.from(txBytes);
+
+      const walletProvider = getWalletProvider();
+      if (!walletProvider || !walletProvider.publicKey) {
         throw new Error("Wallet not available for signing");
       }
 
-      const signedTransaction = await wallet.signTransaction(tx);
+      const signedTransaction = await walletProvider.signTransaction(tx);
 
       // ============================================
-      // STEP 4: Submit transaction to Solana
+      // STEP 3: Submit transaction to Solana via backend
       // ============================================
       setStep("submitting");
       setProcessingStatus("Sending transaction to Solana...");
 
-      const rawTransaction = signedTransaction.serialize();
-      const signature = await connection.sendRawTransaction(rawTransaction, {
-        skipPreflight: false,
-        maxRetries: 3,
+      // Serialize signed tx to base64
+      const signedBytes = signedTransaction.serialize();
+      let signedBase64 = "";
+      const chunkSize = 8192;
+      for (let i = 0; i < signedBytes.length; i += chunkSize) {
+        signedBase64 += String.fromCharCode(...signedBytes.slice(i, i + chunkSize));
+      }
+      signedBase64 = btoa(signedBase64);
+
+      const submitResponse = await fetch(`${apiUrl}/api/solana/submit-transaction`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          signedTransaction: signedBase64,
+          transactionType: "deposit",
+        }),
       });
 
+      const submitResult = await submitResponse.json();
+
+      if (!submitResult.success) {
+        throw new Error(submitResult.error || "Failed to submit transaction");
+      }
+
+      const signature = submitResult.signature;
       setTxSignature(signature);
-      console.log(`[Deposit] Transaction sent: ${signature}`);
-
-      setProcessingStatus("Confirming transaction...");
-
-      // Wait for confirmation
-      let confirmed = false;
-      for (let i = 0; i < 60; i++) {
-        await new Promise((r) => setTimeout(r, 2000));
-        try {
-          const status = await connection.getSignatureStatus(signature);
-          if (
-            status.value?.confirmationStatus === "confirmed" ||
-            status.value?.confirmationStatus === "finalized"
-          ) {
-            confirmed = true;
-            break;
-          }
-          if (status.value?.err) {
-            throw new Error(`Transaction failed: ${JSON.stringify(status.value.err)}`);
-          }
-        } catch (e: any) {
-          if (e.message?.includes("Transaction failed")) throw e;
-        }
-      }
-
-      if (!confirmed) {
-        throw new Error("Transaction not confirmed after 2 minutes");
-      }
-
       console.log(`[Deposit] Transaction confirmed: ${signature}`);
 
       // ============================================
