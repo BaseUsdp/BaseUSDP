@@ -26,8 +26,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { getPaymentStatus } from "@/services/api";
 import { useWallet } from "@/contexts/WalletContext";
+import { getApiUrl } from "@/utils/apiConfig";
 import QRCode from "qrcode";
 
 type RequestStatus = "pending" | "settled" | "failed" | "expired" | "cancelled";
@@ -66,21 +66,24 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
     return `${baseUrl}/pay/${id}`;
   };
 
-  // Load payment requests from localStorage (in production, this would come from backend)
-  const loadRequests = useCallback(() => {
+  // Load payment requests from backend API
+  const loadRequests = useCallback(async () => {
+    if (!fullWalletAddress) {
+      setRequests([]);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
       
-      // Get requests from localStorage (created via X402PaymentModal)
-      const storedRequests = localStorage.getItem("void402_payment_requests");
-      if (storedRequests) {
-        const parsed = JSON.parse(storedRequests);
-        // Filter to only show requests for current wallet
-        const userRequests = parsed.filter((r: PaymentRequest) => 
-          r.id && r.id.startsWith("x402_")
-        );
-        setRequests(userRequests);
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/payments/list?wallet=${fullWalletAddress}`);
+      const data = await response.json();
+
+      if (data.success && data.payments) {
+        setRequests(data.payments);
       } else {
         setRequests([]);
       }
@@ -90,49 +93,27 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [fullWalletAddress]);
 
-  // Refresh payment requests - reload from localStorage and check API for status updates
+  // Refresh payment requests from backend
   const refreshStatuses = useCallback(async () => {
+    if (!fullWalletAddress) return;
+    
     setIsRefreshing(true);
     try {
-      // First reload from localStorage
-      const storedRequests = localStorage.getItem("void402_payment_requests");
-      if (storedRequests) {
-        const parsed = JSON.parse(storedRequests);
-        const userRequests = parsed.filter((r: PaymentRequest) => 
-          r.id && r.id.startsWith("x402_")
-        );
-        
-        // Try to update statuses from API
-        const updatedRequests = await Promise.all(
-          userRequests.map(async (req: PaymentRequest) => {
-            try {
-              const result = await getPaymentStatus(req.id);
-              if (result.success && result.payment) {
-                return {
-                  ...req,
-                  status: result.payment.status as RequestStatus,
-                };
-              }
-              return req;
-            } catch {
-              return req;
-            }
-          })
-        );
-        
-        setRequests(updatedRequests);
-        localStorage.setItem("void402_payment_requests", JSON.stringify(updatedRequests));
-      } else {
-        setRequests([]);
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/payments/list?wallet=${fullWalletAddress}`);
+      const data = await response.json();
+
+      if (data.success && data.payments) {
+        setRequests(data.payments);
       }
     } catch (err) {
       console.error("Error refreshing statuses:", err);
     } finally {
       setIsRefreshing(false);
     }
-  }, []);
+  }, [fullWalletAddress]);
 
   useEffect(() => {
     loadRequests();
@@ -144,17 +125,15 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
 
   // Listen for new payment requests created
   useEffect(() => {
-    const handleStorageChange = () => {
-      loadRequests();
+    const handleNewRequest = () => {
+      // Reload from backend after a short delay (give DB time to propagate)
+      setTimeout(() => loadRequests(), 500);
     };
     
-    window.addEventListener("storage", handleStorageChange);
-    // Also listen for custom event when request is created in same tab
-    window.addEventListener("paymentRequestCreated", handleStorageChange);
+    window.addEventListener("paymentRequestCreated", handleNewRequest);
     
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("paymentRequestCreated", handleStorageChange);
+      window.removeEventListener("paymentRequestCreated", handleNewRequest);
     };
   }, [loadRequests]);
 
@@ -183,13 +162,25 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const handleCancel = (id: string) => {
-    const updatedRequests = requests.map(r => 
-      r.id === id ? { ...r, status: "cancelled" as RequestStatus } : r
-    );
-    setRequests(updatedRequests);
-    // Persist to localStorage
-    localStorage.setItem("void402_payment_requests", JSON.stringify(updatedRequests));
+  const handleCancel = async (id: string) => {
+    try {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/api/payments/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payment_id: id, wallet: fullWalletAddress }),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        // Optimistically update UI
+        setRequests(prev => prev.map(r => 
+          r.id === id ? { ...r, status: "cancelled" as RequestStatus } : r
+        ));
+      }
+    } catch (err) {
+      console.error("Error cancelling payment:", err);
+    }
     setCancelDialog(null);
   };
 

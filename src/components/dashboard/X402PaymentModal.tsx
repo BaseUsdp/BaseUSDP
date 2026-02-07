@@ -11,15 +11,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { createZKX402Payment } from "@/services/api";
 import { useWallet } from "@/contexts/WalletContext";
+import { getApiUrl } from "@/utils/apiConfig";
 
 interface X402PaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-type CreateStep = "form" | "creating" | "success";
+type CreateStep = "form" | "creating" | "success" | "error";
 
 interface PaymentRequest {
   id: string;
@@ -39,99 +39,61 @@ const X402PaymentModal = ({ open, onOpenChange }: X402PaymentModalProps) => {
   const [step, setStep] = useState<CreateStep>("form");
   const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
   const [copied, setCopied] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   const handleCreate = async () => {
     if (!serviceName || !amount) return;
     
     setStep("creating");
+    setCreateError("");
     
     try {
       if (!fullWalletAddress) {
         throw new Error("Wallet not connected");
       }
 
-      // Call the ZK x402 API to create the payment request
-      const result = await createZKX402Payment({
-        amount: parseFloat(amount),
-        recipient: fullWalletAddress, // Recipient is the creator (they'll receive payment)
-        service_id: serviceName.toLowerCase().replace(/\s+/g, "-"),
-        token: "USDC", // Default to USDC
-        wallet: fullWalletAddress,
-        metadata: {
-          serviceName,
-          description,
-        },
+      const apiUrl = getApiUrl();
+
+      // Call the backend API to create the payment request in Supabase
+      const response = await fetch(`${apiUrl}/api/payments/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: parseFloat(amount),
+          recipient_wallet: fullWalletAddress,
+          service_name: serviceName,
+          description: description,
+          token: "USDC",
+        }),
       });
 
-      let request: PaymentRequest;
-      
-      if (result.success && result.paymentId) {
-        request = {
-          id: result.paymentId,
-          amount,
-          serviceName,
-          description,
-          status: (result.status || "pending") as "pending" | "settled" | "failed",
-          createdAt: new Date().toISOString(),
-          paymentLink: `https://void402.app/pay/${result.paymentId}`,
-        };
-      } else {
-        console.error("Failed to create payment:", result.error);
-        // Fallback to local ID if API fails (for demo purposes)
-        const paymentId = "x402_" + Math.random().toString(36).substr(2, 9);
-        request = {
-          id: paymentId,
-          amount,
-          serviceName,
-          description,
-          status: "pending",
-          createdAt: new Date().toISOString(),
-          paymentLink: `https://void402.app/pay/${paymentId}`,
-        };
+      const result = await response.json();
+
+      if (!result.success || !result.paymentId) {
+        throw new Error(result.error || "Failed to create payment request");
       }
-      
-      // Save to localStorage for management component
-      try {
-        const existing = localStorage.getItem("void402_payment_requests");
-        const requests = existing ? JSON.parse(existing) : [];
-        requests.push(request);
-        localStorage.setItem("void402_payment_requests", JSON.stringify(requests));
-        
-        // Dispatch event to notify management component
-        window.dispatchEvent(new Event("paymentRequestCreated"));
-      } catch (err) {
-        console.error("Error saving payment request:", err);
-      }
-      
-      setPaymentRequest(request);
-      setStep("success");
-    } catch (error) {
-      console.error("Error creating payment request:", error);
-      // Fallback to local ID if API call fails
-      const paymentId = "x402_" + Math.random().toString(36).substr(2, 9);
+
+      const paymentLink = `${window.location.origin}/pay/${result.paymentId}`;
+
       const request: PaymentRequest = {
-        id: paymentId,
+        id: result.paymentId,
         amount,
         serviceName,
         description,
         status: "pending",
         createdAt: new Date().toISOString(),
-        paymentLink: `https://void402.app/pay/${paymentId}`,
+        paymentLink,
       };
-      
-      // Save to localStorage
-      try {
-        const existing = localStorage.getItem("void402_payment_requests");
-        const requests = existing ? JSON.parse(existing) : [];
-        requests.push(request);
-        localStorage.setItem("void402_payment_requests", JSON.stringify(requests));
-        window.dispatchEvent(new Event("paymentRequestCreated"));
-      } catch (err) {
-        console.error("Error saving payment request:", err);
-      }
+
+      // Dispatch event to notify management component to reload
+      window.dispatchEvent(new Event("paymentRequestCreated"));
       
       setPaymentRequest(request);
       setStep("success");
+    } catch (error: any) {
+      console.error("Error creating payment request:", error);
+      setCreateError(error.message || "Failed to create payment request");
+      setStep("error");
     }
   };
 
@@ -353,6 +315,26 @@ const X402PaymentModal = ({ open, onOpenChange }: X402PaymentModalProps) => {
 
               <Button onClick={handleClose} className="w-full">
                 Done
+              </Button>
+            </motion.div>
+          )}
+
+          {/* Error Step */}
+          {step === "error" && (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="py-8 text-center space-y-4"
+            >
+              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto">
+                <ExternalLink className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-lg font-bold">Failed to Create Request</h3>
+              <p className="text-sm text-muted-foreground">{createError}</p>
+              <Button onClick={() => setStep("form")} variant="outline">
+                Try Again
               </Button>
             </motion.div>
           )}

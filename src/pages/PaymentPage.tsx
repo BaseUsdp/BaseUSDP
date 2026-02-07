@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
 import { executeZKTransfer } from "@/services/api";
+import { getApiUrl } from "@/utils/apiConfig";
 import {
   getPhantomProvider,
   getSolflareProvider,
@@ -51,20 +52,26 @@ const PaymentPage = () => {
   const [paymentError, setPaymentError] = useState("");
 
   useEffect(() => {
-    const loadRequest = () => {
+    const loadRequest = async () => {
       try {
         setIsLoading(true);
         
-        // Load from localStorage (in production, this would be an API call)
-        const storedRequests = localStorage.getItem("void402_payment_requests");
-        if (storedRequests) {
-          const parsed = JSON.parse(storedRequests);
-          const found = parsed.find((r: PaymentRequest) => r.id === id);
-          if (found) {
-            setRequest(found);
-          } else {
-            setError("Payment request not found");
-          }
+        const apiUrl = getApiUrl();
+        const response = await fetch(`${apiUrl}/api/payments/${id}`);
+        const data = await response.json();
+
+        if (data.success && data.payment) {
+          setRequest({
+            id: data.payment.id,
+            serviceName: data.payment.serviceName,
+            amount: data.payment.amount?.toString() || '0',
+            description: data.payment.description || '',
+            status: data.payment.status as RequestStatus,
+            createdAt: data.payment.createdAt,
+            paidBy: data.payment.paidBy,
+            txHash: data.payment.txHash,
+            recipientWallet: data.payment.recipientWallet,
+          });
         } else {
           setError("Payment request not found");
         }
@@ -180,19 +187,20 @@ const PaymentPage = () => {
       if (result.success && result.signature) {
         setTxHash(result.signature);
         
-        // Update the request status in localStorage
-        const storedRequests = localStorage.getItem("void402_payment_requests");
-        if (storedRequests) {
-          const parsed = JSON.parse(storedRequests);
-          const updated = parsed.map((r: PaymentRequest) => 
-            r.id === id ? { 
-              ...r, 
-              status: "settled", 
-              paidBy: fullWalletAddress?.slice(0, 8) + "...",
-              txHash: result.signature 
-            } : r
-          );
-          localStorage.setItem("void402_payment_requests", JSON.stringify(updated));
+        // Mark payment as settled in the backend
+        try {
+          const apiUrl = getApiUrl();
+          await fetch(`${apiUrl}/api/payments/settle`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              payment_id: id,
+              paid_by: fullWalletAddress?.slice(0, 8) + "...",
+              tx_hash: result.signature,
+            }),
+          });
+        } catch (settleErr) {
+          console.warn("Failed to update payment status:", settleErr);
         }
         
         setStep("success");
