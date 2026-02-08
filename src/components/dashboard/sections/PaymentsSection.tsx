@@ -62,8 +62,9 @@ const PaymentsSection = ({ showBalance }: PaymentsSectionProps) => {
         const response = await fetch(`${apiUrl}/api/user/lookup?username=${encodeURIComponent(cleanUsername)}`);
         const data = await response.json();
 
-        if (data.success && data.wallet_address) {
-          setResolvedWallet(data.wallet_address);
+        if (data.success) {
+          // Use sentinel value — actual wallet address is resolved server-side in the transfer API
+          setResolvedWallet("username_resolved");
           setLookupError(null);
         } else {
           setResolvedWallet(null);
@@ -166,8 +167,10 @@ const PaymentsSection = ({ showBalance }: PaymentsSectionProps) => {
     try {
       setStep("signing");
       
-      const effectiveRecipient = getEffectiveRecipient();
-      const message = `Authorize Void402 transfer:\nAmount: ${amount} USDC\nTo: ${effectiveRecipient}\nTimestamp: ${Date.now()}`;
+      const displayRecipient = recipientType === "username" 
+        ? `@${usernameInput.startsWith("@") ? usernameInput.substring(1) : usernameInput}`
+        : recipient;
+      const message = `Authorize Void402 transfer:\nAmount: ${amount} USDC\nTo: ${displayRecipient}\nTimestamp: ${Date.now()}`;
       
       let walletSignature: string;
       try {
@@ -207,15 +210,22 @@ const PaymentsSection = ({ showBalance }: PaymentsSectionProps) => {
 
       setStep("encrypting");
       const nonce = Date.now() + Math.floor(Math.random() * 1000000);
-      const result = await executeZKTransfer({
+      const transferPayload: any = {
         sender_wallet: fullWalletAddress,
-        recipient_wallet: effectiveRecipient,
         token: "USDC",
         amount: parseFloat(amount),
         nonce: nonce,
         wallet_signature: walletSignature,
         message_to_sign: message,
-      });
+      };
+
+      if (recipientType === "username" && usernameInput) {
+        transferPayload.recipient_username = usernameInput.startsWith("@") ? usernameInput.substring(1) : usernameInput;
+      } else {
+        transferPayload.recipient_wallet = recipient;
+      }
+
+      const result = await executeZKTransfer(transferPayload);
 
       if (!wallet.connected || !wallet.publicKey) {
         setError("Wallet disconnected during transaction. Please reconnect and try again.");
@@ -424,8 +434,8 @@ const PaymentsSection = ({ showBalance }: PaymentsSectionProps) => {
                         <div className="mt-2 text-xs">
                           {resolvedWallet ? (
                             <p className="text-green-500 flex items-center gap-1">
-                              <User className="w-3 h-3" />
-                              Found: {resolvedWallet.slice(0, 6)}...{resolvedWallet.slice(-6)}
+                              <CheckCircle2 className="w-3 h-3" />
+                              User found
                             </p>
                           ) : lookupError ? (
                             <p className="text-destructive">{lookupError}</p>
@@ -490,15 +500,13 @@ const PaymentsSection = ({ showBalance }: PaymentsSectionProps) => {
                       <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">Recipient</span>
                         <div className="text-right">
-                          {recipientType === "username" && usernameInput && (
-                            <span className="text-primary font-medium block">@{usernameInput}</span>
+                          {recipientType === "username" && usernameInput ? (
+                            <span className="text-primary font-medium block">@{usernameInput.startsWith("@") ? usernameInput.substring(1) : usernameInput}</span>
+                          ) : (
+                            <span className="font-mono text-sm text-muted-foreground">
+                              {recipient.length > 20 ? `${recipient.slice(0, 6)}...${recipient.slice(-6)}` : recipient}
+                            </span>
                           )}
-                          <span className="font-mono text-sm text-muted-foreground">
-                            {(() => {
-                              const addr = getEffectiveRecipient();
-                              return addr.length > 20 ? `${addr.slice(0, 6)}...${addr.slice(-6)}` : addr;
-                            })()}
-                          </span>
                         </div>
                       </div>
                       <div className="flex justify-between">
