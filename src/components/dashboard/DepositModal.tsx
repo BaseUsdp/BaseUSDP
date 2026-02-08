@@ -721,7 +721,6 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
     setX402DepositAddress("");
     setX402DepositId("");
     setX402Status(null);
-    setCopied(false);
     isCancelledRef.current = false;
 
     if (pollingRef.current) {

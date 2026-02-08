@@ -350,6 +350,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
         transferPayload.recipient_username = usernameInput;
       } else {
         transferPayload.recipient_wallet = effectiveRecipient;
+        transferPayload.force_external = true; // Solana address = always external transfer
       }
       
       const result = await executeZKTransfer(transferPayload);

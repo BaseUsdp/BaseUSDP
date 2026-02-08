@@ -201,6 +201,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       amount,
       token,
       nonce,
+      force_external,
     } = req.body;
 
     // Resolve recipient: either from wallet address or username
@@ -243,21 +244,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Check if recipient is a Void402 user (has intermediate wallet)
     let recipientMapping = null;
     let isExternalTransfer = false;
-    
-    try {
-      const result = await supabase
-        .from('zk_user_wallets')
-        .select('intermediate_wallet, user_wallet')
-        .eq('user_wallet', recipient_wallet)
-        .maybeSingle();
-      
-      recipientMapping = result.data;
-    } catch (tableError: any) {
-      console.warn('zk_user_wallets table check failed:', tableError.message);
+
+    // If force_external is set (user chose "Solana Address"), always treat as external
+    if (force_external) {
+      isExternalTransfer = true;
+      console.log(`📤 Force external transfer (Solana Address mode) to: ${recipient_wallet.slice(0, 8)}...`);
+    } else {
+      try {
+        const result = await supabase
+          .from('zk_user_wallets')
+          .select('intermediate_wallet, user_wallet')
+          .eq('user_wallet', recipient_wallet)
+          .maybeSingle();
+        
+        recipientMapping = result.data;
+      } catch (tableError: any) {
+        console.warn('zk_user_wallets table check failed:', tableError.message);
+      }
     }
     
-    // If not found in zk_user_wallets, check if they have any transaction history
-    if (!recipientMapping) {
+    // If not found in zk_user_wallets (and not forced external), check if they have any transaction history
+    if (!recipientMapping && !isExternalTransfer) {
       try {
         const { data: transactions } = await supabase
           .from('zk_transactions')
@@ -328,7 +335,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Determine transfer type: if recipient is NOT a Void402 user and this is an address-based transfer,
     // treat it as an external send (direct token transfer to their Solana address)
-    if (!recipientMapping || !recipientMapping.intermediate_wallet) {
+    if (!isExternalTransfer && (!recipientMapping || !recipientMapping.intermediate_wallet)) {
       if (recipient_username) {
         // Username-based transfers MUST be to Void402 users
         return res.status(400).json({ 

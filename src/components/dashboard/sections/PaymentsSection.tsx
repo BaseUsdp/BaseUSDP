@@ -223,6 +223,7 @@ const PaymentsSection = ({ showBalance }: PaymentsSectionProps) => {
         transferPayload.recipient_username = usernameInput.startsWith("@") ? usernameInput.substring(1) : usernameInput;
       } else {
         transferPayload.recipient_wallet = recipient;
+        transferPayload.force_external = true; // Solana address = always external transfer
       }
 
       const result = await executeZKTransfer(transferPayload);
