@@ -102,6 +102,10 @@ const RecentTransactions = ({ showBalance, limit = 5, onViewAll }: RecentTransac
   };
 
   const getCounterparty = (tx: TransactionHistoryResponse["transactions"][0]) => {
+    // Use pre-resolved counterparty from API (includes @username for internal transfers)
+    if ((tx as any).counterparty) {
+      return (tx as any).counterparty;
+    }
     const direction = getDirection(tx);
     return direction === "sent" ? tx.to : tx.from;
   };
@@ -167,7 +171,9 @@ const RecentTransactions = ({ showBalance, limit = 5, onViewAll }: RecentTransac
                     <p className="font-medium truncate">
                       {tx.type === "deposit" ? "Deposit" :
                        tx.type === "withdraw" ? "Withdrawal" :
-                       direction === "sent" ? `Sent to ${formatAddress(counterparty)}` : `Received from ${formatAddress(counterparty)}`}
+                       direction === "sent" 
+                        ? `Sent to ${counterparty?.startsWith("@") ? counterparty : formatAddress(counterparty)}` 
+                        : `Received from ${counterparty?.startsWith("@") ? counterparty : formatAddress(counterparty)}`}
                     </p>
                     {tx.type === "payment" && (
                       <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">

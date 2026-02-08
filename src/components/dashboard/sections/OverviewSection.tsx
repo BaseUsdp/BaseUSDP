@@ -94,7 +94,7 @@ const OverviewSection = ({ showBalance, setShowBalance, setActiveTab }: Overview
       <RecentTransactions 
         showBalance={showBalance} 
         limit={5} 
-        onViewAll={() => setActiveTab("payments")} 
+        onViewAll={() => setActiveTab("history")} 
       />
 
       {/* Modals */}

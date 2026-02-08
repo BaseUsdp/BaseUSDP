@@ -83,7 +83,8 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
             } else {
               direction = tx.from === fullWalletAddress ? "sent" : "received";
             }
-            const counterparty = direction === "sent" ? tx.to : tx.from;
+            // Use pre-resolved counterparty from API (@username for internal transfers)
+            const counterparty = (tx as any).counterparty || (direction === "sent" ? tx.to : tx.from);
             const amount = tx.amount || 0;
             
             // Format date
@@ -140,11 +141,14 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
               bgColor = "bg-red-500/20";
             }
 
+            // For usernames (@...) show as-is, for wallet addresses truncate
+            const displayCounterparty = counterparty?.startsWith("@") ? counterparty : formatAddress(counterparty);
+
             return {
               type,
               direction,
-              from: direction === "received" ? formatAddress(counterparty) : undefined,
-              to: direction === "sent" ? formatAddress(counterparty) : undefined,
+              from: direction === "received" ? displayCounterparty : undefined,
+              to: direction === "sent" ? displayCounterparty : undefined,
               amount: `${direction === "sent" ? "-" : "+"}$${Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
               time: timeStr,
               icon,
@@ -408,7 +412,7 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm font-medium text-neutral-300">Recent Transactions</div>
             <button 
-              onClick={() => setActiveTab("payments")}
+              onClick={() => setActiveTab("history")}
               className="text-xs text-neutral-500 hover:text-neutral-400 transition-colors"
             >
               See All

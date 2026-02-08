@@ -36,7 +36,18 @@ const convertApiTransaction = (tx: TransactionHistoryResponse["transactions"][0]
   const isWithdraw = tx.type === "withdraw";
   const direction = isDeposit ? "deposit" : isWithdraw ? "sent" : (tx.from === walletAddress ? "sent" : "received");
   const amount = tx.amount || 0;
-  const counterparty = isDeposit ? "Your Wallet" : isWithdraw ? "External Wallet" : (direction === "sent" ? tx.to : tx.from);
+  
+  // Use counterparty from API (already resolved to @username for internal transfers)
+  let counterparty: string;
+  if (isDeposit) {
+    counterparty = "Your Wallet";
+  } else if (isWithdraw) {
+    counterparty = "External Wallet";
+  } else if ((tx as any).counterparty) {
+    counterparty = (tx as any).counterparty;
+  } else {
+    counterparty = direction === "sent" ? tx.to : tx.from;
+  }
   
   let type: TransactionType = "transfer";
   if (tx.type === "payment") type = "x402";
@@ -247,9 +258,11 @@ const TransactionHistoryFull = ({ showBalance }: TransactionHistoryFullProps) =>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="font-medium truncate">
-                    {tx.direction === "sent" ? `Sent to ${tx.counterparty}` : 
-                     tx.direction === "deposit" ? `Deposit from ${tx.counterparty}` :
-                     `Received from ${tx.counterparty}`}
+                    {tx.direction === "sent" 
+                      ? `Sent to ${tx.counterparty.startsWith("@") ? tx.counterparty : (tx.counterparty.length > 16 ? tx.counterparty.slice(0, 6) + "..." + tx.counterparty.slice(-6) : tx.counterparty)}` 
+                      : tx.direction === "deposit" 
+                      ? `Deposit from ${tx.counterparty}` 
+                      : `Received from ${tx.counterparty.startsWith("@") ? tx.counterparty : (tx.counterparty.length > 16 ? tx.counterparty.slice(0, 6) + "..." + tx.counterparty.slice(-6) : tx.counterparty)}`}
                   </p>
                   {tx.type === "x402" && (
                     <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">

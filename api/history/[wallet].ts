@@ -63,6 +63,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    // Collect all unique wallet addresses from transactions to resolve usernames
+    const allWallets = new Set<string>();
+    (transactions || []).forEach((tx: any) => {
+      if (tx.sender_wallet && tx.sender_wallet !== wallet) allWallets.add(tx.sender_wallet);
+      if (tx.recipient_wallet && tx.recipient_wallet !== wallet) allWallets.add(tx.recipient_wallet);
+    });
+
+    // Look up usernames for all counterparty wallets (Void402 users)
+    const walletToUsername: Record<string, string> = {};
+    if (allWallets.size > 0) {
+      const { data: profiles } = await supabase
+        .from("user_profiles")
+        .select("wallet_address, username")
+        .in("wallet_address", [...allWallets]);
+
+      if (profiles) {
+        for (const p of profiles) {
+          if (p.wallet_address && p.username) {
+            walletToUsername[p.wallet_address] = p.username;
+          }
+        }
+      }
+    }
+
     // Format transactions for frontend
     const formattedTransactions = (transactions || []).map((tx: any) => {
       // Determine transaction type from database or infer from wallets
@@ -78,14 +102,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         type = "received";
       }
 
+      // For internal (Void402 user) transfers, return username instead of address
+      const counterpartyWallet = tx.sender_wallet === wallet ? tx.recipient_wallet : tx.sender_wallet;
+      const counterpartyUsername = counterpartyWallet ? walletToUsername[counterpartyWallet] : null;
+      const isInternal = !!counterpartyUsername;
+
       return {
         id: tx.id,
         type,
         amount: tx.amount,
         token: tx.token_symbol || "USDC",
-        from: tx.sender_wallet,
-        to: tx.recipient_wallet,
-        counterparty: tx.sender_wallet === wallet ? tx.recipient_wallet : tx.sender_wallet,
+        // Hide wallet addresses for internal transfers (privacy)
+        from: tx.sender_wallet === wallet ? wallet : (counterpartyUsername ? undefined : tx.sender_wallet),
+        to: tx.recipient_wallet === wallet ? wallet : (counterpartyUsername ? undefined : tx.recipient_wallet),
+        counterparty: counterpartyUsername ? `@${counterpartyUsername}` : (counterpartyWallet || "Unknown"),
+        counterpartyUsername: counterpartyUsername || null,
+        isInternal,
         status: tx.status === "completed" ? "success" : tx.status,
         timestamp: tx.created_at,
         signature: tx.tx_hash,
