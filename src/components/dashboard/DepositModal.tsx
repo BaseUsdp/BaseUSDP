@@ -901,9 +901,9 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                   </div>
                   <p className="text-[11px] text-muted-foreground/60 leading-tight">
                     {token === "X402"
-                      ? "Fee is from the cross-chain bridge (ChangeNow). No Void402 platform fee. Actual amount may vary slightly."
+                      ? "Fee is from the cross-chain bridge. No Void402 platform fee. Actual amount may vary slightly."
                       : privacyLevel === "full"
-                        ? "The only fee is from the privacy mixer (ChangeNow). No Void402 platform fee. Actual amount may vary slightly depending on mixer rates."
+                        ? "The only fee is from the privacy mixer. No Void402 platform fee. Actual amount may vary slightly depending on mixer rates."
                         : privacyLevel === "partial"
                           ? "Partial privacy: Single-hop transfer without mixer. Faster processing, zero fees."
                           : "Public mode: Direct deposit without privacy mixing. Fastest processing, zero fees."
