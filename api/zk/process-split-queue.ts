@@ -360,39 +360,207 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           maxRetries: 3,
         });
         
-        console.log(`✅ Transaction sent: ${signature}`);
+        console.log(`✅ Holding → Intermediate transfer sent: ${signature}`);
         
         // Wait for confirmation
         await connection.confirmTransaction(signature, 'confirmed');
-        console.log(`✅ ${privacyLevel.toUpperCase()} transfer confirmed: ${signature}`);
+        console.log(`✅ ${privacyLevel.toUpperCase()} Holding → Intermediate confirmed: ${signature}`);
         
-        // Now call process-deposit to complete the deposit to the pool
-        // This is similar to what process-pending-exchanges does after ChangeNow completes
-        const { extractBearerToken, verifyBearerToken } = await import('../lib/bearer-auth.js');
+        // =====================================================================
+        // STEP 2: Smart contract deposit (Intermediate → Pool)
+        // This is CRITICAL - without this, funds stay in intermediate forever
+        // =====================================================================
+        const { 
+          derivePoolPDA, 
+          deriveUserBalancePDA,
+          VOID402_PROGRAM_ID,
+        } = await import('../lib/void402-solana.js');
+        
+        // Re-fetch intermediate balance (should now have the funds)
+        await new Promise(r => setTimeout(r, 2000)); // Give blockchain time to update
+        
+        let intBalance: bigint;
+        try {
+          const intAccount = await getAccount(connection, intermediateTokenAccount);
+          intBalance = intAccount.amount;
+        } catch {
+          throw new Error('Failed to read intermediate wallet balance after transfer');
+        }
+        
+        console.log(`  💰 Intermediate balance: ${(Number(intBalance) / 1e6).toFixed(6)} ${split.token}`);
+        
+        // Derive PDAs for smart contract
+        const poolPDA = await derivePoolPDA(tokenMint.toBase58());
+        const userBalancePDA = await deriveUserBalancePDA(intermediateWalletAddress, tokenMint.toBase58());
+        const poolTokenAccount = await getAssociatedTokenAddress(tokenMint, poolPDA, true);
+        
+        // Fund intermediate wallet with SOL if needed (for UserBalance PDA rent)
+        const MIN_REQUIRED_SOL = 0.003;
+        const intermediateSOLBalance = await connection.getBalance(intermediatePubkey);
+        const intermediateSOLInSol = intermediateSOLBalance / 1_000_000_000;
+        
+        if (intermediateSOLInSol < MIN_REQUIRED_SOL) {
+          console.log(`  ⚡ Funding intermediate with SOL for rent...`);
+          const mainWalletKey = process.env.MAIN_WALLET_PRIVATE_KEY || process.env.SOLANA_MAIN_WALLET_PRIVATE_KEY;
+          
+          if (mainWalletKey) {
+            try {
+              let mainKeypair: Keypair;
+              try {
+                const keyArray = JSON.parse(mainWalletKey);
+                mainKeypair = Keypair.fromSecretKey(Uint8Array.from(keyArray));
+              } catch {
+                mainKeypair = Keypair.fromSecretKey(bs58.decode(mainWalletKey) as Uint8Array);
+              }
+              
+              const fundAmount = 0.005 * 1_000_000_000;
+              const { blockhash: fundBlockhash } = await connection.getLatestBlockhash();
+              const fundTx = new Transaction();
+              fundTx.recentBlockhash = fundBlockhash;
+              fundTx.feePayer = mainKeypair.publicKey;
+              fundTx.add(SystemProgram.transfer({
+                fromPubkey: mainKeypair.publicKey,
+                toPubkey: intermediatePubkey,
+                lamports: Math.floor(fundAmount),
+              }));
+              fundTx.sign(mainKeypair);
+              
+              const fundSig = await connection.sendRawTransaction(fundTx.serialize(), { skipPreflight: true });
+              console.log(`  ✅ Funded intermediate with 0.005 SOL: ${fundSig}`);
+              
+              // Wait for confirmation
+              for (let i = 0; i < 15; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                const fundStatus = await connection.getSignatureStatus(fundSig);
+                if (fundStatus.value?.confirmationStatus === 'confirmed' || fundStatus.value?.confirmationStatus === 'finalized') {
+                  break;
+                }
+              }
+            } catch (fundErr: any) {
+              console.error(`  ⚠️ Failed to fund intermediate wallet: ${fundErr.message}`);
+            }
+          }
+        }
+        
+        // Build smart contract deposit transaction
+        const { blockhash: blockhash2 } = await connection.getLatestBlockhash();
+        const tx2 = new Transaction();
+        tx2.recentBlockhash = blockhash2;
+        tx2.feePayer = intermediatePubkey;
+        
+        // Check if pool token account exists
+        let needsPoolATA = false;
+        try {
+          await getAccount(connection, poolTokenAccount);
+        } catch {
+          needsPoolATA = true;
+        }
+        
+        if (needsPoolATA) {
+          // Use main wallet to pay for pool ATA creation if intermediate doesn't have enough SOL
+          const mainWalletKey = process.env.MAIN_WALLET_PRIVATE_KEY || process.env.SOLANA_MAIN_WALLET_PRIVATE_KEY;
+          if (mainWalletKey) {
+            let mainKeypair: Keypair;
+            try {
+              const keyArray = JSON.parse(mainWalletKey);
+              mainKeypair = Keypair.fromSecretKey(Uint8Array.from(keyArray));
+            } catch {
+              mainKeypair = Keypair.fromSecretKey(bs58.decode(mainWalletKey) as Uint8Array);
+            }
+            tx2.feePayer = mainKeypair.publicKey;
+            tx2.add(createAssociatedTokenAccountInstruction(
+              mainKeypair.publicKey, poolTokenAccount, poolPDA, tokenMint
+            ));
+          }
+        }
+        
+        // Build deposit instruction (same discriminator as process-pending-exchanges)
+        const DEPOSIT_DISCRIMINATOR = Buffer.from([242, 35, 198, 137, 82, 225, 242, 182]);
+        const args = Buffer.alloc(8);
+        args.writeBigUInt64LE(intBalance, 0);
+        const instructionData = Buffer.concat([DEPOSIT_DISCRIMINATOR, args]);
+        
+        const depositIx: TransactionInstruction = {
+          programId: VOID402_PROGRAM_ID,
+          keys: [
+            { pubkey: intermediatePubkey, isSigner: true, isWritable: true },
+            { pubkey: userBalancePDA, isSigner: false, isWritable: true },
+            { pubkey: poolPDA, isSigner: false, isWritable: true },
+            { pubkey: tokenMint, isSigner: false, isWritable: false },
+            { pubkey: intermediateTokenAccount, isSigner: false, isWritable: true },
+            { pubkey: poolTokenAccount, isSigner: false, isWritable: true },
+            { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false },
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+          ],
+          data: instructionData,
+        };
+        tx2.add(depositIx);
+        
+        // Get intermediate wallet keypair for signing
+        const intKeypair = Keypair.fromSecretKey(Uint8Array.from(intermediateWalletData.privateKey));
+        
+        // Sign with appropriate keypairs
+        if (needsPoolATA) {
+          const mainWalletKey = process.env.MAIN_WALLET_PRIVATE_KEY || process.env.SOLANA_MAIN_WALLET_PRIVATE_KEY;
+          if (mainWalletKey) {
+            let mainKeypair: Keypair;
+            try {
+              const keyArray = JSON.parse(mainWalletKey);
+              mainKeypair = Keypair.fromSecretKey(Uint8Array.from(keyArray));
+            } catch {
+              mainKeypair = Keypair.fromSecretKey(bs58.decode(mainWalletKey) as Uint8Array);
+            }
+            tx2.sign(mainKeypair, intKeypair);
+          } else {
+            tx2.sign(intKeypair);
+          }
+        } else {
+          tx2.sign(intKeypair);
+        }
+        
+        const sig2 = await connection.sendRawTransaction(tx2.serialize(), { skipPreflight: false, maxRetries: 3 });
+        console.log(`  📤 Intermediate → Pool (smart contract): ${sig2}`);
+        
+        // Poll for confirmation
+        let confirmed2 = false;
+        for (let i = 0; i < 30; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const status = await connection.getSignatureStatus(sig2);
+          if (status.value?.confirmationStatus === 'confirmed' || status.value?.confirmationStatus === 'finalized') {
+            confirmed2 = true;
+            break;
+          }
+          if (status.value?.err) {
+            throw new Error(`Smart contract deposit failed: ${JSON.stringify(status.value.err)}`);
+          }
+        }
+        if (!confirmed2) {
+          throw new Error(`Transaction ${sig2} not confirmed after 60 seconds`);
+        }
+        
+        console.log(`  ✅ Smart contract deposit confirmed!`);
         
         // Mark split as sent
         await supabase
           .from('zk_split_queue')
           .update({
             status: 'sent',
-            transaction_signature: signature,
-            exchange_id: `direct_${privacyLevel}`, // No exchange, mark as direct
+            transaction_signature: sig2,
+            exchange_id: `direct_${privacyLevel}`,
             updated_at: new Date().toISOString()
           })
           .eq('id', split.id);
         
-        // Record in zk_transactions as deposit (funds now in intermediate, ready for pool)
-        // The process-deposit endpoint will move from intermediate to pool
-        // For public/partial, we can skip process-deposit entirely and record balance directly
-        const amountInCurrency = Number(splitAmount) / 1e6;
+        // Record in zk_transactions
+        const amountInCurrency = Number(intBalance) / 1e6;
         
         const { error: txError } = await supabase.from('zk_transactions').insert({
           sender_wallet: split.user_wallet,
           recipient_wallet: split.user_wallet,
           amount: amountInCurrency,
-          fee_percentage: 0, // No fee for public/partial
+          fee_percentage: 0,
           token_symbol: split.token,
-          tx_hash: signature,
+          tx_hash: sig2,
           status: 'completed',
           privacy_level: privacyLevel,
           transaction_type: 'deposit',
@@ -400,19 +568,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         if (txError) {
           console.warn(`⚠️ Failed to log transaction:`, txError.message);
-          // Try minimal insert
           await supabase.from('zk_transactions').insert({
             sender_wallet: split.user_wallet,
             recipient_wallet: split.user_wallet,
             amount: amountInCurrency,
             token_symbol: split.token,
-            tx_hash: signature,
+            tx_hash: sig2,
             status: 'completed',
             transaction_type: 'deposit',
           });
         }
         
-        console.log(`✅ ${privacyLevel.toUpperCase()} deposit recorded: ${amountInCurrency} ${split.token}`);
+        console.log(`✅ ${privacyLevel.toUpperCase()} deposit completed: ${amountInCurrency} ${split.token}`);
         
         // Mark holding wallet as completed
         await supabase
@@ -424,7 +591,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           success: true,
           message: `${privacyLevel.charAt(0).toUpperCase() + privacyLevel.slice(1)} deposit completed (no mixer)`,
           splitIndex: split.split_index + 1,
-          signature,
+          signature: sig2,
           totalSplits: 1,
           sentSplits: 1,
           pendingSplits: 0,
