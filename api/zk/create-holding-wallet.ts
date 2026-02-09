@@ -68,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { wallet, amount, token } = req.body;
+    const { wallet, amount, token, privacy_level } = req.body;
 
     if (!wallet || !amount || !token) {
       return res.status(400).json({ 
@@ -76,6 +76,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         message: 'wallet, amount, and token are required' 
       });
     }
+
+    // Privacy level: "public", "partial", or "full" (default: "full")
+    const privacyLevel = ['public', 'partial', 'full'].includes(privacy_level) ? privacy_level : 'full';
 
     if (!['USDC', 'USDT'].includes(token)) {
       return res.status(400).json({ 
@@ -114,6 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           token: token,
           token_mint: tokenMintStr,
           status: 'pending',
+          privacy_level: privacyLevel, // "public", "partial", or "full"
         });
 
       if (dbError) {
@@ -189,6 +193,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       depositId: depositId,
       amount: amount,
       token: token,
+      privacy_level: privacyLevel,
       transaction: txBase64,
       message: 'Sign and submit this transaction to deposit to the holding wallet.'
     });

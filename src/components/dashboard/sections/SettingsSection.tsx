@@ -30,21 +30,24 @@ function loadSettings(): UserSettings {
 }
 
 const SettingsSection = () => {
-  const { privacyLevel } = useWallet();
+  const { privacyLevel, setPrivacyLevel } = useWallet();
   const { toast } = useToast();
   const [notifications, setNotifications] = useState(loadSettings().notifications);
   const [autoApprove, setAutoApprove] = useState(loadSettings().autoApprove);
   const [saved, setSaved] = useState(false);
+  const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyLevel>(privacyLevel);
 
   const privacyLevels: { id: PrivacyLevel; label: string; description: string; icon: string; disabled: boolean }[] = [
-    { id: "public", label: "Public", description: "Fully visible transactions", icon: "ph:eye-bold", disabled: true },
-    { id: "partial", label: "Partial", description: "Amount hidden, parties visible", icon: "ph:eye-slash-bold", disabled: true },
+    { id: "public", label: "Public", description: "Fully visible transactions", icon: "ph:eye-bold", disabled: false },
+    { id: "partial", label: "Partial", description: "Amount hidden, parties visible", icon: "ph:eye-slash-bold", disabled: false },
     { id: "full", label: "Full", description: "Maximum privacy with ZK proofs", icon: "ph:lock-bold", disabled: false },
   ];
 
   const handleSave = () => {
     const settings: UserSettings = { notifications, autoApprove };
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    // Save privacy level to context (which persists to localStorage)
+    setPrivacyLevel(selectedPrivacy);
     setSaved(true);
     toast({
       title: "Settings saved",
@@ -88,26 +91,19 @@ const SettingsSection = () => {
           {privacyLevels.map((level) => (
             <button
               key={level.id}
-              disabled={level.disabled}
+              onClick={() => setSelectedPrivacy(level.id)}
               className={cn(
                 "p-4 rounded-xl border-2 text-left transition-all relative",
-                level.disabled
-                  ? "border-border opacity-40 cursor-not-allowed"
-                  : privacyLevel === level.id
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/50"
+                selectedPrivacy === level.id
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/50"
               )}
             >
-              {level.disabled && (
-                <span className="absolute top-2 right-2 text-[10px] uppercase tracking-wider font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                  Coming soon
-                </span>
-              )}
               <Icon icon={level.icon} className={cn(
                 "w-6 h-6 mb-3",
-                level.disabled ? "text-muted-foreground/50" : privacyLevel === level.id ? "text-primary" : "text-muted-foreground"
+                selectedPrivacy === level.id ? "text-primary" : "text-muted-foreground"
               )} />
-              <p className={cn("font-bold", level.disabled && "text-muted-foreground/60")}>{level.label}</p>
+              <p className={cn("font-bold", selectedPrivacy === level.id && "text-primary")}>{level.label}</p>
               <p className="text-xs text-muted-foreground mt-1">{level.description}</p>
             </button>
           ))}
@@ -115,7 +111,9 @@ const SettingsSection = () => {
 
         <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
           <p className="text-sm text-muted-foreground">
-            Full privacy is currently the only supported mode. All transactions use ZK proofs for maximum privacy.
+            <strong>Public:</strong> Direct deposits with no mixing — lowest fees, fastest processing.<br />
+            <strong>Partial:</strong> Single-hop mixing without ChangeNow — moderate privacy, reduced fees.<br />
+            <strong>Full:</strong> Multi-layer mixing through ChangeNow — maximum privacy, standard fees.
           </p>
         </div>
       </motion.div>

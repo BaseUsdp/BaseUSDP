@@ -99,6 +99,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Invalid deposit', message: 'No user wallet' });
     }
 
+    // Get privacy level from deposit (default: "full" for backwards compatibility)
+    const privacyLevel = depositData.privacy_level || 'full';
+    console.log(`🔒 AUTO-SPLIT: Privacy level = ${privacyLevel}`);
+
     // If already completed, return early
     if (depositData.status === 'completed') {
       return res.status(200).json({
@@ -202,6 +206,81 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     console.log(`💰 AUTO-SPLIT: Detected ${(Number(actualAmount) / 1e6).toFixed(6)} ${depositData.token} in holding wallet`);
+
+    // =========================================================================
+    // PUBLIC / PARTIAL PRIVACY: Skip ChangeNow, go directly to intermediate wallet
+    // =========================================================================
+    if (privacyLevel === 'public' || privacyLevel === 'partial') {
+      console.log(`⚡ ${privacyLevel.toUpperCase()} PRIVACY: Skipping ChangeNow mixer, direct transfer to intermediate wallet`);
+      
+      // Queue a single "split" that goes directly to the intermediate wallet
+      // process-split-queue will handle it differently for public/partial
+      const splitData = {
+        deposit_id: depositId,
+        user_wallet: userWallet,
+        token: depositData.token,
+        split_index: 0,
+        split_amount: (Number(actualAmount) / 1e6).toFixed(6),
+        scheduled_at: new Date().toISOString(), // Immediate
+        status: 'pending',
+        privacy_level: privacyLevel, // Store privacy level for processing
+      };
+
+      const { error: insertError } = await supabase
+        .from('zk_split_queue')
+        .insert(splitData);
+
+      if (insertError) {
+        console.error(`❌ Failed to queue direct transfer:`, insertError);
+        // Try without privacy_level column if it doesn't exist
+        const { error: retryError } = await supabase
+          .from('zk_split_queue')
+          .insert({
+            deposit_id: depositId,
+            user_wallet: userWallet,
+            token: depositData.token,
+            split_index: 0,
+            split_amount: (Number(actualAmount) / 1e6).toFixed(6),
+            scheduled_at: new Date().toISOString(),
+            status: 'pending',
+          });
+        if (retryError) {
+          console.error(`❌ Retry also failed:`, retryError);
+          return res.status(500).json({ error: 'Failed to queue direct transfer' });
+        }
+      }
+
+      // Mark holding wallet as processing
+      await supabase
+        .from('zk_holding_wallets')
+        .update({ 
+          status: 'processing', 
+          num_splits: 1,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('deposit_id', depositId);
+
+      console.log(`✅ ${privacyLevel.toUpperCase()}: Queued direct transfer for deposit ${depositId}`);
+
+      return res.status(200).json({
+        success: true,
+        message: `Queued direct transfer (${privacyLevel} privacy)`,
+        numSplits: 1,
+        splits: [{
+          splitIndex: 1,
+          amount: (Number(actualAmount) / 1e6).toFixed(6),
+          scheduledAt: new Date().toISOString(),
+        }],
+        pollQueue: true,
+        depositId: depositId,
+        privacyLevel: privacyLevel,
+      });
+    }
+
+    // =========================================================================
+    // FULL PRIVACY: Split and send through ChangeNow mixer (existing logic)
+    // =========================================================================
+    console.log(`🔒 FULL PRIVACY: Splitting and routing through ChangeNow mixer`);
 
     // Calculate splits
     const PRIVACY_EXCHANGE_MIN = BigInt(3_000_000); // $3 minimum

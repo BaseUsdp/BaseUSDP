@@ -78,7 +78,24 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>("disconnected");
   const [chainId, setChainId] = useState<number | null>(null);
-  const [privacyLevel, setPrivacyLevel] = useState<PrivacyLevel>("full");
+  // Load privacy level from localStorage
+  const [privacyLevel, setPrivacyLevelState] = useState<PrivacyLevel>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("void402_privacy_level");
+      if (saved && ["public", "partial", "full"].includes(saved)) {
+        return saved as PrivacyLevel;
+      }
+    }
+    return "full";
+  });
+
+  // Wrapper to save to localStorage when changed
+  const setPrivacyLevel = (level: PrivacyLevel) => {
+    setPrivacyLevelState(level);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("void402_privacy_level", level);
+    }
+  };
   const [encryptedBalance, setEncryptedBalance] = useState("0");
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   // Auth state

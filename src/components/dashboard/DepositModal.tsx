@@ -63,7 +63,7 @@ type DepositStep =
 const MAX_AMOUNT = 999999.99;
 
 const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
-  const { fullWalletAddress, isConnected, walletType, refreshBalance } = useWallet();
+  const { fullWalletAddress, isConnected, walletType, refreshBalance, privacyLevel } = useWallet();
 
   const [amount, setAmount] = useState("");
 
@@ -481,6 +481,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
           wallet: fullWalletAddress,
           amount: depositAmount,
           token,
+          privacy_level: privacyLevel, // "public", "partial", or "full"
         }),
       });
 
@@ -868,23 +869,56 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                       ${parseFloat(amount).toFixed(2)} {token === "X402" ? "USDC (Base)" : token}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      {token === "X402" ? "Bridge + mixer fee (est.)" : "Privacy mixer fee (est.)"}
-                    </span>
-                    <span className="text-red-400">-${(parseFloat(amount) * 0.15).toFixed(2)}</span>
-                  </div>
+                  {/* Fee varies by privacy level */}
+                  {(token === "X402" || privacyLevel === "full") && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {token === "X402" ? "Bridge + mixer fee (est.)" : "Privacy mixer fee (est.)"}
+                      </span>
+                      <span className="text-red-400">-${(parseFloat(amount) * 0.15).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {token !== "X402" && privacyLevel === "partial" && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Single-hop fee</span>
+                      <span className="text-emerald-400">$0.00</span>
+                    </div>
+                  )}
+                  {token !== "X402" && privacyLevel === "public" && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Direct transfer (no mixer)</span>
+                      <span className="text-emerald-400">$0.00</span>
+                    </div>
+                  )}
                   <div className="border-t border-border pt-2 flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">You will receive (est.)</span>
                     <span className="text-base font-bold text-emerald-400">
-                      ~${(parseFloat(amount) * 0.85).toFixed(2)} USDC
+                      {token === "X402" || privacyLevel === "full" 
+                        ? `~$${(parseFloat(amount) * 0.85).toFixed(2)} USDC`
+                        : `$${parseFloat(amount).toFixed(2)} ${token}`
+                      }
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground/60 leading-tight">
                     {token === "X402"
                       ? "Fee is from the cross-chain bridge (ChangeNow). No Void402 platform fee. Actual amount may vary slightly."
-                      : "The only fee is from the privacy mixer (ChangeNow). No Void402 platform fee. Actual amount may vary slightly depending on mixer rates."}
+                      : privacyLevel === "full"
+                        ? "The only fee is from the privacy mixer (ChangeNow). No Void402 platform fee. Actual amount may vary slightly depending on mixer rates."
+                        : privacyLevel === "partial"
+                          ? "Partial privacy: Single-hop transfer without mixer. Faster processing, zero fees."
+                          : "Public mode: Direct deposit without privacy mixing. Fastest processing, zero fees."
+                    }
                   </p>
+                  {/* Privacy level indicator */}
+                  <div className="flex items-center gap-2 pt-1 border-t border-border/50 mt-2">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Privacy:</span>
+                    <span className={`text-[10px] uppercase tracking-wider font-bold ${
+                      privacyLevel === "full" ? "text-primary" : 
+                      privacyLevel === "partial" ? "text-yellow-400" : "text-muted-foreground"
+                    }`}>
+                      {privacyLevel.charAt(0).toUpperCase() + privacyLevel.slice(1)}
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -1065,7 +1099,11 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
               className="flex flex-col items-center justify-center py-12 space-y-6"
             >
               <Loader2 className="w-12 h-12 text-primary animate-spin" />
-              <p className="text-lg font-semibold">Privacy Splitting</p>
+              <p className="text-lg font-semibold">
+                {privacyLevel === "full" ? "Privacy Splitting" : 
+                 privacyLevel === "partial" ? "Processing Transfer" : 
+                 "Direct Deposit"}
+              </p>
 
               <div className="w-full max-w-xs space-y-3">
                 <div className="flex items-center gap-3">
@@ -1079,7 +1117,12 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                 <div className="flex items-center gap-3">
                   <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
                   <span className="text-sm text-white font-medium">
-                    Sending to privacy mixer ({sentSplits}/{totalSplits} splits)
+                    {privacyLevel === "full" 
+                      ? `Sending to privacy mixer (${sentSplits}/${totalSplits} splits)`
+                      : privacyLevel === "partial"
+                        ? "Single-hop transfer in progress..."
+                        : "Direct deposit in progress..."
+                    }
                   </span>
                 </div>
               </div>
