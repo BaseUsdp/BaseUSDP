@@ -112,8 +112,8 @@ const SettingsSection = () => {
         <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
           <p className="text-sm text-muted-foreground">
             <strong>Public:</strong> Direct deposits with no mixing — lowest fees, fastest processing.<br />
-            <strong>Partial:</strong> Single-hop mixing without ChangeNow — moderate privacy, reduced fees.<br />
-            <strong>Full:</strong> Multi-layer mixing through ChangeNow — maximum privacy, standard fees.
+            <strong>Partial:</strong> Single-hop mixing — moderate privacy, reduced fees.<br />
+            <strong>Full:</strong> Multi-layer mixing through privacy mixer — maximum privacy, standard fees.
           </p>
         </div>
       </motion.div>
