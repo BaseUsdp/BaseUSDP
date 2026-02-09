@@ -35,7 +35,10 @@ const SettingsSection = () => {
   const [notifications, setNotifications] = useState(loadSettings().notifications);
   const [autoApprove, setAutoApprove] = useState(loadSettings().autoApprove);
   const [saved, setSaved] = useState(false);
-  const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyLevel>(privacyLevel);
+  // When user clicks a privacy button, save immediately
+  const handlePrivacySelect = (level: PrivacyLevel) => {
+    setPrivacyLevel(level); // This saves to localStorage via WalletContext
+  };
 
   const privacyLevels: { id: PrivacyLevel; label: string; description: string; icon: string; disabled: boolean }[] = [
     { id: "public", label: "Public", description: "Fully visible transactions", icon: "ph:eye-bold", disabled: false },
@@ -46,8 +49,7 @@ const SettingsSection = () => {
   const handleSave = () => {
     const settings: UserSettings = { notifications, autoApprove };
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-    // Save privacy level to context (which persists to localStorage)
-    setPrivacyLevel(selectedPrivacy);
+    // Privacy level is already saved when clicked, just show confirmation
     setSaved(true);
     toast({
       title: "Settings saved",
@@ -91,19 +93,19 @@ const SettingsSection = () => {
           {privacyLevels.map((level) => (
             <button
               key={level.id}
-              onClick={() => setSelectedPrivacy(level.id)}
+              onClick={() => handlePrivacySelect(level.id)}
               className={cn(
                 "p-4 rounded-xl border-2 text-left transition-all relative",
-                selectedPrivacy === level.id
+                privacyLevel === level.id
                   ? "border-primary bg-primary/5"
                   : "border-border hover:border-primary/50"
               )}
             >
               <Icon icon={level.icon} className={cn(
                 "w-6 h-6 mb-3",
-                selectedPrivacy === level.id ? "text-primary" : "text-muted-foreground"
+                privacyLevel === level.id ? "text-primary" : "text-muted-foreground"
               )} />
-              <p className={cn("font-bold", selectedPrivacy === level.id && "text-primary")}>{level.label}</p>
+              <p className={cn("font-bold", privacyLevel === level.id && "text-primary")}>{level.label}</p>
               <p className="text-xs text-muted-foreground mt-1">{level.description}</p>
             </button>
           ))}

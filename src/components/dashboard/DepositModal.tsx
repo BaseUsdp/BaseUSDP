@@ -922,7 +922,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                 </div>
               )}
 
-              {/* Info */}
+              {/* Info - changes based on privacy level */}
               <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
                 {token === "X402" ? (
                   <>
@@ -932,14 +932,14 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                     <ul className="text-sm text-muted-foreground mt-2 space-y-1">
                       <li>• Sign a message to verify your wallet</li>
                       <li>• Send USDC on Base to the provided address</li>
-                      <li>• Cross-chain bridge via ChangeNow</li>
+                      <li>• Cross-chain bridge via privacy mixer</li>
                       <li>• Credited to your private USDC balance</li>
                     </ul>
                     <p className="text-xs text-muted-foreground/70 mt-2">
                       Minimum deposit: $5.00. Processing may take 10-30 minutes.
                     </p>
                   </>
-                ) : (
+                ) : privacyLevel === "full" ? (
                   <>
                     <p className="text-sm text-muted-foreground">
                       Your deposit will be processed through full privacy layers:
@@ -952,6 +952,36 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                     </ul>
                     <p className="text-xs text-muted-foreground/70 mt-2">
                       Minimum deposit: $3.00. Processing may take 5-15 minutes.
+                    </p>
+                  </>
+                ) : privacyLevel === "partial" ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Your deposit will be processed with partial privacy:
+                    </p>
+                    <ul className="text-sm text-muted-foreground mt-2 space-y-1">
+                      <li>• Deposit to unique holding wallet</li>
+                      <li>• Single-hop transfer to intermediate wallet</li>
+                      <li>• No external mixer — faster processing</li>
+                      <li>• Credited to your private balance</li>
+                    </ul>
+                    <p className="text-xs text-muted-foreground/70 mt-2">
+                      Minimum deposit: $3.00. Processing takes ~1-2 minutes.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Your deposit will be processed as a public deposit:
+                    </p>
+                    <ul className="text-sm text-muted-foreground mt-2 space-y-1">
+                      <li>• Deposit to unique holding wallet</li>
+                      <li>• Direct transfer to your account</li>
+                      <li>• No mixing — fastest processing</li>
+                      <li>• Credited to your balance</li>
+                    </ul>
+                    <p className="text-xs text-muted-foreground/70 mt-2">
+                      Minimum deposit: $3.00. Processing takes ~30 seconds.
                     </p>
                   </>
                 )}
