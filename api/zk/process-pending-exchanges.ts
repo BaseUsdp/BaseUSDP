@@ -155,13 +155,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log(`📋 Found ${exchanges?.length || 0} exchanges to process`);
 
     if (!exchanges || exchanges.length === 0) {
-      // No exchanges found - do NOT return false positives
-      // The frontend must keep polling until exchanges appear
+      // No pending exchanges - check if they're ALL completed already
+      if (depositId) {
+        const { data: allExchanges } = await supabase
+          .from('zk_exchanges')
+          .select('id, status')
+          .eq('deposit_id', depositId);
+        
+        if (allExchanges && allExchanges.length > 0) {
+          const completedCount = allExchanges.filter((e: any) => e.status === 'deposit_complete').length;
+          const allComplete = completedCount === allExchanges.length;
+          
+          console.log(`📋 All exchanges for deposit ${depositId}: ${completedCount}/${allExchanges.length} complete`);
+          
+          return res.status(200).json({ 
+            success: true, 
+            message: allComplete ? 'All exchanges completed' : 'No pending exchanges yet',
+            processed: 0,
+            depositId,
+            totalExchanges: allExchanges.length,
+            completedExchanges: completedCount,
+            allComplete,
+          });
+        }
+      }
+      
+      // No exchanges found at all yet
       return res.status(200).json({ 
         success: true, 
         message: 'No pending exchanges yet',
         processed: 0,
         depositId: depositId || null,
+        totalExchanges: 0,
+        completedExchanges: 0,
+        allComplete: false,
       });
     }
 
