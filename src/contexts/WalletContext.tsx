@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from "react";
 import { authService } from "@/services/authService";
 import { getZKBalance } from "@/services/api";
 import { getApiUrl } from "@/utils/apiConfig";
@@ -80,18 +80,27 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [chainId, setChainId] = useState<number | null>(null);
   // Privacy level - default to "full", loaded per-wallet once connected
   const [privacyLevel, setPrivacyLevelState] = useState<PrivacyLevel>("full");
+  
+  // Use a ref to always have access to the latest wallet address in callbacks
+  const fullWalletAddressRef = useRef(fullWalletAddress);
+  useEffect(() => {
+    fullWalletAddressRef.current = fullWalletAddress;
+  }, [fullWalletAddress]);
 
   // Helper to get privacy level storage key for a wallet
   const getPrivacyStorageKey = (walletAddr: string) => `void402_privacy_${walletAddr}`;
 
-  // Wrapper to save privacy level to localStorage (per wallet)
+  // Wrapper to save privacy level to localStorage (per wallet) - uses ref for latest address
   const setPrivacyLevel = useCallback((level: PrivacyLevel) => {
     setPrivacyLevelState(level);
-    if (typeof window !== "undefined" && fullWalletAddress) {
-      localStorage.setItem(getPrivacyStorageKey(fullWalletAddress), level);
-      console.log(`[WalletContext] Saved privacy level "${level}" for wallet ${fullWalletAddress.slice(0,8)}...`);
+    const walletAddr = fullWalletAddressRef.current;
+    if (typeof window !== "undefined" && walletAddr) {
+      localStorage.setItem(getPrivacyStorageKey(walletAddr), level);
+      console.log(`[WalletContext] Saved privacy level "${level}" for wallet ${walletAddr.slice(0,8)}...`);
+    } else {
+      console.warn(`[WalletContext] Cannot save privacy - no wallet address`);
     }
-  }, [fullWalletAddress]);
+  }, []);
 
   // Load privacy level when wallet address changes
   useEffect(() => {
