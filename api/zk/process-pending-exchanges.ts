@@ -178,9 +178,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             allComplete,
           });
         }
+        
+        // No exchanges found - check if this is a public/partial deposit (no mixer)
+        // In that case, check the holding wallet status
+        const { data: holdingData } = await supabase
+          .from('zk_holding_wallets')
+          .select('privacy_level, status')
+          .eq('deposit_id', depositId)
+          .single();
+        
+        if (holdingData) {
+          const privacyLevel = holdingData.privacy_level || 'full';
+          const isDirectDeposit = privacyLevel === 'public' || privacyLevel === 'partial';
+          
+          if (isDirectDeposit) {
+            // For public/partial, the deposit is complete when holding wallet is completed
+            const allComplete = holdingData.status === 'completed';
+            console.log(`📋 Direct deposit ${depositId} (${privacyLevel}): status=${holdingData.status}, complete=${allComplete}`);
+            
+            return res.status(200).json({ 
+              success: true, 
+              message: allComplete ? 'Direct deposit completed (no mixer)' : 'Processing direct deposit...',
+              processed: 0,
+              depositId,
+              totalExchanges: 0,
+              completedExchanges: 0,
+              allComplete, // True if holding wallet is completed
+              privacyLevel,
+              skipMixer: true,
+            });
+          }
+        }
       }
       
-      // No exchanges found at all yet
+      // No exchanges found at all yet (Full privacy - waiting for ChangeNow)
       return res.status(200).json({ 
         success: true, 
         message: 'No pending exchanges yet',

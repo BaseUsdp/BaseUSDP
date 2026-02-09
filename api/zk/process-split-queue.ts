@@ -112,13 +112,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const sentSplits = allSplits?.filter((s: any) => s.status === 'sent').length || 0;
       const failedSplits = allSplits?.filter((s: any) => s.status === 'failed').length || 0;
 
+      // Check privacy level to determine if we should skip mixer
+      let skipMixer = false;
+      let depositComplete = false;
+      if (depositId) {
+        const { data: holdingData } = await supabase
+          .from('zk_holding_wallets')
+          .select('privacy_level, status')
+          .eq('deposit_id', depositId)
+          .single();
+        
+        const privacyLevel = holdingData?.privacy_level || 'full';
+        skipMixer = privacyLevel === 'public' || privacyLevel === 'partial';
+        depositComplete = skipMixer && holdingData?.status === 'completed';
+      }
+
       if (totalSplits > 0 && sentSplits === totalSplits) {
         return res.status(200).json({
           success: true,
-          message: 'All splits have been sent',
+          message: skipMixer ? 'All splits completed (no mixer needed)' : 'All splits have been sent',
           allSent: true,
           totalSplits,
           sentSplits,
+          skipMixer,
+          depositComplete: skipMixer, // For public/partial, allSent = depositComplete
         });
       }
 
@@ -130,6 +147,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         totalSplits,
         sentSplits,
         failedSplits,
+        skipMixer,
       });
     }
 
