@@ -579,23 +579,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
         }
         
-        console.log(`✅ ${privacyLevel.toUpperCase()} deposit completed: ${amountInCurrency} ${split.token}`);
+        console.log(`✅ ${privacyLevel.toUpperCase()} split ${split.split_index + 1} completed: ${amountInCurrency} ${split.token}`);
         
-        // Mark holding wallet as completed
-        await supabase
-          .from('zk_holding_wallets')
-          .update({ status: 'completed', updated_at: new Date().toISOString() })
+        // Check if ALL splits for this deposit are now sent
+        const { data: allSplits } = await supabase
+          .from('zk_split_queue')
+          .select('id, status')
           .eq('deposit_id', split.deposit_id);
+        
+        const totalSplits = allSplits?.length || 1;
+        const sentSplits = allSplits?.filter((s: any) => s.status === 'sent').length || 1;
+        const pendingSplits = allSplits?.filter((s: any) => s.status === 'pending').length || 0;
+        const allSent = totalSplits > 0 && sentSplits === totalSplits;
+        
+        // Mark holding wallet as completed ONLY when all splits are done
+        if (allSent) {
+          await supabase
+            .from('zk_holding_wallets')
+            .update({ status: 'completed', updated_at: new Date().toISOString() })
+            .eq('deposit_id', split.deposit_id);
+          console.log(`✅ ${privacyLevel.toUpperCase()} ALL ${totalSplits} splits completed!`);
+        }
         
         return res.status(200).json({
           success: true,
-          message: `${privacyLevel.charAt(0).toUpperCase() + privacyLevel.slice(1)} deposit completed (no mixer)`,
+          message: allSent 
+            ? `${privacyLevel.charAt(0).toUpperCase() + privacyLevel.slice(1)} deposit completed (no mixer)` 
+            : `Split ${split.split_index + 1}/${totalSplits} completed`,
           splitIndex: split.split_index + 1,
           signature: sig2,
-          totalSplits: 1,
-          sentSplits: 1,
-          pendingSplits: 0,
-          allSent: true,
+          totalSplits,
+          sentSplits,
+          pendingSplits,
+          allSent,
+          // For public/partial, deposit is complete when all splits are sent (no mixer step)
+          depositComplete: allSent,
+          skipMixer: true, // Tell frontend to skip mixer processing step
           privacyLevel,
         });
         

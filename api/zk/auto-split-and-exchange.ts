@@ -208,13 +208,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log(`💰 AUTO-SPLIT: Detected ${(Number(actualAmount) / 1e6).toFixed(6)} ${depositData.token} in holding wallet`);
 
     // =========================================================================
-    // PUBLIC / PARTIAL PRIVACY: Skip ChangeNow, go directly to intermediate wallet
+    // PUBLIC PRIVACY: Single direct transfer, no splitting, no mixer
     // =========================================================================
-    if (privacyLevel === 'public' || privacyLevel === 'partial') {
-      console.log(`⚡ ${privacyLevel.toUpperCase()} PRIVACY: Skipping ChangeNow mixer, direct transfer to intermediate wallet`);
+    if (privacyLevel === 'public') {
+      console.log(`⚡ PUBLIC PRIVACY: Single direct transfer to intermediate wallet (no splitting)`);
       
       // Queue a single "split" that goes directly to the intermediate wallet
-      // process-split-queue will handle it differently for public/partial
       const splitData = {
         deposit_id: depositId,
         user_wallet: userWallet,
@@ -223,7 +222,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         split_amount: (Number(actualAmount) / 1e6).toFixed(6),
         scheduled_at: new Date().toISOString(), // Immediate
         status: 'pending',
-        privacy_level: privacyLevel, // Store privacy level for processing
+        privacy_level: privacyLevel,
       };
 
       const { error: insertError } = await supabase
@@ -232,7 +231,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (insertError) {
         console.error(`❌ Failed to queue direct transfer:`, insertError);
-        // Try without privacy_level column if it doesn't exist
         const { error: retryError } = await supabase
           .from('zk_split_queue')
           .insert({
@@ -245,12 +243,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             status: 'pending',
           });
         if (retryError) {
-          console.error(`❌ Retry also failed:`, retryError);
           return res.status(500).json({ error: 'Failed to queue direct transfer' });
         }
       }
 
-      // Mark holding wallet as processing
       await supabase
         .from('zk_holding_wallets')
         .update({ 
@@ -260,11 +256,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         })
         .eq('deposit_id', depositId);
 
-      console.log(`✅ ${privacyLevel.toUpperCase()}: Queued direct transfer for deposit ${depositId}`);
+      console.log(`✅ PUBLIC: Queued direct transfer for deposit ${depositId}`);
 
       return res.status(200).json({
         success: true,
-        message: `Queued direct transfer (${privacyLevel} privacy)`,
+        message: `Queued direct transfer (public privacy)`,
         numSplits: 1,
         splits: [{
           splitIndex: 1,
@@ -274,6 +270,126 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         pollQueue: true,
         depositId: depositId,
         privacyLevel: privacyLevel,
+      });
+    }
+
+    // =========================================================================
+    // PARTIAL PRIVACY: Split into 2-4 parts like Full, but no ChangeNow mixer
+    // Each split goes directly to intermediate wallet with staggered timing
+    // =========================================================================
+    if (privacyLevel === 'partial') {
+      console.log(`⚡ PARTIAL PRIVACY: Splitting into multiple parts (no mixer)`);
+
+      // Calculate splits (same logic as Full privacy)
+      const PRIVACY_EXCHANGE_MIN = BigInt(3_000_000); // $3 minimum per split
+      const maxPossibleSplits = Math.floor(Number(actualAmount) / Number(PRIVACY_EXCHANGE_MIN));
+      
+      let numSplits: number;
+      if (maxPossibleSplits < 2) {
+        numSplits = 1; // Small amounts: single transfer
+      } else if (maxPossibleSplits >= 4) {
+        numSplits = 2 + Math.floor(Math.random() * 3); // 2-4 splits
+      } else {
+        numSplits = 2;
+      }
+      numSplits = Math.min(numSplits, maxPossibleSplits);
+
+      // Calculate split amounts
+      const splits: bigint[] = [];
+      if (numSplits === 1) {
+        splits.push(actualAmount);
+      } else {
+        let remainingAmount = actualAmount;
+        for (let i = 0; i < numSplits - 1; i++) {
+          const remainingSplits = numSplits - i;
+          const minRequiredForRemaining = PRIVACY_EXCHANGE_MIN * BigInt(remainingSplits);
+          const maxAllowedForThisSplit = remainingAmount - minRequiredForRemaining + PRIVACY_EXCHANGE_MIN;
+          
+          const minForThisSplit = Number(PRIVACY_EXCHANGE_MIN);
+          const maxForThisSplit = Number(maxAllowedForThisSplit);
+          const randomAmount = BigInt(Math.floor(minForThisSplit + (Math.random() * (maxForThisSplit - minForThisSplit))));
+          
+          splits.push(randomAmount);
+          remainingAmount -= randomAmount;
+        }
+        splits.push(remainingAmount);
+        
+        // Shuffle for privacy
+        for (let i = splits.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [splits[i], splits[j]] = [splits[j], splits[i]];
+        }
+      }
+
+      console.log(`🔒 PARTIAL: Queueing ${numSplits} splits with staggered timing:`, 
+        splits.map(s => `${(Number(s) / 1e6).toFixed(6)} ${depositData.token}`));
+
+      // Queue splits with staggered times (30-60 seconds apart for partial - faster than full)
+      const now = new Date();
+      const queuedSplits = [];
+
+      for (let i = 0; i < splits.length; i++) {
+        const delayMs = i === 0 ? 0 : (30000 + Math.floor(Math.random() * 30000)); // 30-60 sec apart
+        const scheduledAt = new Date(now.getTime() + (i === 0 ? 0 : (i * 30000 + delayMs)));
+        
+        const splitData = {
+          deposit_id: depositId,
+          user_wallet: userWallet,
+          token: depositData.token,
+          split_index: i,
+          split_amount: (Number(splits[i]) / 1e6).toFixed(6),
+          scheduled_at: scheduledAt.toISOString(),
+          status: 'pending',
+          privacy_level: 'partial',
+        };
+
+        const { error: insertError } = await supabase
+          .from('zk_split_queue')
+          .insert(splitData);
+
+        if (insertError) {
+          // Try without privacy_level column
+          await supabase
+            .from('zk_split_queue')
+            .insert({
+              deposit_id: depositId,
+              user_wallet: userWallet,
+              token: depositData.token,
+              split_index: i,
+              split_amount: (Number(splits[i]) / 1e6).toFixed(6),
+              scheduled_at: scheduledAt.toISOString(),
+              status: 'pending',
+            });
+        }
+
+        queuedSplits.push({
+          splitIndex: i + 1,
+          amount: (Number(splits[i]) / 1e6).toFixed(6),
+          scheduledAt: scheduledAt.toISOString(),
+        });
+
+        console.log(`📋 Queued partial split ${i + 1}/${numSplits}: ${(Number(splits[i]) / 1e6).toFixed(6)} ${depositData.token}`);
+      }
+
+      await supabase
+        .from('zk_holding_wallets')
+        .update({ 
+          status: 'processing', 
+          num_splits: numSplits,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('deposit_id', depositId);
+
+      console.log(`✅ PARTIAL: Queued ${queuedSplits.length} splits for deposit ${depositId}`);
+
+      return res.status(200).json({
+        success: true,
+        message: `Queued ${queuedSplits.length} splits (partial privacy - no mixer)`,
+        numSplits: queuedSplits.length,
+        splits: queuedSplits,
+        pollQueue: true,
+        depositId: depositId,
+        privacyLevel: 'partial',
       });
     }
 

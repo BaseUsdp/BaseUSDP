@@ -590,13 +590,19 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
       console.log(`[Deposit] ${numSplits} splits queued`);
 
       // ============================================
-      // STEP 6: Process split queue (send to ChangeNow)
+      // STEP 6: Process split queue (send to mixer or direct)
       // ============================================
       setStep("splitting");
-      setProcessingStatus(`Sending splits to privacy mixer (0/${numSplits})...`);
+      const isDirectDeposit = privacyLevel === "public" || privacyLevel === "partial";
+      setProcessingStatus(
+        isDirectDeposit 
+          ? `Processing splits (0/${numSplits})...`
+          : `Sending splits to privacy mixer (0/${numSplits})...`
+      );
 
       // Poll process-split-queue until all splits are sent
-      await pollEndpoint(
+      let skipMixerStep = false;
+      const splitQueueResult = await pollEndpoint(
         `${apiUrl}/api/zk/process-split-queue`,
         { depositId: newDepositId, wallet: fullWalletAddress },
         (data) => {
@@ -605,14 +611,31 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
             setTotalSplits(data.totalSplits || numSplits);
           }
 
+          // Check if this is a direct deposit (public/partial) that's complete
+          if (data.depositComplete && data.skipMixer) {
+            skipMixerStep = true;
+            setProcessingStatus(`Deposit complete!`);
+            return { done: true, data };
+          }
+
           if (data.allSent) {
-            setProcessingStatus(`All ${data.totalSplits || numSplits} splits sent to privacy mixer`);
+            // For public/partial, allSent means deposit is complete (no mixer)
+            if (data.skipMixer) {
+              skipMixerStep = true;
+              setProcessingStatus(`All ${data.totalSplits || numSplits} splits processed!`);
+            } else {
+              setProcessingStatus(`All ${data.totalSplits || numSplits} splits sent to privacy mixer`);
+            }
             return { done: true, data };
           }
 
           const sent = data.sentSplits || 0;
           const total = data.totalSplits || numSplits;
-          setProcessingStatus(`Sending splits to privacy mixer (${sent}/${total})...`);
+          setProcessingStatus(
+            isDirectDeposit
+              ? `Processing splits (${sent}/${total})...`
+              : `Sending splits to privacy mixer (${sent}/${total})...`
+          );
 
           return { done: false };
         },
@@ -620,60 +643,65 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
         600000  // 10 minute timeout (splits have staggered delays)
       );
 
-      console.log(`[Deposit] All splits sent to ChangeNow`);
+      console.log(`[Deposit] Split queue done. skipMixer=${skipMixerStep}`);
 
       // ============================================
       // STEP 7: Process pending exchanges (ChangeNow -> deposit)
+      // SKIP this step for public/partial (direct deposits)
       // ============================================
-      setStep("mixerProcessing");
-      setTotalExchanges(numSplits);
-      setProcessedExchanges(0);
-      setProcessingStatus("Waiting for privacy mixer to process...");
+      if (!skipMixerStep) {
+        setStep("mixerProcessing");
+        setTotalExchanges(numSplits);
+        setProcessedExchanges(0);
+        setProcessingStatus("Waiting for privacy mixer to process...");
 
-      // Poll process-pending-exchanges until ALL exchanges are deposited
-      await pollEndpoint(
-        `${apiUrl}/api/zk/process-pending-exchanges`,
-        { wallet: fullWalletAddress, depositId: newDepositId },
-        (data) => {
-          // Track progress from backend counts
-          if (data.completedExchanges !== undefined) {
-            setProcessedExchanges(data.completedExchanges);
-          }
-          if (data.totalExchanges !== undefined && data.totalExchanges > 0) {
-            setTotalExchanges(data.totalExchanges);
-          }
-
-          // Backend tells us when ALL exchanges are complete
-          if (data.allComplete === true) {
-            setProcessingStatus("All exchanges processed!");
-            return { done: true, data };
-          }
-
-          // Update status message based on exchange states
-          if (data.results && data.results.length > 0) {
-            const statuses = data.results.map((r: any) => r.status);
-            if (statuses.includes("waiting")) {
-              setProcessingStatus("Privacy mixer is processing your funds...");
-            } else if (statuses.includes("exchanging")) {
-              setProcessingStatus("Privacy mixer exchange in progress...");
-            } else if (statuses.includes("confirming")) {
-              setProcessingStatus("Confirming mixer output...");
-            } else if (statuses.includes("waiting_for_funds")) {
-              setProcessingStatus("Waiting for mixer to receive funds...");
+        // Poll process-pending-exchanges until ALL exchanges are deposited
+        await pollEndpoint(
+          `${apiUrl}/api/zk/process-pending-exchanges`,
+          { wallet: fullWalletAddress, depositId: newDepositId },
+          (data) => {
+            // Track progress from backend counts
+            if (data.completedExchanges !== undefined) {
+              setProcessedExchanges(data.completedExchanges);
             }
-          } else {
-            const completed = data.completedExchanges || 0;
-            const total = data.totalExchanges || numSplits;
-            setProcessingStatus(`Processing exchanges (${completed}/${total})...`);
-          }
+            if (data.totalExchanges !== undefined && data.totalExchanges > 0) {
+              setTotalExchanges(data.totalExchanges);
+            }
 
-          return { done: false };
-        },
-        10000,   // Poll every 10 seconds
-        1800000  // 30 minute timeout (ChangeNow can take time)
-      );
+            // Backend tells us when ALL exchanges are complete
+            if (data.allComplete === true) {
+              setProcessingStatus("All exchanges processed!");
+              return { done: true, data };
+            }
 
-      console.log(`[Deposit] All exchanges processed, deposit complete!`);
+            // Update status message based on exchange states
+            if (data.results && data.results.length > 0) {
+              const statuses = data.results.map((r: any) => r.status);
+              if (statuses.includes("waiting")) {
+                setProcessingStatus("Privacy mixer is processing your funds...");
+              } else if (statuses.includes("exchanging")) {
+                setProcessingStatus("Privacy mixer exchange in progress...");
+              } else if (statuses.includes("confirming")) {
+                setProcessingStatus("Confirming mixer output...");
+              } else if (statuses.includes("waiting_for_funds")) {
+                setProcessingStatus("Waiting for mixer to receive funds...");
+              }
+            } else {
+              const completed = data.completedExchanges || 0;
+              const total = data.totalExchanges || numSplits;
+              setProcessingStatus(`Processing exchanges (${completed}/${total})...`);
+            }
+
+            return { done: false };
+          },
+          10000,   // Poll every 10 seconds
+          1800000  // 30 minute timeout (ChangeNow can take time)
+        );
+
+        console.log(`[Deposit] All exchanges processed, deposit complete!`);
+      } else {
+        console.log(`[Deposit] Skipped mixer step (${privacyLevel} privacy)`);
+      }
 
       // ============================================
       // STEP 8: Success!
