@@ -7,7 +7,7 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Connection, PublicKey, Keypair, Transaction, SystemProgram, TransactionInstruction } from '@solana/web3.js';
-import { getAssociatedTokenAddress, getAccount, createTransferInstruction, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
+import { getAssociatedTokenAddress, getAccount, createTransferInstruction, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
@@ -489,7 +489,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             { pubkey: tokenMint, isSigner: false, isWritable: false },
             { pubkey: intermediateTokenAccount, isSigner: false, isWritable: true },
             { pubkey: poolTokenAccount, isSigner: false, isWritable: true },
-            { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false },
+            { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
             { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
           ],
           data: instructionData,
