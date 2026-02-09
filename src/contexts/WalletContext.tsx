@@ -78,24 +78,35 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>("disconnected");
   const [chainId, setChainId] = useState<number | null>(null);
-  // Load privacy level from localStorage
-  const [privacyLevel, setPrivacyLevelState] = useState<PrivacyLevel>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("void402_privacy_level");
+  // Privacy level - default to "full", loaded per-wallet once connected
+  const [privacyLevel, setPrivacyLevelState] = useState<PrivacyLevel>("full");
+
+  // Helper to get privacy level storage key for a wallet
+  const getPrivacyStorageKey = (walletAddr: string) => `void402_privacy_${walletAddr}`;
+
+  // Wrapper to save privacy level to localStorage (per wallet)
+  const setPrivacyLevel = useCallback((level: PrivacyLevel) => {
+    setPrivacyLevelState(level);
+    if (typeof window !== "undefined" && fullWalletAddress) {
+      localStorage.setItem(getPrivacyStorageKey(fullWalletAddress), level);
+      console.log(`[WalletContext] Saved privacy level "${level}" for wallet ${fullWalletAddress.slice(0,8)}...`);
+    }
+  }, [fullWalletAddress]);
+
+  // Load privacy level when wallet address changes
+  useEffect(() => {
+    if (fullWalletAddress && typeof window !== "undefined") {
+      const saved = localStorage.getItem(getPrivacyStorageKey(fullWalletAddress));
       if (saved && ["public", "partial", "full"].includes(saved)) {
-        return saved as PrivacyLevel;
+        setPrivacyLevelState(saved as PrivacyLevel);
+        console.log(`[WalletContext] Loaded privacy level "${saved}" for wallet ${fullWalletAddress.slice(0,8)}...`);
+      } else {
+        // Default to "full" for new wallets
+        setPrivacyLevelState("full");
       }
     }
-    return "full";
-  });
+  }, [fullWalletAddress]);
 
-  // Wrapper to save to localStorage when changed
-  const setPrivacyLevel = (level: PrivacyLevel) => {
-    setPrivacyLevelState(level);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("void402_privacy_level", level);
-    }
-  };
   const [encryptedBalance, setEncryptedBalance] = useState("0");
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   // Auth state
