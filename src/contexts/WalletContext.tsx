@@ -133,8 +133,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     return address;
   };
 
+  // Track if we've already handled a disconnect (prevent double-handling)
+  const hasHandledDisconnect = useRef(false);
+
   // Clear wallet state and redirect to landing (used on disconnect/switch)
-  const clearWalletAndRedirect = useCallback(async () => {
+  // 1:1 with VigilFi - stores message in sessionStorage, does full page refresh
+  const clearWalletAndRedirect = useCallback(async (message?: string) => {
+    // Prevent double-handling
+    if (hasHandledDisconnect.current) return;
+    hasHandledDisconnect.current = true;
+
+    console.log("[WalletContext] Disconnecting wallet:", message || "No message");
+
     // IMPORTANT: Await the backend logout to ensure session is deleted from DB
     // This prevents stale sessions from bypassing re-authentication on reconnect
     try {
@@ -153,7 +163,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setChainId(null);
     setEncryptedBalance("0");
     localStorage.removeItem("void402_wallet");
-    // Redirect to landing when on dashboard (or any protected area)
+
+    // Store the toast message to show after refresh (1:1 with VigilFi)
+    if (message && typeof window !== "undefined") {
+      sessionStorage.setItem("void402_disconnect_message", message);
+    }
+
+    // Force a full page refresh to landing - this completely resets all state
     if (typeof window !== "undefined" && window.location.pathname !== "/") {
       window.location.href = "/";
     }
@@ -258,7 +274,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
               // Verify it's the same wallet
               if (reconnectedAddress !== fullAddress) {
                 console.log("[WalletContext] Wallet address changed during reconnect");
-                clearWalletAndRedirect();
+                clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
                 return;
               }
               
@@ -267,7 +283,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
             } catch (err) {
               // onlyIfTrusted failed - wallet was disconnected by user
               console.log("[WalletContext] Phantom eager reconnect failed (not trusted):", err);
-              clearWalletAndRedirect();
+              clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
               return;
             }
           }
@@ -285,7 +301,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
                 
                 if (reconnectedAddress !== fullAddress) {
                   console.log("[WalletContext] Wallet address changed during reconnect");
-                  clearWalletAndRedirect();
+                  clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
                   return;
                 }
                 
@@ -293,12 +309,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
                 await verifyAndReauth(solflare, false);
               } else {
                 console.log("[WalletContext] Solflare reconnect failed - no public key");
-                clearWalletAndRedirect();
+                clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
                 return;
               }
             } catch (err) {
               console.log("[WalletContext] Solflare eager reconnect failed:", err);
-              clearWalletAndRedirect();
+              clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
               return;
             }
           }
@@ -326,14 +342,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     const handleDisconnect = () => {
       console.log("[WalletContext] Wallet disconnected event");
-      clearWalletAndRedirect();
+      clearWalletAndRedirect("Your wallet has been disconnected.");
     };
 
     const handleAccountChanged = (newPubkey: unknown) => {
       console.log("[WalletContext] Account changed event:", newPubkey);
       // null = disconnected; different key = switched account
       if (newPubkey == null) {
-        clearWalletAndRedirect();
+        clearWalletAndRedirect("Your wallet has been disconnected.");
         return;
       }
       // Get the new address string
@@ -344,7 +360,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // If the address changed, treat as disconnect and send to landing
       if (newAddress !== fullWalletAddress) {
         console.log("[WalletContext] Account switched from", fullWalletAddress, "to", newAddress);
-        clearWalletAndRedirect();
+        clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
       }
     };
 
@@ -379,14 +395,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (!provider) {
         // Provider disappeared (e.g., extension removed)
         console.log("[WalletContext] Wallet provider no longer available");
-        clearWalletAndRedirect();
+        clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
         return;
       }
 
       // Check if wallet is still connected
       if (!provider.isConnected) {
         console.log("[WalletContext] Wallet no longer connected (poll)");
-        clearWalletAndRedirect();
+        clearWalletAndRedirect("Your wallet has been disconnected.");
         return;
       }
 
@@ -394,7 +410,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const currentAddress = provider.publicKey?.toString();
       if (currentAddress && currentAddress !== fullWalletAddress) {
         console.log("[WalletContext] Wallet address changed (poll):", currentAddress, "vs", fullWalletAddress);
-        clearWalletAndRedirect();
+        clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
         return;
       }
     };
@@ -592,7 +608,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error("Disconnect error:", err);
     }
-    await clearWalletAndRedirect();
+    await clearWalletAndRedirect("You have been disconnected.");
   }, [walletType, clearWalletAndRedirect]);
 
   // Authenticate with wallet signature
