@@ -29,6 +29,7 @@ import {
 import { getPrivacyUsdWalletPool } from '../lib/intermediate-wallet-pool.js';
 import { createClient } from '@supabase/supabase-js';
 import { getUSDPHolderTier, calculateFeePercentage } from '../lib/tier-service.js';
+import { extractBearerToken, verifyBearerToken } from '../lib/bearer-auth.js';
 import bs58 from 'bs58';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -203,6 +204,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       nonce,
       force_external,
     } = req.body;
+
+    // =====================================================================
+    // CRITICAL SECURITY: Require authentication and verify sender owns wallet
+    // This prevents attackers from initiating transfers from other users' accounts
+    // =====================================================================
+    if (!sender_wallet) {
+      return res.status(400).json({ error: 'sender_wallet is required' });
+    }
+
+    const bearerToken = extractBearerToken(req);
+    if (!bearerToken) {
+      console.error(`❌ SECURITY: Transfer attempted without authentication for wallet ${sender_wallet?.slice(0,8)}...`);
+      return res.status(401).json({ error: 'Authentication required. Please sign in with your wallet.' });
+    }
+
+    const tokenVerification = await verifyBearerToken(bearerToken, sender_wallet);
+    if (!tokenVerification.valid) {
+      console.error(`❌ SECURITY: Invalid token for transfer from ${sender_wallet?.slice(0,8)}...: ${tokenVerification.error}`);
+      return res.status(403).json({ error: 'Invalid authentication. Please reconnect your wallet.' });
+    }
+
+    console.log(`✅ Authenticated transfer request from ${sender_wallet.slice(0,8)}...`);
 
     // Resolve recipient: either from wallet address or username
     let recipient_wallet = recipient_wallet_input;

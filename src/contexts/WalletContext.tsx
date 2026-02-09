@@ -382,12 +382,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   // Poll for wallet state changes (backup for when events don't fire)
   // Only start polling AFTER initial reconnect is complete
+  // 1:1 with VigilFi pattern
   useEffect(() => {
     // Don't poll until initial reconnect attempt is done
     if (!initialReconnectComplete) return;
     if (!isConnected || !fullWalletAddress) return;
 
-    const checkWalletState = () => {
+    const checkWalletState = async () => {
       const phantom = getPhantomProvider();
       const solflare = getSolflareProvider();
       const provider = walletType === "phantom" ? phantom : walletType === "solflare" ? solflare : null;
@@ -406,17 +407,36 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // Check if the address changed
+      // Method 1: Check provider.publicKey directly
       const currentAddress = provider.publicKey?.toString();
       if (currentAddress && currentAddress !== fullWalletAddress) {
-        console.log("[WalletContext] Wallet address changed (poll):", currentAddress, "vs", fullWalletAddress);
+        console.log("[WalletContext] Wallet address changed (poll publicKey):", currentAddress, "vs", fullWalletAddress);
         clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
         return;
       }
+
+      // Method 2 (1:1 VigilFi): Use connect({ onlyIfTrusted: true }) to get the ACTUAL current account
+      // This forces Phantom to return the currently selected account without prompting
+      try {
+        const response = await provider.connect({ onlyIfTrusted: true });
+        const actualCurrentAccount = response?.publicKey?.toString?.();
+        
+        if (actualCurrentAccount && actualCurrentAccount !== fullWalletAddress) {
+          console.log("[WalletContext] Wallet address changed (poll connect):", actualCurrentAccount, "vs", fullWalletAddress);
+          clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
+          return;
+        }
+      } catch (connectErr) {
+        // If connect fails, user may have revoked trust - treat as disconnect
+        console.log("[WalletContext] Polling: connect() failed, treating as disconnect", connectErr);
+        clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
+      }
     };
 
-    // Don't check immediately - wait a bit after reconnect completes
-    // Then poll every 1 second
+    // Check immediately
+    checkWalletState();
+    
+    // Check every 1 second (1:1 with VigilFi)
     const interval = setInterval(checkWalletState, 1000);
 
     return () => clearInterval(interval);
