@@ -1,11 +1,13 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
 
 const CTASection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const [isButtonHovered, setIsButtonHovered] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <section ref={ref} className="relative py-16 overflow-hidden bg-[#020202]">
@@ -71,20 +73,15 @@ const CTASection = () => {
               />
 
               <motion.button
-                className="relative inline-flex items-center gap-3 bg-primary/10 text-white/60 rounded-full p-1 border border-primary/20 overflow-hidden opacity-60 cursor-not-allowed"
-                disabled
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                style={{ pointerEvents: "none" }}
-                whileHover={{ scale: 1 }}
-                whileTap={{ scale: 1 }}
+                className="relative inline-flex items-center gap-3 bg-primary/10 text-white rounded-full p-1 border border-primary/20 overflow-hidden cursor-pointer"
+                onClick={() => navigate("/dashboard")}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
               >
                 <span className="inline-flex items-center gap-3 bg-primary/10 rounded-full py-3 px-8 relative">
-                    <Icon icon="ph:clock" className="w-4 h-4" />
-                    <span className="font-semibold text-sm whitespace-nowrap">Coming Soon</span>
+                    <Icon icon="ph:arrow-right-bold" className="w-4 h-4" />
+                    <span className="font-semibold text-sm whitespace-nowrap">Dashboard</span>
                     <motion.div
                       animate={{ x: isButtonHovered ? 5 : 0 }}
                       transition={{ type: "spring", stiffness: 400, damping: 17 }}

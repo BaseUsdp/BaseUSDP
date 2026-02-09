@@ -85,16 +85,11 @@ const Navbar = () => {
               transition={{ delay: 0.5 }}
             >
               <Button 
-                className="group gap-2 bg-primary/60 text-white/80 px-4 py-2 text-sm font-medium rounded-full opacity-60 cursor-not-allowed"
-                disabled
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                style={{ pointerEvents: "none" }}
+                className="group gap-2 bg-primary text-white px-4 py-2 text-sm font-medium rounded-full hover:bg-primary/90"
+                onClick={() => navigate("/dashboard")}
               >
-                Coming Soon
-                <Icon icon="ph:clock" className="h-4 w-4" />
+                Dashboard
+                <Icon icon="ph:arrow-right-bold" className="h-4 w-4" />
               </Button>
             </motion.div>
           </div>
@@ -143,16 +138,11 @@ const Navbar = () => {
                 <div className="pt-2 mt-2 border-t border-white/10 flex flex-col gap-3">
                   <WalletConnectButton variant="navbar" />
                   <Button 
-                    className="w-full gap-2 bg-primary/60 text-white/80 rounded-full opacity-60 cursor-not-allowed"
-                    disabled
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                    style={{ pointerEvents: "none" }}
+                    className="w-full gap-2 bg-primary text-white rounded-full hover:bg-primary/90"
+                    onClick={() => { setIsOpen(false); navigate("/dashboard"); }}
                   >
-                    Coming Soon
-                    <Icon icon="ph:clock" className="h-4 w-4" />
+                    Dashboard
+                    <Icon icon="ph:arrow-right-bold" className="h-4 w-4" />
                   </Button>
                 </div>
               </div>

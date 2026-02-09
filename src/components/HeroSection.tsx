@@ -86,9 +86,7 @@ const HeroSection = () => {
   }, []);
 
   const handleLaunchApp = () => {
-    // Disabled - Coming Soon
-    // Do nothing when clicked
-    return;
+    navigate("/dashboard");
   };
 
   return (
@@ -157,13 +155,11 @@ const HeroSection = () => {
               <div className="flex flex-wrap items-center gap-6">
                 <button 
                   onClick={handleLaunchApp} 
-                  disabled
-                  className="shiny-cta opacity-60 cursor-not-allowed"
-                  style={{ pointerEvents: "none" }}
+                  className="shiny-cta"
                 >
                   <span className="flex items-center gap-2">
-                    <Icon icon="ph:clock" className="w-4 h-4" />
-                    Coming Soon
+                    <Icon icon="ph:arrow-right-bold" className="w-4 h-4" />
+                    Dashboard
                   </span>
                 </button>
                 
