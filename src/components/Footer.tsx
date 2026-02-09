@@ -129,7 +129,7 @@ const Footer = () => {
             </Link>
             <p className="text-white/40 text-sm leading-relaxed">
               The Confidential Payment Layer for the Agentic Economy. 
-              Privacy-first transactions powered by FHE and x402.
+              Privacy-first transactions powered by ZK Proofs and x402.
             </p>
           </div>
 

@@ -2,10 +2,10 @@ import { motion } from "framer-motion";
 
 const LogoStrip = () => {
   const technologies = [
-    { name: "Base", icon: "coinbase", color: "text-white" },
-    { name: "Fhenix", icon: "shield", color: "text-violet-400" },
+    { name: "Solana", icon: "solana", color: "text-white" },
+    { name: "ZK Proofs", icon: "shield", color: "text-violet-400" },
     { name: "x402", icon: "dollar", color: "text-blue-400" },
-    { name: "Solidity", icon: "code", color: "text-neutral-300" },
+    { name: "Rust", icon: "code", color: "text-neutral-300" },
     { name: "TypeScript", icon: "typescript", color: "text-blue-500" },
     { name: "React", icon: "react", color: "text-cyan-400" },
   ];

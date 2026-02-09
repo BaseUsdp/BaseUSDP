@@ -146,7 +146,7 @@ const HeroSection = () => {
 
               {/* Sub-headline */}
               <p className="text-neutral-400 text-lg leading-relaxed max-w-xl mb-10">
-                Our FHE-powered infrastructure enables institutions, developers, and AI agents 
+                Our ZK Proof-powered infrastructure enables institutions, developers, and AI agents 
                 to transact on-chain with complete privacy, unlocking the future of secure, 
                 autonomous commerce.
               </p>
@@ -205,7 +205,7 @@ const HeroSection = () => {
                       </div>
                       <div>
                         <div className="text-sm text-white font-medium">Confidential Transactions</div>
-                        <div className="text-[10px] text-neutral-500 font-mono">FHE-Powered Encryption</div>
+                        <div className="text-[10px] text-neutral-500 font-mono">ZK Proof-Powered Encryption</div>
                       </div>
                     </div>
                     <div className="text-right">

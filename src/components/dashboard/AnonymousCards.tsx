@@ -15,7 +15,7 @@ const AnonymousCards = () => {
         <div>
           <h3 className="font-display text-lg font-bold">Anonymous Cards</h3>
           <p className="text-xs text-muted-foreground uppercase tracking-wider">
-            Instant Issuance via Fhenix
+            Instant Issuance via ZK Proofs
           </p>
         </div>
         <CreditCard className="w-5 h-5 text-muted-foreground" />

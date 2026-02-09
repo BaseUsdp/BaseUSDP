@@ -19,8 +19,8 @@ const FAQSection = () => {
   const faqs = [
     {
       icon: "ph:shield-check-bold",
-      question: "What is Fully Homomorphic Encryption (FHE)?",
-      answer: "FHE is a form of encryption that allows computations to be performed on encrypted data without decrypting it first. This means your transaction amounts, balances, and financial data remain private even while being processed on the blockchain. Void402 uses FHE to enable truly confidential transactions.",
+      question: "What are Zero-Knowledge Proofs (ZK Proofs)?",
+      answer: "ZK Proofs are cryptographic methods that allow one party to prove to another that a statement is true without revealing any additional information. This means your transaction amounts, balances, and financial data remain private while still being verifiable on the blockchain. Void402 uses ZK Proofs to enable truly confidential transactions.",
     },
     {
       icon: "ph:lightning-bold",
@@ -30,7 +30,7 @@ const FAQSection = () => {
     {
       icon: "ph:lock-bold",
       question: "How does Void402 protect my privacy?",
-      answer: "Void402 encrypts your transaction amounts and balances using FHE technology. Unlike traditional blockchains where all data is public, only you can see your true balances. Third parties, including validators and observers, cannot view your financial activity.",
+      answer: "Void402 encrypts your transaction amounts and balances using ZK Proof technology. Unlike traditional blockchains where all data is public, only you can see your true balances. Third parties, including validators and observers, cannot view your financial activity.",
     },
     {
       icon: "ph:credit-card-bold",
@@ -45,7 +45,7 @@ const FAQSection = () => {
     {
       icon: "ph:question-bold",
       question: "Which blockchains does Void402 support?",
-      answer: "Void402 currently operates on Base (Coinbase L2) with Fhenix for FHE capabilities. We're actively developing cross-chain bridges to expand to other EVM-compatible networks in Q3 2026 as part of our roadmap.",
+      answer: "Void402 currently operates on Solana mainnet with ZK Proof capabilities for privacy. We also support x402 deposits from Base chain via cross-chain bridging.",
     },
   ];
 

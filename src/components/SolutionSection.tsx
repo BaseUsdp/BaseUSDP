@@ -17,9 +17,9 @@ const SolutionSection = () => {
     },
     {
       icon: "ph:shield-check-fill",
-      tag: "FHE Technology",
-      title: "Compute on Encrypted Data",
-      description: "Fully Homomorphic Encryption allows computations on encrypted data without decrypting it.",
+      tag: "ZK Proof Technology",
+      title: "Prove Without Revealing",
+      description: "Zero-Knowledge Proofs allow verification of transactions without revealing sensitive data.",
       features: ["Confidential balances", "Private transactions", "Anonymous payments", "Fraud detection"],
       gradient: "from-violet-400 to-purple-600",
     },
@@ -35,13 +35,13 @@ const SolutionSection = () => {
 
   // 3D Wall cards data
   const wallCards = [
-    { name: "Base", type: "Blockchain Layer", icon: "simple-icons:coinbase" },
-    { name: "Fhenix", type: "FHE Privacy", icon: "ph:shield-check-fill" },
+    { name: "Solana", type: "Blockchain Layer", icon: "simple-icons:solana" },
+    { name: "ZK Proofs", type: "Privacy Layer", icon: "ph:shield-check-fill" },
     { name: "x402", type: "Payment Standard", icon: "ph:currency-dollar-fill" },
-    { name: "Solidity", type: "Smart Contracts", icon: "ph:code-fill" },
+    { name: "Rust", type: "Smart Contracts", icon: "ph:code-fill" },
     { name: "TypeScript", type: "Backend", icon: "simple-icons:typescript" },
     { name: "React + Vite", type: "Frontend", icon: "simple-icons:react" },
-    { name: "FHERC20", type: "Token Standard", icon: "ph:lock-fill" },
+    { name: "SPL Tokens", type: "Token Standard", icon: "ph:lock-fill" },
     { name: "AI Agents", type: "Autonomous", icon: "ph:robot-fill" },
   ];
 

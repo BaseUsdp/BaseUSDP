@@ -15,8 +15,8 @@ const TechStackSection = () => {
       icon: "ph:shield-check-bold", 
       value: "256", 
       suffix: "-bit", 
-      label: "FHE Encryption", 
-      description: "Cutting-edge Fully Homomorphic Encryption (FHE)",
+      label: "ZK Encryption", 
+      description: "Cutting-edge Zero-Knowledge Proof Technology",
     },
     { 
       icon: "ph:lightning-bold", 
@@ -42,10 +42,10 @@ const TechStackSection = () => {
   ];
 
   const techStack = [
-    { icon: "ph:globe-bold", name: "Base", category: "Blockchain", description: "Coinbase L2 with native x402 support" },
-    { icon: "ph:stack-bold", name: "Fhenix", category: "Privacy Layer", description: "FHE on EVM for confidential computing" },
+    { icon: "ph:globe-bold", name: "Solana", category: "Blockchain", description: "High-speed L1 with native token support" },
+    { icon: "ph:stack-bold", name: "ZK Proofs", category: "Privacy Layer", description: "Zero-Knowledge Proofs for confidential computing" },
     { icon: "ph:coins-bold", name: "x402", category: "Payment Standard", description: "HTTP 402 for internet-native payments" },
-    { icon: "ph:code-bold", name: "Solidity", category: "Smart Contracts", description: "FHERC20 tokens & Void402Facilitator" },
+    { icon: "ph:code-bold", name: "Rust", category: "Smart Contracts", description: "Solana programs & Void402 protocol" },
     { icon: "ph:cpu-bold", name: "TypeScript", category: "Backend", description: "Node.js with Express & native x402 libs" },
     { icon: "ph:database-bold", name: "React + Vite", category: "Frontend", description: "Modern web app with optimized builds" },
   ];
@@ -874,7 +874,7 @@ const TechStackSection = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <Icon icon="ph:database-bold" className="w-3 h-3 text-white/40" />
-                  <span className="text-xs text-white/40">256-bit FHE</span>
+                  <span className="text-xs text-white/40">256-bit ZK</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Icon icon="ph:wifi-high-bold" className="w-3 h-3 text-emerald-400" />

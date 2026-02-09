@@ -37,7 +37,7 @@ const AboutSection = () => {
                 Public blockchains promised a revolution in peer-to-peer finance, but their inherent transparency created a critical barrier to mainstream adoption. For institutions, enterprises, and any entity that values financial privacy, broadcasting every transaction to the world is not just a risk—it's a non-starter.
               </p>
               <p>
-                <span className="text-white font-medium">Void402 was created to solve this fundamental problem.</span> By integrating cutting-edge Fully Homomorphic Encryption (FHE) with the internet-native x402 payment standard, we have created the world's first confidential payment layer for the on-chain economy.
+                <span className="text-white font-medium">Void402 was created to solve this fundamental problem.</span> By integrating cutting-edge Zero-Knowledge Proofs (ZK Proofs) with the internet-native x402 payment standard, we have created the world's first confidential payment layer for the on-chain economy.
               </p>
             </div>
           </motion.div>
@@ -114,7 +114,7 @@ const AboutSection = () => {
                 </div>
                 <div className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg border border-white/10">
                   <Icon icon="ph:shield-check-fill" className="w-4 h-4 text-violet-400" />
-                  <span className="text-xs text-neutral-300">Fhenix</span>
+                  <span className="text-xs text-neutral-300">ZK Proofs</span>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg border border-white/10">
                   <Icon icon="ph:currency-dollar-fill" className="w-4 h-4 text-emerald-400" />

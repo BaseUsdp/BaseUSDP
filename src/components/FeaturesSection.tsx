@@ -11,7 +11,7 @@ const FeaturesSection = () => {
     {
       icon: "ph:eye-fill",
       title: "Encrypted Balances",
-      description: "View and manage your balances with FHE encryption. Only you can see your true holdings.",
+      description: "View and manage your balances with ZK Proof encryption. Only you can see your true holdings.",
       tag: "Privacy",
       gradient: "from-violet-500 to-purple-600",
       stats: { metric: "256-bit", label: "Encryption" },
