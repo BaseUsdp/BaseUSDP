@@ -8,21 +8,11 @@ const Footer = () => {
       { name: "Technology", href: "#features" },
       { name: "Use Cases", href: "#use-cases" },
       { name: "Roadmap", href: "#roadmap" },
-    ],
-    Resources: [
-      { name: "Docs", href: "#" },
-      { name: "API Reference", href: "#" },
-      { name: "Tutorials", href: "#" },
-    ],
-    Company: [
       { name: "About", href: "#about" },
-      { name: "Blog", href: "#" },
-      { name: "Careers", href: "#" },
     ],
     Legal: [
-      { name: "Privacy Policy", href: "#" },
-      { name: "Terms of Service", href: "#" },
-      { name: "Cookie Policy", href: "#" },
+      { name: "Privacy Policy", href: "/privacy-policy", isRoute: true },
+      { name: "Terms and Conditions", href: "/terms-and-conditions", isRoute: true },
     ],
   };
 
@@ -87,7 +77,7 @@ const Footer = () => {
 
       {/* Links Grid */}
       <div className="container relative mx-auto px-6 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-16 mb-16">
+        <div className="grid grid-cols-2 md:grid-cols-2 gap-8 lg:gap-16 mb-16">
           {Object.entries(footerLinks).map(([category, links]) => (
             <div key={category}>
               <h4 className="text-white/40 font-medium text-xs uppercase tracking-wider mb-6">{category}</h4>
