@@ -71,20 +71,21 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => item.id !== "messages" && setActiveTab(item.id)}
+              disabled={item.id === "messages"}
               className={cn(
                 "w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors",
-                activeTab === item.id
+                item.id === "messages"
+                  ? "text-neutral-500 cursor-not-allowed"
+                  : activeTab === item.id
                   ? "bg-sky-500/20 text-sky-400"
                   : "text-neutral-300 hover:bg-white/5"
               )}
             >
               <item.icon className="w-4 h-4" />
               {item.label}
-              {item.id === "messages" && unreadMessages > 0 && (
-                <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1">
-                  {unreadMessages > 99 ? "99+" : unreadMessages}
-                </span>
+              {item.id === "messages" && (
+                <span className="ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-white/10 text-white/40">Soon</span>
               )}
             </button>
           ))}

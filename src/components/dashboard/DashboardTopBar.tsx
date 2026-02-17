@@ -37,16 +37,12 @@ const DashboardTopBar = ({ showBalance, setShowBalance, setActiveTab, unreadMess
         </Link>
 
         <button
-          onClick={() => setActiveTab("messages")}
-          className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-neutral-200 hover:text-white"
+          disabled
+          className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-neutral-500 cursor-not-allowed"
         >
           <MessageSquare className="h-4 w-4" />
           <span className="text-xs font-medium hidden sm:inline">Messages</span>
-          {unreadMessages > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1">
-              {unreadMessages > 99 ? "99+" : unreadMessages}
-            </span>
-          )}
+          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-white/10 text-white/40">Soon</span>
         </button>
       </div>
 
