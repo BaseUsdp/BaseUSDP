@@ -9,10 +9,11 @@ interface SendMessageModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onMessageSent?: () => void;
+  defaultRecipient?: string;
 }
 
-const SendMessageModal = ({ open, onOpenChange, onMessageSent }: SendMessageModalProps) => {
-  const [recipient, setRecipient] = useState("");
+const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient }: SendMessageModalProps) => {
+  const [recipient, setRecipient] = useState(defaultRecipient || "");
   const [message, setMessage] = useState("");
   const [recipientError, setRecipientError] = useState<string | null>(null);
   const [recipientValid, setRecipientValid] = useState(false);
@@ -24,7 +25,9 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent }: SendMessageModa
 
   // Reset state when modal opens/closes
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      setRecipient(defaultRecipient || "");
+    } else {
       setRecipient("");
       setMessage("");
       setRecipientError(null);
@@ -32,7 +35,7 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent }: SendMessageModa
       setSendError(null);
       setSendSuccess(false);
     }
-  }, [open]);
+  }, [open, defaultRecipient]);
 
   // Debounced username validation
   useEffect(() => {

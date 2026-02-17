@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, Send, Inbox, Loader2, RefreshCw, User } from "lucide-react";
+import { MessageSquare, Send, Inbox, Loader2, RefreshCw, User, Reply } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getSentMessages, getReceivedMessages, type Message } from "@/services/api";
 import SendMessageModal from "../SendMessageModal";
@@ -8,6 +8,7 @@ import SendMessageModal from "../SendMessageModal";
 const MessagesSection = () => {
   const [activeTab, setActiveTab] = useState("received");
   const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [replyTo, setReplyTo] = useState<string | undefined>(undefined);
   const [receivedMessages, setReceivedMessages] = useState<Message[]>([]);
   const [sentMessages, setSentMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,7 +50,7 @@ const MessagesSection = () => {
     return date.toLocaleDateString();
   };
 
-  const MessageCard = ({ msg, type }: { msg: Message; type: "received" | "sent" }) => (
+  const MessageCard = ({ msg, type, onReply }: { msg: Message; type: "received" | "sent"; onReply?: (username: string) => void }) => (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -79,6 +80,17 @@ const MessagesSection = () => {
         <span className="text-xs text-white/40 whitespace-nowrap">{formatTime(msg.created_at)}</span>
       </div>
       <p className="text-sm text-white/70 leading-relaxed pl-10">{msg.message}</p>
+      {type === "received" && onReply && msg.sender_username && (
+        <div className="pl-10 mt-2">
+          <button
+            onClick={() => onReply(msg.sender_username!)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 border border-primary/20 hover:border-primary/40 transition-all"
+          >
+            <Reply className="w-3.5 h-3.5" />
+            Reply
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 
@@ -127,7 +139,10 @@ const MessagesSection = () => {
             <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
           </button>
           <button
-            onClick={() => setSendModalOpen(true)}
+            onClick={() => {
+              setReplyTo(undefined);
+              setSendModalOpen(true);
+            }}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-violet-600 text-white text-sm font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
           >
             <Send className="w-4 h-4" />
@@ -182,7 +197,15 @@ const MessagesSection = () => {
             <div className="space-y-3">
               <AnimatePresence>
                 {receivedMessages.map((msg) => (
-                  <MessageCard key={msg.id} msg={msg} type="received" />
+                  <MessageCard
+                    key={msg.id}
+                    msg={msg}
+                    type="received"
+                    onReply={(username) => {
+                      setReplyTo(username);
+                      setSendModalOpen(true);
+                    }}
+                  />
                 ))}
               </AnimatePresence>
             </div>
@@ -214,6 +237,7 @@ const MessagesSection = () => {
         open={sendModalOpen}
         onOpenChange={setSendModalOpen}
         onMessageSent={fetchMessages}
+        defaultRecipient={replyTo}
       />
     </div>
   );
