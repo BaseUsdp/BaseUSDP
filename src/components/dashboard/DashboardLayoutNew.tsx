@@ -12,6 +12,7 @@ const DashboardLayoutNew = () => {
   const { isConnected } = useWallet();
   const [showBalance, setShowBalance] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+  const [paymentsInitialTab, setPaymentsInitialTab] = useState<string | undefined>(undefined);
 
   if (!isConnected) {
     return (
@@ -51,17 +52,24 @@ const DashboardLayoutNew = () => {
 
             {/* Main Content */}
             <main className="lg:col-span-6 bg-black/20 min-h-[700px]">
-              <DashboardMainContent 
+              <DashboardMainContent
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
                 showBalance={showBalance}
                 setShowBalance={setShowBalance}
+                paymentsInitialTab={paymentsInitialTab}
               />
             </main>
 
             {/* Right Sidebar */}
             <aside className="hidden lg:block lg:col-span-3 bg-black/30 border-l border-white/10">
-              <DashboardRightSidebar showBalance={showBalance} />
+              <DashboardRightSidebar
+                showBalance={showBalance}
+                onNavigateToPaymentsTab={(tab) => {
+                  setPaymentsInitialTab(tab);
+                  setActiveTab("payments");
+                }}
+              />
             </aside>
           </div>
         </motion.div>

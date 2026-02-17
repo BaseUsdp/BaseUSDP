@@ -21,17 +21,25 @@ import { getApiUrl } from "@/utils/apiConfig";
 
 interface PaymentsSectionProps {
   showBalance: boolean;
+  initialTab?: string;
 }
 
 type RecipientType = "address" | "username";
 type TransactionStep = "form" | "preview" | "signing" | "encrypting" | "pending" | "success" | "failed";
 
-const PaymentsSection = ({ showBalance }: PaymentsSectionProps) => {
+const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
   const { encryptedBalance, privacyLevel, walletType, isConnected, fullWalletAddress } = useWallet();
   const apiUrl = getApiUrl();
-  
-  const [activeTab, setActiveTab] = useState("send");
+
+  const [activeTab, setActiveTab] = useState(initialTab || "send");
   const [x402CreateModalOpen, setX402CreateModalOpen] = useState(false);
+
+  // Sync with initialTab when navigated from outside
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [payX402ModalOpen, setPayX402ModalOpen] = useState(false);
 
   // Send form state

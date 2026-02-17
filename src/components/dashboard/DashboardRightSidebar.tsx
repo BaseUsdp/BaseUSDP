@@ -20,9 +20,10 @@ import SendPaymentModal from "./SendPaymentModal";
 
 interface DashboardRightSidebarProps {
   showBalance: boolean;
+  onNavigateToPaymentsTab?: (tab: string) => void;
 }
 
-const DashboardRightSidebar = ({ showBalance }: DashboardRightSidebarProps) => {
+const DashboardRightSidebar = ({ showBalance, onNavigateToPaymentsTab }: DashboardRightSidebarProps) => {
   const { encryptedBalance, privacyLevel, refreshBalance, isBalanceLoading } = useWallet();
   const { stats, isLoading: isLoadingStats } = useTransactionStats();
   const [sendModalOpen, setSendModalOpen] = useState(false);
@@ -48,7 +49,7 @@ const DashboardRightSidebar = ({ showBalance }: DashboardRightSidebarProps) => {
 
   const quickActions = [
     { icon: Send, label: "Send Payment", color: "text-sky-400", onClick: () => setSendModalOpen(true) },
-    { icon: Download, label: "Request x402", color: "text-purple-400" },
+    { icon: Download, label: "Request Payment", color: "text-purple-400", onClick: () => onNavigateToPaymentsTab?.("x402") },
   ];
 
   return (

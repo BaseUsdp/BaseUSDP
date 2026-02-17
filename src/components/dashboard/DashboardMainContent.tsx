@@ -21,9 +21,10 @@ interface DashboardMainContentProps {
   setActiveTab: (tab: string) => void;
   showBalance: boolean;
   setShowBalance: (show: boolean) => void;
+  paymentsInitialTab?: string;
 }
 
-const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBalance }: DashboardMainContentProps) => {
+const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBalance, paymentsInitialTab }: DashboardMainContentProps) => {
   const { encryptedBalance, privacyLevel, refreshBalance, isBalanceLoading, fullWalletAddress, isConnected } = useWallet();
   const { stats, isLoading: isLoadingStats } = useTransactionStats();
   const [depositModalOpen, setDepositModalOpen] = useState(false);
@@ -209,7 +210,7 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
   if (activeTab === "payments") {
     return (
       <div className="p-4 sm:p-6">
-        <PaymentsSection showBalance={showBalance} />
+        <PaymentsSection showBalance={showBalance} initialTab={paymentsInitialTab} />
       </div>
     );
   }
