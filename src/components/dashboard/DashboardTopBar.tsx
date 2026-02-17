@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Download, RefreshCw, Eye, EyeOff, Bell, Home } from "lucide-react";
+import { RefreshCw, Eye, EyeOff, Bell, Home } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useWallet } from "@/contexts/WalletContext";
 import WalletConnectButton from "@/components/WalletConnectButton";
@@ -54,11 +54,6 @@ const DashboardTopBar = ({ showBalance, setShowBalance }: DashboardTopBarProps) 
           title="Refresh balances"
         >
           <RefreshCw className={`h-4 w-4 ${isBalanceLoading ? "animate-spin" : ""}`} />
-        </button>
-
-        {/* Download/Export */}
-        <button className="hidden sm:inline-flex rounded-md border border-white/10 bg-white/5 p-1.5 text-neutral-200 hover:bg-white/10 transition-colors">
-          <Download className="h-4 w-4" />
         </button>
 
         {/* Notifications */}
