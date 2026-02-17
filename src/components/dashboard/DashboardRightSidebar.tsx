@@ -4,7 +4,6 @@ import {
   Sparkles,
   RefreshCw,
   AlertTriangle,
-  Bell,
   Plus,
   Download,
   TrendingUp,
@@ -198,12 +197,9 @@ const DashboardRightSidebar = ({ showBalance, onNavigateToPaymentsTab }: Dashboa
       </div>
 
       {/* Footer Actions */}
-      <div className="mt-4 flex gap-2">
-        <button className="flex-1 px-3 py-2 text-white rounded text-xs font-medium bg-sky-600 hover:bg-sky-500 transition-colors">
+      <div className="mt-4">
+        <button className="w-full px-3 py-2 text-white rounded text-xs font-medium bg-sky-600 hover:bg-sky-500 transition-colors">
           Sync All
-        </button>
-        <button className="px-3 py-2 bg-white/5 text-neutral-300 rounded text-xs font-medium border border-white/10 hover:bg-white/10 transition-colors">
-          <Bell className="inline w-4 h-4" />
         </button>
       </div>
 
