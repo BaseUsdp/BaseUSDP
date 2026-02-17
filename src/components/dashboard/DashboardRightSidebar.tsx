@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
-import { 
-  Sparkles, 
-  RefreshCw, 
-  AlertTriangle, 
-  Bell, 
-  Plus, 
+import { useState } from "react";
+import {
+  Sparkles,
+  RefreshCw,
+  AlertTriangle,
+  Bell,
+  Plus,
   Download,
   TrendingUp,
   Clock,
@@ -15,6 +16,7 @@ import {
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
+import SendPaymentModal from "./SendPaymentModal";
 
 interface DashboardRightSidebarProps {
   showBalance: boolean;
@@ -23,6 +25,7 @@ interface DashboardRightSidebarProps {
 const DashboardRightSidebar = ({ showBalance }: DashboardRightSidebarProps) => {
   const { encryptedBalance, privacyLevel, refreshBalance, isBalanceLoading } = useWallet();
   const { stats, isLoading: isLoadingStats } = useTransactionStats();
+  const [sendModalOpen, setSendModalOpen] = useState(false);
 
   const formatAmount = (amount: number, showSign: boolean = false) => {
     const sign = showSign ? (amount >= 0 ? "+" : "") : "";
@@ -44,9 +47,8 @@ const DashboardRightSidebar = ({ showBalance }: DashboardRightSidebarProps) => {
   ];
 
   const quickActions = [
-    { icon: Send, label: "Send Payment", color: "text-sky-400" },
+    { icon: Send, label: "Send Payment", color: "text-sky-400", onClick: () => setSendModalOpen(true) },
     { icon: Download, label: "Request x402", color: "text-purple-400" },
-    { icon: TrendingUp, label: "Yield Vaults", color: "text-emerald-400" },
   ];
 
   return (
@@ -151,6 +153,7 @@ const DashboardRightSidebar = ({ showBalance }: DashboardRightSidebarProps) => {
             {quickActions.map((action) => (
               <button
                 key={action.label}
+                onClick={action.onClick}
                 className="w-full flex items-center gap-2 p-2 bg-white/5 hover:bg-white/10 rounded text-left transition-colors"
               >
                 <action.icon className={cn("w-4 h-4", action.color)} />
@@ -202,6 +205,8 @@ const DashboardRightSidebar = ({ showBalance }: DashboardRightSidebarProps) => {
           <Bell className="inline w-4 h-4" />
         </button>
       </div>
+
+      <SendPaymentModal open={sendModalOpen} onOpenChange={setSendModalOpen} />
     </div>
   );
 };
