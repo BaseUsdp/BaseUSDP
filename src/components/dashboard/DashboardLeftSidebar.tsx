@@ -21,9 +21,10 @@ interface DashboardLeftSidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   showBalance: boolean;
+  unreadMessages?: number;
 }
 
-const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance }: DashboardLeftSidebarProps) => {
+const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMessages = 0 }: DashboardLeftSidebarProps) => {
   const { encryptedBalance, privacyLevel, walletAddress } = useWallet();
   const { stats, isLoading: isLoadingStats } = useTransactionStats();
 
@@ -80,6 +81,11 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance }: Dashboar
             >
               <item.icon className="w-4 h-4" />
               {item.label}
+              {item.id === "messages" && unreadMessages > 0 && (
+                <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1">
+                  {unreadMessages > 99 ? "99+" : unreadMessages}
+                </span>
+              )}
             </button>
           ))}
         </div>

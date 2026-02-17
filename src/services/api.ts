@@ -673,5 +673,24 @@ export const getReceivedMessages = async (): Promise<{ success: boolean; message
   return api.request("/api/messages/received");
 };
 
+export const getConversation = async (
+  username: string
+): Promise<{ success: boolean; messages: Message[]; my_username: string }> => {
+  return api.request(`/api/messages/conversation?with=${encodeURIComponent(username)}`);
+};
+
+export const getUnreadMessageCount = async (): Promise<{ success: boolean; count: number }> => {
+  return api.request("/api/messages/unread-count");
+};
+
+export const markMessagesRead = async (
+  senderUsername: string
+): Promise<{ success: boolean }> => {
+  return api.request("/api/messages/mark-read", {
+    method: "POST",
+    body: JSON.stringify({ sender_username: senderUsername }),
+  });
+};
+
 export default api;
 

@@ -4,11 +4,13 @@ import { MessageSquare, Send, Inbox, Loader2, RefreshCw, User, Reply } from "luc
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getSentMessages, getReceivedMessages, type Message } from "@/services/api";
 import SendMessageModal from "../SendMessageModal";
+import ChatModal from "../ChatModal";
 
 const MessagesSection = () => {
   const [activeTab, setActiveTab] = useState("received");
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<string | undefined>(undefined);
+  const [chatWith, setChatWith] = useState<string | null>(null);
   const [receivedMessages, setReceivedMessages] = useState<Message[]>([]);
   const [sentMessages, setSentMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,11 +52,15 @@ const MessagesSection = () => {
     return date.toLocaleDateString();
   };
 
-  const MessageCard = ({ msg, type, onReply }: { msg: Message; type: "received" | "sent"; onReply?: (username: string) => void }) => (
+  const MessageCard = ({ msg, type, onReply, onOpenChat }: { msg: Message; type: "received" | "sent"; onReply?: (username: string) => void; onOpenChat?: (username: string) => void }) => (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors"
+      onClick={() => {
+        const chatUser = type === "received" ? msg.sender_username : msg.recipient_username;
+        if (chatUser && onOpenChat) onOpenChat(chatUser);
+      }}
+      className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors cursor-pointer"
     >
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2">
@@ -83,7 +89,7 @@ const MessagesSection = () => {
       {type === "received" && onReply && msg.sender_username && (
         <div className="pl-10 mt-2">
           <button
-            onClick={() => onReply(msg.sender_username!)}
+            onClick={(e) => { e.stopPropagation(); onReply(msg.sender_username!); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 border border-primary/20 hover:border-primary/40 transition-all"
           >
             <Reply className="w-3.5 h-3.5" />
@@ -205,6 +211,7 @@ const MessagesSection = () => {
                       setReplyTo(username);
                       setSendModalOpen(true);
                     }}
+                    onOpenChat={(username) => setChatWith(username)}
                   />
                 ))}
               </AnimatePresence>
@@ -224,7 +231,12 @@ const MessagesSection = () => {
             <div className="space-y-3">
               <AnimatePresence>
                 {sentMessages.map((msg) => (
-                  <MessageCard key={msg.id} msg={msg} type="sent" />
+                  <MessageCard
+                    key={msg.id}
+                    msg={msg}
+                    type="sent"
+                    onOpenChat={(username) => setChatWith(username)}
+                  />
                 ))}
               </AnimatePresence>
             </div>
@@ -238,6 +250,14 @@ const MessagesSection = () => {
         onOpenChange={setSendModalOpen}
         onMessageSent={fetchMessages}
         defaultRecipient={replyTo}
+      />
+
+      {/* Chat Modal */}
+      <ChatModal
+        open={!!chatWith}
+        onClose={() => setChatWith(null)}
+        username={chatWith || ""}
+        onMessageSent={fetchMessages}
       />
     </div>
   );

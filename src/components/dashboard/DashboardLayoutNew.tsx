@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useWallet } from "@/contexts/WalletContext";
 import NetworkWarningBanner from "./NetworkWarningBanner";
@@ -7,12 +7,30 @@ import DashboardLeftSidebar from "./DashboardLeftSidebar";
 import DashboardRightSidebar from "./DashboardRightSidebar";
 import DashboardMainContent from "./DashboardMainContent";
 import WalletConnectPrompt from "./WalletConnectPrompt";
+import { getUnreadMessageCount } from "@/services/api";
 
 const DashboardLayoutNew = () => {
   const { isConnected } = useWallet();
   const [showBalance, setShowBalance] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [paymentsInitialTab, setPaymentsInitialTab] = useState<string | undefined>(undefined);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await getUnreadMessageCount();
+      if (res.success) setUnreadMessages(res.count);
+    } catch {
+      // Silently fail
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isConnected) return;
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [isConnected, fetchUnreadCount]);
 
   if (!isConnected) {
     return (
@@ -37,16 +55,17 @@ const DashboardLayoutNew = () => {
           }}
         >
           {/* Top Bar */}
-          <DashboardTopBar showBalance={showBalance} setShowBalance={setShowBalance} setActiveTab={setActiveTab} />
+          <DashboardTopBar showBalance={showBalance} setShowBalance={setShowBalance} setActiveTab={setActiveTab} unreadMessages={unreadMessages} />
 
           {/* Main Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12">
             {/* Left Sidebar */}
             <aside className="hidden lg:block lg:col-span-3 bg-black/30 border-r border-white/10">
-              <DashboardLeftSidebar 
-                activeTab={activeTab} 
+              <DashboardLeftSidebar
+                activeTab={activeTab}
                 setActiveTab={setActiveTab}
                 showBalance={showBalance}
+                unreadMessages={unreadMessages}
               />
             </aside>
 

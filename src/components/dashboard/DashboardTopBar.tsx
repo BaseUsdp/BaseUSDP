@@ -9,9 +9,10 @@ interface DashboardTopBarProps {
   showBalance: boolean;
   setShowBalance: (show: boolean) => void;
   setActiveTab: (tab: string) => void;
+  unreadMessages?: number;
 }
 
-const DashboardTopBar = ({ showBalance, setShowBalance, setActiveTab }: DashboardTopBarProps) => {
+const DashboardTopBar = ({ showBalance, setShowBalance, setActiveTab, unreadMessages = 0 }: DashboardTopBarProps) => {
   const { refreshBalance, isBalanceLoading } = useWallet();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
@@ -37,10 +38,15 @@ const DashboardTopBar = ({ showBalance, setShowBalance, setActiveTab }: Dashboar
 
         <button
           onClick={() => setActiveTab("messages")}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-neutral-200 hover:text-white"
+          className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-neutral-200 hover:text-white"
         >
           <MessageSquare className="h-4 w-4" />
           <span className="text-xs font-medium hidden sm:inline">Messages</span>
+          {unreadMessages > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1">
+              {unreadMessages > 99 ? "99+" : unreadMessages}
+            </span>
+          )}
         </button>
       </div>
 
