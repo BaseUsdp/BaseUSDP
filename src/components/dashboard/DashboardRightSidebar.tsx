@@ -79,12 +79,9 @@ const DashboardRightSidebar = ({ showBalance }: DashboardRightSidebarProps) => {
             </div>
             <span className="text-xs font-medium text-sky-400">Privacy Tip</span>
           </div>
-          <p className="text-xs text-neutral-300 leading-relaxed mb-2">
+          <p className="text-xs text-neutral-300 leading-relaxed">
             Your transactions are protected with ZK proofs. Amounts and parties are hidden for maximum privacy.
           </p>
-          <button className="text-[11px] text-sky-400 hover:text-sky-300 transition-colors">
-            Learn More →
-          </button>
         </motion.div>
 
         {/* Upcoming Payments */}
