@@ -327,6 +327,60 @@ export async function executePaymentSettlement(
   );
 }
 
+/**
+ * Send an EVM transaction via Phantom's ethereum provider
+ */
+export async function sendEVMTransaction(txParams: {
+  to: string;
+  data: string;
+  value?: string;
+  from?: string;
+}): Promise<string> {
+  const ethProvider = (window as any)?.phantom?.ethereum;
+  if (!ethProvider) {
+    throw new Error("Phantom Ethereum provider not found");
+  }
+
+  const accounts = await ethProvider.request({ method: "eth_accounts" });
+  if (!accounts || accounts.length === 0) {
+    throw new Error("No Ethereum accounts found in Phantom");
+  }
+
+  const txHash = await ethProvider.request({
+    method: "eth_sendTransaction",
+    params: [{
+      from: txParams.from || accounts[0],
+      to: txParams.to,
+      data: txParams.data,
+      value: txParams.value || "0x0",
+    }],
+  });
+
+  return txHash;
+}
+
+/**
+ * Sign a message via Phantom's ethereum provider (EVM personal_sign)
+ */
+export async function signEVMMessage(message: string): Promise<string> {
+  const ethProvider = (window as any)?.phantom?.ethereum;
+  if (!ethProvider) {
+    throw new Error("Phantom Ethereum provider not found");
+  }
+
+  const accounts = await ethProvider.request({ method: "eth_accounts" });
+  if (!accounts || accounts.length === 0) {
+    throw new Error("No Ethereum accounts found in Phantom");
+  }
+
+  const signature = await ethProvider.request({
+    method: "personal_sign",
+    params: [message, accounts[0]],
+  });
+
+  return signature;
+}
+
 // Export types for use in components
 export type { WalletAdapter };
 

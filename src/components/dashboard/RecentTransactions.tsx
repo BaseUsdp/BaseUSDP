@@ -13,7 +13,7 @@ interface RecentTransactionsProps {
 }
 
 const RecentTransactions = ({ showBalance, limit = 5, onViewAll }: RecentTransactionsProps) => {
-  const { fullWalletAddress, isConnected } = useWallet();
+  const { fullWalletAddress, isConnected, activeChain } = useWallet();
   const [transactions, setTransactions] = useState<TransactionHistoryResponse["transactions"]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -211,7 +211,7 @@ const RecentTransactions = ({ showBalance, limit = 5, onViewAll }: RecentTransac
 
                 {/* External Link (on hover) */}
                 <a
-                  href={`https://solscan.io/tx/${tx.signature}`}
+                  href={activeChain === "base" ? `https://basescan.org/tx/${tx.signature}` : `https://solscan.io/tx/${tx.signature}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-secondary rounded-lg"

@@ -1,27 +1,42 @@
 /**
  * Void402 Deposit API (1:1 with Nolvipay)
  * POST /api/zk/deposit
- * 
+ *
  * Creates deposit transaction - user deposits USDC/USDT into Void402 protocol
- * Flow: User Wallet → Collection Wallet → (process-deposit handles rest)
+ *
+ * Solana flow: User Wallet -> Collection Wallet -> (process-deposit handles rest)
+ *   Returns a serialized VersionedTransaction for the user to sign.
+ *
+ * Base flow: User Wallet -> X402PrivacyPool contract (approve + deposit)
+ *   Returns two EVM transaction objects ({ to, data, value }) for the user to sign.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { 
+import {
   PublicKey,
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js';
-import { 
+import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
   createTransferInstruction,
 } from '@solana/spl-token';
-import { 
+import {
   isValidSolanaAddress,
   getSolanaConnection,
 } from '../lib/void402-solana.js';
+import {
+  isValidBaseAddress,
+  getContractAddress,
+  getUsdcAddress,
+  parseUsdc,
+  ERC20_ABI,
+  X402_PRIVACY_POOL_ABI,
+} from '../lib/void402-base.js';
+import { isBaseChain } from '../lib/chain-config.js';
 import { getPrivacyUsdWalletPool } from '../lib/intermediate-wallet-pool.js';
 import { createClient } from '@supabase/supabase-js';
+import { ethers } from 'ethers';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -66,10 +81,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Wallet, amount, and token are required' });
     }
 
-    if (!isValidSolanaAddress(wallet)) {
-      return res.status(400).json({ error: 'Invalid Solana wallet address' });
-    }
-
     if (amount <= 0) {
       return res.status(400).json({ error: 'Amount must be greater than zero' });
     }
@@ -78,39 +89,88 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Token must be USDC or USDT' });
     }
 
+    // ========== BASE CHAIN: EVM approve + deposit ==========
+    if (isBaseChain()) {
+      if (!isValidBaseAddress(wallet)) {
+        return res.status(400).json({ error: 'Invalid Base wallet address' });
+      }
+
+      const usdcAddress = getUsdcAddress();
+      const poolAddress = getContractAddress();
+      const amountBigInt = parseUsdc(amount.toString());
+
+      // Encode USDC.approve(poolAddress, amount)
+      const erc20Interface = new ethers.Interface(ERC20_ABI);
+      const approveData = erc20Interface.encodeFunctionData('approve', [
+        poolAddress,
+        amountBigInt,
+      ]);
+
+      // Encode Pool.deposit(usdcAddress, amount)
+      const poolInterface = new ethers.Interface(X402_PRIVACY_POOL_ABI);
+      const depositData = poolInterface.encodeFunctionData('deposit', [
+        usdcAddress,
+        amountBigInt,
+      ]);
+
+      console.log(`[base] Deposit prepared: ${wallet.slice(0, 8)}... | ${amount} ${token}`);
+
+      return res.status(200).json({
+        success: true,
+        chain: 'base',
+        transactions: [
+          {
+            label: 'approve',
+            to: usdcAddress,
+            data: approveData,
+            value: '0x0',
+          },
+          {
+            label: 'deposit',
+            to: poolAddress,
+            data: depositData,
+            value: '0x0',
+          },
+        ],
+        amount: amount,
+        token: token,
+      });
+    }
+
+    // ========== SOLANA CHAIN: SPL token transfer to collection wallet ==========
+    if (!isValidSolanaAddress(wallet)) {
+      return res.status(400).json({ error: 'Invalid Solana wallet address' });
+    }
+
     const connection = getSolanaConnection();
     const walletPubkey = new PublicKey(wallet);
     const tokenMint = token === 'USDC' ? USDC_MINT : USDT_MINT;
-    
+
     // Get collection wallet (shared by all users)
     const collectionWalletAddress = process.env.COLLECTION_WALLET_ADDRESS || process.env.COLLECTION_WALLET;
     if (!collectionWalletAddress) {
       throw new Error('COLLECTION_WALLET_ADDRESS environment variable not set');
     }
     const collectionWalletPubkey = new PublicKey(collectionWalletAddress);
-    
+
     // Get or assign intermediate wallet for this user (privacy layer)
-    // Check if user already has an intermediate wallet assigned
     const { data: existingMapping } = await supabase
       .from('zk_user_wallets')
       .select('intermediate_wallet')
       .eq('user_wallet', wallet)
       .eq('token', token)
       .single();
-    
+
     let intermediateWalletPublicKey: string;
-    
+
     if (existingMapping) {
-      // User already has an intermediate wallet assigned - use it
       intermediateWalletPublicKey = existingMapping.intermediate_wallet;
     } else {
-      // First deposit - assign a new intermediate wallet from pool
       const intermediatePool = getPrivacyUsdWalletPool();
       await intermediatePool.initialize();
       const intermediateWallet = await intermediatePool.getAvailableWallet();
       intermediateWalletPublicKey = intermediateWallet.publicKey;
-      
-      // Store the mapping in database
+
       await supabase
         .from('zk_user_wallets')
         .insert({
@@ -119,24 +179,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           token: token,
         });
     }
-    
+
     // Get token accounts
     const userTokenAccount = await getAssociatedTokenAddress(
       tokenMint,
       walletPubkey
     );
-    
+
     const collectionTokenAccount = await getAssociatedTokenAddress(
       tokenMint,
       collectionWalletPubkey
     );
-    
+
     // Convert amount to lamports (USDC/USDT have 6 decimals)
     const amountLamports = BigInt(Math.floor(amount * 1_000_000));
-    
-    // Build transaction
+
     const instructions = [];
-    
+
     // Check if collection wallet's token account exists
     let collectionAccountExists = false;
     try {
@@ -152,7 +211,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch {
       collectionAccountExists = false;
     }
-    
+
     if (!collectionAccountExists) {
       instructions.push(
         createAssociatedTokenAccountInstruction(
@@ -163,7 +222,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         )
       );
     }
-    
+
     // Transfer tokens from user to collection wallet (Layer 1 of privacy stack)
     instructions.push(
       createTransferInstruction(
@@ -173,32 +232,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         amountLamports
       )
     );
-    
-    // Build transaction
+
     const { blockhash } = await connection.getLatestBlockhash();
     const txMessage = new TransactionMessage({
       payerKey: walletPubkey,
       recentBlockhash: blockhash,
       instructions: instructions,
     }).compileToLegacyMessage();
-    
+
     const transaction = new VersionedTransaction(txMessage);
     const serializedTx = Buffer.from(transaction.serialize()).toString('base64');
-    
-    console.log(`✅ Deposit prepared: ${wallet.slice(0, 8)}... | ${amount} ${token}`);
-    
+
+    console.log(`[solana] Deposit prepared: ${wallet.slice(0, 8)}... | ${amount} ${token}`);
+
     return res.status(200).json({
       success: true,
+      chain: 'solana',
       transaction: serializedTx,
       amount: amount,
       token: token,
-      // Don't expose wallet addresses to user
     });
   } catch (error: any) {
-    console.error('❌ Error creating deposit:', error);
-    return res.status(500).json({ 
+    console.error('Error creating deposit:', error);
+    return res.status(500).json({
       success: false,
-      error: 'Failed to create deposit transaction', 
+      error: 'Failed to create deposit transaction',
       message: error?.message || 'Unknown error occurred',
     });
   }

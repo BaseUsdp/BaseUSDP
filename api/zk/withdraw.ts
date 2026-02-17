@@ -35,6 +35,9 @@ import { extractBearerToken, verifyBearerToken } from '../lib/bearer-auth.js';
 import { createClient } from '@supabase/supabase-js';
 import { getUSDPHolderTier, calculateFeePercentage } from '../lib/tier-service.js';
 import bs58 from 'bs58';
+import { isBaseChain } from '../lib/chain-config.js';
+import { isValidBaseAddress, getBaseSigner, getPrivacyPoolContract, getUsdcAddress, parseUsdc } from '../lib/void402-base.js';
+import { generatePrivacyNonce, getProofId, generateMockProof } from '../lib/privacy-utils-base.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -157,12 +160,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Recipient is required' });
     }
 
-    if (!sender_wallet || !isValidSolanaAddress(sender_wallet)) {
-      return res.status(400).json({ error: 'Valid sender_wallet is required' });
-    }
-
-    if (!isValidSolanaAddress(recipient)) {
-      return res.status(400).json({ error: 'Invalid recipient wallet address' });
+    if (!sender_wallet) {
+      return res.status(400).json({ error: 'sender_wallet is required' });
     }
 
     if (!['USDC', 'USDT'].includes(token)) {
@@ -182,6 +181,106 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tokenVerification = await verifyBearerToken(bearerToken, sender_wallet);
     if (!tokenVerification.valid) {
       return res.status(403).json({ error: 'Invalid authentication' });
+    }
+
+    // ================================================================
+    // BASE CHAIN: Withdraw via X402PrivacyPool contract
+    // ================================================================
+    if (isBaseChain()) {
+      if (!isValidBaseAddress(sender_wallet)) {
+        return res.status(400).json({ error: 'Invalid sender Base address' });
+      }
+      if (!isValidBaseAddress(recipient)) {
+        return res.status(400).json({ error: 'Invalid recipient Base address' });
+      }
+
+      const usdcAddress = getUsdcAddress();
+      const relayerSigner = getBaseSigner();
+      const privacyPoolContract = getPrivacyPoolContract(relayerSigner);
+
+      // Calculate fees: 1% withdraw + 0.5% pool + relayer fee
+      const withdrawFeePercent = 1.0;
+      const poolFeePercent = 0.5;
+      const totalFeePercent = withdrawFeePercent + poolFeePercent;
+      const feeAmount = amount * (totalFeePercent / 100);
+      const amountAfterFees = amount - feeAmount;
+      const amountInUnits = parseUsdc(amount.toString());
+      const relayerFeeInUnits = parseUsdc(feeAmount.toString());
+
+      // Generate nonce and proof
+      const privacyNonce = generatePrivacyNonce(sender_wallet);
+      const proofId = getProofId(privacyNonce);
+      const { proofBytes, commitmentBytes, blindingFactorBytes } = generateMockProof(
+        sender_wallet,
+        amountInUnits,
+        privacyNonce,
+      );
+
+      // STEP 1: Upload proof
+      console.log(`[Base Withdraw] Uploading proof for nonce ${privacyNonce}...`);
+      const uploadTx = await privacyPoolContract.uploadProof(
+        privacyNonce,
+        amountInUnits,
+        usdcAddress,
+        proofBytes,
+        commitmentBytes,
+        blindingFactorBytes,
+      );
+      const uploadReceipt = await uploadTx.wait();
+      console.log(`[Base Withdraw] Proof uploaded: ${uploadReceipt.hash}`);
+
+      // STEP 2: External transfer (withdrawal)
+      console.log(`[Base Withdraw] Executing external transfer...`);
+      const withdrawTx = await privacyPoolContract.externalTransfer(
+        proofId,
+        recipient,
+        relayerFeeInUnits,
+      );
+      const withdrawReceipt = await withdrawTx.wait();
+      const signature = withdrawReceipt.hash;
+      console.log(`[Base Withdraw] Withdrawal complete: ${signature}`);
+
+      // Log to database
+      const isWithdrawal = sender_wallet.toLowerCase() === recipient.toLowerCase();
+      const transactionType = isWithdrawal ? 'withdraw' : 'transfer';
+
+      try {
+        await supabase!.from('zk_transactions').insert({
+          sender_wallet: sender_wallet,
+          recipient_wallet: recipient,
+          amount: amount,
+          fee_percentage: totalFeePercent,
+          token_symbol: token,
+          tx_hash: signature,
+          status: 'completed',
+          privacy_level: 'full',
+          transaction_type: transactionType,
+        });
+      } catch (logErr: any) {
+        console.warn(`Failed to log Base withdrawal:`, logErr.message);
+      }
+
+      console.log(`Base ${transactionType}: ${sender_wallet.slice(0, 8)}... -> ${recipient.slice(0, 8)}... | ${amountAfterFees} ${token} | tx: ${signature}`);
+
+      return res.status(200).json({
+        success: true,
+        signature: signature,
+        amount: amount,
+        amount_received: amountAfterFees,
+        fee: feeAmount,
+        fee_percentage: totalFeePercent,
+      });
+    }
+
+    // ================================================================
+    // SOLANA CHAIN: Existing Solana withdrawal logic below
+    // ================================================================
+    if (!isValidSolanaAddress(sender_wallet)) {
+      return res.status(400).json({ error: 'Valid sender_wallet is required' });
+    }
+
+    if (!isValidSolanaAddress(recipient)) {
+      return res.status(400).json({ error: 'Invalid recipient wallet address' });
     }
 
     const connection = getSolanaConnection();

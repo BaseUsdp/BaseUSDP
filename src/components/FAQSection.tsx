@@ -45,7 +45,7 @@ const FAQSection = () => {
     {
       icon: "ph:question-bold",
       question: "Which blockchains does Void402 support?",
-      answer: "Void402 currently operates on Solana mainnet with ZK Proof capabilities for privacy. We also support x402 deposits from Base chain via cross-chain bridging.",
+      answer: "Void402 operates on Base (Ethereum L2) with ZK Proof capabilities for privacy. Transactions benefit from low fees and fast finality on Base network.",
     },
   ];
 

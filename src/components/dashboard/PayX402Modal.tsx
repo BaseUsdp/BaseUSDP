@@ -36,7 +36,7 @@ interface PaymentDetails {
 }
 
 const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
-  const { isConnected, walletType, fullWalletAddress } = useWallet();
+  const { isConnected, walletType, fullWalletAddress, activeChain } = useWallet();
   const [paymentId, setPaymentId] = useState("");
   const [step, setStep] = useState<PaymentStep>("input");
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
@@ -425,7 +425,7 @@ const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
                     <Copy className="w-4 h-4 text-muted-foreground" />
                   </button>
                   <a
-                    href={`https://explorer.solana.com/tx/${txHash}`}
+                    href={activeChain === "base" ? `https://basescan.org/tx/${txHash}` : `https://explorer.solana.com/tx/${txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1 hover:bg-primary/10 rounded"

@@ -31,6 +31,9 @@ import { createClient } from '@supabase/supabase-js';
 import { getUSDPHolderTier, calculateFeePercentage } from '../lib/tier-service.js';
 import { extractBearerToken, verifyBearerToken } from '../lib/bearer-auth.js';
 import bs58 from 'bs58';
+import { isBaseChain } from '../lib/chain-config.js';
+import { isValidBaseAddress, getBaseSigner, getPrivacyPoolContract, getUsdcAddress, parseUsdc } from '../lib/void402-base.js';
+import { generatePrivacyNonce, getProofId, generateMockProof } from '../lib/privacy-utils-base.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -226,6 +229,119 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     console.log(`✅ Authenticated transfer request from ${sender_wallet.slice(0,8)}...`);
+
+    // ================================================================
+    // BASE CHAIN: Internal/external transfer via X402PrivacyPool contract
+    // ================================================================
+    if (isBaseChain()) {
+      // Resolve recipient for Base chain
+      let base_recipient_wallet = recipient_wallet_input;
+
+      if (!base_recipient_wallet && recipient_username) {
+        const cleanUsername = recipient_username.startsWith("@") ? recipient_username.substring(1) : recipient_username;
+        const { data: userProfile, error: lookupError } = await supabase!
+          .from("user_profiles")
+          .select("wallet_address")
+          .ilike("username", cleanUsername)
+          .maybeSingle();
+
+        if (lookupError || !userProfile) {
+          return res.status(404).json({ error: `Username "${recipient_username}" not found` });
+        }
+        base_recipient_wallet = userProfile.wallet_address;
+      }
+
+      if (!base_recipient_wallet || !amount || !token) {
+        return res.status(400).json({ error: 'All fields are required (sender_wallet, recipient_wallet or recipient_username, amount, token)' });
+      }
+
+      if (!['USDC', 'USDT'].includes(token)) {
+        return res.status(400).json({ error: 'Token must be USDC or USDT' });
+      }
+
+      if (!isValidBaseAddress(sender_wallet)) {
+        return res.status(400).json({ error: 'Invalid sender Base address' });
+      }
+
+      if (!isValidBaseAddress(base_recipient_wallet)) {
+        return res.status(400).json({ error: 'Invalid recipient Base address' });
+      }
+
+      if (sender_wallet.toLowerCase() === base_recipient_wallet.toLowerCase()) {
+        return res.status(400).json({ error: 'Self-transfers are not allowed' });
+      }
+
+      const transferAmount = parseFloat(amount);
+      const usdcAddress = getUsdcAddress();
+      const relayerSigner = getBaseSigner();
+      const privacyPoolContract = getPrivacyPoolContract(relayerSigner);
+
+      // Generate nonce and proof
+      const privacyNonce = generatePrivacyNonce(sender_wallet);
+      const proofId = getProofId(privacyNonce);
+      const amountInUnits = parseUsdc(transferAmount.toString());
+      const { proofBytes, commitmentBytes, blindingFactorBytes } = generateMockProof(
+        sender_wallet,
+        amountInUnits,
+        privacyNonce,
+      );
+
+      // STEP 1: Upload proof
+      console.log(`[Base Transfer] Uploading proof for nonce ${privacyNonce}...`);
+      const uploadTx = await privacyPoolContract.uploadProof(
+        privacyNonce,
+        amountInUnits,
+        usdcAddress,
+        proofBytes,
+        commitmentBytes,
+        blindingFactorBytes,
+      );
+      const uploadReceipt = await uploadTx.wait();
+      console.log(`[Base Transfer] Proof uploaded: ${uploadReceipt.hash}`);
+
+      // STEP 2: Internal transfer (fee-free for username-to-username)
+      const relayerFee = 0n;
+      console.log(`[Base Transfer] Executing internal transfer...`);
+      const transferTx = await privacyPoolContract.internalTransfer(
+        proofId,
+        base_recipient_wallet,
+        relayerFee,
+      );
+      const transferReceipt = await transferTx.wait();
+      const signature = transferReceipt.hash;
+      console.log(`[Base Transfer] Internal transfer complete: ${signature}`);
+
+      // Log to database
+      try {
+        await supabase!.from('zk_transactions').insert({
+          sender_wallet: sender_wallet,
+          recipient_wallet: base_recipient_wallet,
+          amount: transferAmount,
+          fee_percentage: 0,
+          token_symbol: token,
+          tx_hash: signature,
+          status: 'completed',
+          privacy_level: 'full',
+          transaction_type: 'transfer',
+        });
+      } catch (logErr: any) {
+        console.warn(`Failed to log Base transfer:`, logErr.message);
+      }
+
+      console.log(`Base internal transfer: ${sender_wallet.slice(0, 8)}... -> ${base_recipient_wallet.slice(0, 8)}... | $${transferAmount} ${token} | tx: ${signature}`);
+
+      return res.status(200).json({
+        success: true,
+        signature,
+        amount: transferAmount,
+        fee: 0,
+        fee_percentage: 0,
+      });
+    }
+
+    // ================================================================
+    // SOLANA CHAIN: Existing Solana transfer logic below
+    // ================================================================
 
     // Resolve recipient: either from wallet address or username
     let recipient_wallet = recipient_wallet_input;

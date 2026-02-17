@@ -7,19 +7,22 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { 
+import {
   SystemProgram,
   PublicKey,
   TransactionMessage,
   VersionedTransaction,
   Keypair,
 } from '@solana/web3.js';
-import { 
+import {
   getSolanaConnection,
   deriveProofPDA,
   isValidSolanaAddress,
   VOID402_PROGRAM_ID,
 } from '../lib/void402-solana.js';
+import { isBaseChain } from '../lib/chain-config.js';
+import { isValidBaseAddress, getBaseSigner, getPrivacyPoolContract, getUsdcAddress, parseUsdc } from '../lib/void402-base.js';
+import { generatePrivacyNonce, getProofId, generateMockProof } from '../lib/privacy-utils-base.js';
 import { getPrivacyUsdWalletPool } from '../lib/intermediate-wallet-pool.js';
 import { extractBearerToken, verifyBearerToken } from '../lib/bearer-auth.js';
 import { createClient } from '@supabase/supabase-js';
@@ -148,8 +151,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    if (!isValidSolanaAddress(sender_wallet)) {
-      return res.status(400).json({ error: 'Invalid sender wallet address' });
+    // Validate address based on chain
+    if (isBaseChain()) {
+      if (!isValidBaseAddress(sender_wallet)) {
+        return res.status(400).json({ error: 'Invalid wallet address' });
+      }
+    } else {
+      if (!isValidSolanaAddress(sender_wallet)) {
+        return res.status(400).json({ error: 'Invalid sender wallet address' });
+      }
     }
 
     if (amount <= 0) {
@@ -171,6 +181,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'Invalid authentication' });
     }
 
+    // ========== BASE CHAIN: Upload proof to smart contract ==========
+    if (isBaseChain()) {
+      const usdcAddress = getUsdcAddress();
+      const amountInUnits = parseUsdc(amount.toString());
+      const nonceBigInt = BigInt(nonceNumber);
+
+      // Generate mock proof (production would use real ZK system)
+      const { proofBytes, commitmentBytes, blindingFactorBytes } = generateMockProof(
+        sender_wallet,
+        amountInUnits,
+        nonceBigInt
+      );
+
+      // Relayer submits the proof on behalf of the user
+      const relayerSigner = getBaseSigner();
+      const poolContract = getPrivacyPoolContract(relayerSigner);
+
+      const tx = await poolContract.uploadProof(
+        nonceBigInt,
+        amountInUnits,
+        usdcAddress,
+        proofBytes,
+        commitmentBytes,
+        blindingFactorBytes
+      );
+      const receipt = await tx.wait();
+
+      const proofId = getProofId(nonceBigInt);
+
+      console.log(`Proof uploaded (Base): nonce=${nonceNumber}, amount=${amount} ${token}, tx=${receipt.hash}`);
+
+      return res.status(200).json({
+        success: true,
+        signature: receipt.hash,
+        nonce: nonceNumber,
+        proofId: proofId,
+        chain: 'base',
+      });
+    }
+
+    // ========== SOLANA CHAIN: Upload proof on-chain ==========
     const connection = getSolanaConnection();
     const tokenMint = token === 'USDC' ? USDC_MINT : USDT_MINT;
 

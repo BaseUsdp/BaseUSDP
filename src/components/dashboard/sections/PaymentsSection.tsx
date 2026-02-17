@@ -28,7 +28,7 @@ type RecipientType = "address" | "username";
 type TransactionStep = "form" | "preview" | "signing" | "encrypting" | "pending" | "success" | "failed";
 
 const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
-  const { encryptedBalance, privacyLevel, walletType, isConnected, fullWalletAddress } = useWallet();
+  const { encryptedBalance, privacyLevel, walletType, isConnected, fullWalletAddress, activeChain } = useWallet();
   const apiUrl = getApiUrl();
 
   const [activeTab, setActiveTab] = useState(initialTab || "send");
@@ -125,8 +125,11 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
     return null;
   }, [walletType, isConnected]);
 
-  // Validate Solana address (base58 format, 32-44 characters)
+  // Validate wallet address (chain-aware)
   const isValidAddress = (address: string) => {
+    if (activeChain === "base") {
+      return /^0x[a-fA-F0-9]{40}$/.test(address);
+    }
     const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
     return base58Regex.test(address);
   };
@@ -182,12 +185,24 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
       
       let walletSignature: string;
       try {
+        if (activeChain === "base") {
+          // EVM signing via Phantom ethereum provider
+          const ethereumProvider = (window as any).phantom?.ethereum;
+          if (!ethereumProvider) throw new Error("Phantom EVM provider not found");
+          const accounts = await ethereumProvider.request({ method: "eth_accounts" });
+          if (!accounts || accounts.length === 0) throw new Error("No accounts connected");
+          const hexMessage = "0x" + Array.from(new TextEncoder().encode(message)).map(b => b.toString(16).padStart(2, "0")).join("");
+          walletSignature = await ethereumProvider.request({
+            method: "personal_sign",
+            params: [hexMessage, accounts[0]],
+          });
+        } else {
         const encodedMessage = new TextEncoder().encode(message);
-        
+
         if (walletType === "phantom") {
           const provider = (window as any).phantom?.solana;
           if (!provider) throw new Error("Phantom wallet not found");
-          
+
           const signedMessage = await provider.signMessage(encodedMessage, "utf8");
           if (!signedMessage || !signedMessage.signature) {
             throw new Error("Failed to sign message");
@@ -197,7 +212,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
         } else if (walletType === "solflare") {
           const provider = (window as any).solflare;
           if (!provider) throw new Error("Solflare wallet not found");
-          
+
           const signedMessage = await provider.signMessage(encodedMessage, "utf8");
           if (!signedMessage || !signedMessage.signature) {
             throw new Error("Failed to sign message");
@@ -206,6 +221,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
           walletSignature = bs58.encode(signedMessage.signature);
         } else {
           throw new Error("Unsupported wallet type");
+        }
         }
       } catch (signError: any) {
         if (signError.message?.includes("reject") || signError.message?.includes("User rejected") || signError.message?.includes("User cancelled")) {
@@ -231,7 +247,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
         transferPayload.recipient_username = usernameInput.startsWith("@") ? usernameInput.substring(1) : usernameInput;
       } else {
         transferPayload.recipient_wallet = recipient;
-        transferPayload.force_external = true; // Solana address = always external transfer
+        transferPayload.force_external = true; // Wallet address = always external transfer
       }
 
       const result = await executeZKTransfer(transferPayload);
@@ -381,7 +397,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                           )}
                         >
                           <QrCode className="w-4 h-4" />
-                          Solana Address
+                          {activeChain === "base" ? "Base Address" : "Solana Address"}
                         </button>
                         <button
                           onClick={() => setRecipientType("username")}
@@ -401,7 +417,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                       {recipientType === "address" && (
                         <div className="relative">
                           <Input
-                            placeholder="Enter Solana address (e.g., 7xKXtg2CW87d97TXJSDpbD5jBk...)"
+                            placeholder={activeChain === "base" ? "Enter Base address (0x...)" : "Enter Solana address (e.g., 7xKXtg2CW87d97TXJSDpbD5jBk...)"}
                             value={recipient}
                             onChange={(e) => setRecipient(e.target.value)}
                             className="bg-secondary border-border h-12 pr-12"
@@ -632,7 +648,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                           <Copy className="w-4 h-4 text-muted-foreground" />
                         </button>
                         <a
-                          href={`https://solscan.io/tx/${txHash}`}
+                          href={activeChain === "base" ? `https://basescan.org/tx/${txHash}` : `https://solscan.io/tx/${txHash}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-1 hover:bg-primary/10 rounded"

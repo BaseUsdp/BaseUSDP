@@ -17,7 +17,7 @@ type Token = "USDC" | "USDT";
 type WithdrawStep = "form" | "confirm" | "processing" | "success" | "error";
 
 const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
-  const { fullWalletAddress, encryptedBalance, refreshBalance } = useWallet();
+  const { fullWalletAddress, encryptedBalance, refreshBalance, activeChain } = useWallet();
   const [step, setStep] = useState<WithdrawStep>("form");
   const [amount, setAmount] = useState("");
   const [token, setToken] = useState<Token>("USDC");
@@ -332,7 +332,7 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
                 </div>
                 <div className="flex justify-between p-3 rounded-lg bg-white/5">
                   <span className="text-neutral-400">Network</span>
-                  <span className="text-emerald-400">Solana Mainnet</span>
+                  <span className="text-emerald-400">{activeChain === "base" ? "Base" : "Solana Mainnet"}</span>
                 </div>
               </div>
 
@@ -392,13 +392,13 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
 
               {txSignature && (
                 <a
-                  href={`https://solscan.io/tx/${txSignature}`}
+                  href={activeChain === "base" ? `https://basescan.org/tx/${txSignature}` : `https://solscan.io/tx/${txSignature}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 text-sky-400 hover:text-sky-300 text-sm mb-6"
                 >
                   <Icon icon="ph:arrow-square-out" className="w-4 h-4" />
-                  View on Solscan
+                  {activeChain === "base" ? "View on Basescan" : "View on Solscan"}
                 </a>
               )}
 

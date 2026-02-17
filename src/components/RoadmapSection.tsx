@@ -19,7 +19,7 @@ const RoadmapSection = () => {
       progress: 65,
       color: "from-violet-500 to-purple-600",
       glowColor: "violet",
-      description: "Launch of the Void402 protocol on Solana mainnet with ZK Proof-powered smart contracts and developer SDKs.",
+      description: "Launch of the Void402 protocol on Base L2 with ZK Proof-powered smart contracts and developer SDKs.",
       milestones: [
         { name: "Mainnet Deployment", done: true },
         { name: "Developer SDK Release", done: true },

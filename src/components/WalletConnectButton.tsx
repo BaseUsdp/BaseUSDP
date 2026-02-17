@@ -352,7 +352,7 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-500 font-medium">
-            Solana
+            Base
           </span>
           <ChevronDown className={`w-4 h-4 text-white/50 transition-transform ${isOpen ? "rotate-180" : ""}`} />
         </div>
@@ -381,7 +381,7 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
 
             <div className="p-3 mb-2 bg-green-500/10 rounded-lg flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-xs text-green-500 font-medium">Connected to Solana</span>
+              <span className="text-xs text-green-500 font-medium">Connected to Base</span>
             </div>
             
             <button

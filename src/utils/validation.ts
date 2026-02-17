@@ -5,12 +5,12 @@
 
 /**
  * Validate a Solana address (base58 format)
- * 
+ *
  * Solana addresses are:
  * - Base58 encoded
  * - 32-44 characters long
  * - No ambiguous characters (0, O, I, l)
- * 
+ *
  * @param address - Address to validate
  * @returns true if valid Solana address format
  */
@@ -22,6 +22,19 @@ export const isValidSolanaAddress = (address: string): boolean => {
   // Base58 character set (no 0, O, I, l)
   const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
   return base58Regex.test(address);
+};
+
+/**
+ * Validate a Base/EVM address (hex format)
+ *
+ * @param address - Address to validate
+ * @returns true if valid EVM address format
+ */
+export const isValidBaseAddress = (address: string): boolean => {
+  if (!address || typeof address !== "string") {
+    return false;
+  }
+  return /^0x[a-fA-F0-9]{40}$/.test(address);
 };
 
 /**
@@ -69,14 +82,18 @@ export const isValidPaymentId = (paymentId: string): boolean => {
 };
 
 /**
- * Validate a transaction signature (Solana format)
- * 
+ * Validate a transaction signature (Solana or EVM format)
+ *
  * @param signature - Transaction signature to validate
  * @returns true if valid signature format
  */
 export const isValidTransactionSignature = (signature: string): boolean => {
   if (!signature || typeof signature !== "string") {
     return false;
+  }
+  // EVM transaction hashes are 0x-prefixed hex, 66 characters
+  if (signature.startsWith("0x")) {
+    return /^0x[a-fA-F0-9]{64}$/.test(signature);
   }
   // Solana transaction signatures are base58 encoded, typically 87-88 characters
   const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{80,90}$/;
@@ -89,19 +106,26 @@ export const isValidTransactionSignature = (signature: string): boolean => {
  * @param address - Address to validate
  * @returns Error message or null if valid
  */
-export const getAddressError = (address: string): string | null => {
+export const getAddressError = (address: string, chain: "solana" | "base" = "base"): string | null => {
   if (!address) {
     return "Address is required";
   }
-  
+
+  if (chain === "base") {
+    if (!isValidBaseAddress(address)) {
+      return "Invalid Base address format. Address should start with 0x and be 42 characters";
+    }
+    return null;
+  }
+
   if (address.startsWith("0x")) {
     return "Invalid address format. Please enter a Solana address (not Ethereum)";
   }
-  
+
   if (!isValidSolanaAddress(address)) {
     return "Invalid Solana address format. Address should be 32-44 characters";
   }
-  
+
   return null;
 };
 
@@ -135,6 +159,7 @@ export const getAmountError = (amount: string): string | null => {
 
 export default {
   isValidSolanaAddress,
+  isValidBaseAddress,
   formatAddress,
   isValidAmount,
   isValidPaymentId,

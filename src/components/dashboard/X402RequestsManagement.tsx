@@ -50,7 +50,7 @@ interface X402RequestsManagementProps {
 }
 
 const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) => {
-  const { fullWalletAddress } = useWallet();
+  const { fullWalletAddress, activeChain } = useWallet();
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "all">("all");
   const [cancelDialog, setCancelDialog] = useState<string | null>(null);
@@ -430,7 +430,7 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
 
                     {request.status === "settled" && request.txHash && (
                       <a
-                        href={`https://solscan.io/tx/${request.txHash}`}
+                        href={activeChain === "base" ? `https://basescan.org/tx/${request.txHash}` : `https://solscan.io/tx/${request.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >

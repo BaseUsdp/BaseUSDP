@@ -35,13 +35,13 @@ const SolutionSection = () => {
 
   // 3D Wall cards data
   const wallCards = [
-    { name: "Solana", type: "Blockchain Layer", icon: "simple-icons:solana" },
+    { name: "Base", type: "Blockchain Layer", icon: "simple-icons:ethereum" },
     { name: "ZK Proofs", type: "Privacy Layer", icon: "ph:shield-check-fill" },
     { name: "x402", type: "Payment Standard", icon: "ph:currency-dollar-fill" },
-    { name: "Rust", type: "Smart Contracts", icon: "ph:code-fill" },
+    { name: "Solidity", type: "Smart Contracts", icon: "ph:code-fill" },
     { name: "TypeScript", type: "Backend", icon: "simple-icons:typescript" },
     { name: "React + Vite", type: "Frontend", icon: "simple-icons:react" },
-    { name: "SPL Tokens", type: "Token Standard", icon: "ph:lock-fill" },
+    { name: "ERC-20", type: "Token Standard", icon: "ph:lock-fill" },
     { name: "AI Agents", type: "Autonomous", icon: "ph:robot-fill" },
   ];
 

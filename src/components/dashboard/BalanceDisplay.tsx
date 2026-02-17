@@ -206,8 +206,8 @@ const BalanceDisplay = ({ showBalance }: BalanceDisplayProps) => {
                 ◎
               </div>
               <div>
-                <p className="font-semibold">SOL</p>
-                <p className="text-xs text-muted-foreground">Solana</p>
+                <p className="font-semibold">ETH</p>
+                <p className="text-xs text-muted-foreground">Base</p>
               </div>
             </div>
             <div className="text-right">

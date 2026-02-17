@@ -42,10 +42,10 @@ const TechStackSection = () => {
   ];
 
   const techStack = [
-    { icon: "ph:globe-bold", name: "Solana", category: "Blockchain", description: "High-speed L1 with native token support" },
+    { icon: "ph:globe-bold", name: "Base", category: "Blockchain", description: "Ethereum L2 with low-cost, high-speed transactions" },
     { icon: "ph:stack-bold", name: "ZK Proofs", category: "Privacy Layer", description: "Zero-Knowledge Proofs for confidential computing" },
     { icon: "ph:coins-bold", name: "x402", category: "Payment Standard", description: "HTTP 402 for internet-native payments" },
-    { icon: "ph:code-bold", name: "Rust", category: "Smart Contracts", description: "Solana programs & Void402 protocol" },
+    { icon: "ph:code-bold", name: "Solidity", category: "Smart Contracts", description: "EVM contracts & Void402 protocol" },
     { icon: "ph:cpu-bold", name: "TypeScript", category: "Backend", description: "Node.js with Express & native x402 libs" },
     { icon: "ph:database-bold", name: "React + Vite", category: "Frontend", description: "Modern web app with optimized builds" },
   ];

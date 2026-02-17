@@ -104,7 +104,7 @@ const WalletConnectOverlay = ({ isOpen, onClose }: WalletConnectOverlayProps) =>
                         Connect Your Wallet
                       </h2>
                       <p className="text-white/50 mb-8 leading-relaxed">
-                        Connect your Solana wallet to access the Void402 Terminal. 
+                        Connect your wallet to access the Void402 Terminal. 
                         Experience encrypted balances, confidential payments, and privacy-first 
                         financial tools.
                       </p>
@@ -173,7 +173,7 @@ const WalletConnectOverlay = ({ isOpen, onClose }: WalletConnectOverlayProps) =>
                         </div>
                         <div className="text-left flex-1">
                           <span className="font-semibold text-white text-lg">Phantom</span>
-                          <p className="text-xs text-white/40">Most popular Solana wallet</p>
+                          <p className="text-xs text-white/40">Most popular crypto wallet</p>
                         </div>
                         {connectingWallet === "phantom" ? (
                           <Loader2 className="h-5 w-5 animate-spin text-purple-400" />
@@ -198,7 +198,7 @@ const WalletConnectOverlay = ({ isOpen, onClose }: WalletConnectOverlayProps) =>
                         </div>
                         <div className="text-left flex-1">
                           <span className="font-semibold text-white text-lg">Solflare</span>
-                          <p className="text-xs text-white/40">Secure Solana wallet</p>
+                          <p className="text-xs text-white/40">Secure crypto wallet</p>
                         </div>
                         {connectingWallet === "solflare" && (
                           <Loader2 className="h-5 w-5 animate-spin text-orange-400" />

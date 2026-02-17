@@ -7,6 +7,8 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network baseSepolia",
+    "deploy:pool:sepolia": "hardhat run scripts/deploy-privacy-pool.ts --network baseSepolia",
+    "deploy:pool:base": "hardhat run scripts/deploy-privacy-pool.ts --network base",
     "node": "hardhat node"
   },
   "keywords": [
@@ -26,6 +28,7 @@
   "dependencies": {
     "@fhenixprotocol/contracts": "^0.3.1",
     "@openzeppelin/contracts": "^5.0.0",
+    "dotenv": "^16.6.1",
     "fhenixjs": "^0.4.1"
   }
 }

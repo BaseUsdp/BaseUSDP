@@ -1,10 +1,11 @@
 /**
  * Authentication Service
  * Handles wallet-based authentication for Void402
- * 
+ * Supports both Solana (ed25519) and EVM/Base (personal_sign) authentication
+ *
  * Flow:
  * 1. Get nonce from backend
- * 2. Sign message with wallet
+ * 2. Sign message with wallet (Solana: signMessage, EVM: personal_sign)
  * 3. Verify signature and get session token
  * 4. Store token in localStorage
  * 5. Include token in API requests
@@ -48,11 +49,17 @@ export interface SessionInfo {
   walletAddress?: string;
 }
 
-// Wallet adapter interface (compatible with @solana/wallet-adapter)
+// Chain-aware wallet adapter interface
 export interface WalletAdapter {
-  publicKey: { toBase58: () => string } | null;
+  // Solana fields
+  publicKey?: { toBase58: () => string } | null;
   signMessage?: (message: Uint8Array) => Promise<Uint8Array>;
+  // EVM fields
+  address?: string;
+  signEVMMessage?: (message: string) => Promise<string>;
+  // Common
   connected: boolean;
+  chain?: "solana" | "base";
 }
 
 // ============================================================================
@@ -64,27 +71,20 @@ class AuthService {
   private tokenExpiry: number | null = null;
 
   constructor() {
-    // Load session from localStorage on init
     this.loadSession();
   }
 
-  /**
-   * Load session from localStorage
-   */
   private loadSession(): void {
     try {
       const token = localStorage.getItem(TOKEN_KEY);
       const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
-      
+
       if (token && expiry) {
         const expiryTime = parseInt(expiry, 10);
-        
-        // Check if token is still valid
         if (Date.now() < expiryTime) {
           this.sessionToken = token;
           this.tokenExpiry = expiryTime;
         } else {
-          // Token expired, clear it
           this.clearSession();
         }
       }
@@ -94,44 +94,30 @@ class AuthService {
     }
   }
 
-  /**
-   * Save session to localStorage
-   */
   private saveSession(token: string, expiresIn: number): void {
     const expiryTime = Date.now() + (expiresIn * 1000);
-    
     this.sessionToken = token;
     this.tokenExpiry = expiryTime;
-    
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString());
   }
 
-  /**
-   * Clear session from memory and localStorage
-   */
   private clearSession(): void {
     this.sessionToken = null;
     this.tokenExpiry = null;
-    
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
   }
 
   /**
    * Get nonce from backend for authentication
-   * 
-   * @param walletAddress - The wallet's public key as base58 string
-   * @returns Nonce response with message to sign
    */
-  async getNonce(walletAddress: string): Promise<NonceResponse> {
+  async getNonce(walletAddress: string, chain: "solana" | "base" = "base"): Promise<NonceResponse> {
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/nonce`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ walletAddress }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress, chain }),
       });
 
       const data = await response.json().catch(() => ({}));
@@ -141,71 +127,61 @@ class AuthService {
           (data?.error && typeof data.error === "object" && data.error.message) ||
           (typeof data?.error === "string" ? data.error : null) ||
           (typeof data?.message === "string" ? data.message : null);
-        return {
-          success: false,
-          error: msg || "Failed to get authentication nonce",
-        };
+        return { success: false, error: msg || "Failed to get authentication nonce" };
       }
 
       return data;
     } catch (error) {
       console.error("Failed to get nonce:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to get nonce",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Failed to get nonce" };
     }
   }
 
   /**
-   * Sign a message with the wallet
-   * 
-   * @param wallet - Wallet adapter with signMessage capability
-   * @param message - Message to sign (from getNonce response)
-   * @returns Signature as base58 string
+   * Sign a message with Solana wallet (returns base58 signature)
    */
-  async signMessage(wallet: WalletAdapter, message: string): Promise<string> {
+  async signMessageSolana(wallet: WalletAdapter, message: string): Promise<string> {
     if (!wallet.signMessage) {
       throw new Error("Wallet does not support message signing");
     }
-
     if (!wallet.connected || !wallet.publicKey) {
       throw new Error("Wallet not connected");
     }
 
-    // Encode message to Uint8Array
     const encoder = new TextEncoder();
     const messageBytes = encoder.encode(message);
-
-    // Sign the message
     const signatureBytes = await wallet.signMessage(messageBytes);
+    return bs58.encode(signatureBytes);
+  }
 
-    // Convert to base58
-    const signature = bs58.encode(signatureBytes);
-    
-    return signature;
+  /**
+   * Sign a message with EVM wallet (returns hex signature)
+   */
+  async signMessageEVM(wallet: WalletAdapter, message: string): Promise<string> {
+    if (!wallet.signEVMMessage) {
+      throw new Error("Wallet does not support EVM message signing");
+    }
+    if (!wallet.connected || !wallet.address) {
+      throw new Error("Wallet not connected");
+    }
+
+    return await wallet.signEVMMessage(message);
   }
 
   /**
    * Verify signature and get session token
-   * 
-   * @param walletAddress - Wallet public key as base58 string
-   * @param signature - Signature from signMessage
-   * @param nonce - Nonce from getNonce
-   * @returns Session token if successful
    */
   async verifySignature(
     walletAddress: string,
     signature: string,
-    nonce: string
+    nonce: string,
+    chain: "solana" | "base" = "base"
   ): Promise<VerifyResponse> {
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/verify`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ walletAddress, signature, nonce }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress, signature, nonce, chain }),
       });
 
       const data = await response.json().catch(() => ({}));
@@ -215,10 +191,7 @@ class AuthService {
           (data?.error && typeof data.error === "object" && data.error.message) ||
           (typeof data?.error === "string" ? data.error : null) ||
           (typeof data?.message === "string" ? data.message : null);
-        return {
-          success: false,
-          error: msg || "Signature verification failed",
-        };
+        return { success: false, error: msg || "Signature verification failed" };
       }
 
       if (data.success && data.sessionToken && data.expiresIn) {
@@ -228,45 +201,49 @@ class AuthService {
       return data;
     } catch (error) {
       console.error("Failed to verify signature:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to verify signature",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Failed to verify signature" };
     }
   }
 
   /**
-   * Complete authentication flow
-   * 
-   * @param wallet - Connected wallet adapter
-   * @returns Success status and any error message
+   * Complete authentication flow (chain-aware)
    */
   async authenticate(wallet: WalletAdapter): Promise<{
     success: boolean;
     error?: string;
   }> {
     try {
-      if (!wallet.connected || !wallet.publicKey) {
-        return { success: false, error: "Wallet not connected" };
-      }
+      const chain = wallet.chain || "base";
 
-      const walletAddress = wallet.publicKey.toBase58();
+      // Determine wallet address
+      let walletAddress: string;
+      if (chain === "base") {
+        if (!wallet.address) {
+          return { success: false, error: "EVM wallet address not provided" };
+        }
+        walletAddress = wallet.address;
+      } else {
+        if (!wallet.connected || !wallet.publicKey) {
+          return { success: false, error: "Wallet not connected" };
+        }
+        walletAddress = wallet.publicKey.toBase58();
+      }
 
       // Step 1: Get nonce
-      const nonceResponse = await this.getNonce(walletAddress);
+      const nonceResponse = await this.getNonce(walletAddress, chain);
       if (!nonceResponse.success || !nonceResponse.nonce || !nonceResponse.message) {
-        return { 
-          success: false, 
-          error: nonceResponse.error || "Failed to get authentication nonce" 
-        };
+        return { success: false, error: nonceResponse.error || "Failed to get authentication nonce" };
       }
 
-      // Step 2: Sign message
+      // Step 2: Sign message (chain-specific)
       let signature: string;
       try {
-        signature = await this.signMessage(wallet, nonceResponse.message);
+        if (chain === "base") {
+          signature = await this.signMessageEVM(wallet, nonceResponse.message);
+        } else {
+          signature = await this.signMessageSolana(wallet, nonceResponse.message);
+        }
       } catch (error) {
-        // User likely rejected the signature request
         const errorMessage = error instanceof Error ? error.message : "Signature rejected";
         return { success: false, error: errorMessage };
       }
@@ -275,58 +252,36 @@ class AuthService {
       const verifyResponse = await this.verifySignature(
         walletAddress,
         signature,
-        nonceResponse.nonce
+        nonceResponse.nonce,
+        chain
       );
 
       if (!verifyResponse.success) {
-        return { 
-          success: false, 
-          error: verifyResponse.error || "Signature verification failed" 
-        };
+        return { success: false, error: verifyResponse.error || "Signature verification failed" };
       }
 
       return { success: true };
     } catch (error) {
       console.error("Authentication failed:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Authentication failed",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Authentication failed" };
     }
   }
 
-  /**
-   * Get current session token
-   * 
-   * @returns Token string or null if not authenticated
-   */
   getSessionToken(): string | null {
-    // Check if token exists and is not expired
     if (this.sessionToken && this.tokenExpiry) {
       if (Date.now() < this.tokenExpiry) {
         return this.sessionToken;
       } else {
-        // Token expired
         this.clearSession();
       }
     }
     return null;
   }
 
-  /**
-   * Check if user is authenticated
-   * 
-   * @returns True if user has valid session
-   */
   isAuthenticated(): boolean {
     return this.getSessionToken() !== null;
   }
 
-  /**
-   * Get time until token expires (in seconds)
-   * 
-   * @returns Seconds until expiry, or 0 if expired/not authenticated
-   */
   getTimeUntilExpiry(): number {
     if (this.tokenExpiry && Date.now() < this.tokenExpiry) {
       return Math.floor((this.tokenExpiry - Date.now()) / 1000);
@@ -334,11 +289,6 @@ class AuthService {
     return 0;
   }
 
-  /**
-   * Logout - clear session and optionally call backend
-   * 
-   * @param callBackend - Whether to also call backend logout endpoint
-   */
   async logout(callBackend: boolean = true): Promise<void> {
     if (callBackend && this.sessionToken) {
       try {
@@ -351,27 +301,13 @@ class AuthService {
         });
       } catch (error) {
         console.error("Backend logout failed:", error);
-        // Continue with local logout even if backend fails
       }
     }
-
     this.clearSession();
   }
 
-  /**
-   * Refresh session (re-authenticate)
-   * 
-   * @param wallet - Connected wallet adapter
-   * @returns Success status
-   */
-  async refreshSession(wallet: WalletAdapter): Promise<{
-    success: boolean;
-    error?: string;
-  }> {
-    // Clear current session first
+  async refreshSession(wallet: WalletAdapter): Promise<{ success: boolean; error?: string }> {
     this.clearSession();
-    
-    // Re-authenticate
     return this.authenticate(wallet);
   }
 }
@@ -382,27 +318,22 @@ class AuthService {
 
 export const authService = new AuthService();
 
-// Export individual functions for convenience
-export const getNonce = (walletAddress: string) => 
-  authService.getNonce(walletAddress);
+export const getNonce = (walletAddress: string, chain?: "solana" | "base") =>
+  authService.getNonce(walletAddress, chain);
 
-export const signMessage = (wallet: WalletAdapter, message: string) => 
-  authService.signMessage(wallet, message);
+export const verifySignature = (walletAddress: string, signature: string, nonce: string, chain?: "solana" | "base") =>
+  authService.verifySignature(walletAddress, signature, nonce, chain);
 
-export const verifySignature = (walletAddress: string, signature: string, nonce: string) => 
-  authService.verifySignature(walletAddress, signature, nonce);
-
-export const authenticate = (wallet: WalletAdapter) => 
+export const authenticate = (wallet: WalletAdapter) =>
   authService.authenticate(wallet);
 
-export const getSessionToken = () => 
+export const getSessionToken = () =>
   authService.getSessionToken();
 
-export const isAuthenticated = () => 
+export const isAuthenticated = () =>
   authService.isAuthenticated();
 
-export const logout = (callBackend?: boolean) => 
+export const logout = (callBackend?: boolean) =>
   authService.logout(callBackend);
 
 export default authService;
-

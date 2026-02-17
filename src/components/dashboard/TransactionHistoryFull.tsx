@@ -75,7 +75,7 @@ const convertApiTransaction = (tx: TransactionHistoryResponse["transactions"][0]
 const ITEMS_PER_PAGE = 10;
 
 const TransactionHistoryFull = ({ showBalance }: TransactionHistoryFullProps) => {
-  const { fullWalletAddress, isConnected } = useWallet();
+  const { fullWalletAddress, isConnected, activeChain } = useWallet();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -308,7 +308,7 @@ const TransactionHistoryFull = ({ showBalance }: TransactionHistoryFullProps) =>
 
               {/* External Link */}
               <a
-                href={`https://solscan.io/tx/${tx.txHash}`}
+                href={activeChain === "base" ? `https://basescan.org/tx/${tx.txHash}` : `https://solscan.io/tx/${tx.txHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-secondary rounded-lg"

@@ -72,6 +72,7 @@
     "tailwindcss-animate": "^1.0.7",
     "tweetnacl": "^1.0.3",
     "vaul": "^0.9.9",
+    "viem": "^2.46.2",
     "zod": "^3.25.76"
   },
   "devDependencies": {

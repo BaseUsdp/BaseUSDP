@@ -63,7 +63,7 @@ type DepositStep =
 const MAX_AMOUNT = 999999.99;
 
 const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
-  const { fullWalletAddress, isConnected, walletType, refreshBalance, privacyLevel } = useWallet();
+  const { fullWalletAddress, isConnected, walletType, refreshBalance, privacyLevel, activeChain } = useWallet();
 
   const [amount, setAmount] = useState("");
 
@@ -439,10 +439,136 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
     }
   };
 
+  /**
+   * Handle Base chain deposit (EVM approve + deposit via Phantom)
+   */
+  const handleBaseDeposit = async () => {
+    if (!isConnected || !fullWalletAddress) {
+      setError("Wallet not connected. Please connect your wallet first.");
+      return;
+    }
+
+    const parsedAmount = parseFloat(amount);
+    if (!amount || isNaN(parsedAmount) || parsedAmount < 3) {
+      setError("Minimum deposit amount is $3");
+      return;
+    }
+    if (parsedAmount > MAX_AMOUNT) {
+      setError(`Maximum deposit amount is $${MAX_AMOUNT.toLocaleString()}`);
+      return;
+    }
+
+    try {
+      setError("");
+      isCancelledRef.current = false;
+      setStep("signing");
+      setProcessingStatus("Preparing deposit transactions...");
+
+      const apiUrl = getApiUrl();
+
+      // STEP 1: Get approve + deposit calldata from API
+      const depositResponse = await fetch(`${apiUrl}/api/zk/deposit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet: fullWalletAddress,
+          amount: parsedAmount,
+          token: token === "X402" ? "USDC" : token,
+        }),
+      });
+
+      const depositResult = await depositResponse.json();
+      if (!depositResult.success || !depositResult.transactions) {
+        throw new Error(depositResult.error || "Failed to prepare deposit");
+      }
+
+      // STEP 2: Get Phantom EVM provider
+      const ethProvider = (window as any).phantom?.ethereum;
+      if (!ethProvider) {
+        throw new Error("Phantom Ethereum provider not found. Please update Phantom.");
+      }
+
+      // Ensure connected to Base chain
+      const BASE_CHAIN_ID = "0x2105";
+      try {
+        await ethProvider.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: BASE_CHAIN_ID }],
+        });
+      } catch (switchErr: any) {
+        if (switchErr.code === 4902) {
+          await ethProvider.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: BASE_CHAIN_ID,
+              chainName: "Base",
+              nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+              rpcUrls: ["https://mainnet.base.org"],
+              blockExplorerUrls: ["https://basescan.org"],
+            }],
+          });
+        } else {
+          throw new Error("Failed to switch to Base network");
+        }
+      }
+
+      const accounts = await ethProvider.request({ method: "eth_accounts" });
+      if (!accounts || accounts.length === 0) {
+        throw new Error("No Ethereum accounts found in Phantom");
+      }
+
+      // STEP 3: Send approve transaction
+      setProcessingStatus("Approve USDC spending in Phantom...");
+      const approveTx = depositResult.transactions.find((t: any) => t.label === "approve");
+      if (approveTx) {
+        const approveTxHash = await ethProvider.request({
+          method: "eth_sendTransaction",
+          params: [{ from: accounts[0], to: approveTx.to, data: approveTx.data, value: approveTx.value }],
+        });
+        console.log(`[Base Deposit] Approve tx: ${approveTxHash}`);
+        setProcessingStatus("Approval confirmed! Now depositing...");
+        // Brief wait for approval to be mined
+        await new Promise(r => setTimeout(r, 3000));
+      }
+
+      // STEP 4: Send deposit transaction
+      setStep("submitting");
+      setProcessingStatus("Confirm deposit in Phantom...");
+      const depositTx = depositResult.transactions.find((t: any) => t.label === "deposit");
+      if (depositTx) {
+        const depositTxHash = await ethProvider.request({
+          method: "eth_sendTransaction",
+          params: [{ from: accounts[0], to: depositTx.to, data: depositTx.data, value: depositTx.value }],
+        });
+        console.log(`[Base Deposit] Deposit tx: ${depositTxHash}`);
+        setTxSignature(depositTxHash);
+      }
+
+      // STEP 5: Success
+      setStep("success");
+      if (refreshBalance) {
+        setTimeout(() => refreshBalance(), 2000);
+      }
+    } catch (err: any) {
+      console.error("[Base Deposit] Error:", err);
+      if (err.message?.includes("rejected") || err.message?.includes("cancelled") || err.message?.includes("User rejected")) {
+        setError("Transaction was cancelled");
+      } else {
+        setError(err.message || "Failed to process deposit");
+      }
+      setStep("failed");
+    }
+  };
+
   const handleDeposit = async () => {
     // Route x402 deposits to separate handler
     if (token === "X402") {
       return handleX402Deposit();
+    }
+
+    // Route Base chain deposits to EVM handler
+    if (activeChain === "base") {
+      return handleBaseDeposit();
     }
 
     if (!isConnected || !fullWalletAddress) {
@@ -845,7 +971,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                           alt="USDC"
                           className="w-5 h-5 rounded-full"
                         />
-                        USDC (Solana)
+                        USDC {activeChain === "base" ? "(Base)" : "(Solana)"}
                       </div>
                     </SelectItem>
                     <SelectItem value="USDT">
@@ -855,7 +981,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                           alt="USDT"
                           className="w-5 h-5 rounded-full"
                         />
-                        USDT (Solana)
+                        USDT {activeChain === "base" ? "(Base)" : "(Solana)"}
                       </div>
                     </SelectItem>
                     <SelectItem value="X402">
@@ -955,7 +1081,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                 {token === "X402" ? (
                   <>
                     <p className="text-sm text-muted-foreground">
-                      x402 deposit bridges USDC from Base to your Solana private balance:
+                      x402 deposit bridges USDC to your private balance:
                     </p>
                     <ul className="text-sm text-muted-foreground mt-2 space-y-1">
                       <li>• Sign a message to verify your wallet</li>
@@ -1064,7 +1190,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
               <Loader2 className="w-12 h-12 text-primary animate-spin" />
               <p className="text-lg font-semibold">Submitting Transaction</p>
               <p className="text-sm text-muted-foreground text-center">
-                {processingStatus || "Sending to Solana blockchain..."}
+                {processingStatus || (activeChain === "base" ? "Sending to Base network..." : "Sending to Solana blockchain...")}
               </p>
 
               {/* Progress bar */}
@@ -1081,12 +1207,12 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
 
               {txSignature && (
                 <a
-                  href={`https://solscan.io/tx/${txSignature}`}
+                  href={activeChain === "base" ? `https://basescan.org/tx/${txSignature}` : `https://solscan.io/tx/${txSignature}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-primary hover:underline"
                 >
-                  View transaction on Solscan
+                  {activeChain === "base" ? "View transaction on Basescan" : "View transaction on Solscan"}
                 </a>
               )}
             </motion.div>
@@ -1137,12 +1263,12 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
 
               {txSignature && (
                 <a
-                  href={`https://solscan.io/tx/${txSignature}`}
+                  href={activeChain === "base" ? `https://basescan.org/tx/${txSignature}` : `https://solscan.io/tx/${txSignature}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-primary hover:underline"
                 >
-                  View transaction on Solscan
+                  {activeChain === "base" ? "View transaction on Basescan" : "View transaction on Solscan"}
                 </a>
               )}
             </motion.div>
@@ -1383,7 +1509,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                   <div className="flex items-center gap-3">
                     <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
                     <span className="text-sm text-white font-medium">
-                      {processingStatus || "Bridging to Solana..."}
+                      {processingStatus || "Processing deposit..."}
                     </span>
                   </div>
                 )}
@@ -1426,7 +1552,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
               <CheckCircle2 className="w-16 h-16 text-green-500" />
               <p className="text-lg font-semibold">x402 Deposit Successful!</p>
               <p className="text-sm text-muted-foreground text-center">
-                Your USDC has been bridged from Base to Solana and credited to your private balance.
+                Your USDC has been deposited and credited to your private balance.
               </p>
               {x402Status?.amountCredited && (
                 <p className="text-lg font-bold text-emerald-400">
@@ -1464,12 +1590,12 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
               </p>
               {txSignature && (
                 <a
-                  href={`https://solscan.io/tx/${txSignature}`}
+                  href={activeChain === "base" ? `https://basescan.org/tx/${txSignature}` : `https://solscan.io/tx/${txSignature}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-primary hover:underline"
                 >
-                  View initial transaction on Solscan
+                  {activeChain === "base" ? "View transaction on Basescan" : "View initial transaction on Solscan"}
                 </a>
               )}
               <Button onClick={handleClose} className="mt-4">

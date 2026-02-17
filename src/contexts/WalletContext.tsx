@@ -4,16 +4,37 @@ import { getZKBalance } from "@/services/api";
 import { getApiUrl } from "@/utils/apiConfig";
 
 export type WalletType = "phantom" | "solflare" | null;
+export type ActiveChain = "solana" | "base";
 export type PrivacyLevel = "public" | "partial" | "full";
 export type NetworkStatus = "connected" | "wrong_network" | "disconnected";
 
-interface PhantomProvider {
+// Base chain ID constants
+const BASE_MAINNET_CHAIN_ID = 8453;
+const BASE_SEPOLIA_CHAIN_ID = 84532;
+const BASE_MAINNET_HEX = "0x2105";
+const BASE_SEPOLIA_HEX = "0x14a34";
+
+// Determine target chain based on environment
+const isProduction = typeof window !== "undefined" && window.location.hostname === "void402.com";
+const TARGET_CHAIN_ID = isProduction ? BASE_MAINNET_CHAIN_ID : BASE_SEPOLIA_CHAIN_ID;
+const TARGET_CHAIN_HEX = isProduction ? BASE_MAINNET_HEX : BASE_SEPOLIA_HEX;
+
+interface PhantomSolanaProvider {
   isPhantom?: boolean;
   connect: (opts?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey: { toString: () => string } }>;
   disconnect: () => Promise<void>;
   on: (event: string, callback: (args?: any) => void) => void;
   off: (event: string, callback: (args?: any) => void) => void;
   publicKey?: { toString: () => string };
+  isConnected?: boolean;
+}
+
+interface PhantomEVMProvider {
+  isPhantom?: boolean;
+  request: (args: { method: string; params?: any[] }) => Promise<any>;
+  on: (event: string, callback: (args?: any) => void) => void;
+  removeListener: (event: string, callback: (args?: any) => void) => void;
+  selectedAddress?: string | null;
   isConnected?: boolean;
 }
 
@@ -27,15 +48,26 @@ interface SolflareProvider {
   isConnected?: boolean;
 }
 
-// Helper to get Phantom provider
-const getPhantomProvider = (): PhantomProvider | null => {
+// Helper to get Phantom Solana provider (kept for Solana mode)
+const getPhantomSolanaProvider = (): PhantomSolanaProvider | null => {
   if (typeof window === "undefined") return null;
   const provider = (window as any).phantom?.solana || (window as any).solana;
   if (provider?.isPhantom) return provider;
   return null;
 };
 
-// Helper to get Solflare provider
+// Helper to get Phantom EVM provider (for Base)
+const getPhantomEVMProvider = (): PhantomEVMProvider | null => {
+  if (typeof window === "undefined") return null;
+  const provider = (window as any).phantom?.ethereum;
+  if (provider?.isPhantom) return provider;
+  return null;
+};
+
+// Legacy alias for existing code that references getPhantomProvider
+const getPhantomProvider = getPhantomSolanaProvider;
+
+// Helper to get Solflare provider (Solana only)
 const getSolflareProvider = (): SolflareProvider | null => {
   if (typeof window === "undefined") return null;
   const provider = (window as any).solflare;
@@ -46,8 +78,9 @@ const getSolflareProvider = (): SolflareProvider | null => {
 interface WalletContextType {
   isConnected: boolean;
   walletAddress: string;
-  fullWalletAddress: string; // Full address for transactions
+  fullWalletAddress: string;
   walletType: WalletType;
+  activeChain: ActiveChain;
   isConnecting: boolean;
   networkStatus: NetworkStatus;
   chainId: number | null;
@@ -73,44 +106,36 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined);
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
-  const [fullWalletAddress, setFullWalletAddress] = useState(""); // Full address for transactions
+  const [fullWalletAddress, setFullWalletAddress] = useState("");
   const [walletType, setWalletType] = useState<WalletType>(null);
+  const [activeChain, setActiveChain] = useState<ActiveChain>("base"); // Default to Base
   const [isConnecting, setIsConnecting] = useState(false);
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>("disconnected");
   const [chainId, setChainId] = useState<number | null>(null);
-  // Privacy level - default to "full", loaded per-wallet once connected
   const [privacyLevel, setPrivacyLevelState] = useState<PrivacyLevel>("full");
-  
-  // Use a ref to always have access to the latest wallet address in callbacks
+
   const fullWalletAddressRef = useRef(fullWalletAddress);
   useEffect(() => {
     fullWalletAddressRef.current = fullWalletAddress;
   }, [fullWalletAddress]);
 
-  // Helper to get privacy level storage key for a wallet
   const getPrivacyStorageKey = (walletAddr: string) => `void402_privacy_${walletAddr}`;
 
-  // Wrapper to save privacy level to localStorage (per wallet) - uses ref for latest address
   const setPrivacyLevel = useCallback((level: PrivacyLevel) => {
     setPrivacyLevelState(level);
     const walletAddr = fullWalletAddressRef.current;
     if (typeof window !== "undefined" && walletAddr) {
       localStorage.setItem(getPrivacyStorageKey(walletAddr), level);
       console.log(`[WalletContext] Saved privacy level "${level}" for wallet ${walletAddr.slice(0,8)}...`);
-    } else {
-      console.warn(`[WalletContext] Cannot save privacy - no wallet address`);
     }
   }, []);
 
-  // Load privacy level when wallet address changes
   useEffect(() => {
     if (fullWalletAddress && typeof window !== "undefined") {
       const saved = localStorage.getItem(getPrivacyStorageKey(fullWalletAddress));
       if (saved && ["public", "partial", "full"].includes(saved)) {
         setPrivacyLevelState(saved as PrivacyLevel);
-        console.log(`[WalletContext] Loaded privacy level "${saved}" for wallet ${fullWalletAddress.slice(0,8)}...`);
       } else {
-        // Default to "full" for new wallets
         setPrivacyLevelState("full");
       }
     }
@@ -118,39 +143,29 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const [encryptedBalance, setEncryptedBalance] = useState("0");
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
-  // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  // Track if initial reconnect attempt is complete
   const [initialReconnectComplete, setInitialReconnectComplete] = useState(false);
 
-  // Format address for display
   const formatAddress = (address: string) => {
     if (address.length > 10) {
-      return `${address.slice(0, 4)}...${address.slice(-4)}`;
+      return `${address.slice(0, 6)}...${address.slice(-4)}`;
     }
     return address;
   };
 
-  // Track if we've already handled a disconnect (prevent double-handling)
   const hasHandledDisconnect = useRef(false);
 
-  // Clear wallet state and redirect to landing (used on disconnect/switch)
-  // 1:1 with VigilFi - stores message in sessionStorage, does full page refresh
   const clearWalletAndRedirect = useCallback(async (message?: string) => {
-    // Prevent double-handling
     if (hasHandledDisconnect.current) return;
     hasHandledDisconnect.current = true;
 
     console.log("[WalletContext] Disconnecting wallet:", message || "No message");
 
-    // IMPORTANT: Await the backend logout to ensure session is deleted from DB
-    // This prevents stale sessions from bypassing re-authentication on reconnect
     try {
       await authService.logout(true);
     } catch {
-      // If backend logout fails, still clear locally
       console.warn("[WalletContext] Backend logout failed, clearing locally");
     }
     setIsAuthenticated(false);
@@ -164,18 +179,112 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setEncryptedBalance("0");
     localStorage.removeItem("void402_wallet");
 
-    // Store the toast message to show after refresh (1:1 with VigilFi)
     if (message && typeof window !== "undefined") {
       sessionStorage.setItem("void402_disconnect_message", message);
     }
 
-    // Force a full page refresh to landing - this completely resets all state
     if (typeof window !== "undefined" && window.location.pathname !== "/") {
       window.location.href = "/";
     }
   }, []);
 
-  // Check for persisted connection and auth on mount - eagerly reconnect like Nolvipay
+  // ============================================================
+  // EVM Helper: ensure Phantom is on the correct Base chain
+  // ============================================================
+  const ensureBaseChain = useCallback(async (provider: PhantomEVMProvider): Promise<boolean> => {
+    try {
+      const currentChainHex = await provider.request({ method: 'eth_chainId' });
+      const currentChainId = parseInt(currentChainHex, 16);
+      setChainId(currentChainId);
+
+      if (currentChainId === TARGET_CHAIN_ID) {
+        setNetworkStatus("connected");
+        return true;
+      }
+
+      // Try switching to Base
+      try {
+        await provider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: TARGET_CHAIN_HEX }],
+        });
+        setChainId(TARGET_CHAIN_ID);
+        setNetworkStatus("connected");
+        return true;
+      } catch (switchError: any) {
+        // Chain not added yet — add it
+        if (switchError.code === 4902) {
+          await provider.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: TARGET_CHAIN_HEX,
+              chainName: isProduction ? 'Base' : 'Base Sepolia',
+              nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+              rpcUrls: [isProduction ? 'https://mainnet.base.org' : 'https://sepolia.base.org'],
+              blockExplorerUrls: [isProduction ? 'https://basescan.org' : 'https://sepolia.basescan.org'],
+            }],
+          });
+          setChainId(TARGET_CHAIN_ID);
+          setNetworkStatus("connected");
+          return true;
+        }
+        console.error("[WalletContext] Failed to switch to Base:", switchError);
+        setNetworkStatus("wrong_network");
+        return false;
+      }
+    } catch (err) {
+      console.error("[WalletContext] Error checking chain:", err);
+      setNetworkStatus("wrong_network");
+      return false;
+    }
+  }, []);
+
+  // ============================================================
+  // Build wallet adapter for auth (chain-aware)
+  // ============================================================
+  const buildWalletAdapter = useCallback((chain: ActiveChain, address: string) => {
+    if (chain === "base") {
+      const evmProvider = getPhantomEVMProvider();
+      return {
+        address,
+        chain: "base" as const,
+        connected: true,
+        publicKey: null,
+        signEVMMessage: async (message: string): Promise<string> => {
+          if (!evmProvider) throw new Error("Phantom EVM provider not found");
+          const signature = await evmProvider.request({
+            method: 'personal_sign',
+            params: [message, address],
+          });
+          return signature;
+        },
+      };
+    }
+
+    // Solana adapter
+    const phantom = getPhantomSolanaProvider();
+    const solflare = getSolflareProvider();
+    const wallet = phantom || solflare;
+
+    return {
+      chain: "solana" as const,
+      connected: wallet?.isConnected || false,
+      publicKey: wallet?.publicKey ? { toBase58: () => wallet.publicKey!.toString() } : null,
+      signMessage: async (message: Uint8Array) => {
+        if (phantom?.isPhantom) {
+          const { signature } = await (phantom as any).signMessage(message, "utf8");
+          return signature;
+        } else if (solflare?.isSolflare) {
+          return await (solflare as any).signMessage(message, "utf8");
+        }
+        throw new Error("Wallet does not support message signing");
+      },
+    };
+  }, []);
+
+  // ============================================================
+  // Check for persisted connection on mount
+  // ============================================================
   useEffect(() => {
     const savedWallet = localStorage.getItem("void402_wallet");
     if (!savedWallet) {
@@ -183,71 +292,51 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    const { type, address, fullAddress } = JSON.parse(savedWallet);
-    
-    // Set initial state from localStorage
+    const { type, address, fullAddress, chain } = JSON.parse(savedWallet);
+    const savedChain: ActiveChain = chain || "base";
+
     setWalletType(type);
     setWalletAddress(address);
     setFullWalletAddress(fullAddress || address);
+    setActiveChain(savedChain);
     setIsConnected(true);
     setNetworkStatus("connected");
-    
-    // Check if user has valid session locally
+
     const hasLocalSession = authService.isAuthenticated();
     if (hasLocalSession) {
       setIsAuthenticated(true);
     }
 
-    // Helper: verify session is valid with backend, re-auth if not
-    const verifyAndReauth = async (walletProvider: any, isPhantom: boolean) => {
-      // First check: does the token exist locally?
+    const verifyAndReauth = async (walletAddr: string, walletChain: ActiveChain) => {
       const sessionToken = authService.getSessionToken();
       let sessionValid = false;
-      
+
       if (sessionToken) {
-        // Verify with backend that the session is still valid
         try {
           const apiUrl = getApiUrl();
-          const verifyRes = await fetch(`${apiUrl}/api/zk/balance/${fullAddress}?token=USDC`, {
+          const verifyRes = await fetch(`${apiUrl}/api/zk/balance/${walletAddr}?token=USDC`, {
             headers: { 'Authorization': `Bearer ${sessionToken}` },
           });
           const verifyData = await verifyRes.json();
-          // If the response has a message about auth, session is invalid
           if (verifyData.message && (verifyData.message.includes('Not authenticated') || verifyData.message.includes('Session invalid') || verifyData.message.includes('invalid'))) {
-            console.log("[WalletContext] Backend session invalid, need re-auth");
             sessionValid = false;
           } else {
             sessionValid = true;
             console.log("[WalletContext] Backend session verified OK");
           }
         } catch {
-          // Network error - assume session might be valid
           sessionValid = true;
         }
       }
-      
+
       if (!sessionValid) {
-        // Session is stale or missing - re-authenticate
         console.log("[WalletContext] Re-authenticating...");
         try {
-          const walletAdapter = {
-            publicKey: walletProvider.publicKey ? { toBase58: () => walletProvider.publicKey!.toString() } : null,
-            signMessage: async (message: Uint8Array) => {
-              if (isPhantom) {
-                const { signature } = await (walletProvider as any).signMessage(message, "utf8");
-                return signature;
-              } else {
-                return await (walletProvider as any).signMessage(message, "utf8");
-              }
-            },
-            connected: walletProvider.isConnected || false,
-          };
-          const authResult = await authService.authenticate(walletAdapter);
+          const adapter = buildWalletAdapter(walletChain, walletAddr);
+          const authResult = await authService.authenticate(adapter);
           if (authResult.success) {
             setIsAuthenticated(true);
             console.log("[WalletContext] Re-authenticated successfully");
-          } else {
-            console.warn("[WalletContext] Re-auth failed:", authResult.error);
           }
         } catch (authErr) {
           console.warn("[WalletContext] Re-auth error:", authErr);
@@ -255,34 +344,53 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    // Eagerly reconnect to the wallet (like Nolvipay does)
-    // This ensures the wallet provider is properly connected after page refresh
     const eagerReconnect = async () => {
       try {
-        // Wait a bit for wallet extension to initialize
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        if (type === "phantom") {
-          const phantom = getPhantomProvider();
+        if (savedChain === "base") {
+          // EVM reconnect via Phantom
+          const evmProvider = getPhantomEVMProvider();
+          if (evmProvider) {
+            try {
+              const accounts: string[] = await evmProvider.request({ method: 'eth_accounts' });
+              if (accounts.length > 0) {
+                const reconnectedAddress = accounts[0].toLowerCase();
+                const savedAddr = (fullAddress || address).toLowerCase();
+
+                if (reconnectedAddress !== savedAddr) {
+                  clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
+                  return;
+                }
+
+                await ensureBaseChain(evmProvider);
+                await verifyAndReauth(accounts[0], "base");
+                console.log("[WalletContext] Phantom EVM eagerly reconnected:", accounts[0]);
+              } else {
+                clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
+                return;
+              }
+            } catch (err) {
+              console.log("[WalletContext] Phantom EVM eager reconnect failed:", err);
+              clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
+              return;
+            }
+          }
+        } else if (type === "phantom") {
+          // Solana Phantom reconnect
+          const phantom = getPhantomSolanaProvider();
           if (phantom) {
-            // Use onlyIfTrusted to auto-connect without popup if previously approved
             try {
               const response = await phantom.connect({ onlyIfTrusted: true });
               const reconnectedAddress = response.publicKey.toString();
-              console.log("[WalletContext] Phantom eagerly reconnected:", reconnectedAddress);
-              
-              // Verify it's the same wallet
+
               if (reconnectedAddress !== fullAddress) {
-                console.log("[WalletContext] Wallet address changed during reconnect");
                 clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
                 return;
               }
-              
-              // Verify session with backend and re-auth if needed
-              await verifyAndReauth(phantom, true);
+
+              await verifyAndReauth(fullAddress, "solana");
             } catch (err) {
-              // onlyIfTrusted failed - wallet was disconnected by user
-              console.log("[WalletContext] Phantom eager reconnect failed (not trusted):", err);
               clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
               return;
             }
@@ -290,30 +398,22 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         } else if (type === "solflare") {
           const solflare = getSolflareProvider();
           if (solflare) {
-            // Solflare auto-connects if previously approved
             try {
               await solflare.connect();
               await new Promise(resolve => setTimeout(resolve, 100));
-              
+
               if (solflare.publicKey) {
                 const reconnectedAddress = solflare.publicKey.toString();
-                console.log("[WalletContext] Solflare eagerly reconnected:", reconnectedAddress);
-                
                 if (reconnectedAddress !== fullAddress) {
-                  console.log("[WalletContext] Wallet address changed during reconnect");
                   clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
                   return;
                 }
-                
-                // Verify session with backend and re-auth if needed
-                await verifyAndReauth(solflare, false);
+                await verifyAndReauth(fullAddress, "solana");
               } else {
-                console.log("[WalletContext] Solflare reconnect failed - no public key");
                 clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
                 return;
               }
             } catch (err) {
-              console.log("[WalletContext] Solflare eager reconnect failed:", err);
               clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
               return;
             }
@@ -322,44 +422,81 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       } catch (err) {
         console.warn("[WalletContext] Eager reconnect error:", err);
       } finally {
-        // Mark reconnect as complete - now polling can start
         setInitialReconnectComplete(true);
       }
     };
 
     eagerReconnect();
-  }, []); // Only run once on mount
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Listen for wallet disconnect or account switch (like Nolvipay) → redirect to landing
+  // ============================================================
+  // Event listeners for wallet disconnect / account switch
+  // ============================================================
   useEffect(() => {
     if (!isConnected || !fullWalletAddress) return;
 
-    const phantom = getPhantomProvider();
+    if (activeChain === "base") {
+      // EVM event listeners
+      const evmProvider = getPhantomEVMProvider();
+      if (!evmProvider) return;
+
+      const handleAccountsChanged = (accounts: string[]) => {
+        if (accounts.length === 0) {
+          clearWalletAndRedirect("Your wallet has been disconnected.");
+          return;
+        }
+        if (accounts[0].toLowerCase() !== fullWalletAddress.toLowerCase()) {
+          clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
+        }
+      };
+
+      const handleChainChanged = (newChainHex: string) => {
+        const newChainId = parseInt(newChainHex, 16);
+        setChainId(newChainId);
+        if (newChainId !== TARGET_CHAIN_ID) {
+          setNetworkStatus("wrong_network");
+        } else {
+          setNetworkStatus("connected");
+        }
+      };
+
+      const handleDisconnect = () => {
+        clearWalletAndRedirect("Your wallet has been disconnected.");
+      };
+
+      evmProvider.on("accountsChanged", handleAccountsChanged);
+      evmProvider.on("chainChanged", handleChainChanged);
+      evmProvider.on("disconnect", handleDisconnect);
+      console.log("[WalletContext] EVM event listeners attached");
+
+      return () => {
+        evmProvider.removeListener("accountsChanged", handleAccountsChanged);
+        evmProvider.removeListener("chainChanged", handleChainChanged);
+        evmProvider.removeListener("disconnect", handleDisconnect);
+      };
+    }
+
+    // Solana event listeners
+    const phantom = getPhantomSolanaProvider();
     const solflare = getSolflareProvider();
     const provider = walletType === "phantom" ? phantom : walletType === "solflare" ? solflare : null;
 
     if (!provider) return;
 
     const handleDisconnect = () => {
-      console.log("[WalletContext] Wallet disconnected event");
       clearWalletAndRedirect("Your wallet has been disconnected.");
     };
 
     const handleAccountChanged = (newPubkey: unknown) => {
-      console.log("[WalletContext] Account changed event:", newPubkey);
-      // null = disconnected; different key = switched account
       if (newPubkey == null) {
         clearWalletAndRedirect("Your wallet has been disconnected.");
         return;
       }
-      // Get the new address string
-      const newAddress = typeof newPubkey === 'object' && newPubkey !== null && 'toString' in newPubkey 
-        ? (newPubkey as { toString: () => string }).toString() 
+      const newAddress = typeof newPubkey === 'object' && newPubkey !== null && 'toString' in newPubkey
+        ? (newPubkey as { toString: () => string }).toString()
         : String(newPubkey);
-      
-      // If the address changed, treat as disconnect and send to landing
+
       if (newAddress !== fullWalletAddress) {
-        console.log("[WalletContext] Account switched from", fullWalletAddress, "to", newAddress);
         clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
       }
     };
@@ -368,7 +505,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if ("on" in provider && typeof provider.on === "function") {
         provider.on("disconnect", handleDisconnect);
         provider.on("accountChanged", handleAccountChanged);
-        console.log("[WalletContext] Wallet event listeners attached for", walletType);
         return () => {
           provider.off?.("disconnect", handleDisconnect);
           provider.off?.("accountChanged", handleAccountChanged);
@@ -378,71 +514,79 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       console.warn("Wallet event listeners not supported:", err);
     }
     return undefined;
-  }, [isConnected, walletType, fullWalletAddress, clearWalletAndRedirect]);
+  }, [isConnected, walletType, activeChain, fullWalletAddress, clearWalletAndRedirect]);
 
-  // Poll for wallet state changes (backup for when events don't fire)
-  // Only start polling AFTER initial reconnect is complete
-  // 1:1 with VigilFi pattern
+  // ============================================================
+  // Polling for wallet state changes (backup)
+  // ============================================================
   useEffect(() => {
-    // Don't poll until initial reconnect attempt is done
     if (!initialReconnectComplete) return;
     if (!isConnected || !fullWalletAddress) return;
 
     const checkWalletState = async () => {
-      const phantom = getPhantomProvider();
+      if (activeChain === "base") {
+        // EVM polling
+        const evmProvider = getPhantomEVMProvider();
+        if (!evmProvider) {
+          clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
+          return;
+        }
+        try {
+          const accounts: string[] = await evmProvider.request({ method: 'eth_accounts' });
+          if (accounts.length === 0) {
+            clearWalletAndRedirect("Your wallet has been disconnected.");
+            return;
+          }
+          if (accounts[0].toLowerCase() !== fullWalletAddress.toLowerCase()) {
+            clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
+            return;
+          }
+        } catch {
+          clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
+        }
+        return;
+      }
+
+      // Solana polling
+      const phantom = getPhantomSolanaProvider();
       const solflare = getSolflareProvider();
       const provider = walletType === "phantom" ? phantom : walletType === "solflare" ? solflare : null;
 
       if (!provider) {
-        // Provider disappeared (e.g., extension removed)
-        console.log("[WalletContext] Wallet provider no longer available");
         clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
         return;
       }
 
-      // Check if wallet is still connected
       if (!provider.isConnected) {
-        console.log("[WalletContext] Wallet no longer connected (poll)");
         clearWalletAndRedirect("Your wallet has been disconnected.");
         return;
       }
 
-      // Method 1: Check provider.publicKey directly
       const currentAddress = provider.publicKey?.toString();
       if (currentAddress && currentAddress !== fullWalletAddress) {
-        console.log("[WalletContext] Wallet address changed (poll publicKey):", currentAddress, "vs", fullWalletAddress);
         clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
         return;
       }
 
-      // Method 2 (1:1 VigilFi): Use connect({ onlyIfTrusted: true }) to get the ACTUAL current account
-      // This forces Phantom to return the currently selected account without prompting
       try {
         const response = await provider.connect({ onlyIfTrusted: true });
         const actualCurrentAccount = response?.publicKey?.toString?.();
-        
         if (actualCurrentAccount && actualCurrentAccount !== fullWalletAddress) {
-          console.log("[WalletContext] Wallet address changed (poll connect):", actualCurrentAccount, "vs", fullWalletAddress);
           clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
-          return;
         }
-      } catch (connectErr) {
-        // If connect fails, user may have revoked trust - treat as disconnect
-        console.log("[WalletContext] Polling: connect() failed, treating as disconnect", connectErr);
+      } catch {
         clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
       }
     };
 
-    // Check immediately
     checkWalletState();
-    
-    // Check every 1 second (1:1 with VigilFi)
-    const interval = setInterval(checkWalletState, 1000);
-
+    const interval = setInterval(checkWalletState, 2000);
     return () => clearInterval(interval);
-  }, [isConnected, walletType, fullWalletAddress, initialReconnectComplete, clearWalletAndRedirect]);
+  }, [isConnected, walletType, activeChain, fullWalletAddress, initialReconnectComplete, clearWalletAndRedirect]);
 
+  // ============================================================
   // Fetch balance when wallet is connected
+  // ============================================================
   useEffect(() => {
     if (!isConnected || !fullWalletAddress) {
       setEncryptedBalance("0");
@@ -452,10 +596,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const fetchBalance = async () => {
       setIsBalanceLoading(true);
       try {
-        // Fetch USDC and USDT balances separately
         let usdcBalance = 0;
-        let usdtBalance = 0;
-        
         try {
           const usdcResult = await getZKBalance(fullWalletAddress, 'USDC');
           if (usdcResult && typeof usdcResult.balance === 'number') {
@@ -464,7 +605,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         } catch (e) {
           console.log("[WalletContext] USDC balance fetch failed, using 0");
         }
-        
+
+        let usdtBalance = 0;
         try {
           const usdtResult = await getZKBalance(fullWalletAddress, 'USDT');
           if (usdtResult && typeof usdtResult.balance === 'number') {
@@ -473,15 +615,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         } catch (e) {
           console.log("[WalletContext] USDT balance fetch failed, using 0");
         }
-        
+
         const totalBalance = usdcBalance + usdtBalance;
-        
-        const formattedBalance = totalBalance.toLocaleString(undefined, {
+        setEncryptedBalance(totalBalance.toLocaleString(undefined, {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
-        });
-        
-        setEncryptedBalance(formattedBalance);
+        }));
       } catch (error) {
         console.error("[WalletContext] Error fetching balance:", error);
         setEncryptedBalance("0");
@@ -490,29 +629,38 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    // Small delay to ensure state is set
     const timer = setTimeout(fetchBalance, 300);
     return () => clearTimeout(timer);
   }, [isConnected, fullWalletAddress]);
 
+  // ============================================================
+  // Connect wallet
+  // ============================================================
   const connect = useCallback(async (type: WalletType) => {
     setIsConnecting(true);
-    
+    hasHandledDisconnect.current = false;
+
     try {
-      let publicKey: string | null = null;
+      let walletAddress: string | null = null;
+      let chain: ActiveChain = "base"; // Default to Base
 
       if (type === "phantom") {
-        const phantom = getPhantomProvider();
-        
-        if (phantom) {
+        // Try EVM (Base) first — this is the primary flow
+        const evmProvider = getPhantomEVMProvider();
+
+        if (evmProvider) {
           try {
-            // Request connection - this will trigger the Phantom popup
-            const response = await phantom.connect();
-            publicKey = response.publicKey.toString();
-            console.log("Phantom connected:", publicKey);
+            const accounts: string[] = await evmProvider.request({ method: 'eth_requestAccounts' });
+            if (accounts.length > 0) {
+              walletAddress = accounts[0];
+              chain = "base";
+              console.log("[WalletContext] Phantom EVM connected:", walletAddress);
+
+              // Ensure we're on Base chain
+              await ensureBaseChain(evmProvider);
+            }
           } catch (err: any) {
-            console.error("Phantom connection error:", err);
-            // User rejected or error occurred - don't fallback to demo
+            console.error("[WalletContext] Phantom EVM connection error:", err);
             if (err.code === 4001 || err.message?.includes("rejected")) {
               setIsConnecting(false);
               return;
@@ -520,30 +668,29 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
             throw err;
           }
         } else {
-          // Phantom not installed - open install page
+          // Phantom not installed
           window.open("https://phantom.app/", "_blank");
           setIsConnecting(false);
           return;
         }
       } else if (type === "solflare") {
+        // Solflare is Solana-only
         const solflare = getSolflareProvider();
-        
+
         if (solflare) {
           try {
-            // Solflare connect doesn't return publicKey directly
             await solflare.connect();
-            // Wait a moment for the connection to establish
             await new Promise(resolve => setTimeout(resolve, 100));
-            
+
             if (solflare.publicKey) {
-              publicKey = solflare.publicKey.toString();
-              console.log("Solflare connected:", publicKey);
+              walletAddress = solflare.publicKey.toString();
+              chain = "solana";
+              console.log("[WalletContext] Solflare connected:", walletAddress);
             } else {
               throw new Error("Failed to get public key from Solflare");
             }
           } catch (err: any) {
             console.error("Solflare connection error:", err);
-            // User rejected or error occurred - don't fallback to demo
             if (err.message?.includes("rejected") || err.message?.includes("cancelled")) {
               setIsConnecting(false);
               return;
@@ -551,57 +698,37 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
             throw err;
           }
         } else {
-          // Solflare not installed - open install page
           window.open("https://solflare.com/", "_blank");
           setIsConnecting(false);
           return;
         }
       }
 
-      if (publicKey && type) {
-        const formattedAddress = formatAddress(publicKey);
+      if (walletAddress && type) {
+        const formattedAddress = formatAddress(walletAddress);
         setWalletType(type);
+        setActiveChain(chain);
         setWalletAddress(formattedAddress);
-        setFullWalletAddress(publicKey); // Store full address for transactions
+        setFullWalletAddress(walletAddress);
         setIsConnected(true);
         setNetworkStatus("connected");
-        
-        // Persist connection
+
         localStorage.setItem("void402_wallet", JSON.stringify({
           type,
+          chain,
           address: formattedAddress,
-          fullAddress: publicKey
+          fullAddress: walletAddress,
         }));
-        
-        // Always authenticate after connecting (like NolviPay)
-        // This ensures a fresh, valid session token for the balance API
+
+        // Auto-authenticate after connecting
         try {
-          const phantom = getPhantomProvider();
-          const solflare = getSolflareProvider();
-          const wallet = phantom || solflare;
-          
-          if (wallet) {
-            const walletAdapter = {
-              publicKey: wallet.publicKey ? { toBase58: () => wallet.publicKey!.toString() } : null,
-              signMessage: async (message: Uint8Array) => {
-                if (phantom?.isPhantom) {
-                  const { signature } = await (phantom as any).signMessage(message, "utf8");
-                  return signature;
-                } else if (solflare?.isSolflare) {
-                  return await (solflare as any).signMessage(message, "utf8");
-                }
-                throw new Error("Wallet does not support message signing");
-              },
-              connected: wallet.isConnected || false,
-            };
-            
-            const result = await authService.authenticate(walletAdapter);
-            if (result.success) {
-              setIsAuthenticated(true);
-              console.log("[WalletContext] Auto-authenticated after connect");
-            } else {
-              console.warn("[WalletContext] Auto-auth failed:", result.error);
-            }
+          const adapter = buildWalletAdapter(chain, walletAddress);
+          const result = await authService.authenticate(adapter);
+          if (result.success) {
+            setIsAuthenticated(true);
+            console.log("[WalletContext] Auto-authenticated after connect");
+          } else {
+            console.warn("[WalletContext] Auto-auth failed:", result.error);
           }
         } catch (authErr) {
           console.warn("[WalletContext] Auto-auth error:", authErr);
@@ -613,13 +740,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsConnecting(false);
     }
-  }, []);
+  }, [ensureBaseChain, buildWalletAdapter]);
 
+  // ============================================================
+  // Disconnect wallet
+  // ============================================================
   const disconnect = useCallback(async () => {
     try {
-      // Disconnect from the wallet
-      if (walletType === "phantom") {
-        const phantom = getPhantomProvider();
+      if (activeChain === "base") {
+        // EVM doesn't have a standard disconnect — just clear state
+        console.log("[WalletContext] Disconnecting from Base");
+      } else if (walletType === "phantom") {
+        const phantom = getPhantomSolanaProvider();
         if (phantom) await phantom.disconnect();
       } else if (walletType === "solflare") {
         const solflare = getSolflareProvider();
@@ -629,9 +761,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       console.error("Disconnect error:", err);
     }
     await clearWalletAndRedirect("You have been disconnected.");
-  }, [walletType, clearWalletAndRedirect]);
+  }, [walletType, activeChain, clearWalletAndRedirect]);
 
+  // ============================================================
   // Authenticate with wallet signature
+  // ============================================================
   const authenticate = useCallback(async (): Promise<boolean> => {
     if (!isConnected) {
       setAuthError("Wallet not connected");
@@ -642,31 +776,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setAuthError(null);
 
     try {
-      // Get the wallet provider
-      const phantom = getPhantomProvider();
-      const solflare = getSolflareProvider();
-      const wallet = phantom || solflare;
-
-      if (!wallet) {
-        throw new Error("No wallet found");
-      }
-
-      // Create wallet adapter
-      const walletAdapter = {
-        publicKey: wallet.publicKey ? { toBase58: () => wallet.publicKey!.toString() } : null,
-        signMessage: async (message: Uint8Array) => {
-          if (phantom?.isPhantom) {
-            const { signature } = await (phantom as any).signMessage(message, "utf8");
-            return signature;
-          } else if (solflare?.isSolflare) {
-            return await (solflare as any).signMessage(message, "utf8");
-          }
-          throw new Error("Wallet does not support message signing");
-        },
-        connected: wallet.isConnected || false,
-      };
-
-      const result = await authService.authenticate(walletAdapter);
+      const adapter = buildWalletAdapter(activeChain, fullWalletAddress);
+      const result = await authService.authenticate(adapter);
 
       if (result.success) {
         setIsAuthenticated(true);
@@ -683,20 +794,31 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsAuthenticating(false);
     }
-  }, [isConnected]);
+  }, [isConnected, activeChain, fullWalletAddress, buildWalletAdapter]);
 
-  // Clear auth error
   const clearAuthError = useCallback(() => {
     setAuthError(null);
   }, []);
 
+  // ============================================================
+  // Switch network (Base chain switching)
+  // ============================================================
   const switchNetwork = useCallback(async () => {
-    // Solana doesn't have network switching in the same way as EVM
-    // This is kept for API compatibility
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setNetworkStatus("connected");
-  }, []);
+    if (activeChain === "base") {
+      const evmProvider = getPhantomEVMProvider();
+      if (evmProvider) {
+        await ensureBaseChain(evmProvider);
+      }
+    } else {
+      // Solana doesn't have network switching
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setNetworkStatus("connected");
+    }
+  }, [activeChain, ensureBaseChain]);
 
+  // ============================================================
+  // Refresh balance
+  // ============================================================
   const refreshBalance = useCallback(async () => {
     if (!isConnected || !fullWalletAddress) {
       setEncryptedBalance("0");
@@ -705,10 +827,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     setIsBalanceLoading(true);
     try {
-      // Fetch USDC and USDT balances separately
       let usdcBalance = 0;
-      let usdtBalance = 0;
-      
       try {
         const usdcResult = await getZKBalance(fullWalletAddress, 'USDC');
         if (usdcResult && typeof usdcResult.balance === 'number') {
@@ -717,7 +836,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       } catch (e) {
         console.log("[WalletContext] USDC balance fetch failed, using 0");
       }
-      
+
+      let usdtBalance = 0;
       try {
         const usdtResult = await getZKBalance(fullWalletAddress, 'USDT');
         if (usdtResult && typeof usdtResult.balance === 'number') {
@@ -726,15 +846,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       } catch (e) {
         console.log("[WalletContext] USDT balance fetch failed, using 0");
       }
-      
+
       const totalBalance = usdcBalance + usdtBalance;
-      
-      const formattedBalance = totalBalance.toLocaleString(undefined, {
+      setEncryptedBalance(totalBalance.toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      });
-      
-      setEncryptedBalance(formattedBalance);
+      }));
     } catch (error) {
       console.error("[WalletContext] Error fetching balance:", error);
       setEncryptedBalance("0");
@@ -750,17 +867,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         walletAddress,
         fullWalletAddress,
         walletType,
+        activeChain,
         isConnecting,
         networkStatus,
         chainId,
         privacyLevel,
         encryptedBalance,
         isBalanceLoading,
-        // Auth state
         isAuthenticated,
         isAuthenticating,
         authError,
-        // Actions
         connect,
         disconnect,
         switchNetwork,

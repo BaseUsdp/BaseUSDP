@@ -43,7 +43,7 @@ interface PaymentRequest {
 
 const PaymentPage = () => {
   const { id } = useParams<{ id: string }>();
-  const { isConnected, fullWalletAddress, walletType } = useWallet();
+  const { isConnected, fullWalletAddress, walletType, activeChain } = useWallet();
   const [request, setRequest] = useState<PaymentRequest | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -404,7 +404,7 @@ const PaymentPage = () => {
                       <Copy className="w-4 h-4 text-muted-foreground" />
                     </button>
                     <a
-                      href={`https://solscan.io/tx/${txHash}`}
+                      href={activeChain === "base" ? `https://basescan.org/tx/${txHash}` : `https://solscan.io/tx/${txHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1 hover:bg-primary/10 rounded"

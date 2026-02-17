@@ -40,7 +40,7 @@ const ConfidentialPay = () => {
             Recipient Hash
           </label>
           <Input
-            placeholder="Enter Solana address (e.g., 7xKq...)"
+            placeholder="Enter Base address (e.g., 0x...)"
             value={recipient}
             onChange={(e) => setRecipient(e.target.value)}
             className="bg-secondary border-border h-11"

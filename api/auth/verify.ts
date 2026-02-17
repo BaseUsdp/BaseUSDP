@@ -1,10 +1,13 @@
 /**
- * Void402 Verify Signature API (1:1 with Nolvipay - uses Supabase)
+ * Void402 Verify Signature API
  * POST /api/auth/verify
+ *
+ * Supports both Solana (ed25519/nacl) and EVM/Base (personal_sign/ecrecover)
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { PublicKey } from "@solana/web3.js";
 import { createClient } from "@supabase/supabase-js";
+import { ethers } from "ethers";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
 import crypto from "crypto";
@@ -30,6 +33,32 @@ function getAllowedOrigin(origin: string | undefined): string {
   return "https://www.void402.com";
 }
 
+/**
+ * Verify a Solana ed25519 signature
+ */
+function verifySolanaSignature(walletAddress: string, signature: string, message: string): boolean {
+  try {
+    const messageBytes = new TextEncoder().encode(message);
+    const signatureBytes = bs58.decode(signature);
+    const publicKeyBytes = new PublicKey(walletAddress).toBytes();
+    return nacl.sign.detached.verify(messageBytes, signatureBytes, publicKeyBytes);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Verify an EVM personal_sign signature
+ */
+function verifyEVMSignature(walletAddress: string, signature: string, message: string): boolean {
+  try {
+    const recoveredAddress = ethers.verifyMessage(message, signature);
+    return recoveredAddress.toLowerCase() === walletAddress.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const origin = getAllowedOrigin(req.headers.origin as string | undefined);
   res.setHeader("Access-Control-Allow-Origin", origin);
@@ -40,13 +69,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const { walletAddress, signature, nonce } = req.body || {};
+    const { walletAddress, signature, nonce, chain } = req.body || {};
 
     if (!walletAddress || !signature || !nonce) {
       return res.status(400).json({ success: false, error: "walletAddress, signature, nonce are required" });
     }
 
-    // Verify nonce from Supabase (like Nolvipay)
+    // Determine chain: explicit param, or auto-detect from address format
+    const detectedChain = chain || (walletAddress.startsWith("0x") ? "base" : "solana");
+
+    // Verify nonce from Supabase
     let nonceValid = false;
     if (supabase) {
       const { data: storedNonce, error } = await supabase
@@ -61,17 +93,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(401).json({ success: false, error: "Invalid or expired nonce" });
       }
 
-      // Check expiration
       if (new Date(storedNonce.expires_at) < new Date()) {
         await supabase.from("auth_nonces").delete().eq("nonce", nonce);
         return res.status(401).json({ success: false, error: "Nonce expired" });
       }
 
-      // Delete nonce (one-time use)
       await supabase.from("auth_nonces").delete().eq("nonce", nonce);
       nonceValid = true;
     } else {
-      // No Supabase - can't verify nonce properly
       return res.status(500).json({ success: false, error: "Database not configured" });
     }
 
@@ -79,18 +108,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ success: false, error: "Invalid nonce" });
     }
 
-    // Verify signature
+    // Construct the signed message
     const message = `Sign this message to authenticate with Void402.\n\nNonce: ${nonce}\n\nThis signature will not trigger any blockchain transaction.`;
-    const messageBytes = new TextEncoder().encode(message);
-    let signatureBytes: Uint8Array;
-    try {
-      signatureBytes = bs58.decode(signature);
-    } catch {
-      return res.status(400).json({ success: false, error: "Invalid signature format" });
-    }
-    const publicKeyBytes = new PublicKey(walletAddress).toBytes();
 
-    const valid = nacl.sign.detached.verify(messageBytes, signatureBytes, publicKeyBytes);
+    // Verify signature based on chain
+    let valid = false;
+    if (detectedChain === "base") {
+      valid = verifyEVMSignature(walletAddress, signature, message);
+    } else {
+      valid = verifySolanaSignature(walletAddress, signature, message);
+    }
+
     if (!valid) {
       return res.status(401).json({ success: false, error: "Invalid signature" });
     }
@@ -108,7 +136,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    console.log(`✅ Verified signature for wallet ${walletAddress.slice(0, 8)}...`);
+    console.log(`Verified ${detectedChain} signature for wallet ${walletAddress.slice(0, 8)}...`);
 
     return res.status(200).json({
       success: true,

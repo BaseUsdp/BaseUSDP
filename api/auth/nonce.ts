@@ -37,8 +37,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const { walletAddress } = req.body || {};
-    if (!walletAddress || typeof walletAddress !== "string" || walletAddress.length < 32) {
+    const { walletAddress, chain } = req.body || {};
+    // EVM addresses are 42 chars (0x + 40 hex), Solana are 32-44 base58
+    const minLen = chain === "base" ? 42 : 32;
+    if (!walletAddress || typeof walletAddress !== "string" || walletAddress.length < minLen) {
       return res.status(400).json({ success: false, error: "walletAddress is required" });
     }
 

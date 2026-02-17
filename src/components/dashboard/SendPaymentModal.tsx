@@ -32,7 +32,7 @@ interface SendPaymentModalProps {
 type TransactionStep = "form" | "preview" | "signing" | "encrypting" | "pending" | "success" | "failed";
 
 const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
-  const { encryptedBalance, privacyLevel, walletType, isConnected, fullWalletAddress, refreshBalance } = useWallet();
+  const { encryptedBalance, privacyLevel, walletType, isConnected, fullWalletAddress, refreshBalance, activeChain } = useWallet();
   const apiUrl = getApiUrl();
   
   const [recipientType, setRecipientType] = useState<RecipientType>("address");
@@ -204,8 +204,12 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
     return null;
   }, [walletType, isConnected]);
 
-  // Validate Solana address (base58 format, 32-44 characters)
+  // Validate address based on active chain
   const isValidAddress = (address: string) => {
+    if (activeChain === "base") {
+      // EVM addresses: 0x + 40 hex chars
+      return /^0x[a-fA-F0-9]{40}$/.test(address);
+    }
     // Solana addresses are base58 encoded and typically 32-44 characters
     const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
     return base58Regex.test(address);
@@ -292,35 +296,49 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
       const displayRecipient = recipientType === "username" ? `@${usernameInput}` : effectiveRecipient;
       const message = `Authorize Void402 transfer:\nAmount: ${amount} ${selectedToken}\nTo: ${displayRecipient}\nTimestamp: ${Date.now()}`;
       
-      // Sign message with wallet (Phantom/Solflare format)
+      // Sign message with wallet (chain-aware)
       let walletSignature: string;
       try {
-        const encodedMessage = new TextEncoder().encode(message);
-        
-        if (walletType === "phantom") {
-          const provider = (window as any).phantom?.solana;
-          if (!provider) throw new Error("Phantom wallet not found");
-          
-          const signedMessage = await provider.signMessage(encodedMessage, "utf8");
-          if (!signedMessage || !signedMessage.signature) {
-            throw new Error("Failed to sign message");
-          }
-          // Convert Uint8Array to base58
-          const bs58 = (await import("bs58")).default;
-          walletSignature = bs58.encode(signedMessage.signature);
-        } else if (walletType === "solflare") {
-          const provider = (window as any).solflare;
-          if (!provider) throw new Error("Solflare wallet not found");
-          
-          const signedMessage = await provider.signMessage(encodedMessage, "utf8");
-          if (!signedMessage || !signedMessage.signature) {
-            throw new Error("Failed to sign message");
-          }
-          // Convert Uint8Array to base58
-          const bs58 = (await import("bs58")).default;
-          walletSignature = bs58.encode(signedMessage.signature);
+        if (activeChain === "base") {
+          // EVM signing via Phantom's ethereum provider
+          const ethProvider = (window as any).phantom?.ethereum;
+          if (!ethProvider) throw new Error("Phantom Ethereum provider not found");
+
+          const accounts = await ethProvider.request({ method: "eth_accounts" });
+          if (!accounts || accounts.length === 0) throw new Error("No Ethereum accounts found");
+
+          // personal_sign returns hex signature
+          walletSignature = await ethProvider.request({
+            method: "personal_sign",
+            params: [message, accounts[0]],
+          });
         } else {
-          throw new Error("Unsupported wallet type");
+          // Solana signing
+          const encodedMessage = new TextEncoder().encode(message);
+
+          if (walletType === "phantom") {
+            const provider = (window as any).phantom?.solana;
+            if (!provider) throw new Error("Phantom wallet not found");
+
+            const signedMessage = await provider.signMessage(encodedMessage, "utf8");
+            if (!signedMessage || !signedMessage.signature) {
+              throw new Error("Failed to sign message");
+            }
+            const bs58 = (await import("bs58")).default;
+            walletSignature = bs58.encode(signedMessage.signature);
+          } else if (walletType === "solflare") {
+            const provider = (window as any).solflare;
+            if (!provider) throw new Error("Solflare wallet not found");
+
+            const signedMessage = await provider.signMessage(encodedMessage, "utf8");
+            if (!signedMessage || !signedMessage.signature) {
+              throw new Error("Failed to sign message");
+            }
+            const bs58 = (await import("bs58")).default;
+            walletSignature = bs58.encode(signedMessage.signature);
+          } else {
+            throw new Error("Unsupported wallet type");
+          }
         }
       } catch (signError: any) {
         if (signError.message?.includes("reject") || signError.message?.includes("User rejected") || signError.message?.includes("User cancelled")) {
@@ -489,7 +507,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
                     )}
                   >
                     <QrCode className="w-4 h-4" />
-                    Solana Address
+                    {activeChain === "base" ? "Base Address" : "Solana Address"}
                   </button>
                   <button
                     onClick={() => setRecipientType("username")}
@@ -509,7 +527,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
                 {recipientType === "address" && (
                   <div className="relative">
                     <Input
-                      placeholder="Enter Solana address (e.g., 7xKXtg2CW87d97TXJSDpbD5jBk...)"
+                      placeholder={activeChain === "base" ? "Enter Base address (0x...)" : "Enter Solana address (e.g., 7xKXtg2CW87d97TXJSDpbD5jBk...)"}
                       value={recipient}
                       onChange={(e) => setRecipient(e.target.value)}
                       className="bg-secondary border-border h-12 pr-12"
@@ -795,7 +813,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
                     <Copy className="w-4 h-4 text-muted-foreground" />
                   </button>
                   <a
-                    href={`https://explorer.solana.com/tx/${txHash}`}
+                    href={activeChain === "base" ? `https://basescan.org/tx/${txHash}` : `https://explorer.solana.com/tx/${txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1 hover:bg-primary/10 rounded"
