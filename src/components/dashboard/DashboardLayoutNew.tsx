@@ -37,7 +37,7 @@ const DashboardLayoutNew = () => {
           }}
         >
           {/* Top Bar */}
-          <DashboardTopBar showBalance={showBalance} setShowBalance={setShowBalance} />
+          <DashboardTopBar showBalance={showBalance} setShowBalance={setShowBalance} setActiveTab={setActiveTab} />
 
           {/* Main Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12">

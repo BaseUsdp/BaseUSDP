@@ -1,16 +1,17 @@
 import { motion } from "framer-motion";
-import { 
-  CreditCard, 
-  Plus, 
-  Shield, 
-  TrendingUp, 
+import {
+  CreditCard,
+  Plus,
+  Shield,
+  TrendingUp,
   Wallet,
   LayoutDashboard,
   Send,
   Download,
   Settings,
   History,
-  ArrowUpRight
+  ArrowUpRight,
+  MessageSquare
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance }: Dashboar
     { id: "payments", label: "Payments", icon: Send },
     { id: "withdraw", label: "Withdraw", icon: ArrowUpRight },
     { id: "history", label: "History", icon: History },
+    { id: "messages", label: "Messages", icon: MessageSquare },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 

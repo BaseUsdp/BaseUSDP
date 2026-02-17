@@ -638,5 +638,40 @@ export const executeZKTransfer = async (
   });
 };
 
+// ============================================================================
+// Messaging Types & Functions
+// ============================================================================
+
+export interface Message {
+  id: string;
+  sender_username?: string;
+  recipient_username?: string;
+  message: string;
+  read: boolean;
+  created_at: string;
+}
+
+export interface SendMessageRequest {
+  recipient_username: string;
+  message: string;
+}
+
+export const sendMessage = async (
+  params: SendMessageRequest
+): Promise<{ success: boolean; message_id?: string; error?: string }> => {
+  return api.request("/api/messages/send", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+};
+
+export const getSentMessages = async (): Promise<{ success: boolean; messages: Message[] }> => {
+  return api.request("/api/messages/sent");
+};
+
+export const getReceivedMessages = async (): Promise<{ success: boolean; messages: Message[] }> => {
+  return api.request("/api/messages/received");
+};
+
 export default api;
 

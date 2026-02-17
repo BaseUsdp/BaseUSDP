@@ -13,6 +13,7 @@ import SettingsSection from "./sections/SettingsSection";
 import PaymentsSection from "./sections/PaymentsSection";
 import HistorySection from "./sections/HistorySection";
 import WithdrawSection from "./sections/WithdrawSection";
+import MessagesSection from "./sections/MessagesSection";
 import { getTransactionHistory, TransactionHistoryResponse, getZKBalance } from "@/services/api";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
 
@@ -227,6 +228,14 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
     return (
       <div className="p-4 sm:p-6">
         <WithdrawSection showBalance={showBalance} />
+      </div>
+    );
+  }
+
+  if (activeTab === "messages") {
+    return (
+      <div className="p-4 sm:p-6">
+        <MessagesSection />
       </div>
     );
   }

@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { RefreshCw, Eye, EyeOff, Bell, Home } from "lucide-react";
+import { RefreshCw, Eye, EyeOff, Bell, Home, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useWallet } from "@/contexts/WalletContext";
 import WalletConnectButton from "@/components/WalletConnectButton";
@@ -8,9 +8,10 @@ import NotificationCenter from "./NotificationCenter";
 interface DashboardTopBarProps {
   showBalance: boolean;
   setShowBalance: (show: boolean) => void;
+  setActiveTab: (tab: string) => void;
 }
 
-const DashboardTopBar = ({ showBalance, setShowBalance }: DashboardTopBarProps) => {
+const DashboardTopBar = ({ showBalance, setShowBalance, setActiveTab }: DashboardTopBarProps) => {
   const { refreshBalance, isBalanceLoading } = useWallet();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
@@ -33,6 +34,14 @@ const DashboardTopBar = ({ showBalance, setShowBalance }: DashboardTopBarProps) 
           <Home className="h-4 w-4" />
           <span className="text-xs font-medium hidden sm:inline">Home</span>
         </Link>
+
+        <button
+          onClick={() => setActiveTab("messages")}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-neutral-200 hover:text-white"
+        >
+          <MessageSquare className="h-4 w-4" />
+          <span className="text-xs font-medium hidden sm:inline">Messages</span>
+        </button>
       </div>
 
       {/* Right Controls */}
