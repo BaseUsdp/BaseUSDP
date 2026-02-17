@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Wallet, ChevronDown, LogOut, Copy, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
+import { Wallet, ChevronDown, LogOut, Copy, CheckCircle, Loader2, AlertTriangle, Settings, AtSign, AlertCircle, Check, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useWallet, WalletType } from "@/contexts/WalletContext";
 import { Button } from "@/components/ui/button";
@@ -21,25 +21,49 @@ interface WalletConnectButtonProps {
   variant?: "navbar" | "dashboard";
 }
 
+// Username validation (same rules as UsernameCreation)
+function validateUsername(value: string): { isValid: boolean; error?: string } {
+  if (!value || value.length < 3) {
+    return { isValid: false, error: "Username must be at least 3 characters long" };
+  }
+  if (value.length > 20) {
+    return { isValid: false, error: "Username must be 20 characters or less" };
+  }
+  if (!/^[a-zA-Z0-9]/.test(value)) {
+    return { isValid: false, error: "Username must start with a letter or number" };
+  }
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(value)) {
+    return { isValid: false, error: "Only letters, numbers, underscores, and hyphens allowed" };
+  }
+  return { isValid: true };
+}
+
 const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) => {
-  const { 
-    isConnected, 
+  const {
+    isConnected,
     walletAddress,
     fullWalletAddress,
-    walletType, 
-    isConnecting, 
+    walletType,
+    isConnecting,
     networkStatus,
-    connect, 
+    connect,
     disconnect,
-    switchNetwork 
+    switchNetwork
   } = useWallet();
   const [isOpen, setIsOpen] = useState(false);
   const [showWalletSelect, setShowWalletSelect] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [copied, setCopied] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
+  const [newUsername, setNewUsername] = useState("");
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [isValidatingUsername, setIsValidatingUsername] = useState(false);
+  const [isSavingUsername, setIsSavingUsername] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const apiUrl = getApiUrl();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const walletSelectRef = useRef<HTMLDivElement>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -59,6 +83,99 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isOpen, showWalletSelect]);
+
+  // Validate new username in real-time (debounced)
+  useEffect(() => {
+    if (newUsername.length === 0) {
+      setUsernameError(null);
+      setIsValidatingUsername(false);
+      return;
+    }
+    if (newUsername.length < 3) {
+      setUsernameError("Username must be at least 3 characters long");
+      setIsValidatingUsername(false);
+      return;
+    }
+    setIsValidatingUsername(true);
+    const timeoutId = setTimeout(async () => {
+      const validation = validateUsername(newUsername);
+      if (!validation.isValid) {
+        setUsernameError(validation.error || "Invalid username");
+        setIsValidatingUsername(false);
+        return;
+      }
+      try {
+        const response = await fetch(`${apiUrl}/api/user/check-username?username=${encodeURIComponent(newUsername)}`);
+        const data = await response.json();
+        if (data.exists && data.wallet_address !== fullWalletAddress) {
+          setUsernameError("This username is already taken");
+          setIsValidatingUsername(false);
+          return;
+        }
+      } catch {
+        // Continue even if check fails
+      }
+      setUsernameError(null);
+      setIsValidatingUsername(false);
+    }, 300);
+    return () => {
+      clearTimeout(timeoutId);
+      setIsValidatingUsername(false);
+    };
+  }, [newUsername, fullWalletAddress, apiUrl]);
+
+  const isUsernameFormValid = newUsername.trim().length >= 3 && !usernameError && !isValidatingUsername;
+
+  const handleOpenSettings = () => {
+    setIsOpen(false);
+    setNewUsername(username || "");
+    setUsernameError(null);
+    setSaveSuccess(false);
+    setShowSettings(true);
+  };
+
+  const handleCloseSettings = () => {
+    setShowSettings(false);
+    setNewUsername("");
+    setUsernameError(null);
+    setSaveSuccess(false);
+  };
+
+  const handleSaveUsername = async () => {
+    if (!isUsernameFormValid || !isConnected || !fullWalletAddress) return;
+
+    setIsSavingUsername(true);
+    try {
+      const checkResponse = await fetch(`${apiUrl}/api/user/check-username?username=${encodeURIComponent(newUsername)}`);
+      const checkData = await checkResponse.json();
+      if (checkData.exists && checkData.wallet_address !== fullWalletAddress) {
+        setUsernameError("This username is already taken");
+        setIsSavingUsername(false);
+        return;
+      }
+
+      const saveResponse = await fetch(`${apiUrl}/api/user/profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet_address: fullWalletAddress,
+          username: newUsername.trim(),
+        }),
+      });
+      const saveData = await saveResponse.json();
+      if (!saveResponse.ok || !saveData.success) {
+        throw new Error(saveData.error || "Failed to save username");
+      }
+
+      setUsername(newUsername.trim());
+      setSaveSuccess(true);
+      setTimeout(() => handleCloseSettings(), 1500);
+    } catch (err: any) {
+      setUsernameError(err.message || "Failed to save username. Please try again.");
+    } finally {
+      setIsSavingUsername(false);
+    }
+  };
 
   // Fetch username when wallet is connected
   useEffect(() => {
@@ -278,7 +395,15 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
               )}
               {copied ? "Copied!" : "Copy Address"}
             </button>
-            
+
+            <button
+              onClick={handleOpenSettings}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left text-white hover:bg-primary/10 rounded-lg transition-colors"
+            >
+              <Settings className="w-4 h-4 text-white/50" />
+              Settings
+            </button>
+
             <button
               onClick={() => {
                 setIsOpen(false);
@@ -290,6 +415,129 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
               Disconnect
             </button>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Settings Modal Overlay */}
+      <AnimatePresence>
+        {showSettings && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={handleCloseSettings}
+            />
+            {/* Modal */}
+            <motion.div
+              ref={settingsRef}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md mx-4 p-6 bg-[#0a0a0a]/95 border border-primary/20 rounded-2xl shadow-2xl backdrop-blur-xl"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-white">Settings</h2>
+                <button
+                  onClick={handleCloseSettings}
+                  className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  <X className="w-5 h-5 text-white/50" />
+                </button>
+              </div>
+
+              {/* Username Section */}
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">
+                  Username
+                </label>
+                {username && (
+                  <p className="text-xs text-white/40 mb-2">
+                    Current: <span className="text-white/60 font-mono">@{username}</span>
+                  </p>
+                )}
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40">
+                    <AtSign className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    value={newUsername}
+                    onChange={(e) => {
+                      setNewUsername(e.target.value.replace(/@/g, ""));
+                      setUsernameError(null);
+                      setSaveSuccess(false);
+                    }}
+                    placeholder="Enter new username"
+                    className={`w-full pl-10 pr-10 py-3 rounded-xl bg-white/10 border transition-all text-sm ${
+                      usernameError
+                        ? "border-red-500/50 focus:border-red-400"
+                        : isValidatingUsername
+                        ? "border-yellow-500/50 focus:border-yellow-400"
+                        : isUsernameFormValid
+                        ? "border-purple-500/50 focus:border-purple-400"
+                        : "border-white/20 focus:border-white/40"
+                    } text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/20`}
+                    disabled={isSavingUsername}
+                    maxLength={20}
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {isValidatingUsername && <Loader2 className="w-4 h-4 text-yellow-500 animate-spin" />}
+                    {!isValidatingUsername && usernameError && <AlertCircle className="w-4 h-4 text-red-500" />}
+                    {!isValidatingUsername && !usernameError && isUsernameFormValid && <Check className="w-4 h-4 text-purple-400" />}
+                  </div>
+                </div>
+                {usernameError && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-2 text-xs text-red-400 flex items-center gap-1"
+                  >
+                    <AlertCircle className="w-3 h-3" />
+                    {usernameError}
+                  </motion.p>
+                )}
+                {saveSuccess && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-2 text-xs text-green-400 flex items-center gap-1"
+                  >
+                    <CheckCircle className="w-3 h-3" />
+                    Username updated successfully!
+                  </motion.p>
+                )}
+                <div className="mt-2 text-xs text-white/30 space-y-0.5">
+                  <p>3-20 characters, letters, numbers, underscores, hyphens</p>
+                </div>
+              </div>
+
+              {/* Save Button */}
+              <motion.button
+                onClick={handleSaveUsername}
+                disabled={!isUsernameFormValid || isSavingUsername}
+                whileHover={isUsernameFormValid && !isSavingUsername ? { scale: 1.02 } : {}}
+                whileTap={isUsernameFormValid && !isSavingUsername ? { scale: 0.98 } : {}}
+                className={`w-full mt-6 py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
+                  isUsernameFormValid && !isSavingUsername
+                    ? "bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg hover:shadow-xl cursor-pointer"
+                    : "bg-white/10 text-white/30 cursor-not-allowed"
+                }`}
+              >
+                {isSavingUsername ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Username"
+                )}
+              </motion.button>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
