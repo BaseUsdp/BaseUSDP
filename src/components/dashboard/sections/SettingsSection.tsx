@@ -140,7 +140,7 @@ const SettingsSection = () => {
         <div className="rounded-xl bg-secondary/50 p-4 flex items-center justify-between">
           <div>
             <p className="font-medium">Current Network</p>
-            <p className="text-sm text-muted-foreground">{activeChain === "base" ? "Base" : "Solana Mainnet"}</p>
+            <p className="text-sm text-muted-foreground">{activeChain === "base" ? "Base" : "Legacy"}</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />

@@ -229,7 +229,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
         return;
       }
     } else {
-      // For address transfers: validate the Solana address
+      // For address transfers: validate the address
       if (!recipient) {
         setError("Please enter a recipient address");
         return;
@@ -499,7 +499,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
                     )}
                   >
                     <QrCode className="w-4 h-4" />
-                    {activeChain === "base" ? "Base Address" : "Solana Address"}
+                    {activeChain === "base" ? "Base Address" : "Address"}
                   </button>
                   <button
                     onClick={() => setRecipientType("username")}
@@ -519,7 +519,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
                 {recipientType === "address" && (
                   <div className="relative">
                     <Input
-                      placeholder={activeChain === "base" ? "Enter Base address (0x...)" : "Enter Solana address (e.g., 7xKXtg2CW87d97TXJSDpbD5jBk...)"}
+                      placeholder={activeChain === "base" ? "Enter Base address (0x...)" : "Enter wallet address"}
                       value={recipient}
                       onChange={(e) => setRecipient(e.target.value)}
                       className="bg-secondary border-border h-12 pr-12"
@@ -805,7 +805,7 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
                     <Copy className="w-4 h-4 text-muted-foreground" />
                   </button>
                   <a
-                    href={activeChain === "base" ? `https://basescan.org/tx/${txHash}` : `https://explorer.solana.com/tx/${txHash}`}
+                    href={`https://basescan.org/tx/${txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1 hover:bg-primary/10 rounded"

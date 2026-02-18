@@ -332,7 +332,7 @@ const WithdrawSection = ({ showBalance }: WithdrawSectionProps) => {
                 </div>
                 <div className="flex justify-between p-3 rounded-lg bg-white/5">
                   <span className="text-neutral-400">Network</span>
-                  <span className="text-emerald-400">{activeChain === "base" ? "Base" : "Solana Mainnet"}</span>
+                  <span className="text-emerald-400">{activeChain === "base" ? "Base" : "Legacy"}</span>
                 </div>
               </div>
 

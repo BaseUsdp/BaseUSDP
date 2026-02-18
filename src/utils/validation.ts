@@ -119,11 +119,11 @@ export const getAddressError = (address: string, chain: "solana" | "base" = "bas
   }
 
   if (address.startsWith("0x")) {
-    return "Invalid address format. Please enter a Solana address (not Ethereum)";
+    return "Invalid address format. Please enter a valid address";
   }
 
   if (!isValidSolanaAddress(address)) {
-    return "Invalid Solana address format. Address should be 32-44 characters";
+    return "Invalid address format. Address should be 32-44 characters";
   }
 
   return null;

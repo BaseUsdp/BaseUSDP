@@ -390,7 +390,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                           )}
                         >
                           <QrCode className="w-4 h-4" />
-                          {activeChain === "base" ? "Base Address" : "Solana Address"}
+                          {activeChain === "base" ? "Base Address" : "Address"}
                         </button>
                         <button
                           onClick={() => setRecipientType("username")}
@@ -410,7 +410,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                       {recipientType === "address" && (
                         <div className="relative">
                           <Input
-                            placeholder={activeChain === "base" ? "Enter Base address (0x...)" : "Enter Solana address (e.g., 7xKXtg2CW87d97TXJSDpbD5jBk...)"}
+                            placeholder={activeChain === "base" ? "Enter Base address (0x...)" : "Enter wallet address"}
                             value={recipient}
                             onChange={(e) => setRecipient(e.target.value)}
                             className="bg-secondary border-border h-12 pr-12"

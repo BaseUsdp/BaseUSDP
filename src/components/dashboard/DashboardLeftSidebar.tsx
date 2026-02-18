@@ -114,7 +114,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
           </div>
           <div className="flex items-center justify-between">
             <span className="text-xs text-neutral-400">Network</span>
-            <span className="text-xs font-semibold text-emerald-400">{activeChain === "base" ? "Base" : "Solana Mainnet"}</span>
+            <span className="text-xs font-semibold text-emerald-400">{activeChain === "base" ? "Base" : "Legacy"}</span>
           </div>
         </div>
       </div>

@@ -3,13 +3,13 @@
  * 
  * Full privacy deposit flow:
  * 1. Create holding wallet (deterministic per deposit)
- * 2. User signs SPL token transfer to holding wallet
+ * 2. User signs token transfer to holding wallet
  * 3. Auto-split deposit into 2-4 random parts
  * 4. Each split goes through ChangeNow privacy mixer
  * 5. Mixer output -> Intermediate Wallet -> Pool PDA (smart contract)
  * 6. Balance credited after all splits processed
  * 
- * X402 flow (Base USDC -> Solana USDC):
+ * X402 flow (Base USDC deposit):
  * 1. User signs a message with Phantom to verify wallet ownership
  * 2. Backend creates deposit record & returns Base deposit address
  * 3. User sends USDC on Base to the deposit address
@@ -181,7 +181,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
   };
 
   /**
-   * Handle x402 deposit flow (Base USDC -> Solana USDC)
+   * Handle x402 deposit flow (Base USDC deposit)
    * Uses Phantom's ethereum provider to send Base USDC automatically
    */
   const handleX402Deposit = async () => {
@@ -215,7 +215,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
       // STEP 1: Sign message with wallet (wallet verification)
       // ============================================
       const timestamp = Date.now();
-      const messageToSign = `Void402 x402 Deposit: $${depositAmount.toFixed(2)} USDC from Base to Solana - ${timestamp}`;
+      const messageToSign = `Void402 x402 Deposit: $${depositAmount.toFixed(2)} USDC on Base - ${timestamp}`;
       const encodedMessage = new TextEncoder().encode(messageToSign);
 
       let signatureBase58: string;
@@ -645,10 +645,10 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
       const signedTransaction = await walletProvider.signTransaction(tx);
 
       // ============================================
-      // STEP 3: Submit transaction to Solana via backend
+      // STEP 3: Submit transaction via backend
       // ============================================
       setStep("submitting");
-      setProcessingStatus("Sending transaction to Solana...");
+      setProcessingStatus("Sending transaction to Base network...");
 
       // Serialize signed tx to base64
       const signedBytes = signedTransaction.serialize();
@@ -972,7 +972,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                           alt="USDC"
                           className="w-5 h-5 rounded-full"
                         />
-                        USDC {activeChain === "base" ? "(Base)" : "(Solana)"}
+                        USDC {activeChain === "base" ? "(Base)" : "(Legacy)"}
                       </div>
                     </SelectItem>
                     <SelectItem value="USDT">
@@ -982,7 +982,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                           alt="USDT"
                           className="w-5 h-5 rounded-full"
                         />
-                        USDT {activeChain === "base" ? "(Base)" : "(Solana)"}
+                        USDT {activeChain === "base" ? "(Base)" : "(Legacy)"}
                       </div>
                     </SelectItem>
                     <SelectItem value="X402">
@@ -1191,7 +1191,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
               <Loader2 className="w-12 h-12 text-primary animate-spin" />
               <p className="text-lg font-semibold">Submitting Transaction</p>
               <p className="text-sm text-muted-foreground text-center">
-                {processingStatus || (activeChain === "base" ? "Sending to Base network..." : "Sending to Solana blockchain...")}
+                {processingStatus || (activeChain === "base" ? "Sending to Base network..." : "Sending transaction...")}
               </p>
 
               {/* Progress bar */}
