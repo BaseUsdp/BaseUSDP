@@ -36,7 +36,7 @@ const NetworkWarningBanner = () => {
           <div>
             <p className="text-sm font-medium text-destructive">Wrong Network Detected</p>
             <p className="text-xs text-muted-foreground">
-              Please switch to Base Sepolia (Chain ID: 84532) to use Void402
+              Please switch to Base (Chain ID: 8453) to use Void402
             </p>
           </div>
         </div>

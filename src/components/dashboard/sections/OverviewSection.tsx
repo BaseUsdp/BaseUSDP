@@ -59,7 +59,7 @@ const OverviewSection = ({ showBalance, setShowBalance, setActiveTab }: Overview
           Dashboard<span className="text-primary">.</span>
         </h1>
         <p className="text-muted-foreground mt-1">
-          Privacy-first encrypted payments on Base Sepolia
+          Privacy-first encrypted payments on Base
         </p>
       </div>
 

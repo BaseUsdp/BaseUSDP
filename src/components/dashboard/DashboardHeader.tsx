@@ -21,7 +21,7 @@ const DashboardHeader = ({ showBalance, setShowBalance, isConnected }: Dashboard
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border">
           <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-yellow-500"} animate-pulse`} />
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            {isConnected ? "Base Sepolia" : "Disconnected"}
+            {isConnected ? "Base" : "Disconnected"}
           </span>
         </div>
       </div>

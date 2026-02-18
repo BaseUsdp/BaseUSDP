@@ -64,9 +64,9 @@ const DashboardSidebar = ({ activeTab, setActiveTab }: DashboardSidebarProps) =>
         <div className="rounded-xl bg-secondary/50 p-3">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs font-medium">Base Sepolia</span>
+            <span className="text-xs font-medium">Base</span>
           </div>
-          <p className="text-xs text-muted-foreground">Chain ID: 84532</p>
+          <p className="text-xs text-muted-foreground">Chain ID: 8453</p>
         </div>
       </div>
     </aside>
