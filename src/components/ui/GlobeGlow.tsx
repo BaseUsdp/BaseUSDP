@@ -21,8 +21,8 @@ const GlobeGlow = ({
   };
 
   const colorMap = {
-    primary: "262 83% 58%",
-    accent: "270 95% 65%",
+    primary: "240 100% 50%",
+    accent: "240 100% 50%",
   };
 
   const { size, opacity } = intensityMap[intensity];

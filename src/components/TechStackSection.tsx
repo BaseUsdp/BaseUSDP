@@ -253,7 +253,7 @@ const TechStackSection = () => {
                         className="absolute inset-y-0 left-0 w-2 bg-primary"
                         animate={{ left: ["0%", `${tx.progress}%`] }}
                         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: i * 0.3 }}
-                        style={{ boxShadow: "0 0 20px hsl(262 83% 58%)" }}
+                        style={{ boxShadow: "0 0 20px #0001ff" }}
                       />
                       {/* Packet indicators */}
                       {[0, 1, 2].map((p) => (
@@ -508,7 +508,7 @@ const TechStackSection = () => {
             >
               <motion.div
                 className="absolute inset-0 rounded-3xl blur-xl opacity-0 group-hover:opacity-40 transition-opacity duration-500"
-                style={{ background: 'linear-gradient(135deg, hsl(262 83% 58% / 0.3), hsl(262 83% 58% / 0.1))' }}
+                style={{ background: 'linear-gradient(135deg, #0001ff / 0.3, #0001ff / 0.1)' }}
               />
               
               <motion.div
@@ -545,14 +545,14 @@ const TechStackSection = () => {
                 <div className="flex items-baseline gap-1 relative z-10">
                   <motion.span 
                     className="text-5xl font-semibold text-white tracking-tight"
-                    animate={hoveredCard === i ? { color: "hsl(262 83% 65%)" } : { color: "#ffffff" }}
+                    animate={hoveredCard === i ? { color: "#0001ff" } : { color: "#ffffff" }}
                     transition={{ duration: 0.3 }}
                   >
                     {stat.value}
                   </motion.span>
                   <motion.span 
                     className="text-2xl text-white/40 font-medium"
-                    animate={hoveredCard === i ? { color: "hsl(262 83% 58%)" } : {}}
+                    animate={hoveredCard === i ? { color: "#0001ff" } : {}}
                   >
                     {stat.suffix}
                   </motion.span>

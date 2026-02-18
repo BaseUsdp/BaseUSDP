@@ -7,7 +7,7 @@ interface FlashlightCardProps {
   glowColor?: string;
 }
 
-const FlashlightCard = ({ children, className, glowColor = "262 83% 58%" }: FlashlightCardProps) => {
+const FlashlightCard = ({ children, className, glowColor = "240 100% 50%" }: FlashlightCardProps) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [mousePosition, setMousePosition] = useState({ x: 50, y: 50 });
 

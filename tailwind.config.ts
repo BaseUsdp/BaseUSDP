@@ -55,14 +55,14 @@ export default {
         },
         // Custom premium colors
         violet: {
-          400: "#a78bfa",
-          500: "#8b5cf6",
-          600: "#7c3aed",
+          400: "#0001ff",
+          500: "#0001ff",
+          600: "#0001ff",
         },
         purple: {
-          400: "#c084fc",
-          500: "#a855f7",
-          600: "#9333ea",
+          400: "#0001ff",
+          500: "#0001ff",
+          600: "#0001ff",
         },
       },
       borderRadius: {
@@ -73,9 +73,9 @@ export default {
         "3xl": "1.5rem",
       },
       boxShadow: {
-        'glow': '0 0 40px -10px hsl(262 83% 58% / 0.5)',
-        'glow-lg': '0 0 60px -15px hsl(262 83% 58% / 0.5)',
-        'glow-xl': '0 0 100px -20px hsl(262 83% 58% / 0.4)',
+        'glow': '0 0 40px -10px #0001ff / 0.5',
+        'glow-lg': '0 0 60px -15px #0001ff / 0.5',
+        'glow-xl': '0 0 100px -20px #0001ff / 0.4',
         'inner-glow': 'inset 0 1px 0 hsl(0 0% 100% / 0.1)',
       },
       keyframes: {
@@ -110,11 +110,11 @@ export default {
         "pulse-glow": {
           "0%, 100%": { 
             opacity: "1",
-            boxShadow: "0 0 20px -5px hsl(262 83% 58% / 0.5)"
+            boxShadow: "0 0 20px -5px #0001ff / 0.5"
           },
           "50%": { 
             opacity: "0.7",
-            boxShadow: "0 0 30px -5px hsl(262 83% 58% / 0.7)"
+            boxShadow: "0 0 30px -5px #0001ff / 0.7"
           },
         },
         "float": {
@@ -131,10 +131,10 @@ export default {
         },
         "glow-pulse": {
           "0%, 100%": { 
-            boxShadow: "0 0 40px -10px hsl(262 83% 58% / 0.4)"
+            boxShadow: "0 0 40px -10px #0001ff / 0.4"
           },
           "50%": { 
-            boxShadow: "0 0 60px -10px hsl(262 83% 58% / 0.6)"
+            boxShadow: "0 0 60px -10px #0001ff / 0.6"
           },
         },
         "border-flow": {
@@ -200,7 +200,7 @@ export default {
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-        'gradient-purple': 'linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(280 80% 50%) 50%, hsl(300 70% 45%) 100%)',
+        'gradient-purple': 'linear-gradient(135deg, #0001ff 0%, #0001ff 50%, #0001ff 100%)',
       },
     },
   },

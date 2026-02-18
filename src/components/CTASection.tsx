@@ -13,7 +13,7 @@ const CTASection = () => {
     <section ref={ref} className="relative py-16 overflow-hidden bg-[#020202]">
       <div className="absolute top-0 left-0 right-0 h-px bg-white/10" />
       <div className="absolute inset-0 pointer-events-none" style={{backgroundImage: `repeating-linear-gradient(-45deg,transparent,transparent 40px,rgba(255,255,255,0.015) 40px,rgba(255,255,255,0.015) 41px)`}} />
-      <div className="absolute inset-0 pointer-events-none" style={{background: `radial-gradient(ellipse 60% 40% at 50% 50%, hsl(262 83% 58% / 0.08), transparent 60%)`}} />
+      <div className="absolute inset-0 pointer-events-none" style={{background: `radial-gradient(ellipse 60% 40% at 50% 50%, #0001ff / 0.08, transparent 60%)`}} />
 
       <div className="container relative mx-auto px-6">
         {/* Slim Rectangle CTA Bar */}
@@ -69,7 +69,7 @@ const CTASection = () => {
                   scale: isButtonHovered ? 1.3 : 1,
                 }}
                 transition={{ duration: 0.3 }}
-                style={{ background: 'hsl(262 83% 58%)' }}
+                style={{ background: '#0001ff' }}
               />
 
               <motion.button

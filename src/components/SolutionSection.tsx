@@ -158,7 +158,7 @@ const WallCard = ({ card }: { card: { name: string; type: string; icon: string }
         <div className={`w-7 h-7 ${iconColors[card.icon] || 'text-white'}`}>
           <Icon icon={card.icon} className="w-full h-full" />
         </div>
-        <div className="w-1.5 h-1.5 rounded-full bg-violet-500 shadow-[0_0_10px_#8b5cf6]" />
+        <div className="w-1.5 h-1.5 rounded-full bg-violet-500 shadow-[0_0_10px_#0001ff]" />
       </div>
       <div>
         <div className="text-sm font-mono text-white/80">{card.name}</div>
