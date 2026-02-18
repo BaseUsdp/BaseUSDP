@@ -3,3 +3,4 @@
 /* eslint-disable */
 export { Void402Facilitator__factory } from "./Void402Facilitator__factory";
 export { VoidFHERC20__factory } from "./VoidFHERC20__factory";
+export { X402PrivacyPool__factory } from "./X402PrivacyPool__factory";

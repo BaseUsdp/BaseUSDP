@@ -3,3 +3,4 @@
 /* eslint-disable */
 export type { Void402Facilitator } from "./Void402Facilitator";
 export type { VoidFHERC20 } from "./VoidFHERC20";
+export type { X402PrivacyPool } from "./X402PrivacyPool";
