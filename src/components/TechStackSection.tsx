@@ -45,7 +45,7 @@ const TechStackSection = () => {
     { icon: "ph:globe-bold", name: "Base", category: "Blockchain", description: "Ethereum L2 with low-cost, high-speed transactions" },
     { icon: "ph:stack-bold", name: "ZK Proofs", category: "Privacy Layer", description: "Zero-Knowledge Proofs for confidential computing" },
     { icon: "ph:coins-bold", name: "x402", category: "Payment Standard", description: "HTTP 402 for internet-native payments" },
-    { icon: "ph:code-bold", name: "Solidity", category: "Smart Contracts", description: "EVM contracts & Void402 protocol" },
+    { icon: "ph:code-bold", name: "Solidity", category: "Smart Contracts", description: "EVM contracts & ORB402 protocol" },
     { icon: "ph:cpu-bold", name: "TypeScript", category: "Backend", description: "Node.js with Express & native x402 libs" },
     { icon: "ph:database-bold", name: "React + Vite", category: "Frontend", description: "Modern web app with optimized builds" },
   ];
@@ -124,7 +124,7 @@ const TechStackSection = () => {
         <div className="relative w-full h-full min-h-[250px] rounded-xl overflow-hidden border border-white/10">
           <img 
             src={dashboardPreview} 
-            alt="Void402 Dashboard" 
+            alt="ORB402 Dashboard" 
             className="w-full h-full object-cover object-top opacity-90"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent" />
@@ -634,7 +634,7 @@ const TechStackSection = () => {
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-white/5 border border-white/10">
                   <Icon icon="ph:terminal-bold" className="w-3 h-3 text-white/40" />
-                  <span className="text-xs text-white/40 font-mono">void402://protocol/architecture/live</span>
+                  <span className="text-xs text-white/40 font-mono">ORB402://protocol/architecture/live</span>
                 </div>
               </div>
               <div className="flex items-center gap-4">

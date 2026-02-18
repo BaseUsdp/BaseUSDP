@@ -113,9 +113,9 @@ const Footer = () => {
           <div className="max-w-md">
             <Link to="/" className="flex items-center gap-3 mb-4">
               <div className="flex h-8 w-8 items-center justify-center">
-                <img src={void402Logo} alt="Void402" className="h-8 w-8 object-contain" />
+                <img src={void402Logo} alt="ORB402" className="h-8 w-8 object-contain" />
               </div>
-              <span className="text-xl font-bold text-white tracking-tight">VOID<span className="text-primary">402</span>.</span>
+              <span className="text-xl font-bold text-white tracking-tight">ORB<span className="text-primary">402</span>.</span>
             </Link>
             <p className="text-white/40 text-sm leading-relaxed">
               The Confidential Payment Layer for the Agentic Economy. 
@@ -140,7 +140,7 @@ const Footer = () => {
 
         {/* Copyright */}
         <div className="mt-8 pt-8 border-t border-white/10">
-          <p className="text-xs text-white/30">© 2026 Void402 Protocol. All rights reserved.</p>
+          <p className="text-xs text-white/30">© 2026 ORB402 Protocol. All rights reserved.</p>
         </div>
       </div>
     </footer>

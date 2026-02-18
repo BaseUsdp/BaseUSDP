@@ -20,7 +20,7 @@ const FAQSection = () => {
     {
       icon: "ph:shield-check-bold",
       question: "What are Zero-Knowledge Proofs (ZK Proofs)?",
-      answer: "ZK Proofs are cryptographic methods that allow one party to prove to another that a statement is true without revealing any additional information. This means your transaction amounts, balances, and financial data remain private while still being verifiable on the blockchain. Void402 uses ZK Proofs to enable truly confidential transactions.",
+      answer: "ZK Proofs are cryptographic methods that allow one party to prove to another that a statement is true without revealing any additional information. This means your transaction amounts, balances, and financial data remain private while still being verifiable on the blockchain. ORB402 uses ZK Proofs to enable truly confidential transactions.",
     },
     {
       icon: "ph:lightning-bold",
@@ -29,8 +29,8 @@ const FAQSection = () => {
     },
     {
       icon: "ph:lock-bold",
-      question: "How does Void402 protect my privacy?",
-      answer: "Void402 encrypts your transaction amounts and balances using ZK Proof technology. Unlike traditional blockchains where all data is public, only you can see your true balances. Third parties, including validators and observers, cannot view your financial activity.",
+      question: "How does ORB402 protect my privacy?",
+      answer: "ORB402 encrypts your transaction amounts and balances using ZK Proof technology. Unlike traditional blockchains where all data is public, only you can see your true balances. Third parties, including validators and observers, cannot view your financial activity.",
     },
     {
       icon: "ph:credit-card-bold",
@@ -39,13 +39,13 @@ const FAQSection = () => {
     },
     {
       icon: "ph:robot-bold",
-      question: "Can AI agents use Void402?",
-      answer: "Yes! Void402 is built for the agentic economy. AI agents can autonomously make and receive payments using the x402 protocol without exposing sensitive financial data. Our SDK enables developers to integrate confidential payments into any AI application.",
+      question: "Can AI agents use ORB402?",
+      answer: "Yes! ORB402 is built for the agentic economy. AI agents can autonomously make and receive payments using the x402 protocol without exposing sensitive financial data. Our SDK enables developers to integrate confidential payments into any AI application.",
     },
     {
       icon: "ph:question-bold",
-      question: "Which blockchains does Void402 support?",
-      answer: "Void402 operates on Base (Ethereum L2) with ZK Proof capabilities for privacy. Transactions benefit from low fees and fast finality on Base network.",
+      question: "Which blockchains does ORB402 support?",
+      answer: "ORB402 operates on Base (Ethereum L2) with ZK Proof capabilities for privacy. Transactions benefit from low fees and fast finality on Base network.",
     },
   ];
 
@@ -77,7 +77,7 @@ const FAQSection = () => {
             Questions
           </h2>
           <p className="text-white/50 text-base md:text-lg">
-            Everything you need to know about Void402 and privacy-first payments.
+            Everything you need to know about ORB402 and privacy-first payments.
           </p>
         </motion.div>
 

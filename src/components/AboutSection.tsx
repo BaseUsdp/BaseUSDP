@@ -23,7 +23,7 @@ const AboutSection = () => {
             transition={{ duration: 0.8 }}
           >
             <div className="text-[10px] font-mono text-violet-500 uppercase mb-4 tracking-widest">
-              01 — About Void402
+              01 — About ORB402
             </div>
             <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-white mb-8 leading-[1.05]">
               The Internet Was Built for Information.
@@ -37,7 +37,7 @@ const AboutSection = () => {
                 Public blockchains promised a revolution in peer-to-peer finance, but their inherent transparency created a critical barrier to mainstream adoption. For institutions, enterprises, and any entity that values financial privacy, broadcasting every transaction to the world is not just a risk—it's a non-starter.
               </p>
               <p>
-                <span className="text-white font-medium">Void402 was created to solve this fundamental problem.</span> By integrating cutting-edge Zero-Knowledge Proofs (ZK Proofs) with the internet-native x402 payment standard, we have created the world's first confidential payment layer for the on-chain economy.
+                <span className="text-white font-medium">ORB402 was created to solve this fundamental problem.</span> By integrating cutting-edge Zero-Knowledge Proofs (ZK Proofs) with the internet-native x402 payment standard, we have created the world's first confidential payment layer for the on-chain economy.
               </p>
             </div>
           </motion.div>

@@ -10,7 +10,7 @@ const PrivacyPolicy = () => {
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center">
-              <img src={void402Logo} alt="Void402" className="h-8 w-8 object-contain" />
+              <img src={void402Logo} alt="ORB402" className="h-8 w-8 object-contain" />
             </div>
             <span className="text-xl font-bold text-white tracking-tight">
               VOID<span className="text-primary">402</span>.
@@ -39,7 +39,7 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">1. Introduction</h2>
             <p>
-              Welcome to Void402 ("we," "our," or "us"). We are committed to protecting your
+              Welcome to ORB402 ("we," "our," or "us"). We are committed to protecting your
               privacy and ensuring the security of your personal information. This Privacy Policy
               explains how we collect, use, disclose, and safeguard your information when you
               use our platform, website, and related services (collectively, the "Service").
@@ -108,7 +108,7 @@ const PrivacyPolicy = () => {
               </li>
               <li>
                 <strong className="text-white/90">Protection of Rights:</strong> To protect the rights,
-                property, or safety of Void402, our users, or the public
+                property, or safety of ORB402, our users, or the public
               </li>
               <li>
                 <strong className="text-white/90">Business Transfers:</strong> In connection with a
@@ -206,7 +206,7 @@ const PrivacyPolicy = () => {
               or our data practices, please contact us at:
             </p>
             <div className="mt-4 p-6 bg-white/5 border border-white/10 rounded-lg">
-              <p className="font-medium text-white">Void402</p>
+              <p className="font-medium text-white">ORB402</p>
               <p className="mt-2">
                 Email:{" "}
                 <a href="mailto:xvoidx402@gmail.com" className="text-primary hover:underline">

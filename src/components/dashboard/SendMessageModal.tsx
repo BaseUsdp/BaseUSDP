@@ -113,7 +113,7 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
         <DialogHeader>
           <DialogTitle className="text-white">Send Message</DialogTitle>
           <DialogDescription className="text-white/50">
-            Send a private message to another Void402 user
+            Send a private message to another ORB402 user
           </DialogDescription>
         </DialogHeader>
 

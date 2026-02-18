@@ -19,7 +19,7 @@ const RoadmapSection = () => {
       progress: 65,
       color: "from-violet-500 to-purple-600",
       glowColor: "violet",
-      description: "Launch of the Void402 protocol on Base L2 with ZK Proof-powered smart contracts and developer SDKs.",
+      description: "Launch of the ORB402 protocol on Base L2 with ZK Proof-powered smart contracts and developer SDKs.",
       milestones: [
         { name: "Mainnet Deployment", done: true },
         { name: "Developer SDK Release", done: true },
@@ -36,7 +36,7 @@ const RoadmapSection = () => {
       progress: 0,
       color: "from-blue-500 to-cyan-600",
       glowColor: "blue",
-      description: "Launch of the Void402 Neobank with P2P payments, confidential savings, and virtual card management.",
+      description: "Launch of the ORB402 Neobank with P2P payments, confidential savings, and virtual card management.",
       milestones: [
         { name: "Neobank App Launch", done: false },
         { name: "Partner Integrations", done: false },
@@ -70,7 +70,7 @@ const RoadmapSection = () => {
       progress: 0,
       color: "from-orange-500 to-amber-600",
       glowColor: "orange",
-      description: "Deep AI integrations establishing Void402 as the default privacy layer for autonomous commerce.",
+      description: "Deep AI integrations establishing ORB402 as the default privacy layer for autonomous commerce.",
       milestones: [
         { name: "AI Agent SDK", done: false },
         { name: "Institutional Vaults", done: false },
@@ -130,7 +130,7 @@ const RoadmapSection = () => {
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10">
                   <Icon icon="ph:crosshair-bold" className="w-3 h-3 text-white/40" />
-                  <span className="text-xs text-white/40 font-mono">void402://roadmap/2026</span>
+                  <span className="text-xs text-white/40 font-mono">ORB402://roadmap/2026</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">

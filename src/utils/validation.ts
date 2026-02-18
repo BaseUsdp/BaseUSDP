@@ -1,6 +1,6 @@
 /**
  * Validation Utilities
- * Address and input validation for Void402
+ * Address and input validation for ORB402
  */
 
 /**

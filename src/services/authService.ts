@@ -1,6 +1,6 @@
 /**
  * Authentication Service
- * Handles wallet-based authentication for Void402
+ * Handles wallet-based authentication for ORB402
  * Supports both Solana (ed25519) and EVM/Base (personal_sign) authentication
  *
  * Flow:

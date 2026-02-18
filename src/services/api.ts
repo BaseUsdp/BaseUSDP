@@ -1,6 +1,6 @@
 /**
  * API Service
- * Frontend API client for Void402 backend
+ * Frontend API client for ORB402 backend
  * 
  * Provides type-safe methods for:
  * - Building unsigned transactions

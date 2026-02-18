@@ -182,7 +182,7 @@ const BalanceDisplay = ({ showBalance }: BalanceDisplayProps) => {
               </div>
               <div>
                 <p className="font-semibold">VOID</p>
-                <p className="text-xs text-muted-foreground">Void402 Token</p>
+                <p className="text-xs text-muted-foreground">ORB402 Token</p>
               </div>
             </div>
             <div className="text-right">

@@ -33,7 +33,7 @@ const ReceivePaymentModal = ({ open, onOpenChange }: ReceivePaymentModalProps) =
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "My Void402 Address",
+          title: "My ORB402 Address",
           text: `Send encrypted payments to: ${fullAddress}`,
         });
       } catch (error) {
@@ -142,7 +142,7 @@ const ReceivePaymentModal = ({ open, onOpenChange }: ReceivePaymentModalProps) =
               Direct transfers to this address will bypass the privacy system.
             </p>
             <p className="text-xs text-muted-foreground text-center">
-              If someone sends to this address via Void402 "Send", funds will go to your intermediate wallet (private).
+              If someone sends to this address via ORB402 "Send", funds will go to your intermediate wallet (private).
             </p>
           </div>
         </div>

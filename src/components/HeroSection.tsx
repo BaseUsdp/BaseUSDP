@@ -188,7 +188,7 @@ const HeroSection = () => {
                 {/* Card Header */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-2">
-                    <div className="text-[10px] font-mono text-neutral-500">void402://protocol/status</div>
+                    <div className="text-[10px] font-mono text-neutral-500">ORB402://protocol/status</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="px-2 py-1 bg-violet-500/20 border border-violet-500/30 rounded text-[9px] font-mono text-violet-300">Encrypted</span>

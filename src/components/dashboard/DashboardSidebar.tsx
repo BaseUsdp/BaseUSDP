@@ -27,7 +27,7 @@ const DashboardSidebar = ({ activeTab, setActiveTab }: DashboardSidebarProps) =>
               <Icon icon="ph:shield-check-bold" className="w-4 h-4 text-white" />
             </div>
           </div>
-          <span className="font-display text-lg font-bold">Void402</span>
+          <span className="font-display text-lg font-bold">ORB402</span>
         </Link>
       </div>
 

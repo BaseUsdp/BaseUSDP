@@ -54,9 +54,9 @@ const Navbar = () => {
           {/* Logo */}
           <Link to="/" className="group flex items-center gap-2.5">
             <div className="relative flex h-8 w-8 items-center justify-center">
-              <img src={void402Logo} alt="Void402" className="h-8 w-8 object-contain" />
+              <img src={void402Logo} alt="ORB402" className="h-8 w-8 object-contain" />
             </div>
-            <span className="text-base font-semibold text-white tracking-tight">Void<span className="text-primary">402</span></span>
+            <span className="text-base font-semibold text-white tracking-tight">ORB<span className="text-primary">402</span></span>
           </Link>
 
           {/* Desktop Links - Centered */}

@@ -175,7 +175,7 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
               <AtSign className="w-8 h-8 sm:w-10 sm:h-10 text-purple-400" />
             </motion.div>
             <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">Create Your Username</h1>
-            <p className="text-white/60 text-sm sm:text-base">Choose a unique username for your Void402 identity</p>
+            <p className="text-white/60 text-sm sm:text-base">Choose a unique username for your ORB402 identity</p>
           </div>
 
           {/* Wallet Address Display */}

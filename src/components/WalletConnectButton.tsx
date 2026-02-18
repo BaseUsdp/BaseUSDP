@@ -268,7 +268,7 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
         >
           <p className="text-sm font-semibold mb-1 text-center text-white">Connect Wallet</p>
           <p className="text-xs text-white/50 text-center mb-4">
-            Select a wallet to connect to Void402
+            Select a wallet to connect to ORB402
           </p>
           
           <div className="space-y-2">

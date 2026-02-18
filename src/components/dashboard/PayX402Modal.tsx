@@ -17,7 +17,6 @@ import {
   getMetaMaskEVMProvider,
   WalletAdapter,
 } from "@/services/transactionSigningService";
-import { useWallet } from "@/contexts/WalletContext";
 
 interface PayX402ModalProps {
   open: boolean;
@@ -141,7 +140,7 @@ const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
       }
 
       // Create message to sign
-      const message = `Authorize Void402 x402 payment:\nPayment ID: ${paymentDetails.id}\nAmount: ${paymentDetails.amount} USDC\nTimestamp: ${Date.now()}`;
+      const message = `Authorize ORB402 x402 payment:\nPayment ID: ${paymentDetails.id}\nAmount: ${paymentDetails.amount} USDC\nTimestamp: ${Date.now()}`;
       
       // Sign message with wallet
       let walletSignature: string;

@@ -117,7 +117,7 @@ const FeaturesSection = () => {
                   </div>
                   <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10">
                     <Icon icon="ph:stack-fill" className="w-3 h-3 text-white/40" />
-                    <span className="text-xs text-white/40 font-mono">void402://features/{dashboardFeatures[activeFeature].tag.toLowerCase()}</span>
+                    <span className="text-xs text-white/40 font-mono">ORB402://features/{dashboardFeatures[activeFeature].tag.toLowerCase()}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

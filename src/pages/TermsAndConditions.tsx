@@ -10,7 +10,7 @@ const TermsAndConditions = () => {
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center">
-              <img src={void402Logo} alt="Void402" className="h-8 w-8 object-contain" />
+              <img src={void402Logo} alt="ORB402" className="h-8 w-8 object-contain" />
             </div>
             <span className="text-xl font-bold text-white tracking-tight">
               VOID<span className="text-primary">402</span>.
@@ -39,7 +39,7 @@ const TermsAndConditions = () => {
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">1. Agreement to Terms</h2>
             <p>
-              By accessing or using the Void402 platform, website, and related services
+              By accessing or using the ORB402 platform, website, and related services
               (collectively, the "Service"), you agree to be bound by these Terms and Conditions
               ("Terms"). If you do not agree to these Terms, you must not access or use the
               Service.
@@ -66,7 +66,7 @@ const TermsAndConditions = () => {
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">3. Description of Service</h2>
             <p>
-              Void402 provides a privacy-focused payment layer for the agentic economy.
+              ORB402 provides a privacy-focused payment layer for the agentic economy.
               Our platform enables confidential transactions utilizing zero-knowledge proof
               technology and the x402 payment protocol. The Service includes but is not
               limited to:
@@ -95,7 +95,7 @@ const TermsAndConditions = () => {
             </ul>
             <p className="mt-3">
               We will never ask for your private keys or seed phrases. If anyone claiming to
-              represent Void402 requests such information, it is a scam.
+              represent ORB402 requests such information, it is a scam.
             </p>
           </section>
 
@@ -149,7 +149,7 @@ const TermsAndConditions = () => {
             <h2 className="text-xl font-semibold text-white mb-4">7. Intellectual Property</h2>
             <p>
               The Service and its original content, features, and functionality are owned by
-              Void402 and are protected by international copyright, trademark, patent, trade
+              ORB402 and are protected by international copyright, trademark, patent, trade
               secret, and other intellectual property laws. You may not reproduce, distribute,
               modify, create derivative works of, publicly display, or otherwise exploit any
               content from the Service without our prior written consent.
@@ -195,7 +195,7 @@ const TermsAndConditions = () => {
           <section>
             <h2 className="text-xl font-semibold text-white mb-4">10. Indemnification</h2>
             <p>
-              You agree to indemnify, defend, and hold harmless Void402 and its officers,
+              You agree to indemnify, defend, and hold harmless ORB402 and its officers,
               directors, employees, agents, and affiliates from and against any claims,
               liabilities, damages, losses, costs, and expenses (including reasonable
               attorney's fees) arising out of or in connection with your use of the Service,
@@ -246,7 +246,7 @@ const TermsAndConditions = () => {
               contact us at:
             </p>
             <div className="mt-4 p-6 bg-white/5 border border-white/10 rounded-lg">
-              <p className="font-medium text-white">Void402</p>
+              <p className="font-medium text-white">ORB402</p>
               <p className="mt-2">
                 Email:{" "}
                 <a href="mailto:xvoidx402@gmail.com" className="text-primary hover:underline">
