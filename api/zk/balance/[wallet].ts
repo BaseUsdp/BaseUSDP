@@ -107,18 +107,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const tokenMint = token === 'USDC' ? USDC_MINT : USDT_MINT;
-    
-    // Look up user's intermediate wallet from database
-    let walletMapping = null;
-    try {
-      const { data, error: lookupError } = await supabase
-        .from('zk_user_wallets')
-        .select('intermediate_wallet')
-        .eq('user_wallet', wallet)
-        .maybeSingle();
-      
-      if (lookupError) {
-        console.log(`[Balance] No mapping found for ${wallet} - ${token}:`, lookupError.message);
+
+    // For Solana: look up intermediate wallet (required for Solana privacy flow)
+    // For Base: skip this check — Base deposits go directly to the smart contract
+    if (!isBaseChain()) {
+      let walletMapping = null;
+      try {
+        const { data, error: lookupError } = await supabase
+          .from('zk_user_wallets')
+          .select('intermediate_wallet')
+          .eq('user_wallet', wallet)
+          .maybeSingle();
+
+        if (lookupError) {
+          console.log(`[Balance] No mapping found for ${wallet} - ${token}:`, lookupError.message);
+          return res.status(200).json({
+            balance: 0,
+            token: token,
+            available: 0,
+            deposited: 0,
+            withdrawn: 0,
+          });
+        }
+
+        walletMapping = data;
+
+        if (!walletMapping || !walletMapping.intermediate_wallet) {
+          console.log(`[Balance] No intermediate wallet assigned for ${wallet} - ${token}`);
+          return res.status(200).json({
+            balance: 0,
+            token: token,
+            available: 0,
+            deposited: 0,
+            withdrawn: 0,
+          });
+        }
+
+        console.log(`[Balance] Found mapping for ${wallet}: ${walletMapping.intermediate_wallet.substring(0, 8)}...`);
+      } catch (dbError: any) {
+        console.error('[Balance] Database error:', dbError);
         return res.status(200).json({
           balance: 0,
           token: token,
@@ -127,32 +154,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           withdrawn: 0,
         });
       }
-      
-      walletMapping = data;
-      
-      if (!walletMapping || !walletMapping.intermediate_wallet) {
-        console.log(`[Balance] No intermediate wallet assigned for ${wallet} - ${token}`);
-        return res.status(200).json({
-          balance: 0,
-          token: token,
-          available: 0,
-          deposited: 0,
-          withdrawn: 0,
-        });
-      }
-      
-      console.log(`[Balance] Found mapping for ${wallet}: ${walletMapping.intermediate_wallet.substring(0, 8)}...`);
-    } catch (dbError: any) {
-      console.error('[Balance] Database error:', dbError);
-      return res.status(200).json({
-        balance: 0,
-        token: token,
-        available: 0,
-        deposited: 0,
-        withdrawn: 0,
-      });
     }
-    
+
     // Calculate balance from database transactions
     let balance = 0;
     let deposited = 0;
