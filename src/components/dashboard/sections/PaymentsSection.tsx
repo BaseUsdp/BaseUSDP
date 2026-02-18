@@ -270,7 +270,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
           }
         } else if (errorStep === "submit") {
           if (errorMessage.includes("insufficient funds")) {
-            errorMessage = "Insufficient funds. Please ensure you have enough SOL for fees and tokens for the transfer.";
+            errorMessage = "Insufficient funds. Please ensure you have enough ETH for fees and tokens for the transfer.";
           } else if (errorMessage.includes("network") || errorMessage.includes("ECONNREFUSED")) {
             errorMessage = "Network error. Please check your connection and try again.";
           } else if (errorMessage.includes("expired") || errorMessage.includes("blockhash")) {
@@ -292,7 +292,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
       } else if (errorMessage.includes("network") || errorMessage.includes("fetch")) {
         setError("Network error. Please check your connection and try again.");
       } else if (errorMessage.includes("insufficient")) {
-        setError("Insufficient funds. Please ensure you have enough SOL for fees and tokens for the transfer.");
+        setError("Insufficient funds. Please ensure you have enough ETH for fees and tokens for the transfer.");
       } else {
         setError(errorMessage);
       }

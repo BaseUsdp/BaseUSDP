@@ -272,9 +272,27 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
         });
         console.log(`[Base Deposit] Deposit tx: ${depositTxHash}`);
         setTxSignature(depositTxHash);
+
+        // STEP 5: Confirm deposit in database
+        setProcessingStatus("Recording deposit...");
+        const confirmResponse = await fetch(`${apiUrl}/api/zk/confirm-deposit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            wallet: fullWalletAddress,
+            amount: parsedAmount,
+            token: token === "X402" ? "USDC" : token,
+            txHash: depositTxHash,
+          }),
+        });
+
+        const confirmResult = await confirmResponse.json();
+        if (!confirmResult.success) {
+          throw new Error(confirmResult.error || "Failed to record deposit. Please contact support.");
+        }
       }
 
-      // STEP 5: Success
+      // STEP 6: Success
       setStep("success");
       if (refreshBalance) {
         setTimeout(() => refreshBalance(), 2000);
