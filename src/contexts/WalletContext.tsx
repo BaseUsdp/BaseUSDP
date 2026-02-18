@@ -3,7 +3,7 @@ import { authService } from "@/services/authService";
 import { getZKBalance } from "@/services/api";
 import { getApiUrl } from "@/utils/apiConfig";
 
-export type WalletType = "phantom" | "solflare" | null;
+export type WalletType = "phantom" | "metamask" | null;
 export type ActiveChain = "solana" | "base";
 export type PrivacyLevel = "public" | "partial" | "full";
 export type NetworkStatus = "connected" | "wrong_network" | "disconnected";
@@ -38,13 +38,12 @@ interface PhantomEVMProvider {
   isConnected?: boolean;
 }
 
-interface SolflareProvider {
-  isSolflare?: boolean;
-  connect: () => Promise<void>;
-  disconnect: () => Promise<void>;
+interface MetaMaskEVMProvider {
+  isMetaMask?: boolean;
+  request: (args: { method: string; params?: any[] }) => Promise<any>;
   on: (event: string, callback: (args?: any) => void) => void;
-  off: (event: string, callback: (args?: any) => void) => void;
-  publicKey?: { toString: () => string };
+  removeListener: (event: string, callback: (args?: any) => void) => void;
+  selectedAddress?: string | null;
   isConnected?: boolean;
 }
 
@@ -67,11 +66,13 @@ const getPhantomEVMProvider = (): PhantomEVMProvider | null => {
 // Legacy alias for existing code that references getPhantomProvider
 const getPhantomProvider = getPhantomSolanaProvider;
 
-// Helper to get Solflare provider (Solana only)
-const getSolflareProvider = (): SolflareProvider | null => {
+// Helper to get MetaMask EVM provider (for Base)
+const getMetaMaskProvider = (): MetaMaskEVMProvider | null => {
   if (typeof window === "undefined") return null;
-  const provider = (window as any).solflare;
-  if (provider?.isSolflare) return provider;
+  // MetaMask injects window.ethereum with isMetaMask=true
+  // Avoid picking up Phantom's window.ethereum (which also sets isMetaMask)
+  const provider = (window as any).ethereum;
+  if (provider?.isMetaMask && !provider?.isPhantom) return provider;
   return null;
 };
 
@@ -242,16 +243,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // ============================================================
   // Build wallet adapter for auth (chain-aware)
   // ============================================================
-  const buildWalletAdapter = useCallback((chain: ActiveChain, address: string) => {
+  const buildWalletAdapter = useCallback((chain: ActiveChain, address: string, wType?: WalletType) => {
     if (chain === "base") {
-      const evmProvider = getPhantomEVMProvider();
+      // Pick the right EVM provider based on wallet type
+      const evmProvider = wType === "metamask" ? getMetaMaskProvider() : getPhantomEVMProvider();
       return {
         address,
         chain: "base" as const,
         connected: true,
         publicKey: null,
         signEVMMessage: async (message: string): Promise<string> => {
-          if (!evmProvider) throw new Error("Phantom EVM provider not found");
+          if (!evmProvider) throw new Error("EVM provider not found");
           const signature = await evmProvider.request({
             method: 'personal_sign',
             params: [message, address],
@@ -261,21 +263,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       };
     }
 
-    // Solana adapter
+    // Solana adapter (kept for legacy support)
     const phantom = getPhantomSolanaProvider();
-    const solflare = getSolflareProvider();
-    const wallet = phantom || solflare;
 
     return {
       chain: "solana" as const,
-      connected: wallet?.isConnected || false,
-      publicKey: wallet?.publicKey ? { toBase58: () => wallet.publicKey!.toString() } : null,
+      connected: phantom?.isConnected || false,
+      publicKey: phantom?.publicKey ? { toBase58: () => phantom.publicKey!.toString() } : null,
       signMessage: async (message: Uint8Array) => {
         if (phantom?.isPhantom) {
           const { signature } = await (phantom as any).signMessage(message, "utf8");
           return signature;
-        } else if (solflare?.isSolflare) {
-          return await (solflare as any).signMessage(message, "utf8");
         }
         throw new Error("Wallet does not support message signing");
       },
@@ -332,7 +330,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (!sessionValid) {
         console.log("[WalletContext] Re-authenticating...");
         try {
-          const adapter = buildWalletAdapter(walletChain, walletAddr);
+          const adapter = buildWalletAdapter(walletChain, walletAddr, type);
           const authResult = await authService.authenticate(adapter);
           if (authResult.success) {
             setIsAuthenticated(true);
@@ -349,8 +347,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         if (savedChain === "base") {
-          // EVM reconnect via Phantom
-          const evmProvider = getPhantomEVMProvider();
+          // EVM reconnect via Phantom or MetaMask
+          const evmProvider = type === "metamask" ? getMetaMaskProvider() : getPhantomEVMProvider();
           if (evmProvider) {
             try {
               const accounts: string[] = await evmProvider.request({ method: 'eth_accounts' });
@@ -365,13 +363,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
                 await ensureBaseChain(evmProvider);
                 await verifyAndReauth(accounts[0], "base");
-                console.log("[WalletContext] Phantom EVM eagerly reconnected:", accounts[0]);
+                console.log(`[WalletContext] ${type} EVM eagerly reconnected:`, accounts[0]);
               } else {
                 clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
                 return;
               }
             } catch (err) {
-              console.log("[WalletContext] Phantom EVM eager reconnect failed:", err);
+              console.log(`[WalletContext] ${type} EVM eager reconnect failed:`, err);
               clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
               return;
             }
@@ -395,29 +393,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
               return;
             }
           }
-        } else if (type === "solflare") {
-          const solflare = getSolflareProvider();
-          if (solflare) {
-            try {
-              await solflare.connect();
-              await new Promise(resolve => setTimeout(resolve, 100));
-
-              if (solflare.publicKey) {
-                const reconnectedAddress = solflare.publicKey.toString();
-                if (reconnectedAddress !== fullAddress) {
-                  clearWalletAndRedirect("You switched to a different wallet. Please reconnect to continue.");
-                  return;
-                }
-                await verifyAndReauth(fullAddress, "solana");
-              } else {
-                clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
-                return;
-              }
-            } catch (err) {
-              clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
-              return;
-            }
-          }
         }
       } catch (err) {
         console.warn("[WalletContext] Eager reconnect error:", err);
@@ -436,8 +411,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!isConnected || !fullWalletAddress) return;
 
     if (activeChain === "base") {
-      // EVM event listeners
-      const evmProvider = getPhantomEVMProvider();
+      // EVM event listeners (Phantom or MetaMask)
+      const evmProvider = walletType === "metamask" ? getMetaMaskProvider() : getPhantomEVMProvider();
       if (!evmProvider) return;
 
       const handleAccountsChanged = (accounts: string[]) => {
@@ -478,8 +453,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     // Solana event listeners
     const phantom = getPhantomSolanaProvider();
-    const solflare = getSolflareProvider();
-    const provider = walletType === "phantom" ? phantom : walletType === "solflare" ? solflare : null;
+    const provider = walletType === "phantom" ? phantom : null;
 
     if (!provider) return;
 
@@ -525,8 +499,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     const checkWalletState = async () => {
       if (activeChain === "base") {
-        // EVM polling
-        const evmProvider = getPhantomEVMProvider();
+        // EVM polling (Phantom or MetaMask)
+        const evmProvider = walletType === "metamask" ? getMetaMaskProvider() : getPhantomEVMProvider();
         if (!evmProvider) {
           clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
           return;
@@ -549,8 +523,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       // Solana polling
       const phantom = getPhantomSolanaProvider();
-      const solflare = getSolflareProvider();
-      const provider = walletType === "phantom" ? phantom : walletType === "solflare" ? solflare : null;
+      const provider = walletType === "phantom" ? phantom : null;
 
       if (!provider) {
         clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
@@ -673,32 +646,31 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           setIsConnecting(false);
           return;
         }
-      } else if (type === "solflare") {
-        // Solflare is Solana-only
-        const solflare = getSolflareProvider();
+      } else if (type === "metamask") {
+        // MetaMask EVM — same EIP-1193 flow as Phantom
+        const metaMaskProvider = getMetaMaskProvider();
 
-        if (solflare) {
+        if (metaMaskProvider) {
           try {
-            await solflare.connect();
-            await new Promise(resolve => setTimeout(resolve, 100));
+            const accounts: string[] = await metaMaskProvider.request({ method: 'eth_requestAccounts' });
+            if (accounts.length > 0) {
+              walletAddress = accounts[0];
+              chain = "base";
+              console.log("[WalletContext] MetaMask connected:", walletAddress);
 
-            if (solflare.publicKey) {
-              walletAddress = solflare.publicKey.toString();
-              chain = "solana";
-              console.log("[WalletContext] Solflare connected:", walletAddress);
-            } else {
-              throw new Error("Failed to get public key from Solflare");
+              // Ensure we're on Base chain
+              await ensureBaseChain(metaMaskProvider);
             }
           } catch (err: any) {
-            console.error("Solflare connection error:", err);
-            if (err.message?.includes("rejected") || err.message?.includes("cancelled")) {
+            console.error("[WalletContext] MetaMask connection error:", err);
+            if (err.code === 4001 || err.message?.includes("rejected")) {
               setIsConnecting(false);
               return;
             }
             throw err;
           }
         } else {
-          window.open("https://solflare.com/", "_blank");
+          window.open("https://metamask.io/download/", "_blank");
           setIsConnecting(false);
           return;
         }
@@ -722,7 +694,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
         // Auto-authenticate after connecting
         try {
-          const adapter = buildWalletAdapter(chain, walletAddress);
+          const adapter = buildWalletAdapter(chain, walletAddress, type);
           const result = await authService.authenticate(adapter);
           if (result.success) {
             setIsAuthenticated(true);
@@ -753,9 +725,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       } else if (walletType === "phantom") {
         const phantom = getPhantomSolanaProvider();
         if (phantom) await phantom.disconnect();
-      } else if (walletType === "solflare") {
-        const solflare = getSolflareProvider();
-        if (solflare) await solflare.disconnect();
       }
     } catch (err) {
       console.error("Disconnect error:", err);
@@ -776,7 +745,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setAuthError(null);
 
     try {
-      const adapter = buildWalletAdapter(activeChain, fullWalletAddress);
+      const adapter = buildWalletAdapter(activeChain, fullWalletAddress, walletType);
       const result = await authService.authenticate(adapter);
 
       if (result.success) {
@@ -805,7 +774,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // ============================================================
   const switchNetwork = useCallback(async () => {
     if (activeChain === "base") {
-      const evmProvider = getPhantomEVMProvider();
+      const evmProvider = walletType === "metamask" ? getMetaMaskProvider() : getPhantomEVMProvider();
       if (evmProvider) {
         await ensureBaseChain(evmProvider);
       }
@@ -814,7 +783,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       await new Promise(resolve => setTimeout(resolve, 500));
       setNetworkStatus("connected");
     }
-  }, [activeChain, ensureBaseChain]);
+  }, [activeChain, walletType, ensureBaseChain]);
 
   // ============================================================
   // Refresh balance

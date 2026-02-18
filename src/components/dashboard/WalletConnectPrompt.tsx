@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useWallet, WalletType } from "@/contexts/WalletContext";
 import { Button } from "@/components/ui/button";
 import phantomLogo from "@/assets/phantom.svg";
-import solflareLogo from "@/assets/solflare.jpeg";
+import metamaskLogo from "@/assets/metamask.svg";
 
 const WalletConnectPrompt = () => {
   const { connect, isConnecting } = useWallet();
@@ -138,23 +138,23 @@ const WalletConnectPrompt = () => {
                   )}
                 </motion.button>
 
-                {/* Solflare */}
+                {/* MetaMask */}
                 <motion.button
                   whileHover={{ scale: 1.02, y: -2 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => handleConnect("solflare")}
+                  onClick={() => handleConnect("metamask")}
                   disabled={isConnecting}
                   className="w-full flex items-center gap-4 px-6 py-5 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.06] to-white/[0.02] hover:from-orange-500/20 hover:to-orange-500/10 hover:border-orange-500/40 transition-all disabled:opacity-50 group shadow-lg"
                 >
                   <div className="relative">
-                    <img src={solflareLogo} alt="Solflare" width={28} height={28} className="rounded-md" />
+                    <img src={metamaskLogo} alt="MetaMask" width={28} height={28} className="rounded-md" />
                     <div className="absolute inset-0 rounded-full bg-orange-500/30 blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <div className="text-left flex-1">
-                    <span className="font-semibold text-white text-lg">Solflare</span>
-                    <p className="text-xs text-white/40">Secure crypto wallet</p>
+                    <span className="font-semibold text-white text-lg">MetaMask</span>
+                    <p className="text-xs text-white/40">Popular EVM wallet</p>
                   </div>
-                  {connectingWallet === "solflare" && (
+                  {connectingWallet === "metamask" && (
                     <Loader2 className="h-5 w-5 animate-spin text-orange-400" />
                   )}
                 </motion.button>

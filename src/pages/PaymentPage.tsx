@@ -20,7 +20,7 @@ import { executeZKTransfer } from "@/services/api";
 import { getApiUrl } from "@/utils/apiConfig";
 import {
   getPhantomProvider,
-  getSolflareProvider,
+  getMetaMaskEVMProvider,
   WalletAdapter,
 } from "@/services/transactionSigningService";
 import WalletConnectButton from "@/components/WalletConnectButton";
@@ -102,15 +102,10 @@ const PaymentPage = () => {
           publicKey: provider.publicKey,
         } as WalletAdapter;
       }
-    } else if (walletType === "solflare") {
-      const provider = getSolflareProvider();
-      if (provider && provider.publicKey) {
-        return {
-          ...provider,
-          connected: true,
-          publicKey: provider.publicKey,
-        } as WalletAdapter;
-      }
+    } else if (walletType === "metamask") {
+      // MetaMask is EVM-only, no Solana WalletAdapter needed
+      // EVM signing is handled separately via personal_sign
+      return null;
     }
     return null;
   };
@@ -149,16 +144,15 @@ const PaymentPage = () => {
           }
           const bs58 = (await import("bs58")).default;
           walletSignature = bs58.encode(signedMessage.signature);
-        } else if (walletType === "solflare") {
-          const provider = (window as any).solflare;
-          if (!provider) throw new Error("Solflare wallet not found");
-          
-          const signedMessage = await provider.signMessage(encodedMessage, "utf8");
-          if (!signedMessage || !signedMessage.signature) {
-            throw new Error("Failed to sign message");
-          }
-          const bs58 = (await import("bs58")).default;
-          walletSignature = bs58.encode(signedMessage.signature);
+        } else if (walletType === "metamask") {
+          const provider = getMetaMaskEVMProvider();
+          if (!provider) throw new Error("MetaMask wallet not found");
+
+          const accounts = await provider.request({ method: 'eth_accounts' });
+          walletSignature = await provider.request({
+            method: 'personal_sign',
+            params: [message, accounts[0]],
+          });
         } else {
           throw new Error("Unsupported wallet type");
         }

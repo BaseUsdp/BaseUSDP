@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getApiUrl } from "@/utils/apiConfig";
-import { getPhantomProvider, getSolflareProvider, WalletAdapter } from "@/services/transactionSigningService";
+import { getPhantomProvider, getMetaMaskEVMProvider, WalletAdapter } from "@/services/transactionSigningService";
 import bs58 from "bs58";
 
 interface DepositModalProps {
@@ -119,7 +119,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
   const getWalletProvider = useCallback((): WalletAdapter | null => {
     if (!isConnected || !walletType) return null;
     if (walletType === "phantom") return getPhantomProvider();
-    if (walletType === "solflare") return getSolflareProvider();
+    if (walletType === "metamask") return null; // MetaMask is EVM-only
     return null;
   }, [walletType, isConnected]);
 
@@ -212,7 +212,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
       console.log(`[x402] Starting x402 deposit: $${depositAmount}`);
 
       // ============================================
-      // STEP 1: Sign message with Phantom/Solflare (wallet verification)
+      // STEP 1: Sign message with wallet (wallet verification)
       // ============================================
       const timestamp = Date.now();
       const messageToSign = `Void402 x402 Deposit: $${depositAmount.toFixed(2)} USDC from Base to Solana - ${timestamp}`;
@@ -229,15 +229,16 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
           throw new Error("Failed to sign message");
         }
         signatureBase58 = bs58.encode(signedMessage.signature);
-      } else if (walletType === "solflare") {
-        const provider = (window as any).solflare;
-        if (!provider) throw new Error("Solflare wallet not found");
-        
-        const signedMessage = await provider.signMessage(encodedMessage, "utf8");
-        if (!signedMessage || !signedMessage.signature) {
-          throw new Error("Failed to sign message");
-        }
-        signatureBase58 = bs58.encode(signedMessage.signature);
+      } else if (walletType === "metamask") {
+        const provider = getMetaMaskEVMProvider();
+        if (!provider) throw new Error("MetaMask wallet not found");
+
+        const accounts = await provider.request({ method: 'eth_accounts' });
+        const signature = await provider.request({
+          method: 'personal_sign',
+          params: [messageToSign, accounts[0]],
+        });
+        signatureBase58 = signature; // EVM returns hex signature
       } else {
         throw new Error("Unsupported wallet type");
       }

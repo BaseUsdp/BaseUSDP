@@ -5,16 +5,16 @@ import { useWallet, WalletType } from "@/contexts/WalletContext";
 import { Button } from "@/components/ui/button";
 import { getApiUrl } from "@/utils/apiConfig";
 import phantomLogo from "@/assets/phantom.svg";
-import solflareLogo from "@/assets/solflare.jpeg";
+import metamaskLogo from "@/assets/metamask.svg";
 
 // Phantom logo component using the actual asset
 const PhantomLogo = ({ size = 20 }: { size?: number }) => (
   <img src={phantomLogo} alt="Phantom" width={size} height={size} className="rounded-md" />
 );
 
-// Solflare logo component using the actual asset
-const SolflareLogo = ({ size = 20 }: { size?: number }) => (
-  <img src={solflareLogo} alt="Solflare" width={size} height={size} className="rounded-md" />
+// MetaMask logo component using the actual asset
+const MetaMaskLogo = ({ size = 20 }: { size?: number }) => (
+  <img src={metamaskLogo} alt="MetaMask" width={size} height={size} className="rounded-md" />
 );
 
 interface WalletConnectButtonProps {
@@ -221,7 +221,7 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
   const getWalletLogo = () => {
     switch (walletType) {
       case "phantom": return <PhantomLogo />;
-      case "solflare": return <SolflareLogo />;
+      case "metamask": return <MetaMaskLogo />;
       default: return <Wallet className="w-4 h-4" />;
     }
   };
@@ -229,7 +229,7 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
   const getWalletName = () => {
     switch (walletType) {
       case "phantom": return "Phantom";
-      case "solflare": return "Solflare";
+      case "metamask": return "MetaMask";
       default: return "Wallet";
     }
   };
@@ -288,14 +288,14 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
             </button>
             
             <button
-              onClick={() => handleConnect("solflare")}
+              onClick={() => handleConnect("metamask")}
               disabled={isConnecting}
               className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-white/10 hover:border-orange-500/50 hover:bg-orange-500/10 transition-all group"
             >
-              <SolflareLogo size={24} />
+              <MetaMaskLogo size={24} />
               <div className="text-left flex-1">
-                <span className="font-medium text-white">Solflare</span>
-                <p className="text-xs text-white/40">Secure wallet</p>
+                <span className="font-medium text-white">MetaMask</span>
+                <p className="text-xs text-white/40">Popular EVM wallet</p>
               </div>
               {isConnecting && (
                 <Loader2 className="ml-2 h-4 w-4 animate-spin text-orange-400" />

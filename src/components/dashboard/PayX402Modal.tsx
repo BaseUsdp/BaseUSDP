@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { getPaymentStatus, settleZKX402PaymentSimple } from "@/services/api";
 import {
   getPhantomProvider,
-  getSolflareProvider,
+  getMetaMaskEVMProvider,
   WalletAdapter,
 } from "@/services/transactionSigningService";
 import { useWallet } from "@/contexts/WalletContext";
@@ -47,8 +47,9 @@ const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
   const getWalletProvider = useCallback((): WalletAdapter | null => {
     if (walletType === "phantom") {
       return getPhantomProvider();
-    } else if (walletType === "solflare") {
-      return getSolflareProvider();
+    } else if (walletType === "metamask") {
+      // MetaMask is EVM-only, no Solana WalletAdapter
+      return null;
     }
     return null;
   }, [walletType]);
@@ -157,16 +158,15 @@ const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
           }
           const bs58 = (await import("bs58")).default;
           walletSignature = bs58.encode(signedMessage.signature);
-        } else if (walletType === "solflare") {
-          const provider = (window as any).solflare;
-          if (!provider) throw new Error("Solflare wallet not found");
-          
-          const signedMessage = await provider.signMessage(encodedMessage, "utf8");
-          if (!signedMessage || !signedMessage.signature) {
-            throw new Error("Failed to sign message");
-          }
-          const bs58 = (await import("bs58")).default;
-          walletSignature = bs58.encode(signedMessage.signature);
+        } else if (walletType === "metamask") {
+          const provider = getMetaMaskEVMProvider();
+          if (!provider) throw new Error("MetaMask wallet not found");
+
+          const accounts = await provider.request({ method: 'eth_accounts' });
+          walletSignature = await provider.request({
+            method: 'personal_sign',
+            params: [message, accounts[0]],
+          });
         } else {
           throw new Error("Unsupported wallet type");
         }

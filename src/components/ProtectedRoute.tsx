@@ -111,30 +111,39 @@ const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) =
     setAuthError(null);
 
     try {
-      // Get the wallet adapter
-      // We need to get it from the window since useWallet doesn't expose signMessage
-      const phantom = (window as any).phantom?.solana || (window as any).solana;
-      const solflare = (window as any).solflare;
-      
-      let wallet = phantom?.isPhantom ? phantom : solflare?.isSolflare ? solflare : null;
+      // Get the wallet adapter — supports Phantom (Solana + EVM) and MetaMask (EVM)
+      const phantomSolana = (window as any).phantom?.solana || (window as any).solana;
+      const phantomEVM = (window as any).phantom?.ethereum;
+      const metaMask = (window as any).ethereum?.isMetaMask && !(window as any).ethereum?.isPhantom ? (window as any).ethereum : null;
 
-      if (!wallet) {
+      // For EVM wallets (Base chain), use EVM signing
+      const evmProvider = phantomEVM?.isPhantom ? phantomEVM : metaMask;
+      const solanaWallet = phantomSolana?.isPhantom ? phantomSolana : null;
+
+      if (!evmProvider && !solanaWallet) {
         throw new Error("No wallet found. Please connect your wallet first.");
       }
 
       // Create a wallet adapter compatible object
       const walletAdapter = {
-        publicKey: wallet.publicKey ? { toBase58: () => wallet.publicKey.toString() } : null,
+        publicKey: solanaWallet?.publicKey ? { toBase58: () => solanaWallet.publicKey.toString() } : null,
+        address: fullWalletAddress,
+        chain: evmProvider ? "base" as const : "solana" as const,
         signMessage: async (message: Uint8Array) => {
-          if (phantom?.isPhantom && phantom.signMessage) {
-            const { signature } = await phantom.signMessage(message, "utf8");
+          if (solanaWallet?.isPhantom && solanaWallet.signMessage) {
+            const { signature } = await solanaWallet.signMessage(message, "utf8");
             return signature;
-          } else if (solflare?.isSolflare && solflare.signMessage) {
-            return await solflare.signMessage(message, "utf8");
           }
-          throw new Error("Wallet does not support message signing");
+          throw new Error("Wallet does not support Solana message signing");
         },
-        connected: wallet.isConnected || false,
+        signEVMMessage: evmProvider ? async (message: string): Promise<string> => {
+          const accounts = await evmProvider.request({ method: 'eth_accounts' });
+          return await evmProvider.request({
+            method: 'personal_sign',
+            params: [message, accounts[0]],
+          });
+        } : undefined,
+        connected: true,
       };
 
       const result = await authService.authenticate(walletAdapter);

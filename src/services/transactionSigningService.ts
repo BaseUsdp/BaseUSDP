@@ -1,6 +1,6 @@
 /**
  * Transaction Signing Service
- * Handles client-side transaction signing with Phantom/Solflare wallets
+ * Handles client-side transaction signing with Phantom/MetaMask wallets
  * 
  * NEW ARCHITECTURE FLOW:
  * 1. Frontend requests unsigned transaction from backend
@@ -13,7 +13,7 @@ import { Transaction, PublicKey, VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
 import { getApiUrl } from "@/utils/apiConfig";
 
-// Wallet adapter interface (compatible with Phantom/Solflare)
+// Wallet adapter interface (compatible with Phantom/MetaMask)
 export interface WalletAdapter {
   publicKey: PublicKey | null;
   signTransaction: <T extends Transaction | VersionedTransaction>(transaction: T) => Promise<T>;
@@ -69,10 +69,10 @@ export const getPhantomProvider = (): WalletAdapter | null => {
   return null;
 };
 
-export const getSolflareProvider = (): WalletAdapter | null => {
+export const getMetaMaskEVMProvider = (): any | null => {
   if (typeof window === "undefined") return null;
-  const provider = (window as any).solflare;
-  if (provider?.isSolflare) return provider;
+  const provider = (window as any).ethereum;
+  if (provider?.isMetaMask && !provider?.isPhantom) return provider;
   return null;
 };
 
@@ -98,7 +98,7 @@ export function serializeTransaction(transaction: Transaction): string {
 /**
  * Sign an unsigned transaction with the user's wallet
  * 
- * @param wallet Wallet adapter (Phantom/Solflare)
+ * @param wallet Wallet adapter (Phantom/MetaMask)
  * @param unsignedTransactionBase58 Base58-encoded unsigned transaction
  * @returns Signing result with signed transaction
  */
@@ -328,7 +328,19 @@ export async function executePaymentSettlement(
 }
 
 /**
- * Send an EVM transaction via Phantom's ethereum provider
+ * Get the active EVM provider (Phantom or MetaMask)
+ */
+function getActiveEVMProvider(): any {
+  // Try Phantom EVM first, then MetaMask
+  const phantomEth = (window as any)?.phantom?.ethereum;
+  if (phantomEth?.isPhantom) return phantomEth;
+  const metaMask = (window as any)?.ethereum;
+  if (metaMask?.isMetaMask) return metaMask;
+  return null;
+}
+
+/**
+ * Send an EVM transaction via Phantom or MetaMask ethereum provider
  */
 export async function sendEVMTransaction(txParams: {
   to: string;
@@ -336,14 +348,14 @@ export async function sendEVMTransaction(txParams: {
   value?: string;
   from?: string;
 }): Promise<string> {
-  const ethProvider = (window as any)?.phantom?.ethereum;
+  const ethProvider = getActiveEVMProvider();
   if (!ethProvider) {
-    throw new Error("Phantom Ethereum provider not found");
+    throw new Error("No EVM wallet provider found (Phantom or MetaMask)");
   }
 
   const accounts = await ethProvider.request({ method: "eth_accounts" });
   if (!accounts || accounts.length === 0) {
-    throw new Error("No Ethereum accounts found in Phantom");
+    throw new Error("No Ethereum accounts found");
   }
 
   const txHash = await ethProvider.request({
@@ -360,17 +372,17 @@ export async function sendEVMTransaction(txParams: {
 }
 
 /**
- * Sign a message via Phantom's ethereum provider (EVM personal_sign)
+ * Sign a message via EVM personal_sign (Phantom or MetaMask)
  */
 export async function signEVMMessage(message: string): Promise<string> {
-  const ethProvider = (window as any)?.phantom?.ethereum;
+  const ethProvider = getActiveEVMProvider();
   if (!ethProvider) {
-    throw new Error("Phantom Ethereum provider not found");
+    throw new Error("No EVM wallet provider found (Phantom or MetaMask)");
   }
 
   const accounts = await ethProvider.request({ method: "eth_accounts" });
   if (!accounts || accounts.length === 0) {
-    throw new Error("No Ethereum accounts found in Phantom");
+    throw new Error("No Ethereum accounts found");
   }
 
   const signature = await ethProvider.request({
