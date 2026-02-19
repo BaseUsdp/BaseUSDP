@@ -154,7 +154,7 @@ const TechStackSection = () => {
                     y1={node.y * 0.6}
                     x2={nextConnected.x}
                     y2={nextConnected.y * 0.6}
-                    stroke="rgba(139, 92, 246, 0.3)"
+                    stroke="rgba(0, 1, 255, 0.3)"
                     strokeWidth="0.5"
                     initial={{ pathLength: 0 }}
                     animate={{ pathLength: 1 }}
@@ -193,7 +193,7 @@ const TechStackSection = () => {
                       cy={node.y * 0.6}
                       r="3"
                       fill="none"
-                      stroke="rgba(139, 92, 246, 0.3)"
+                      stroke="rgba(0, 1, 255, 0.3)"
                       strokeWidth="0.5"
                       animate={{ r: [3, 5, 3], opacity: [0.5, 0, 0.5] }}
                       transition={{ duration: 2, repeat: Infinity, delay: node.delay }}
@@ -385,7 +385,7 @@ const TechStackSection = () => {
                         initial={{ scale: 0, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ delay: blockNum * 0.02 }}
-                        whileHover={{ scale: 1.1, borderColor: "rgba(139, 92, 246, 0.5)" }}
+                        whileHover={{ scale: 1.1, borderColor: "rgba(0, 1, 255, 0.5)" }}
                       >
                         {isPending && (
                           <motion.div
@@ -515,14 +515,14 @@ const TechStackSection = () => {
                 className="relative bg-[#0a0a0a]/80 backdrop-blur-md rounded-3xl p-6 border border-white/5 overflow-hidden"
                 whileHover={{ 
                   y: -8,
-                  boxShadow: "0 25px 50px -12px rgba(139, 92, 246, 0.25)",
-                  borderColor: "rgba(139, 92, 246, 0.3)"
+                  boxShadow: "0 25px 50px -12px rgba(0, 1, 255, 0.25)",
+                  borderColor: "rgba(0, 1, 255, 0.3)"
                 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
               >
                 <motion.div
                   className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                  style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.05), transparent 60%)' }}
+                  style={{ background: 'linear-gradient(135deg, rgba(0, 1, 255, 0.05), transparent 60%)' }}
                 />
 
                 <div className="flex items-center gap-3 mb-4 relative z-10">
@@ -531,8 +531,8 @@ const TechStackSection = () => {
                     whileHover={{ rotate: 360, scale: 1.1 }}
                     transition={{ duration: 0.6, type: "spring" }}
                     animate={hoveredCard === i ? { 
-                      boxShadow: "0 0 20px rgba(139, 92, 246, 0.4)",
-                      borderColor: "rgba(139, 92, 246, 0.5)"
+                      boxShadow: "0 0 20px rgba(0, 1, 255, 0.4)",
+                      borderColor: "rgba(0, 1, 255, 0.5)"
                     } : {}}
                   >
                     <Icon icon={stat.icon} className="w-5 h-5" />
@@ -571,7 +571,7 @@ const TechStackSection = () => {
                     initial={{ width: "0%" }}
                     animate={isInView ? { width: "100%" } : {}}
                     transition={{ delay: 0.5 + i * 0.15, duration: 1, ease: "easeOut" }}
-                    style={{ boxShadow: hoveredCard === i ? "0 0 15px rgba(139, 92, 246, 0.6)" : "none" }}
+                    style={{ boxShadow: hoveredCard === i ? "0 0 15px rgba(0, 1, 255, 0.6)" : "none" }}
                   />
                 </div>
               </motion.div>
@@ -690,7 +690,7 @@ const TechStackSection = () => {
                         <motion.div
                           className="absolute inset-0 rounded-xl opacity-50"
                           style={{ 
-                            boxShadow: "inset 0 0 30px rgba(139, 92, 246, 0.2), 0 0 20px rgba(139, 92, 246, 0.1)" 
+                            boxShadow: "inset 0 0 30px rgba(0, 1, 255, 0.2), 0 0 20px rgba(0, 1, 255, 0.1)" 
                           }}
                           layoutId="activeLayerGlow"
                         />
@@ -820,7 +820,7 @@ const TechStackSection = () => {
                       </div>
                       <motion.button
                         className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm border border-primary/30 hover:bg-primary/20 transition-colors"
-                        whileHover={{ scale: 1.02, boxShadow: "0 0 20px rgba(139, 92, 246, 0.3)" }}
+                        whileHover={{ scale: 1.02, boxShadow: "0 0 20px rgba(0, 1, 255, 0.3)" }}
                         whileTap={{ scale: 0.98 }}
                       >
                         <Icon icon="ph:eye-bold" className="w-4 h-4" />
@@ -912,7 +912,7 @@ const TechStackSection = () => {
                   transition={{ delay: 0.7 + i * 0.1 }}
                   whileHover={{ 
                     scale: 1.02,
-                    boxShadow: "0 10px 40px -10px rgba(139, 92, 246, 0.2)"
+                    boxShadow: "0 10px 40px -10px rgba(0, 1, 255, 0.2)"
                   }}
                   className="group bg-white/[0.02] border border-white/5 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all duration-300"
                 >

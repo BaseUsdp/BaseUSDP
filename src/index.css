@@ -845,8 +845,8 @@
      ======================================== */
   .technical-grid {
     background-size: 40px 40px;
-    background-image: linear-gradient(to right, rgba(139, 92, 246, 0.03) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
+    background-image: linear-gradient(to right, rgba(0, 1, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 1, 255, 0.03) 1px, transparent 1px);
     mask-image: linear-gradient(to bottom, transparent 5%, black 40%, black 70%, transparent 95%);
   }
 
@@ -873,7 +873,7 @@
     text-transform: uppercase;
     color: #ffffff;
     background: linear-gradient(#000000, #000000) padding-box,
-        conic-gradient(from calc(var(--gradient-angle)), transparent 0%, #4c1d95 5%, #0001ff 15%, #4c1d95 30%, transparent 40%, transparent 100%) border-box;
+        conic-gradient(from calc(var(--gradient-angle)), transparent 0%, #0001ff 5%, #0001ff 15%, #0001ff 30%, transparent 40%, transparent 100%) border-box;
     border: 1px solid transparent;
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
     outline: none;
@@ -888,7 +888,7 @@
 
   .shiny-cta:hover {
     transform: scale(1.02);
-    box-shadow: 0 0 30px rgba(139, 92, 246, 0.4), inset 0 0 0 1px rgba(255,255,255,0.2);
+    box-shadow: 0 0 30px rgba(0, 1, 255, 0.4), inset 0 0 0 1px rgba(255,255,255,0.2);
   }
 
   /* ========================================
@@ -929,16 +929,16 @@
   .wall-card {
     background: rgba(23, 23, 23, 0.6);
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(139, 92, 246, 0.1);
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3), inset 0 0 20px rgba(139, 92, 246, 0.02);
+    border: 1px solid rgba(0, 1, 255, 0.1);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3), inset 0 0 20px rgba(0, 1, 255, 0.02);
     transition: border-color 0.3s, background-color 0.3s, transform 0.3s;
   }
 
   .wall-card:hover {
-    border-color: rgba(139, 92, 246, 0.3);
+    border-color: rgba(0, 1, 255, 0.3);
     background: rgba(30, 30, 30, 0.8);
     transform: translateZ(20px);
-    box-shadow: 0 20px 40px rgba(0,0,0,0.5), inset 0 0 20px rgba(139, 92, 246, 0.05);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5), inset 0 0 20px rgba(0, 1, 255, 0.05);
   }
 
   /* ========================================
@@ -969,8 +969,8 @@
   }
 
   .toggle-switch.active {
-    background: rgba(139, 92, 246, 0.2);
-    border-color: rgba(139, 92, 246, 0.5);
+    background: rgba(0, 1, 255, 0.2);
+    border-color: rgba(0, 1, 255, 0.5);
   }
 
   .toggle-switch.active::after {
@@ -993,8 +993,8 @@
      PULSE GLOW ANIMATION
      ======================================== */
   @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.3); }
-    50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.6); }
+    0%, 100% { box-shadow: 0 0 20px rgba(0, 1, 255, 0.3); }
+    50% { box-shadow: 0 0 40px rgba(0, 1, 255, 0.6); }
   }
 
   .pulse-glow {
@@ -1055,7 +1055,7 @@
      PRICING HIGHLIGHT
      ======================================== */
   .pricing-highlight {
-    background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.15), transparent 40%),
+    background: radial-gradient(circle at top right, rgba(0, 1, 255, 0.15), transparent 40%),
         linear-gradient(to bottom, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
   }
 
@@ -1083,7 +1083,7 @@
     top: 0;
     bottom: 0;
     width: 1px;
-    background: rgba(139, 92, 246, 0.03);
+    background: rgba(0, 1, 255, 0.03);
   }
 
   .structure-lines::before {

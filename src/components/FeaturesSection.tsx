@@ -177,7 +177,7 @@ const FeaturesSection = () => {
                     <motion.a
                       href="/dashboard"
                       className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 transition-colors ml-auto"
-                      whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(139, 92, 246, 0.4)" }}
+                      whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(0, 1, 255, 0.4)" }}
                       whileTap={{ scale: 0.98 }}
                     >
                       Try Now

@@ -169,9 +169,9 @@ const RoadmapSection = () => {
                       whileTap={{ scale: 0.95 }}
                       animate={activePhase === i ? { 
                         boxShadow: [
-                          "0 0 20px rgba(139, 92, 246, 0.3)",
-                          "0 0 40px rgba(139, 92, 246, 0.5)",
-                          "0 0 20px rgba(139, 92, 246, 0.3)"
+                          "0 0 20px rgba(0, 1, 255, 0.3)",
+                          "0 0 40px rgba(0, 1, 255, 0.5)",
+                          "0 0 20px rgba(0, 1, 255, 0.3)"
                         ]
                       } : {}}
                       transition={{ duration: 2, repeat: Infinity }}

@@ -103,7 +103,7 @@ const HeroSection = () => {
           style={{
             zIndex: 0,
             opacity: 0.9,
-            filter: "contrast(1.1) brightness(1.2)",
+            filter: "contrast(1.1) brightness(1.2) hue-rotate(-30deg)",
           }}
         />
 

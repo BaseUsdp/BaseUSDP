@@ -55,13 +55,19 @@ export default {
         },
         // Custom premium colors
         violet: {
+          300: "#0001ff",
           400: "#0001ff",
           500: "#0001ff",
           600: "#0001ff",
+          900: "#0001ff",
         },
         purple: {
           400: "#0001ff",
           500: "#0001ff",
+          600: "#0001ff",
+          900: "#0001ff",
+        },
+        indigo: {
           600: "#0001ff",
         },
       },
