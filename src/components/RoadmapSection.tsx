@@ -55,7 +55,7 @@ const RoadmapSection = () => {
       glowColor: "emerald",
       description: "Introduction of the VOID token with decentralized governance and cross-chain bridge development.",
       milestones: [
-        { name: "VOID Token Launch", done: false },
+        { name: "ORB Token Launch", done: false },
         { name: "Governance Portal", done: false },
         { name: "Cross-Chain Bridge", done: false },
       ],
