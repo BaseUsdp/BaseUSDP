@@ -9,6 +9,8 @@
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network baseSepolia",
     "deploy:pool:sepolia": "hardhat run scripts/deploy-privacy-pool.ts --network baseSepolia",
     "deploy:pool:base": "hardhat run scripts/deploy-privacy-pool.ts --network base",
+    "deploy:router:sepolia": "hardhat run scripts/deploy-deposit-router.ts --network baseSepolia",
+    "deploy:router:base": "hardhat run scripts/deploy-deposit-router.ts --network base",
     "node": "hardhat node"
   },
   "keywords": [

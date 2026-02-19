@@ -98,6 +98,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.Strings__factory>;
     getContractFactory(
+      name: "DepositRouter",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.DepositRouter__factory>;
+    getContractFactory(
       name: "Void402Facilitator",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.Void402Facilitator__factory>;
@@ -216,6 +220,11 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.Strings>;
     getContractAt(
+      name: "DepositRouter",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.DepositRouter>;
+    getContractAt(
       name: "Void402Facilitator",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -316,6 +325,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Strings>;
     deployContract(
+      name: "DepositRouter",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.DepositRouter>;
+    deployContract(
       name: "Void402Facilitator",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Void402Facilitator>;
@@ -433,6 +446,11 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Strings>;
+    deployContract(
+      name: "DepositRouter",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.DepositRouter>;
     deployContract(
       name: "Void402Facilitator",
       args: any[],

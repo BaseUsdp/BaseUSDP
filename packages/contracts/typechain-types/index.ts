@@ -50,6 +50,8 @@ export type { ShortStrings } from "./@openzeppelin/contracts/utils/ShortStrings"
 export { ShortStrings__factory } from "./factories/@openzeppelin/contracts/utils/ShortStrings__factory";
 export type { Strings } from "./@openzeppelin/contracts/utils/Strings";
 export { Strings__factory } from "./factories/@openzeppelin/contracts/utils/Strings__factory";
+export type { DepositRouter } from "./contracts/DepositRouter";
+export { DepositRouter__factory } from "./factories/contracts/DepositRouter__factory";
 export type { Void402Facilitator } from "./contracts/Void402Facilitator";
 export { Void402Facilitator__factory } from "./factories/contracts/Void402Facilitator__factory";
 export type { VoidFHERC20 } from "./contracts/VoidFHERC20";

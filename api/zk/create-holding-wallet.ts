@@ -24,8 +24,11 @@ import { isBaseChain } from '../lib/chain-config.js';
 import {
   generateHoldingWallet,
   getUsdcAddress,
+  getDepositRouterAddress,
   ERC20_ABI,
+  DEPOSIT_ROUTER_ABI,
   isValidBaseAddress,
+  getBaseProvider,
 } from '../lib/void402-base.js';
 import { getBaseIntermediateWalletPool } from '../lib/intermediate-wallet-pool-base.js';
 import { ethers } from 'ethers';
@@ -155,14 +158,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       console.log(`✅ Base holding wallet created: ${depositId} -> ${holdingAddress}`);
 
-      // Encode ERC20 transfer calldata: usdc.transfer(holdingWallet, amount)
+      // Build DepositRouter transaction: router.depositWithGas(holdingWallet, amount) + ETH
       const depositAmount = parseFloat(amount);
       const transferAmount = ethers.parseUnits(depositAmount.toString(), 6);
-      const erc20Interface = new ethers.Interface(ERC20_ABI);
-      const transferData = erc20Interface.encodeFunctionData('transfer', [
+      const routerAddress = getDepositRouterAddress();
+      const routerInterface = new ethers.Interface(DEPOSIT_ROUTER_ABI);
+      const depositData = routerInterface.encodeFunctionData('depositWithGas', [
         holdingAddress,
         transferAmount,
       ]);
+
+      // ETH to forward to collection wallet for backend gas funding
+      // Public mode skips intermediate wallet, so needs less gas
+      const ethForGas = privacyLevel === 'public'
+        ? ethers.parseEther('0.001')  // holding wallet gas only
+        : ethers.parseEther('0.002'); // holding + intermediate wallet gas
+
+      // Check if user needs to approve the router for USDC
+      let needsApproval = false;
+      let approveTransaction = undefined;
+      try {
+        const provider = getBaseProvider();
+        const usdcContract = new ethers.Contract(getUsdcAddress(), ERC20_ABI, provider);
+        const allowance = await usdcContract.allowance(wallet, routerAddress);
+        if (allowance < transferAmount) {
+          needsApproval = true;
+          const erc20Interface = new ethers.Interface(ERC20_ABI);
+          const approveData = erc20Interface.encodeFunctionData('approve', [
+            routerAddress,
+            ethers.MaxUint256,
+          ]);
+          approveTransaction = {
+            to: getUsdcAddress(),
+            data: approveData,
+            value: '0x0',
+          };
+        }
+      } catch (err: any) {
+        console.warn(`⚠️ Could not check allowance, assuming approval needed: ${err.message}`);
+        needsApproval = true;
+        const erc20Interface = new ethers.Interface(ERC20_ABI);
+        const approveData = erc20Interface.encodeFunctionData('approve', [
+          routerAddress,
+          ethers.MaxUint256,
+        ]);
+        approveTransaction = {
+          to: getUsdcAddress(),
+          data: approveData,
+          value: '0x0',
+        };
+      }
 
       return res.status(200).json({
         success: true,
@@ -171,12 +216,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         amount: amount,
         token: token,
         privacy_level: privacyLevel,
+        needsApproval,
+        approveTransaction,
         evmTransaction: {
-          to: getUsdcAddress(),
-          data: transferData,
-          value: '0x0',
+          to: routerAddress,
+          data: depositData,
+          value: '0x' + ethForGas.toString(16),
         },
-        message: 'Sign this EVM transaction to transfer USDC to the holding wallet.',
+        message: needsApproval
+          ? 'Approve USDC spending first, then sign the deposit transaction.'
+          : 'Sign this transaction to deposit USDC and ETH gas in a single transaction.',
       });
     }
 

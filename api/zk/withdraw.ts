@@ -36,7 +36,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getUSDPHolderTier, calculateFeePercentage } from '../lib/tier-service.js';
 import bs58 from 'bs58';
 import { isBaseChain } from '../lib/chain-config.js';
-import { isValidBaseAddress, getBaseSigner, getPrivacyPoolContract, getUsdcAddress, parseUsdc } from '../lib/void402-base.js';
+import { isValidBaseAddress, getPrivacyPoolContract, getUsdcAddress, parseUsdc } from '../lib/void402-base.js';
 import { generatePrivacyNonce, getProofId, generateMockProof } from '../lib/privacy-utils-base.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -230,12 +230,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const intEthBalance = await provider.getBalance(intWalletData.address);
       const ethNeeded = ethersLib.parseEther("0.002");
       if (intEthBalance < ethNeeded) {
-        const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
-        if (collectionKey) {
-          const funder = getBaseSigner(collectionKey);
-          const fundTx = await funder.sendTransaction({ to: intWalletData.address, value: ethNeeded });
-          await fundTx.wait();
-          console.log(`[Base Withdraw] Funded intermediate with ETH: ${fundTx.hash}`);
+        const fundAmount = ethNeeded - intEthBalance;
+        let funded = false;
+        const funderKeys = [
+          { name: 'collection', key: process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE },
+          { name: 'mixer', key: process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY_BASE },
+        ];
+        for (const { name, key } of funderKeys) {
+          if (!key || funded) continue;
+          try {
+            const funder = new ethersLib.Wallet(key, provider);
+            const funderBalance = await provider.getBalance(funder.address);
+            const estimatedGas = ethersLib.parseEther("0.00015");
+            if (funderBalance < fundAmount + estimatedGas) {
+              console.warn(`[Base Withdraw] ⚠️ ${name} wallet (${funder.address.slice(0, 10)}...) insufficient ETH: ${ethersLib.formatEther(funderBalance)}`);
+              continue;
+            }
+            const fundTx = await funder.sendTransaction({ to: intWalletData.address, value: fundAmount });
+            await fundTx.wait();
+            console.log(`[Base Withdraw] Funded intermediate with ${ethersLib.formatEther(fundAmount)} ETH from ${name} wallet: ${fundTx.hash}`);
+            funded = true;
+          } catch (fundErr: any) {
+            console.warn(`[Base Withdraw] ⚠️ Failed to fund from ${name} wallet: ${fundErr.message}`);
+          }
+        }
+        if (!funded) {
+          console.error('[Base Withdraw] Cannot fund intermediate with ETH - all funder wallets depleted');
         }
       }
 

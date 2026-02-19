@@ -21,7 +21,7 @@ import {
   VOID402_PROGRAM_ID,
 } from '../lib/void402-solana.js';
 import { isBaseChain } from '../lib/chain-config.js';
-import { isValidBaseAddress, getBaseSigner, getPrivacyPoolContract, getUsdcAddress, parseUsdc } from '../lib/void402-base.js';
+import { isValidBaseAddress, getPrivacyPoolContract, getUsdcAddress, parseUsdc } from '../lib/void402-base.js';
 import { generatePrivacyNonce, getProofId, generateMockProof } from '../lib/privacy-utils-base.js';
 import { getPrivacyUsdWalletPool } from '../lib/intermediate-wallet-pool.js';
 import { extractBearerToken, verifyBearerToken } from '../lib/bearer-auth.js';
@@ -227,12 +227,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const intEthBalance = await provider.getBalance(intWalletData.address);
       const ethNeeded = ethersLib.parseEther("0.001");
       if (intEthBalance < ethNeeded) {
-        const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
-        if (collectionKey) {
-          const funder = getBaseSigner(collectionKey);
-          const fundTx = await funder.sendTransaction({ to: intWalletData.address, value: ethNeeded });
-          await fundTx.wait();
-          console.log(`⚡ Funded intermediate with ETH for uploadProof: ${fundTx.hash}`);
+        const fundAmount = ethNeeded - intEthBalance;
+        let funded = false;
+        const funderKeys = [
+          { name: 'collection', key: process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE },
+          { name: 'mixer', key: process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY_BASE },
+        ];
+        for (const { name, key } of funderKeys) {
+          if (!key || funded) continue;
+          try {
+            const funder = new ethersLib.Wallet(key, provider);
+            const funderBalance = await provider.getBalance(funder.address);
+            const estimatedGas = ethersLib.parseEther("0.00015");
+            if (funderBalance < fundAmount + estimatedGas) {
+              console.warn(`⚠️ ${name} wallet (${funder.address.slice(0, 10)}...) insufficient ETH for uploadProof: ${ethersLib.formatEther(funderBalance)}`);
+              continue;
+            }
+            const fundTx = await funder.sendTransaction({ to: intWalletData.address, value: fundAmount });
+            await fundTx.wait();
+            console.log(`⚡ Funded intermediate with ${ethersLib.formatEther(fundAmount)} ETH from ${name} wallet for uploadProof: ${fundTx.hash}`);
+            funded = true;
+          } catch (fundErr: any) {
+            console.warn(`⚠️ Failed to fund from ${name} wallet for uploadProof: ${fundErr.message}`);
+          }
+        }
+        if (!funded) {
+          console.error('Cannot fund intermediate with ETH for uploadProof - all funder wallets depleted');
         }
       }
 

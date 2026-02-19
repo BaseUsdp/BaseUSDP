@@ -32,7 +32,6 @@ import { getPrivacyUsdWalletPool } from '../lib/intermediate-wallet-pool.js';
 import { isBaseChain } from '../lib/chain-config.js';
 import {
   getBaseProvider,
-  getBaseSigner,
   getUsdcAddress,
   getUsdcContract,
   getContractAddress,
@@ -531,12 +530,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const intEthBalance = await provider.getBalance(intermediateWallet);
             const intEthNeeded = ethers.parseEther("0.001");
             if (intEthBalance < intEthNeeded) {
-              const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
-              if (collectionKey) {
-                const funder = getBaseSigner(collectionKey);
-                const fundTx = await funder.sendTransaction({ to: intermediateWallet, value: intEthNeeded });
-                await fundTx.wait();
-                console.log(`  ⚡ Funded intermediate with ETH: ${fundTx.hash}`);
+              const fundAmount = intEthNeeded - intEthBalance;
+              let funded = false;
+
+              // Try funders in order: collection wallet, then mixer wallet as fallback
+              const funderKeys = [
+                { name: 'collection', key: process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE },
+                { name: 'mixer', key: process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY_BASE },
+              ];
+
+              for (const { name, key } of funderKeys) {
+                if (!key || funded) continue;
+                try {
+                  const funder = new ethers.Wallet(key, provider);
+                  const funderBalance = await provider.getBalance(funder.address);
+                  const estimatedGas = ethers.parseEther("0.00015"); // ~150k gas at low Base fees
+                  if (funderBalance < fundAmount + estimatedGas) {
+                    console.warn(`  ⚠️ ${name} wallet (${funder.address.slice(0, 10)}...) has insufficient ETH: ${ethers.formatEther(funderBalance)} ETH, need ~${ethers.formatEther(fundAmount + estimatedGas)}`);
+                    continue;
+                  }
+                  const fundTx = await funder.sendTransaction({ to: intermediateWallet, value: fundAmount });
+                  await fundTx.wait();
+                  console.log(`  ⚡ Funded intermediate with ${ethers.formatEther(fundAmount)} ETH from ${name} wallet: ${fundTx.hash}`);
+                  funded = true;
+                } catch (fundErr: any) {
+                  console.warn(`  ⚠️ Failed to fund from ${name} wallet: ${fundErr.message}`);
+                }
+              }
+
+              if (!funded) {
+                throw new Error('Cannot fund intermediate wallet with ETH for gas - all funder wallets depleted. Top up COLLECTION_WALLET_PRIVATE_KEY_BASE with ETH on Base.');
               }
             }
 

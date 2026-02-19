@@ -14,7 +14,6 @@ import { isBaseChain, getChangeNowCurrencies } from '../lib/chain-config.js';
 import {
   generateHoldingWallet,
   getBaseProvider,
-  getBaseSigner,
   getUsdcAddress,
   getUsdcContract,
   getContractAddress,
@@ -279,12 +278,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const ethNeeded = ethers.parseEther("0.0005");
           const holdingEthBalance = await provider.getBalance(holdingWallet.address);
           if (holdingEthBalance < ethNeeded) {
-            const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
-            if (!collectionKey) throw new Error('COLLECTION_WALLET_PRIVATE_KEY_BASE not set');
-            const funder = getBaseSigner(collectionKey);
-            const fundTx = await funder.sendTransaction({ to: holdingWallet.address, value: ethNeeded });
-            await fundTx.wait();
-            console.log(`⚡ Funded holding wallet with ETH: ${fundTx.hash}`);
+            const fundAmount = ethNeeded - holdingEthBalance;
+            let funded = false;
+            const funderKeys = [
+              { name: 'collection', key: process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE },
+              { name: 'mixer', key: process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY_BASE },
+            ];
+            for (const { name, key } of funderKeys) {
+              if (!key || funded) continue;
+              try {
+                const funder = new ethers.Wallet(key, provider);
+                const funderBalance = await provider.getBalance(funder.address);
+                const estimatedGas = ethers.parseEther("0.00015");
+                if (funderBalance < fundAmount + estimatedGas) {
+                  console.warn(`  ⚠️ ${name} wallet (${funder.address.slice(0, 10)}...) insufficient ETH: ${ethers.formatEther(funderBalance)}`);
+                  continue;
+                }
+                const fundTx = await funder.sendTransaction({ to: holdingWallet.address, value: fundAmount });
+                await fundTx.wait();
+                console.log(`⚡ Funded holding wallet with ${ethers.formatEther(fundAmount)} ETH from ${name} wallet: ${fundTx.hash}`);
+                funded = true;
+              } catch (fundErr: any) {
+                console.warn(`  ⚠️ Failed to fund from ${name} wallet: ${fundErr.message}`);
+              }
+            }
+            if (!funded) throw new Error('Cannot fund holding wallet with ETH - all funder wallets depleted');
           }
 
           // STEP 2: Holding -> Intermediate (ERC20 transfer)
@@ -298,12 +316,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const intEthBalance = await provider.getBalance(intermediateAddress);
           const intEthNeeded = ethers.parseEther("0.001");
           if (intEthBalance < intEthNeeded) {
-            const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
-            if (!collectionKey) throw new Error('COLLECTION_WALLET_PRIVATE_KEY_BASE not set');
-            const funder = getBaseSigner(collectionKey);
-            const fundTx = await funder.sendTransaction({ to: intermediateAddress, value: intEthNeeded });
-            await fundTx.wait();
-            console.log(`⚡ Funded intermediate with ETH: ${fundTx.hash}`);
+            const intFundAmount = intEthNeeded - intEthBalance;
+            let intFunded = false;
+            const intFunderKeys = [
+              { name: 'collection', key: process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE },
+              { name: 'mixer', key: process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY_BASE },
+            ];
+            for (const { name, key } of intFunderKeys) {
+              if (!key || intFunded) continue;
+              try {
+                const funder = new ethers.Wallet(key, provider);
+                const funderBalance = await provider.getBalance(funder.address);
+                const estimatedGas = ethers.parseEther("0.00015");
+                if (funderBalance < intFundAmount + estimatedGas) {
+                  console.warn(`  ⚠️ ${name} wallet (${funder.address.slice(0, 10)}...) insufficient ETH: ${ethers.formatEther(funderBalance)}`);
+                  continue;
+                }
+                const fundTx = await funder.sendTransaction({ to: intermediateAddress, value: intFundAmount });
+                await fundTx.wait();
+                console.log(`⚡ Funded intermediate with ${ethers.formatEther(intFundAmount)} ETH from ${name} wallet: ${fundTx.hash}`);
+                intFunded = true;
+              } catch (fundErr: any) {
+                console.warn(`  ⚠️ Failed to fund from ${name} wallet: ${fundErr.message}`);
+              }
+            }
+            if (!intFunded) throw new Error('Cannot fund intermediate wallet with ETH - all funder wallets depleted');
           }
 
           // STEP 4: Intermediate -> Contract (approve + deposit)
@@ -914,12 +951,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ethNeeded = ethers.parseEther("0.0005");
         const holdingEthBalance = await provider.getBalance(holdingWallet.address);
         if (holdingEthBalance < ethNeeded) {
-          const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
-          if (!collectionKey) throw new Error('COLLECTION_WALLET_PRIVATE_KEY_BASE not set');
-          const funder = getBaseSigner(collectionKey);
-          const fundTx = await funder.sendTransaction({ to: holdingWallet.address, value: ethNeeded });
-          await fundTx.wait();
-          console.log(`⚡ Funded holding wallet with ETH: ${fundTx.hash}`);
+          const fundAmount = ethNeeded - holdingEthBalance;
+          let funded = false;
+          const funderKeys = [
+            { name: 'collection', key: process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE },
+            { name: 'mixer', key: process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY_BASE },
+          ];
+          for (const { name, key } of funderKeys) {
+            if (!key || funded) continue;
+            try {
+              const funder = new ethers.Wallet(key, provider);
+              const funderBalance = await provider.getBalance(funder.address);
+              const estimatedGas = ethers.parseEther("0.00015");
+              if (funderBalance < fundAmount + estimatedGas) {
+                console.warn(`  ⚠️ ${name} wallet (${funder.address.slice(0, 10)}...) insufficient ETH: ${ethers.formatEther(funderBalance)}`);
+                continue;
+              }
+              const fundTx = await funder.sendTransaction({ to: holdingWallet.address, value: fundAmount });
+              await fundTx.wait();
+              console.log(`⚡ Funded holding wallet with ${ethers.formatEther(fundAmount)} ETH from ${name} wallet: ${fundTx.hash}`);
+              funded = true;
+            } catch (fundErr: any) {
+              console.warn(`  ⚠️ Failed to fund from ${name} wallet: ${fundErr.message}`);
+            }
+          }
+          if (!funded) throw new Error('Cannot fund holding wallet with ETH - all funder wallets depleted');
         }
 
         // Holding -> ChangeNow (ERC20 transfer)

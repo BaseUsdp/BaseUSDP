@@ -1106,6 +1106,47 @@
       "artifacts": [
         "IERC165"
       ]
+    },
+    "/Users/x/Documents/Cursor Projects/Void402/packages/contracts/contracts/DepositRouter.sol": {
+      "lastModificationDate": 1771480156256,
+      "contentHash": "3285a55693ab4c439e5311c67cf451a7",
+      "sourceName": "contracts/DepositRouter.sol",
+      "solcConfig": {
+        "version": "0.8.28",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "@openzeppelin/contracts/access/Ownable.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "DepositRouter"
+      ]
     }
   }
 }

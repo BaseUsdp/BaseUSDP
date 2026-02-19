@@ -268,13 +268,47 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
         throw new Error("No Ethereum accounts found in Phantom");
       }
 
-      // Send ERC20 transfer (single tx — no approve needed, it's just usdc.transfer())
+      // If user needs to approve the DepositRouter for USDC (one-time)
+      if (holdingResult.needsApproval && holdingResult.approveTransaction) {
+        setProcessingStatus("One-time USDC approval needed for deposit router...");
+        const approveTx = holdingResult.approveTransaction;
+        const approveHash = await ethProvider.request({
+          method: "eth_sendTransaction",
+          params: [{ from: accounts[0], to: approveTx.to, data: approveTx.data, value: approveTx.value }],
+        });
+        console.log(`[Base Deposit] Approval tx: ${approveHash}`);
+
+        // Wait for approval to confirm
+        setProcessingStatus("Waiting for approval confirmation...");
+        let approvalConfirmed = false;
+        for (let i = 0; i < 30; i++) {
+          await new Promise((r) => setTimeout(r, 2000));
+          const receipt = await ethProvider.request({
+            method: "eth_getTransactionReceipt",
+            params: [approveHash],
+          });
+          if (receipt && receipt.status === "0x1") {
+            approvalConfirmed = true;
+            break;
+          }
+          if (receipt && receipt.status === "0x0") {
+            throw new Error("USDC approval transaction failed");
+          }
+        }
+        if (!approvalConfirmed) {
+          throw new Error("USDC approval timed out");
+        }
+        console.log(`[Base Deposit] Approval confirmed`);
+      }
+
+      // Send deposit via DepositRouter (USDC + ETH gas in single tx)
+      setProcessingStatus("Please approve the deposit in your wallet...");
       const evmTx = holdingResult.evmTransaction;
       const txHash = await ethProvider.request({
         method: "eth_sendTransaction",
         params: [{ from: accounts[0], to: evmTx.to, data: evmTx.data, value: evmTx.value }],
       });
-      console.log(`[Base Deposit] Transfer tx: ${txHash}`);
+      console.log(`[Base Deposit] Deposit tx: ${txHash}`);
       setTxSignature(txHash);
 
       // ============================================
@@ -898,6 +932,12 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                       <span className="text-emerald-400">$0.00</span>
                     </div>
                   )}
+                  {activeChain === "base" && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Network gas deposit</span>
+                      <span className="text-yellow-400">~{privacyLevel === "public" ? "0.001" : "0.002"} ETH</span>
+                    </div>
+                  )}
                   <div className="border-t border-border pt-2 flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">You will receive (est.)</span>
                     <span className="text-base font-bold text-emerald-400">
@@ -914,6 +954,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                         ? "Partial privacy: Single-hop transfer without mixer. Faster processing, zero fees."
                         : "Public mode: Direct deposit without privacy mixing. Fastest processing, zero fees."
                     }
+                    {activeChain === "base" && " A small ETH deposit (~0.002 ETH) covers network gas for processing. First deposit requires a one-time USDC approval."}
                   </p>
                   {/* Privacy level indicator */}
                   <div className="flex items-center gap-2 pt-1 border-t border-border/50 mt-2">
