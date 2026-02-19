@@ -194,9 +194,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         nonceBigInt
       );
 
-      // Relayer submits the proof on behalf of the user
-      const relayerSigner = getBaseSigner();
-      const poolContract = getPrivacyPoolContract(relayerSigner);
+      // Get user's intermediate wallet (which holds the pool balance)
+      const { data: walletMapping, error: baseDbError } = await supabase
+        .from('zk_user_wallets')
+        .select('intermediate_wallet')
+        .eq('user_wallet', sender_wallet)
+        .maybeSingle();
+
+      if (baseDbError || !walletMapping?.intermediate_wallet) {
+        return res.status(400).json({ error: 'No deposit found. You must deposit funds first before withdrawing.' });
+      }
+
+      const { getBaseIntermediateWalletPool } = await import('../lib/intermediate-wallet-pool-base.js');
+      const basePool = getBaseIntermediateWalletPool();
+      await basePool.initialize();
+      const intWalletData = await basePool.getWalletByAddress(walletMapping.intermediate_wallet);
+
+      if (!intWalletData) {
+        return res.status(400).json({ error: 'Intermediate wallet not found in pool' });
+      }
+
+      // Fund intermediate with ETH for gas if needed
+      const { ethers: ethersLib } = await import('ethers');
+      const { getBaseProvider } = await import('../lib/void402-base.js');
+      const provider = getBaseProvider();
+      const intEthBalance = await provider.getBalance(intWalletData.address);
+      const ethNeeded = ethersLib.parseEther("0.001");
+      if (intEthBalance < ethNeeded) {
+        const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
+        if (collectionKey) {
+          const funder = getBaseSigner(collectionKey);
+          const fundTx = await funder.sendTransaction({ to: intWalletData.address, value: ethNeeded });
+          await fundTx.wait();
+          console.log(`⚡ Funded intermediate with ETH for uploadProof: ${fundTx.hash}`);
+        }
+      }
+
+      // Intermediate wallet submits the proof (it has the pool balance)
+      const intSigner = new ethersLib.Wallet(intWalletData.privateKey, provider);
+      const poolContract = getPrivacyPoolContract(intSigner);
 
       const tx = await poolContract.uploadProof(
         nonceBigInt,
