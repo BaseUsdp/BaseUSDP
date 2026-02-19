@@ -194,30 +194,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         nonceBigInt
       );
 
-      // Get user's intermediate wallet (which holds the pool balance)
-      const { data: walletMapping, error: baseDbError } = await supabase
+      // Get user's intermediate wallets and find one with sufficient pool balance
+      const { data: walletMappings, error: baseDbError } = await supabase
         .from('zk_user_wallets')
         .select('intermediate_wallet')
-        .eq('user_wallet', sender_wallet)
-        .maybeSingle();
+        .eq('user_wallet', sender_wallet);
 
-      if (baseDbError || !walletMapping?.intermediate_wallet) {
+      if (baseDbError || !walletMappings || walletMappings.length === 0) {
         return res.status(400).json({ error: 'No deposit found. You must deposit funds first before withdrawing.' });
       }
 
       const { getBaseIntermediateWalletPool } = await import('../lib/intermediate-wallet-pool-base.js');
+      const { getBaseProvider: getBaseProviderImport } = await import('../lib/void402-base.js');
+      const providerForBalance = getBaseProviderImport();
       const basePool = getBaseIntermediateWalletPool();
       await basePool.initialize();
-      const intWalletData = await basePool.getWalletByAddress(walletMapping.intermediate_wallet);
+
+      let intWalletData: any = null;
+      const readonlyPool = getPrivacyPoolContract(providerForBalance as any);
+      for (const wm of walletMappings) {
+        const candidate = await basePool.getWalletByAddress(wm.intermediate_wallet);
+        if (!candidate) continue;
+        try {
+          const [available] = await readonlyPool.getUserBalance(candidate.address, usdcAddress);
+          console.log(`[Base UploadProof] Intermediate ${candidate.address.slice(0,10)}... pool balance: ${available.toString()}`);
+          if (available >= amountInUnits) {
+            intWalletData = candidate;
+            break;
+          }
+        } catch (e: any) {
+          console.warn(`[Base UploadProof] Balance check failed for ${candidate.address}: ${e.message}`);
+        }
+      }
 
       if (!intWalletData) {
-        return res.status(400).json({ error: 'Intermediate wallet not found in pool' });
+        return res.status(400).json({ error: 'Insufficient pool balance. No intermediate wallet has enough funds.' });
       }
 
       // Fund intermediate with ETH for gas if needed
       const { ethers: ethersLib } = await import('ethers');
-      const { getBaseProvider } = await import('../lib/void402-base.js');
-      const provider = getBaseProvider();
+      const provider = providerForBalance;
       const intEthBalance = await provider.getBalance(intWalletData.address);
       const ethNeeded = ethersLib.parseEther("0.001");
       if (intEthBalance < ethNeeded) {

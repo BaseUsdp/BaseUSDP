@@ -276,24 +276,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const transferAmount = parseFloat(amount);
       const usdcAddress = getUsdcAddress();
       const provider = getBaseProvider();
+      const amountInUnits = parseUsdc(transferAmount.toString());
 
-      // Look up sender's intermediate wallet (has pool balance)
-      const { data: senderWalletData } = await supabase!
+      // Look up ALL sender's intermediate wallets and find one with sufficient pool balance
+      const { data: senderWallets } = await supabase!
         .from('zk_user_wallets')
         .select('intermediate_wallet')
-        .eq('user_wallet', sender_wallet)
-        .limit(1)
-        .maybeSingle();
+        .eq('user_wallet', sender_wallet);
 
-      if (!senderWalletData?.intermediate_wallet) {
+      if (!senderWallets || senderWallets.length === 0) {
         return res.status(400).json({ error: 'Sender has not deposited funds yet' });
       }
 
       const baseIntPool = getBaseIntermediateWalletPool();
       await baseIntPool.initialize();
-      const intWalletData = await baseIntPool.getWalletByAddress(senderWalletData.intermediate_wallet);
+
+      // Check each intermediate wallet's on-chain pool balance to find one with enough funds
+      let intWalletData: any = null;
+      const readonlyPool = getPrivacyPoolContract(provider as any);
+      for (const sw of senderWallets) {
+        const candidate = await baseIntPool.getWalletByAddress(sw.intermediate_wallet);
+        if (!candidate) continue;
+        try {
+          const [available] = await readonlyPool.getUserBalance(candidate.address, usdcAddress);
+          console.log(`[Base Transfer] Intermediate ${candidate.address.slice(0,10)}... pool balance: ${available.toString()}`);
+          if (available >= amountInUnits) {
+            intWalletData = candidate;
+            break;
+          }
+        } catch (e: any) {
+          console.warn(`[Base Transfer] Failed to check balance for ${candidate.address}: ${e.message}`);
+        }
+      }
+
       if (!intWalletData) {
-        return res.status(400).json({ error: 'Intermediate wallet not found in pool' });
+        return res.status(400).json({ error: 'Insufficient pool balance. No intermediate wallet has enough funds.' });
       }
 
       const intSigner = new ethersLib.Wallet(intWalletData.privateKey, provider);
@@ -316,7 +333,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Generate nonce and proof
       const privacyNonce = generatePrivacyNonce(sender_wallet);
       const proofId = getProofId(privacyNonce);
-      const amountInUnits = parseUsdc(transferAmount.toString());
       const { proofBytes, commitmentBytes, blindingFactorBytes } = generateMockProof(
         sender_wallet,
         amountInUnits,

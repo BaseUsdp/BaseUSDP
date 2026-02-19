@@ -196,14 +196,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const usdcAddress = getUsdcAddress();
 
-      // Get user's intermediate wallet (which holds the pool balance)
-      const { data: baseWalletMapping } = await supabase!
+      // Get user's intermediate wallets and find one with sufficient pool balance
+      const { data: baseWalletMappings } = await supabase!
         .from('zk_user_wallets')
         .select('intermediate_wallet')
-        .eq('user_wallet', sender_wallet)
-        .maybeSingle();
+        .eq('user_wallet', sender_wallet);
 
-      if (!baseWalletMapping?.intermediate_wallet) {
+      if (!baseWalletMappings || baseWalletMappings.length === 0) {
         return res.status(400).json({ error: 'No deposit found. You must deposit funds first.' });
       }
 
@@ -214,10 +213,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const basePool = getBaseIntermediateWalletPool();
       await basePool.initialize();
-      const intWalletData = await basePool.getWalletByAddress(baseWalletMapping.intermediate_wallet);
+
+      const amountInUnits = parseUsdc(amount.toString());
+      let intWalletData: any = null;
+      const readonlyPool = getPrivacyPoolContract(provider as any);
+      for (const wm of baseWalletMappings) {
+        const candidate = await basePool.getWalletByAddress(wm.intermediate_wallet);
+        if (!candidate) continue;
+        try {
+          const [available] = await readonlyPool.getUserBalance(candidate.address, usdcAddress);
+          console.log(`[Base Withdraw] Intermediate ${candidate.address.slice(0,10)}... pool balance: ${available.toString()}`);
+          if (available >= amountInUnits) {
+            intWalletData = candidate;
+            break;
+          }
+        } catch (e: any) {
+          console.warn(`[Base Withdraw] Balance check failed for ${candidate.address}: ${e.message}`);
+        }
+      }
 
       if (!intWalletData) {
-        return res.status(400).json({ error: 'Intermediate wallet not found in pool' });
+        return res.status(400).json({ error: 'Insufficient pool balance. No intermediate wallet has enough funds.' });
       }
 
       // Fund intermediate with ETH for gas if needed
@@ -243,7 +259,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const totalFeePercent = withdrawFeePercent + poolFeePercent;
       const feeAmount = amount * (totalFeePercent / 100);
       const amountAfterFees = amount - feeAmount;
-      const amountInUnits = parseUsdc(amount.toString());
       const relayerFeeInUnits = parseUsdc(feeAmount.toString());
 
       // Generate nonce and proof
