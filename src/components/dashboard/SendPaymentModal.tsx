@@ -365,8 +365,8 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
       
       const result = await executeZKTransfer(transferPayload);
 
-      // Check if wallet disconnected during transaction
-      if (!wallet.connected || !wallet.publicKey) {
+      // Check if wallet disconnected during transaction (skip for Base - Solana wallet not used)
+      if (activeChain !== "base" && (!wallet?.connected || !wallet?.publicKey)) {
         setError("Wallet disconnected during transaction. Please reconnect and try again.");
         setStep("failed");
         return;

@@ -246,7 +246,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
 
       const result = await executeZKTransfer(transferPayload);
 
-      if (!wallet.connected || !wallet.publicKey) {
+      if (activeChain !== "base" && (!wallet?.connected || !wallet?.publicKey)) {
         setError("Wallet disconnected during transaction. Please reconnect and try again.");
         setStep("failed");
         return;
