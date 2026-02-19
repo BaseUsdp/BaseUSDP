@@ -17,7 +17,8 @@ import { getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { isBaseChain } from '../lib/chain-config.js';
-import { generateHoldingWallet, getUsdcContract, getBaseProvider } from '../lib/void402-base.js';
+import { generateHoldingWallet, getTokenAddress, getBaseProvider, ERC20_ABI } from '../lib/void402-base.js';
+import { ethers } from 'ethers';
 
 // Token mint addresses
 const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
@@ -161,8 +162,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (isBaseChain()) {
       // Base chain: check ERC20 balance of deterministic holding wallet
       const holdingWallet = generateHoldingWallet(depositId);
-      const usdc = getUsdcContract(getBaseProvider());
-      const balance: bigint = await usdc.balanceOf(holdingWallet.address);
+      const tokenAddress = getTokenAddress(depositData.token || 'USDC');
+      const provider = getBaseProvider();
+      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+      const balance: bigint = await tokenContract.balanceOf(holdingWallet.address);
 
       if (balance === 0n) {
         return res.status(200).json({

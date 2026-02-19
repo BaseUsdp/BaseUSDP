@@ -32,8 +32,7 @@ import { getPrivacyUsdWalletPool } from '../lib/intermediate-wallet-pool.js';
 import { isBaseChain } from '../lib/chain-config.js';
 import {
   getBaseProvider,
-  getUsdcAddress,
-  getUsdcContract,
+  getTokenAddress,
   getContractAddress,
   getPrivacyPoolContract,
   ERC20_ABI,
@@ -476,7 +475,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (isBaseChain()) {
           try {
             const provider = getBaseProvider();
-            const usdcAddress = getUsdcAddress();
+            const tokenAddress = getTokenAddress(token || 'USDC');
             const poolAddress = getContractAddress();
 
             const mixerAddress = process.env.MIXER_WITHDRAWAL_WALLET_ADDRESS_BASE;
@@ -489,18 +488,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             // Load mixer signer
             const mixerSigner = new ethers.Wallet(mixerPrivateKey, provider);
-            const mixerUsdc = new ethers.Contract(usdcAddress, ERC20_ABI, mixerSigner);
+            const mixerTokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, mixerSigner);
 
-            // Check mixer USDC balance
-            const mixerBalance: bigint = await mixerUsdc.balanceOf(mixerAddress);
+            // Check mixer token balance
+            const mixerBalance: bigint = await mixerTokenContract.balanceOf(mixerAddress);
             const splitAmount = ethers.parseUnits(exchange.split_amount, 6);
             const actualOutputAmount = changenowOutputAmount
               ? ethers.parseUnits(changenowOutputAmount.toString(), 6)
               : splitAmount * 85n / 100n;
 
             // Check if intermediate already has funds
-            const intUsdc = getUsdcContract(provider);
-            const intBalance: bigint = await intUsdc.balanceOf(intermediateWallet);
+            const intTokenCheck = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+            const intBalance: bigint = await intTokenCheck.balanceOf(intermediateWallet);
 
             if (intBalance >= actualOutputAmount * 80n / 100n) {
               console.log(`  💰 Funds already in intermediate: ${ethers.formatUnits(intBalance, 6)} ${token}`);
@@ -521,7 +520,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               const transferAmount = mixerBalance < actualOutputAmount ? mixerBalance - 1n : actualOutputAmount;
               console.log(`  📤 Mixer -> Intermediate: ${ethers.formatUnits(transferAmount, 6)} ${token}`);
 
-              const tx1 = await mixerUsdc.transfer(intermediateWallet, transferAmount);
+              const tx1 = await mixerTokenContract.transfer(intermediateWallet, transferAmount);
               await tx1.wait();
               console.log(`  ✅ Mixer -> Intermediate: ${tx1.hash}`);
             }
@@ -575,7 +574,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             // Intermediate -> Contract (approve + deposit)
             const intSigner = new ethers.Wallet(intWalletData.privateKey, provider);
-            const intUsdcSigner = new ethers.Contract(usdcAddress, ERC20_ABI, intSigner);
+            const intUsdcSigner = new ethers.Contract(tokenAddress, ERC20_ABI, intSigner);
             const pool = getPrivacyPoolContract(intSigner);
 
             // Get current intermediate balance
@@ -586,7 +585,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await approveTx.wait();
             console.log(`  ✅ Approve: ${approveTx.hash}`);
 
-            const depositTx = await pool.deposit(usdcAddress, currentIntBalance);
+            const depositTx = await pool.deposit(tokenAddress, currentIntBalance);
             const depositReceipt = await depositTx.wait();
             console.log(`  ✅ Intermediate -> Pool deposit: ${depositReceipt.hash}`);
 

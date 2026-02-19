@@ -14,8 +14,7 @@ import { isBaseChain, getChangeNowCurrencies } from '../lib/chain-config.js';
 import {
   generateHoldingWallet,
   getBaseProvider,
-  getUsdcAddress,
-  getUsdcContract,
+  getTokenAddress,
   getContractAddress,
   getPrivacyPoolContract,
   ERC20_ABI,
@@ -222,13 +221,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
           const provider = getBaseProvider();
           const holdingWallet = generateHoldingWallet(split.deposit_id);
-          const usdcAddress = getUsdcAddress();
+          const tokenAddress = getTokenAddress(split.token || 'USDC');
           const poolAddress = getContractAddress();
           const splitAmount = ethers.parseUnits(split.split_amount, 6);
 
-          // Check holding wallet USDC balance
-          const usdc = getUsdcContract(provider);
-          const holdingBalance: bigint = await usdc.balanceOf(holdingWallet.address);
+          // Check holding wallet token balance
+          const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+          const holdingBalance: bigint = await tokenContract.balanceOf(holdingWallet.address);
 
           if (holdingBalance < splitAmount) {
             await supabase
@@ -307,8 +306,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           // STEP 2: Holding -> Intermediate (ERC20 transfer)
           const holdingSigner = new ethers.Wallet(holdingWallet.privateKey, provider);
-          const holdingUsdc = new ethers.Contract(usdcAddress, ERC20_ABI, holdingSigner);
-          const tx1 = await holdingUsdc.transfer(intermediateAddress, splitAmount);
+          const holdingToken = new ethers.Contract(tokenAddress, ERC20_ABI, holdingSigner);
+          const tx1 = await holdingToken.transfer(intermediateAddress, splitAmount);
           await tx1.wait();
           console.log(`✅ Holding -> Intermediate: ${tx1.hash}`);
 
@@ -345,14 +344,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           // STEP 4: Intermediate -> Contract (approve + deposit)
           const intSigner = new ethers.Wallet(intermediateWalletData.privateKey, provider);
-          const intUsdc = new ethers.Contract(usdcAddress, ERC20_ABI, intSigner);
+          const intToken = new ethers.Contract(tokenAddress, ERC20_ABI, intSigner);
           const pool = getPrivacyPoolContract(intSigner);
 
-          const approveTx = await intUsdc.approve(poolAddress, splitAmount);
+          const approveTx = await intToken.approve(poolAddress, splitAmount);
           await approveTx.wait();
           console.log(`✅ Intermediate approve: ${approveTx.hash}`);
 
-          const depositTx = await pool.deposit(usdcAddress, splitAmount);
+          const depositTx = await pool.deposit(tokenAddress, splitAmount);
           const depositReceipt = await depositTx.wait();
           console.log(`✅ Intermediate -> Pool deposit: ${depositReceipt.hash}`);
 
@@ -899,12 +898,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       try {
         const provider = getBaseProvider();
         const holdingWallet = generateHoldingWallet(split.deposit_id);
-        const usdcAddress = getUsdcAddress();
+        const tokenAddress = getTokenAddress(split.token || 'USDC');
         const splitAmount = ethers.parseUnits(split.split_amount, 6);
 
-        // Check holding wallet USDC balance
-        const usdc = getUsdcContract(provider);
-        const holdingBalance: bigint = await usdc.balanceOf(holdingWallet.address);
+        // Check holding wallet token balance
+        const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+        const holdingBalance: bigint = await tokenContract.balanceOf(holdingWallet.address);
 
         if (holdingBalance < splitAmount) {
           await supabase
@@ -980,8 +979,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Holding -> ChangeNow (ERC20 transfer)
         const holdingSigner = new ethers.Wallet(holdingWallet.privateKey, provider);
-        const holdingUsdc = new ethers.Contract(usdcAddress, ERC20_ABI, holdingSigner);
-        const transferTx = await holdingUsdc.transfer(payinAddress, splitAmount);
+        const holdingToken = new ethers.Contract(tokenAddress, ERC20_ABI, holdingSigner);
+        const transferTx = await holdingToken.transfer(payinAddress, splitAmount);
         const transferReceipt = await transferTx.wait();
         console.log(`✅ Holding -> ChangeNow: ${transferReceipt.hash}`);
 
