@@ -342,17 +342,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const uploadReceipt = await uploadTx.wait();
       console.log(`[Base Transfer] Proof uploaded: ${uploadReceipt.hash}`);
 
-      // STEP 2: Internal transfer (fee-free for username-to-username)
+      // STEP 2: Determine if internal (Void402 user) or external (raw address) transfer
+      const isBaseExternal = !!force_external || !recipient_username;
+
+      // Check if recipient is a Void402 user (has transactions or profile)
+      let recipientIsVoid402User = false;
+      if (!force_external && !recipient_username) {
+        const { data: recipientProfile } = await supabase!
+          .from('user_profiles')
+          .select('id')
+          .ilike('wallet_address', base_recipient_wallet)
+          .maybeSingle();
+        if (recipientProfile) {
+          recipientIsVoid402User = true;
+        }
+      } else if (recipient_username) {
+        recipientIsVoid402User = true;
+      }
+
       const relayerFee = 0n;
-      console.log(`[Base Transfer] Executing internal transfer...`);
-      const transferTx = await privacyPoolContract.internalTransfer(
-        proofId,
-        base_recipient_wallet,
-        relayerFee,
-      );
-      const transferReceipt = await transferTx.wait();
-      const signature = transferReceipt.hash;
-      console.log(`[Base Transfer] Internal transfer complete: ${signature}`);
+      let signature: string;
+
+      if (recipientIsVoid402User) {
+        // INTERNAL: Move pool balance to recipient (stays in contract)
+        console.log(`[Base Transfer] Executing internal transfer to Void402 user...`);
+        const transferTx = await privacyPoolContract.internalTransfer(
+          proofId,
+          base_recipient_wallet,
+          relayerFee,
+        );
+        const transferReceipt = await transferTx.wait();
+        signature = transferReceipt.hash;
+        console.log(`[Base Transfer] Internal transfer complete: ${signature}`);
+      } else {
+        // EXTERNAL: Send actual USDC tokens to recipient's wallet
+        console.log(`[Base Transfer] Executing external transfer to raw address...`);
+        const transferTx = await privacyPoolContract.externalTransfer(
+          proofId,
+          base_recipient_wallet,
+          relayerFee,
+        );
+        const transferReceipt = await transferTx.wait();
+        signature = transferReceipt.hash;
+        console.log(`[Base Transfer] External transfer complete: ${signature}`);
+      }
 
       // Log to database
       try {
