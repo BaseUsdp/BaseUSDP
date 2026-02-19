@@ -194,16 +194,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         nonceBigInt
       );
 
-      // Get user's intermediate wallets and find one with sufficient pool balance
-      const { data: walletMappings, error: baseDbError } = await supabase
-        .from('zk_user_wallets')
-        .select('intermediate_wallet')
-        .eq('user_wallet', sender_wallet);
-
-      if (baseDbError || !walletMappings || walletMappings.length === 0) {
-        return res.status(400).json({ error: 'No deposit found. You must deposit funds first before withdrawing.' });
-      }
-
+      // Check ALL intermediate wallets in the pool for sufficient on-chain balance
       const { getBaseIntermediateWalletPool } = await import('../lib/intermediate-wallet-pool-base.js');
       const { getBaseProvider: getBaseProviderImport } = await import('../lib/void402-base.js');
       const providerForBalance = getBaseProviderImport();
@@ -212,9 +203,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       let intWalletData: any = null;
       const readonlyPool = getPrivacyPoolContract(providerForBalance as any);
-      for (const wm of walletMappings) {
-        const candidate = await basePool.getWalletByAddress(wm.intermediate_wallet);
-        if (!candidate) continue;
+      const allWallets = basePool.getAllWallets();
+      for (const candidate of allWallets) {
         try {
           const [available] = await readonlyPool.getUserBalance(candidate.address, usdcAddress);
           console.log(`[Base UploadProof] Intermediate ${candidate.address.slice(0,10)}... pool balance: ${available.toString()}`);

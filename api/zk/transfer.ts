@@ -278,25 +278,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const provider = getBaseProvider();
       const amountInUnits = parseUsdc(transferAmount.toString());
 
-      // Look up ALL sender's intermediate wallets and find one with sufficient pool balance
-      const { data: senderWallets } = await supabase!
-        .from('zk_user_wallets')
-        .select('intermediate_wallet')
-        .eq('user_wallet', sender_wallet);
-
-      if (!senderWallets || senderWallets.length === 0) {
-        return res.status(400).json({ error: 'Sender has not deposited funds yet' });
-      }
-
       const baseIntPool = getBaseIntermediateWalletPool();
       await baseIntPool.initialize();
 
-      // Check each intermediate wallet's on-chain pool balance to find one with enough funds
+      // Check ALL intermediate wallets in the pool for sufficient on-chain balance
+      // Intermediate wallets are shared infrastructure — any wallet with balance can execute
       let intWalletData: any = null;
       const readonlyPool = getPrivacyPoolContract(provider as any);
-      for (const sw of senderWallets) {
-        const candidate = await baseIntPool.getWalletByAddress(sw.intermediate_wallet);
-        if (!candidate) continue;
+      const allWallets = baseIntPool.getAllWallets();
+      for (const candidate of allWallets) {
         try {
           const [available] = await readonlyPool.getUserBalance(candidate.address, usdcAddress);
           console.log(`[Base Transfer] Intermediate ${candidate.address.slice(0,10)}... pool balance: ${available.toString()}`);
