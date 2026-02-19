@@ -70,6 +70,19 @@ export default {
         indigo: {
           600: "#0001ff",
         },
+        sky: {
+          400: "#0001ff",
+          500: "#0001ff",
+          600: "#0001ff",
+        },
+        blue: {
+          400: "#0001ff",
+          500: "#0001ff",
+          600: "#0001ff",
+        },
+        cyan: {
+          500: "#0001ff",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
