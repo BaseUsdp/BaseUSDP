@@ -942,7 +942,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                     <span className="text-sm font-medium text-foreground">You will receive (est.)</span>
                     <span className="text-base font-bold text-emerald-400">
                       {privacyLevel === "full"
-                        ? `~$${(parseFloat(amount) * 0.85).toFixed(2)} USDC`
+                        ? `~$${(parseFloat(amount) * 0.85).toFixed(2)} ${token}`
                         : `$${parseFloat(amount).toFixed(2)} ${token}`
                       }
                     </span>
@@ -954,7 +954,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                         ? "Partial privacy: Single-hop transfer without mixer. Faster processing, zero fees."
                         : "Public mode: Direct deposit without privacy mixing. Fastest processing, zero fees."
                     }
-                    {activeChain === "base" && " A small ETH deposit (~0.002 ETH) covers network gas for processing. First deposit requires a one-time USDC approval."}
+                    {activeChain === "base" && ` A small ETH deposit (~${privacyLevel === "public" ? "0.001" : "0.002"} ETH) covers network gas for processing. First deposit requires a ${token} approval.`}
                   </p>
                   {/* Privacy level indicator */}
                   <div className="flex items-center gap-2 pt-1 border-t border-border/50 mt-2">
