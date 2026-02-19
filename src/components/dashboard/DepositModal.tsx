@@ -350,7 +350,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
       // STEP 4: Process split queue
       // ============================================
       setStep("splitting");
-      const isDirectDeposit = privacyLevel === "public" || privacyLevel === "partial";
+      const isDirectDeposit = privacyLevel === "public" || privacyLevel === "partial" || (token === "USDT" && privacyLevel === "full");
       setProcessingStatus(
         isDirectDeposit
           ? `Processing splits (0/${numSplits})...`
@@ -633,7 +633,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
       // STEP 6: Process split queue (send to mixer or direct)
       // ============================================
       setStep("splitting");
-      const isDirectDeposit = privacyLevel === "public" || privacyLevel === "partial";
+      const isDirectDeposit = privacyLevel === "public" || privacyLevel === "partial" || (token === "USDT" && privacyLevel === "full");
       setProcessingStatus(
         isDirectDeposit 
           ? `Processing splits (0/${numSplits})...`
@@ -904,8 +904,21 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                 />
               </div>
 
+              {/* USDT full privacy warning */}
+              {token === "USDT" && privacyLevel === "full" && (
+                <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/30 p-3 flex items-start gap-2">
+                  <span className="text-yellow-400 text-sm mt-0.5">&#9888;</span>
+                  <p className="text-xs text-yellow-300 leading-tight">
+                    Full privacy is not available for USDT. Your deposit will use <strong>partial privacy</strong> (split transfers without mixer). For full privacy with mixer, use USDC.
+                  </p>
+                </div>
+              )}
+
               {/* Fee Breakdown */}
-              {amount && parseFloat(amount) >= minDeposit && (
+              {amount && parseFloat(amount) >= minDeposit && (() => {
+                // USDT on Base: full privacy not supported, effective level is partial
+                const effectivePrivacy = (token === "USDT" && privacyLevel === "full") ? "partial" : privacyLevel;
+                return (
                 <div className="rounded-xl bg-secondary/50 border border-border p-4 space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Deposit amount</span>
@@ -914,19 +927,19 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                     </span>
                   </div>
                   {/* Fee varies by privacy level */}
-                  {privacyLevel === "full" && (
+                  {effectivePrivacy === "full" && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Privacy mixer fee (est.)</span>
                       <span className="text-red-400">-${(parseFloat(amount) * 0.15).toFixed(2)}</span>
                     </div>
                   )}
-                  {privacyLevel === "partial" && (
+                  {effectivePrivacy === "partial" && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Single-hop fee</span>
                       <span className="text-emerald-400">$0.00</span>
                     </div>
                   )}
-                  {privacyLevel === "public" && (
+                  {effectivePrivacy === "public" && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Direct transfer (no mixer)</span>
                       <span className="text-emerald-400">$0.00</span>
@@ -935,38 +948,41 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                   {activeChain === "base" && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Network gas deposit</span>
-                      <span className="text-yellow-400">~{privacyLevel === "public" ? "0.001" : "0.002"} ETH</span>
+                      <span className="text-yellow-400">~{effectivePrivacy === "public" ? "0.001" : "0.002"} ETH</span>
                     </div>
                   )}
                   <div className="border-t border-border pt-2 flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">You will receive (est.)</span>
                     <span className="text-base font-bold text-emerald-400">
-                      {privacyLevel === "full"
+                      {effectivePrivacy === "full"
                         ? `~$${(parseFloat(amount) * 0.85).toFixed(2)} ${token}`
                         : `$${parseFloat(amount).toFixed(2)} ${token}`
                       }
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground/60 leading-tight">
-                    {privacyLevel === "full"
+                    {effectivePrivacy === "full"
                       ? "The only fee is from the privacy mixer. No Void402 platform fee. Actual amount may vary slightly depending on mixer rates."
-                      : privacyLevel === "partial"
-                        ? "Partial privacy: Single-hop transfer without mixer. Faster processing, zero fees."
+                      : effectivePrivacy === "partial"
+                        ? "Partial privacy: Split transfers without mixer. Faster processing, zero fees."
                         : "Public mode: Direct deposit without privacy mixing. Fastest processing, zero fees."
                     }
-                    {activeChain === "base" && ` A small ETH deposit (~${privacyLevel === "public" ? "0.001" : "0.002"} ETH) covers network gas for processing. First deposit requires a ${token} approval.`}
+                    {activeChain === "base" && ` A small ETH deposit (~${effectivePrivacy === "public" ? "0.001" : "0.002"} ETH) covers network gas for processing. First deposit requires a ${token} approval.`}
                   </p>
                   {/* Privacy level indicator */}
                   <div className="flex items-center gap-2 pt-1 border-t border-border/50 mt-2">
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Privacy:</span>
                     <span className={`text-[10px] uppercase tracking-wider font-bold ${
-                      privacyLevel === "full" ? "text-primary" : 
-                      privacyLevel === "partial" ? "text-yellow-400" : "text-muted-foreground"
+                      effectivePrivacy === "full" ? "text-primary" :
+                      effectivePrivacy === "partial" ? "text-yellow-400" : "text-muted-foreground"
                     }`}>
-                      {privacyLevel.charAt(0).toUpperCase() + privacyLevel.slice(1)}
+                      {effectivePrivacy.charAt(0).toUpperCase() + effectivePrivacy.slice(1)}
+                      {token === "USDT" && privacyLevel === "full" && " (downgraded)"}
                     </span>
                   </div>
                 </div>
+                );
+              })()
               )}
 
               {/* Info - changes based on privacy level */}
@@ -1160,8 +1176,8 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
             >
               <Loader2 className="w-12 h-12 text-primary animate-spin" />
               <p className="text-lg font-semibold">
-                {privacyLevel === "full" ? "Privacy Splitting" : 
-                 privacyLevel === "partial" ? "Processing Transfer" : 
+                {(privacyLevel === "full" && token !== "USDT") ? "Privacy Splitting" :
+                 (privacyLevel === "partial" || (token === "USDT" && privacyLevel === "full")) ? "Processing Transfer" :
                  "Direct Deposit"}
               </p>
 
@@ -1177,9 +1193,9 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                 <div className="flex items-center gap-3">
                   <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
                   <span className="text-sm text-white font-medium">
-                    {privacyLevel === "full" 
+                    {(privacyLevel === "full" && token !== "USDT")
                       ? `Sending to privacy mixer (${sentSplits}/${totalSplits} splits)`
-                      : privacyLevel === "partial"
+                      : (privacyLevel === "partial" || (token === "USDT" && privacyLevel === "full"))
                         ? "Single-hop transfer in progress..."
                         : "Direct deposit in progress..."
                     }

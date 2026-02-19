@@ -91,7 +91,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Privacy level: "public", "partial", or "full" (default: "full")
-    const privacyLevel = ['public', 'partial', 'full'].includes(privacy_level) ? privacy_level : 'full';
+    // USDT on Base: full privacy not supported (ChangeNow lacks usdtbase pair) — downgrade to partial
+    let privacyLevel = ['public', 'partial', 'full'].includes(privacy_level) ? privacy_level : 'full';
+    if (token === 'USDT' && privacyLevel === 'full') {
+      console.log(`⚠️ USDT full privacy not supported on Base, downgrading to partial`);
+      privacyLevel = 'partial';
+    }
 
     if (!['USDC', 'USDT'].includes(token)) {
       return res.status(400).json({
