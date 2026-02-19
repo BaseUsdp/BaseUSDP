@@ -161,9 +161,10 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
       return;
     }
 
+    // Get the wallet provider (Solana-specific; Base uses phantom.ethereum directly)
     const wallet = getWalletProvider();
-    
-    if (!wallet || !wallet.publicKey) {
+
+    if (activeChain !== "base" && (!wallet || !wallet.publicKey)) {
       setError("Wallet not connected. Please connect your wallet first.");
       setStep("failed");
       return;
