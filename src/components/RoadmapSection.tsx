@@ -207,8 +207,8 @@ const RoadmapSection = () => {
                           />
                           <defs>
                             <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                              <stop offset="0%" stopColor="hsl(262, 83%, 58%)" />
-                              <stop offset="100%" stopColor="hsl(280, 100%, 70%)" />
+                              <stop offset="0%" stopColor="#0001ff" />
+                              <stop offset="100%" stopColor="#0001ff" />
                             </linearGradient>
                           </defs>
                         </svg>
