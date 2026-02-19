@@ -166,7 +166,7 @@ const TechStackSection = () => {
               {/* Animated data packet */}
               <motion.circle
                 r="1.5"
-                fill="hsl(262, 83%, 58%)"
+                fill="#0001ff"
                 filter="url(#glow)"
                 animate={{
                   cx: networkNodes.slice(0, 10).filter(n => n.connected).map(n => n.x),
@@ -182,7 +182,7 @@ const TechStackSection = () => {
                     cx={node.x}
                     cy={node.y * 0.6}
                     r={node.connected ? 2 : 1}
-                    fill={node.connected ? "hsl(262, 83%, 58%)" : "rgba(255,255,255,0.2)"}
+                    fill={node.connected ? "#0001ff" : "rgba(255,255,255,0.2)"}
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ delay: node.delay, type: "spring" }}
