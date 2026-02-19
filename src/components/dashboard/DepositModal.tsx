@@ -915,10 +915,7 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
               )}
 
               {/* Fee Breakdown */}
-              {amount && parseFloat(amount) >= minDeposit && (() => {
-                // USDT on Base: full privacy not supported, effective level is partial
-                const effectivePrivacy = (token === "USDT" && privacyLevel === "full") ? "partial" : privacyLevel;
-                return (
+              {amount && parseFloat(amount) >= minDeposit && (
                 <div className="rounded-xl bg-secondary/50 border border-border p-4 space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Deposit amount</span>
@@ -926,20 +923,20 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                       ${parseFloat(amount).toFixed(2)} {token}
                     </span>
                   </div>
-                  {/* Fee varies by privacy level */}
-                  {effectivePrivacy === "full" && (
+                  {/* Fee varies by privacy level — USDT full privacy is downgraded to partial */}
+                  {(token !== "USDT" && privacyLevel === "full") && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Privacy mixer fee (est.)</span>
                       <span className="text-red-400">-${(parseFloat(amount) * 0.15).toFixed(2)}</span>
                     </div>
                   )}
-                  {effectivePrivacy === "partial" && (
+                  {(privacyLevel === "partial" || (token === "USDT" && privacyLevel === "full")) && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Single-hop fee</span>
                       <span className="text-emerald-400">$0.00</span>
                     </div>
                   )}
-                  {effectivePrivacy === "public" && (
+                  {privacyLevel === "public" && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Direct transfer (no mixer)</span>
                       <span className="text-emerald-400">$0.00</span>
@@ -948,41 +945,39 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
                   {activeChain === "base" && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Network gas deposit</span>
-                      <span className="text-yellow-400">~{effectivePrivacy === "public" ? "0.001" : "0.002"} ETH</span>
+                      <span className="text-yellow-400">~{privacyLevel === "public" ? "0.001" : "0.002"} ETH</span>
                     </div>
                   )}
                   <div className="border-t border-border pt-2 flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">You will receive (est.)</span>
                     <span className="text-base font-bold text-emerald-400">
-                      {effectivePrivacy === "full"
+                      {(privacyLevel === "full" && token !== "USDT")
                         ? `~$${(parseFloat(amount) * 0.85).toFixed(2)} ${token}`
                         : `$${parseFloat(amount).toFixed(2)} ${token}`
                       }
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground/60 leading-tight">
-                    {effectivePrivacy === "full"
+                    {(privacyLevel === "full" && token !== "USDT")
                       ? "The only fee is from the privacy mixer. No Void402 platform fee. Actual amount may vary slightly depending on mixer rates."
-                      : effectivePrivacy === "partial"
+                      : (privacyLevel === "partial" || (token === "USDT" && privacyLevel === "full"))
                         ? "Partial privacy: Split transfers without mixer. Faster processing, zero fees."
                         : "Public mode: Direct deposit without privacy mixing. Fastest processing, zero fees."
                     }
-                    {activeChain === "base" && ` A small ETH deposit (~${effectivePrivacy === "public" ? "0.001" : "0.002"} ETH) covers network gas for processing. First deposit requires a ${token} approval.`}
+                    {activeChain === "base" && ` A small ETH deposit (~${privacyLevel === "public" ? "0.001" : "0.002"} ETH) covers network gas for processing. First deposit requires a ${token} approval.`}
                   </p>
                   {/* Privacy level indicator */}
                   <div className="flex items-center gap-2 pt-1 border-t border-border/50 mt-2">
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Privacy:</span>
                     <span className={`text-[10px] uppercase tracking-wider font-bold ${
-                      effectivePrivacy === "full" ? "text-primary" :
-                      effectivePrivacy === "partial" ? "text-yellow-400" : "text-muted-foreground"
+                      (privacyLevel === "full" && token !== "USDT") ? "text-primary" :
+                      (privacyLevel === "partial" || (token === "USDT" && privacyLevel === "full")) ? "text-yellow-400" : "text-muted-foreground"
                     }`}>
-                      {effectivePrivacy.charAt(0).toUpperCase() + effectivePrivacy.slice(1)}
-                      {token === "USDT" && privacyLevel === "full" && " (downgraded)"}
+                      {(token === "USDT" && privacyLevel === "full") ? "Partial (downgraded)" :
+                       privacyLevel.charAt(0).toUpperCase() + privacyLevel.slice(1)}
                     </span>
                   </div>
                 </div>
-                );
-              })()
               )}
 
               {/* Info - changes based on privacy level */}
