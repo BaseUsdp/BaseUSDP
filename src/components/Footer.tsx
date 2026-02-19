@@ -122,20 +122,6 @@ const Footer = () => {
               Privacy-first transactions powered by ZK Proofs and x402.
             </p>
           </div>
-
-          {/* Newsletter */}
-          <div className="w-full lg:w-auto">
-            <div className="flex">
-              <input 
-                type="email" 
-                placeholder="YOUR@EMAIL.COM"
-                className="flex-1 lg:w-64 px-4 py-3 bg-white text-black text-sm placeholder:text-gray-500 focus:outline-none"
-              />
-              <button className="px-6 py-3 bg-[#1a1a1a] text-white text-sm font-medium hover:bg-primary/20 transition-colors">
-                SUBSCRIBE
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Copyright */}

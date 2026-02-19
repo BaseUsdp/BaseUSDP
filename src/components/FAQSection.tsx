@@ -164,8 +164,8 @@ const FAQSection = () => {
         >
           <p className="text-white/40 text-sm">
             Still have questions?{" "}
-            <a href="#" className="text-primary hover:underline">
-              Join our Discord
+            <a href="https://t.me/orb402" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              Join our Telegram
             </a>{" "}
             or{" "}
             <a href="#" className="text-primary hover:underline">
