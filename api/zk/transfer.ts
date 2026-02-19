@@ -32,8 +32,10 @@ import { getUSDPHolderTier, calculateFeePercentage } from '../lib/tier-service.j
 import { extractBearerToken, verifyBearerToken } from '../lib/bearer-auth.js';
 import bs58 from 'bs58';
 import { isBaseChain } from '../lib/chain-config.js';
-import { isValidBaseAddress, getBaseSigner, getPrivacyPoolContract, getUsdcAddress, parseUsdc } from '../lib/void402-base.js';
+import { isValidBaseAddress, getBaseSigner, getPrivacyPoolContract, getUsdcAddress, parseUsdc, getBaseProvider } from '../lib/void402-base.js';
 import { generatePrivacyNonce, getProofId, generateMockProof } from '../lib/privacy-utils-base.js';
+import { getBaseIntermediateWalletPool } from '../lib/intermediate-wallet-pool-base.js';
+import { ethers as ethersLib } from 'ethers';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -273,8 +275,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const transferAmount = parseFloat(amount);
       const usdcAddress = getUsdcAddress();
-      const relayerSigner = getBaseSigner();
-      const privacyPoolContract = getPrivacyPoolContract(relayerSigner);
+      const provider = getBaseProvider();
+
+      // Look up sender's intermediate wallet (has pool balance)
+      const { data: senderWalletData } = await supabase!
+        .from('zk_user_wallets')
+        .select('intermediate_wallet')
+        .eq('user_wallet', sender_wallet)
+        .limit(1)
+        .maybeSingle();
+
+      if (!senderWalletData?.intermediate_wallet) {
+        return res.status(400).json({ error: 'Sender has not deposited funds yet' });
+      }
+
+      const baseIntPool = getBaseIntermediateWalletPool();
+      await baseIntPool.initialize();
+      const intWalletData = baseIntPool.getWalletByAddress(senderWalletData.intermediate_wallet);
+      if (!intWalletData) {
+        return res.status(400).json({ error: 'Intermediate wallet not found in pool' });
+      }
+
+      const intSigner = new ethersLib.Wallet(intWalletData.privateKey, provider);
+
+      // Fund intermediate wallet with ETH for gas if needed
+      const intEthBalance = await provider.getBalance(intWalletData.address);
+      const ethNeeded = ethersLib.parseEther("0.002");
+      if (intEthBalance < ethNeeded) {
+        const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
+        if (collectionKey) {
+          const funder = getBaseSigner(collectionKey);
+          const fundTx = await funder.sendTransaction({ to: intWalletData.address, value: ethNeeded });
+          await fundTx.wait();
+          console.log(`[Base Transfer] Funded intermediate with ETH`);
+        }
+      }
+
+      const privacyPoolContract = getPrivacyPoolContract(intSigner);
 
       // Generate nonce and proof
       const privacyNonce = generatePrivacyNonce(sender_wallet);
@@ -286,7 +323,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         privacyNonce,
       );
 
-      // STEP 1: Upload proof
+      // STEP 1: Upload proof (using intermediate wallet which has pool balance)
       console.log(`[Base Transfer] Uploading proof for nonce ${privacyNonce}...`);
       const uploadTx = await privacyPoolContract.uploadProof(
         privacyNonce,
