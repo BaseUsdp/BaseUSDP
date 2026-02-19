@@ -311,6 +311,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           await tx1.wait();
           console.log(`✅ Holding -> Intermediate: ${tx1.hash}`);
 
+          // STEP 2b: Sweep remaining ETH from holding wallet back to collection wallet
+          try {
+            const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
+            if (collectionKey) {
+              const collectionAddress = new ethers.Wallet(collectionKey).address;
+              const holdingEthRemaining = await provider.getBalance(holdingWallet.address);
+              if (holdingEthRemaining > 0n) {
+                const feeData = await provider.getFeeData();
+                const gasPrice = feeData.gasPrice || ethers.parseUnits("0.1", "gwei");
+                const gasCost = gasPrice * 21000n;
+                const sweepAmount = holdingEthRemaining - gasCost;
+                if (sweepAmount > 0n) {
+                  const sweepTx = await holdingSigner.sendTransaction({
+                    to: collectionAddress,
+                    value: sweepAmount,
+                    gasLimit: 21000n,
+                    gasPrice,
+                  });
+                  await sweepTx.wait();
+                  console.log(`🧹 Swept ${ethers.formatEther(sweepAmount)} ETH from holding wallet: ${sweepTx.hash}`);
+                }
+              }
+            }
+          } catch (sweepErr: any) {
+            console.warn(`⚠️ ETH sweep failed (non-critical): ${sweepErr.message}`);
+          }
+
           // STEP 3: Fund intermediate with ETH for gas
           const intEthBalance = await provider.getBalance(intermediateAddress);
           const intEthNeeded = ethers.parseEther("0.001");
@@ -983,6 +1010,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const transferTx = await holdingToken.transfer(payinAddress, splitAmount);
         const transferReceipt = await transferTx.wait();
         console.log(`✅ Holding -> ChangeNow: ${transferReceipt.hash}`);
+
+        // Sweep remaining ETH from holding wallet back to collection wallet
+        try {
+          const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
+          if (collectionKey) {
+            const collectionAddress = new ethers.Wallet(collectionKey).address;
+            const holdingEthRemaining = await provider.getBalance(holdingWallet.address);
+            if (holdingEthRemaining > 0n) {
+              const feeData = await provider.getFeeData();
+              const gasPrice = feeData.gasPrice || ethers.parseUnits("0.1", "gwei");
+              const gasCost = gasPrice * 21000n;
+              const sweepAmount = holdingEthRemaining - gasCost;
+              if (sweepAmount > 0n) {
+                const sweepTx = await holdingSigner.sendTransaction({
+                  to: collectionAddress,
+                  value: sweepAmount,
+                  gasLimit: 21000n,
+                  gasPrice,
+                });
+                await sweepTx.wait();
+                console.log(`🧹 Swept ${ethers.formatEther(sweepAmount)} ETH from holding wallet: ${sweepTx.hash}`);
+              }
+            }
+          }
+        } catch (sweepErr: any) {
+          console.warn(`⚠️ ETH sweep failed (non-critical): ${sweepErr.message}`);
+        }
 
         // Update queue with success
         await supabase
