@@ -291,7 +291,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const baseIntPool = getBaseIntermediateWalletPool();
       await baseIntPool.initialize();
-      const intWalletData = baseIntPool.getWalletByAddress(senderWalletData.intermediate_wallet);
+      const intWalletData = await baseIntPool.getWalletByAddress(senderWalletData.intermediate_wallet);
       if (!intWalletData) {
         return res.status(400).json({ error: 'Intermediate wallet not found in pool' });
       }
