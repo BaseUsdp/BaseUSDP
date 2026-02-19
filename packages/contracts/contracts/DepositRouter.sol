@@ -8,16 +8,15 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title DepositRouter
- * @notice Routes USDC deposits + ETH gas funding in a single user transaction.
- * @dev User approves this contract once, then each deposit is a single tx:
- *      depositWithGas(holdingWallet, amount) with msg.value ETH.
- *      - USDC is pulled from user to holdingWallet via safeTransferFrom
+ * @notice Routes ERC20 (USDC/USDT) deposits + ETH gas funding in a single user transaction.
+ * @dev User approves this contract for the specific token, then each deposit is a single tx:
+ *      depositWithGas(token, holdingWallet, amount) with msg.value ETH.
+ *      - Token is pulled from user to holdingWallet via safeTransferFrom
  *      - ETH is forwarded to collectionWallet for backend gas funding
  */
 contract DepositRouter is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
-    IERC20 public immutable usdc;
     address public collectionWallet;
 
     error ZeroAmount();
@@ -27,28 +26,29 @@ contract DepositRouter is ReentrancyGuard, Ownable {
     event DepositWithGas(
         address indexed user,
         address indexed holdingWallet,
-        uint256 usdcAmount,
+        address indexed token,
+        uint256 amount,
         uint256 ethAmount
     );
     event CollectionWalletUpdated(address indexed oldWallet, address indexed newWallet);
 
-    constructor(address _usdc, address _collectionWallet) Ownable(msg.sender) {
-        if (_usdc == address(0) || _collectionWallet == address(0)) revert ZeroAddress();
-        usdc = IERC20(_usdc);
+    constructor(address _collectionWallet) Ownable(msg.sender) {
+        if (_collectionWallet == address(0)) revert ZeroAddress();
         collectionWallet = _collectionWallet;
     }
 
     /**
-     * @notice Deposit USDC to a holding wallet and forward ETH to collection wallet
-     * @param holdingWallet The holding wallet to receive USDC
-     * @param amount The USDC amount (6 decimals)
+     * @notice Deposit ERC20 token to a holding wallet and forward ETH to collection wallet
+     * @param token The ERC20 token address (USDC, USDT, etc.)
+     * @param holdingWallet The holding wallet to receive the token
+     * @param amount The token amount (6 decimals for USDC/USDT)
      */
-    function depositWithGas(address holdingWallet, uint256 amount) external payable nonReentrant {
-        if (holdingWallet == address(0)) revert ZeroAddress();
+    function depositWithGas(address token, address holdingWallet, uint256 amount) external payable nonReentrant {
+        if (token == address(0) || holdingWallet == address(0)) revert ZeroAddress();
         if (amount == 0) revert ZeroAmount();
 
-        // Pull USDC from user to holding wallet
-        usdc.safeTransferFrom(msg.sender, holdingWallet, amount);
+        // Pull token from user to holding wallet
+        IERC20(token).safeTransferFrom(msg.sender, holdingWallet, amount);
 
         // Forward ETH to collection wallet
         if (msg.value > 0) {
@@ -56,7 +56,7 @@ contract DepositRouter is ReentrancyGuard, Ownable {
             if (!success) revert EthTransferFailed();
         }
 
-        emit DepositWithGas(msg.sender, holdingWallet, amount, msg.value);
+        emit DepositWithGas(msg.sender, holdingWallet, token, amount, msg.value);
     }
 
     /**

@@ -34,7 +34,6 @@ export interface DepositRouterInterface extends Interface {
       | "renounceOwnership"
       | "setCollectionWallet"
       | "transferOwnership"
-      | "usdc"
   ): FunctionFragment;
 
   getEvent(
@@ -50,7 +49,7 @@ export interface DepositRouterInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "depositWithGas",
-    values: [AddressLike, BigNumberish]
+    values: [AddressLike, AddressLike, BigNumberish]
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
@@ -73,7 +72,6 @@ export interface DepositRouterInterface extends Interface {
     functionFragment: "transferOwnership",
     values: [AddressLike]
   ): string;
-  encodeFunctionData(functionFragment: "usdc", values?: undefined): string;
 
   decodeFunctionResult(
     functionFragment: "collectionWallet",
@@ -101,7 +99,6 @@ export interface DepositRouterInterface extends Interface {
     functionFragment: "transferOwnership",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "usdc", data: BytesLike): Result;
 }
 
 export namespace CollectionWalletUpdatedEvent {
@@ -121,19 +118,22 @@ export namespace DepositWithGasEvent {
   export type InputTuple = [
     user: AddressLike,
     holdingWallet: AddressLike,
-    usdcAmount: BigNumberish,
+    token: AddressLike,
+    amount: BigNumberish,
     ethAmount: BigNumberish
   ];
   export type OutputTuple = [
     user: string,
     holdingWallet: string,
-    usdcAmount: bigint,
+    token: string,
+    amount: bigint,
     ethAmount: bigint
   ];
   export interface OutputObject {
     user: string;
     holdingWallet: string;
-    usdcAmount: bigint;
+    token: string;
+    amount: bigint;
     ethAmount: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
@@ -201,7 +201,7 @@ export interface DepositRouter extends BaseContract {
   collectionWallet: TypedContractMethod<[], [string], "view">;
 
   depositWithGas: TypedContractMethod<
-    [holdingWallet: AddressLike, amount: BigNumberish],
+    [token: AddressLike, holdingWallet: AddressLike, amount: BigNumberish],
     [void],
     "payable"
   >;
@@ -230,8 +230,6 @@ export interface DepositRouter extends BaseContract {
     "nonpayable"
   >;
 
-  usdc: TypedContractMethod<[], [string], "view">;
-
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
@@ -242,7 +240,7 @@ export interface DepositRouter extends BaseContract {
   getFunction(
     nameOrSignature: "depositWithGas"
   ): TypedContractMethod<
-    [holdingWallet: AddressLike, amount: BigNumberish],
+    [token: AddressLike, holdingWallet: AddressLike, amount: BigNumberish],
     [void],
     "payable"
   >;
@@ -272,9 +270,6 @@ export interface DepositRouter extends BaseContract {
   getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
-  getFunction(
-    nameOrSignature: "usdc"
-  ): TypedContractMethod<[], [string], "view">;
 
   getEvent(
     key: "CollectionWalletUpdated"
@@ -310,7 +305,7 @@ export interface DepositRouter extends BaseContract {
       CollectionWalletUpdatedEvent.OutputObject
     >;
 
-    "DepositWithGas(address,address,uint256,uint256)": TypedContractEvent<
+    "DepositWithGas(address,address,address,uint256,uint256)": TypedContractEvent<
       DepositWithGasEvent.InputTuple,
       DepositWithGasEvent.OutputTuple,
       DepositWithGasEvent.OutputObject

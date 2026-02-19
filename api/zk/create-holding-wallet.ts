@@ -24,6 +24,7 @@ import { isBaseChain } from '../lib/chain-config.js';
 import {
   generateHoldingWallet,
   getUsdcAddress,
+  getTokenAddress,
   getDepositRouterAddress,
   ERC20_ABI,
   DEPOSIT_ROUTER_ABI,
@@ -129,7 +130,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           holding_wallet_address: holdingAddress,
           amount: amount.toString(),
           token: token,
-          token_mint: getUsdcAddress(),
+          token_mint: getTokenAddress(token),
           status: 'pending',
           privacy_level: privacyLevel,
         });
@@ -158,12 +159,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       console.log(`✅ Base holding wallet created: ${depositId} -> ${holdingAddress}`);
 
-      // Build DepositRouter transaction: router.depositWithGas(holdingWallet, amount) + ETH
+      // Resolve the correct token address (USDC or USDT on Base)
+      const tokenAddress = getTokenAddress(token);
+
+      // Build DepositRouter transaction: router.depositWithGas(token, holdingWallet, amount) + ETH
       const depositAmount = parseFloat(amount);
       const transferAmount = ethers.parseUnits(depositAmount.toString(), 6);
       const routerAddress = getDepositRouterAddress();
       const routerInterface = new ethers.Interface(DEPOSIT_ROUTER_ABI);
       const depositData = routerInterface.encodeFunctionData('depositWithGas', [
+        tokenAddress,
         holdingAddress,
         transferAmount,
       ]);
@@ -174,22 +179,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? ethers.parseEther('0.001')  // holding wallet gas only
         : ethers.parseEther('0.002'); // holding + intermediate wallet gas
 
-      // Check if user needs to approve the router for USDC
+      // Check if user needs to approve the router for this token
       let needsApproval = false;
       let approveTransaction = undefined;
       try {
         const provider = getBaseProvider();
-        const usdcContract = new ethers.Contract(getUsdcAddress(), ERC20_ABI, provider);
-        const allowance = await usdcContract.allowance(wallet, routerAddress);
+        const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+        const allowance = await tokenContract.allowance(wallet, routerAddress);
         if (allowance < transferAmount) {
           needsApproval = true;
           const erc20Interface = new ethers.Interface(ERC20_ABI);
           const approveData = erc20Interface.encodeFunctionData('approve', [
             routerAddress,
-            ethers.MaxUint256,
+            transferAmount,
           ]);
           approveTransaction = {
-            to: getUsdcAddress(),
+            to: tokenAddress,
             data: approveData,
             value: '0x0',
           };
@@ -200,10 +205,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const erc20Interface = new ethers.Interface(ERC20_ABI);
         const approveData = erc20Interface.encodeFunctionData('approve', [
           routerAddress,
-          ethers.MaxUint256,
+          transferAmount,
         ]);
         approveTransaction = {
-          to: getUsdcAddress(),
+          to: tokenAddress,
           data: approveData,
           value: '0x0',
         };
