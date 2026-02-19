@@ -195,8 +195,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const usdcAddress = getUsdcAddress();
-      const relayerSigner = getBaseSigner();
-      const privacyPoolContract = getPrivacyPoolContract(relayerSigner);
+
+      // Get user's intermediate wallet (which holds the pool balance)
+      const { data: baseWalletMapping } = await supabase!
+        .from('zk_user_wallets')
+        .select('intermediate_wallet')
+        .eq('user_wallet', sender_wallet)
+        .maybeSingle();
+
+      if (!baseWalletMapping?.intermediate_wallet) {
+        return res.status(400).json({ error: 'No deposit found. You must deposit funds first.' });
+      }
+
+      const { getBaseIntermediateWalletPool } = await import('../lib/intermediate-wallet-pool-base.js');
+      const { ethers: ethersLib } = await import('ethers');
+      const { getBaseProvider } = await import('../lib/void402-base.js');
+      const provider = getBaseProvider();
+
+      const basePool = getBaseIntermediateWalletPool();
+      await basePool.initialize();
+      const intWalletData = await basePool.getWalletByAddress(baseWalletMapping.intermediate_wallet);
+
+      if (!intWalletData) {
+        return res.status(400).json({ error: 'Intermediate wallet not found in pool' });
+      }
+
+      // Fund intermediate with ETH for gas if needed
+      const intEthBalance = await provider.getBalance(intWalletData.address);
+      const ethNeeded = ethersLib.parseEther("0.002");
+      if (intEthBalance < ethNeeded) {
+        const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
+        if (collectionKey) {
+          const funder = getBaseSigner(collectionKey);
+          const fundTx = await funder.sendTransaction({ to: intWalletData.address, value: ethNeeded });
+          await fundTx.wait();
+          console.log(`[Base Withdraw] Funded intermediate with ETH: ${fundTx.hash}`);
+        }
+      }
+
+      // Use intermediate wallet as signer (it has the pool balance)
+      const intSigner = new ethersLib.Wallet(intWalletData.privateKey, provider);
+      const privacyPoolContract = getPrivacyPoolContract(intSigner);
 
       // Calculate fees: 1% withdraw + 0.5% pool + relayer fee
       const withdrawFeePercent = 1.0;
@@ -216,7 +255,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         privacyNonce,
       );
 
-      // STEP 1: Upload proof
+      // STEP 1: Upload proof (from intermediate wallet which has pool balance)
       console.log(`[Base Withdraw] Uploading proof for nonce ${privacyNonce}...`);
       const uploadTx = await privacyPoolContract.uploadProof(
         privacyNonce,
