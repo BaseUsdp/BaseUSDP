@@ -6,20 +6,29 @@
  * Also builds the unsigned transaction for the user to sign (so frontend doesn't need RPC access).
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { 
-  Connection, 
-  Keypair, 
-  PublicKey, 
-  Transaction, 
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  Transaction,
   SystemProgram,
 } from '@solana/web3.js';
-import { 
-  getAssociatedTokenAddress, 
-  createAssociatedTokenAccountInstruction, 
+import {
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
   createTransferInstruction,
 } from '@solana/spl-token';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { isBaseChain } from '../lib/chain-config.js';
+import {
+  generateHoldingWallet,
+  getUsdcAddress,
+  ERC20_ABI,
+  isValidBaseAddress,
+} from '../lib/void402-base.js';
+import { getBaseIntermediateWalletPool } from '../lib/intermediate-wallet-pool-base.js';
+import { ethers } from 'ethers';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -81,9 +90,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const privacyLevel = ['public', 'partial', 'full'].includes(privacy_level) ? privacy_level : 'full';
 
     if (!['USDC', 'USDT'].includes(token)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid token',
-        message: 'Token must be USDC or USDT' 
+        message: 'Token must be USDC or USDT'
       });
     }
 
@@ -92,6 +101,86 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // ========== BASE CHAIN: EVM holding wallet ==========
+    if (isBaseChain()) {
+      if (!isValidBaseAddress(wallet)) {
+        return res.status(400).json({ error: 'Invalid Base wallet address' });
+      }
+
+      const depositId = `${wallet}_${Date.now()}_${token}`;
+      const holdingWallet = generateHoldingWallet(depositId);
+      const holdingAddress = holdingWallet.address;
+
+      // Assign intermediate wallet from Base pool
+      const intermediatePool = getBaseIntermediateWalletPool();
+      await intermediatePool.initialize();
+      const intermediateWallet = await intermediatePool.getAvailableWallet();
+
+      // Store holding wallet in database
+      const { error: dbError } = await supabase
+        .from('zk_holding_wallets')
+        .insert({
+          deposit_id: depositId,
+          user_wallet: wallet,
+          holding_wallet_address: holdingAddress,
+          amount: amount.toString(),
+          token: token,
+          token_mint: getUsdcAddress(),
+          status: 'pending',
+          privacy_level: privacyLevel,
+        });
+
+      if (dbError && dbError.code !== '23505' && !dbError.message?.includes('duplicate')) {
+        console.error(`❌ Failed to store Base holding wallet:`, dbError);
+        return res.status(500).json({ error: 'Database error', message: dbError.message });
+      }
+
+      // Map user wallet to intermediate wallet
+      const { data: existingMapping } = await supabase
+        .from('zk_user_wallets')
+        .select('intermediate_wallet')
+        .eq('user_wallet', wallet)
+        .maybeSingle();
+
+      if (!existingMapping) {
+        await supabase
+          .from('zk_user_wallets')
+          .insert({
+            user_wallet: wallet,
+            intermediate_wallet: intermediateWallet.address,
+            token: token,
+          });
+      }
+
+      console.log(`✅ Base holding wallet created: ${depositId} -> ${holdingAddress}`);
+
+      // Encode ERC20 transfer calldata: usdc.transfer(holdingWallet, amount)
+      const depositAmount = parseFloat(amount);
+      const transferAmount = ethers.parseUnits(depositAmount.toString(), 6);
+      const erc20Interface = new ethers.Interface(ERC20_ABI);
+      const transferData = erc20Interface.encodeFunctionData('transfer', [
+        holdingAddress,
+        transferAmount,
+      ]);
+
+      return res.status(200).json({
+        success: true,
+        holdingWalletAddress: holdingAddress,
+        depositId: depositId,
+        amount: amount,
+        token: token,
+        privacy_level: privacyLevel,
+        evmTransaction: {
+          to: getUsdcAddress(),
+          data: transferData,
+          value: '0x0',
+        },
+        message: 'Sign this EVM transaction to transfer USDC to the holding wallet.',
+      });
+    }
+
+    // ========== SOLANA CHAIN ==========
     const connection = getSolanaConnection();
 
     // Generate unique deposit ID: wallet_timestamp_token

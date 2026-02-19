@@ -27,11 +27,9 @@ import {
 } from '../lib/void402-solana.js';
 import {
   isValidBaseAddress,
-  getContractAddress,
   getUsdcAddress,
   parseUsdc,
   ERC20_ABI,
-  X402_PRIVACY_POOL_ABI,
 } from '../lib/void402-base.js';
 import { isBaseChain } from '../lib/chain-config.js';
 import { getPrivacyUsdWalletPool } from '../lib/intermediate-wallet-pool.js';
@@ -89,46 +87,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Token must be USDC or USDT' });
     }
 
-    // ========== BASE CHAIN: EVM approve + deposit ==========
+    // ========== BASE CHAIN: Simple USDC transfer to collection wallet ==========
+    // This is a fallback/simple path. The main flow uses create-holding-wallet.
     if (isBaseChain()) {
       if (!isValidBaseAddress(wallet)) {
         return res.status(400).json({ error: 'Invalid Base wallet address' });
       }
 
+      const collectionWallet = process.env.COLLECTION_WALLET_ADDRESS_BASE;
+      if (!collectionWallet) {
+        return res.status(500).json({ error: 'COLLECTION_WALLET_ADDRESS_BASE not configured' });
+      }
+
       const usdcAddress = getUsdcAddress();
-      const poolAddress = getContractAddress();
       const amountBigInt = parseUsdc(amount.toString());
 
-      // Encode USDC.approve(poolAddress, amount)
+      // Encode USDC.transfer(collectionWallet, amount)
       const erc20Interface = new ethers.Interface(ERC20_ABI);
-      const approveData = erc20Interface.encodeFunctionData('approve', [
-        poolAddress,
+      const transferData = erc20Interface.encodeFunctionData('transfer', [
+        collectionWallet,
         amountBigInt,
       ]);
 
-      // Encode Pool.deposit(usdcAddress, amount)
-      const poolInterface = new ethers.Interface(X402_PRIVACY_POOL_ABI);
-      const depositData = poolInterface.encodeFunctionData('deposit', [
-        usdcAddress,
-        amountBigInt,
-      ]);
-
-      console.log(`[base] Deposit prepared: ${wallet.slice(0, 8)}... | ${amount} ${token}`);
+      console.log(`[base] Deposit prepared (transfer to collection): ${wallet.slice(0, 8)}... | ${amount} ${token}`);
 
       return res.status(200).json({
         success: true,
         chain: 'base',
         transactions: [
           {
-            label: 'approve',
+            label: 'transfer',
             to: usdcAddress,
-            data: approveData,
-            value: '0x0',
-          },
-          {
-            label: 'deposit',
-            to: poolAddress,
-            data: depositData,
+            data: transferData,
             value: '0x0',
           },
         ],

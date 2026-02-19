@@ -7,7 +7,7 @@
  * Flow: Mixer Withdrawal Wallet -> Intermediate Wallet -> Pool PDA
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { 
+import {
   Connection,
   PublicKey,
   Keypair,
@@ -15,7 +15,7 @@ import {
   SystemProgram,
   TransactionInstruction,
 } from '@solana/web3.js';
-import { 
+import {
   TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
   getAccount,
@@ -23,12 +23,24 @@ import {
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
 import { createClient } from '@supabase/supabase-js';
-import { 
-  derivePoolPDA, 
+import {
+  derivePoolPDA,
   deriveUserBalancePDA,
   VOID402_PROGRAM_ID,
 } from '../lib/void402-solana.js';
 import { getPrivacyUsdWalletPool } from '../lib/intermediate-wallet-pool.js';
+import { isBaseChain } from '../lib/chain-config.js';
+import {
+  getBaseProvider,
+  getBaseSigner,
+  getUsdcAddress,
+  getUsdcContract,
+  getContractAddress,
+  getPrivacyPoolContract,
+  ERC20_ABI,
+} from '../lib/void402-base.js';
+import { getBaseIntermediateWalletPool } from '../lib/intermediate-wallet-pool-base.js';
+import { ethers } from 'ethers';
 
 // Token mints
 const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
@@ -460,6 +472,149 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } else {
           intermediateWallet = walletMapping.intermediate_wallet;
         }
+
+        // ======================== BASE CHAIN EXCHANGE PROCESSING ========================
+        if (isBaseChain()) {
+          try {
+            const provider = getBaseProvider();
+            const usdcAddress = getUsdcAddress();
+            const poolAddress = getContractAddress();
+
+            const mixerAddress = process.env.MIXER_WITHDRAWAL_WALLET_ADDRESS_BASE;
+            const mixerPrivateKey = process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY_BASE;
+
+            if (!mixerAddress || !mixerPrivateKey) {
+              results.push({ exchangeId: exchange.exchange_id, status: 'error', error: 'Base mixer not configured' });
+              continue;
+            }
+
+            // Load mixer signer
+            const mixerSigner = new ethers.Wallet(mixerPrivateKey, provider);
+            const mixerUsdc = new ethers.Contract(usdcAddress, ERC20_ABI, mixerSigner);
+
+            // Check mixer USDC balance
+            const mixerBalance: bigint = await mixerUsdc.balanceOf(mixerAddress);
+            const splitAmount = ethers.parseUnits(exchange.split_amount, 6);
+            const actualOutputAmount = changenowOutputAmount
+              ? ethers.parseUnits(changenowOutputAmount.toString(), 6)
+              : splitAmount * 85n / 100n;
+
+            // Check if intermediate already has funds
+            const intUsdc = getUsdcContract(provider);
+            const intBalance: bigint = await intUsdc.balanceOf(intermediateWallet);
+
+            if (intBalance >= actualOutputAmount * 80n / 100n) {
+              console.log(`  💰 Funds already in intermediate: ${ethers.formatUnits(intBalance, 6)} ${token}`);
+            } else {
+              if (mixerBalance < actualOutputAmount * 50n / 100n) {
+                console.log(`  ⚠️ Mixer balance too low: ${ethers.formatUnits(mixerBalance, 6)}`);
+                results.push({ exchangeId: exchange.exchange_id, status: 'waiting_for_funds', balance: Number(mixerBalance) / 1e6 });
+                // Release claim
+                try {
+                  await supabase.from('zk_exchanges').update({ deposit_processed: false, status: 'finished' }).eq('id', exchange.id);
+                } catch {
+                  await supabase.from('zk_exchanges').update({ status: 'finished' }).eq('id', exchange.id);
+                }
+                continue;
+              }
+
+              // Transfer actual output amount from mixer to intermediate
+              const transferAmount = mixerBalance < actualOutputAmount ? mixerBalance - 1n : actualOutputAmount;
+              console.log(`  📤 Mixer -> Intermediate: ${ethers.formatUnits(transferAmount, 6)} ${token}`);
+
+              const tx1 = await mixerUsdc.transfer(intermediateWallet, transferAmount);
+              await tx1.wait();
+              console.log(`  ✅ Mixer -> Intermediate: ${tx1.hash}`);
+            }
+
+            // Fund intermediate with ETH for gas
+            const intEthBalance = await provider.getBalance(intermediateWallet);
+            const intEthNeeded = ethers.parseEther("0.001");
+            if (intEthBalance < intEthNeeded) {
+              const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
+              if (collectionKey) {
+                const funder = getBaseSigner(collectionKey);
+                const fundTx = await funder.sendTransaction({ to: intermediateWallet, value: intEthNeeded });
+                await fundTx.wait();
+                console.log(`  ⚡ Funded intermediate with ETH: ${fundTx.hash}`);
+              }
+            }
+
+            // Get intermediate wallet key from pool
+            const basePool = getBaseIntermediateWalletPool();
+            await basePool.initialize();
+            const intWalletData = await basePool.getWalletByAddress(intermediateWallet);
+
+            if (!intWalletData) {
+              results.push({ exchangeId: exchange.exchange_id, status: 'error', error: 'No Base intermediate keypair' });
+              continue;
+            }
+
+            // Intermediate -> Contract (approve + deposit)
+            const intSigner = new ethers.Wallet(intWalletData.privateKey, provider);
+            const intUsdcSigner = new ethers.Contract(usdcAddress, ERC20_ABI, intSigner);
+            const pool = getPrivacyPoolContract(intSigner);
+
+            // Get current intermediate balance
+            const currentIntBalance: bigint = await intUsdcSigner.balanceOf(intermediateWallet);
+            console.log(`  💰 Intermediate balance: ${ethers.formatUnits(currentIntBalance, 6)} ${token}`);
+
+            const approveTx = await intUsdcSigner.approve(poolAddress, currentIntBalance);
+            await approveTx.wait();
+            console.log(`  ✅ Approve: ${approveTx.hash}`);
+
+            const depositTx = await pool.deposit(usdcAddress, currentIntBalance);
+            const depositReceipt = await depositTx.wait();
+            console.log(`  ✅ Intermediate -> Pool deposit: ${depositReceipt.hash}`);
+
+            // Calculate amounts
+            const finalAmount = changenowOutputAmount || Number(currentIntBalance) / 1e6;
+
+            // Record in zk_transactions
+            try {
+              await supabase.from('zk_transactions').insert({
+                sender_wallet: userWallet,
+                recipient_wallet: userWallet,
+                amount: finalAmount,
+                fee_percentage: 0,
+                token_symbol: token,
+                tx_hash: depositReceipt.hash,
+                status: 'completed',
+                privacy_level: 'full',
+                transaction_type: 'deposit',
+              });
+            } catch (logError: any) {
+              console.error('❌ Error logging deposit:', logError);
+            }
+
+            // Mark exchange as fully processed
+            try {
+              await supabase.from('zk_exchanges')
+                .update({ status: 'deposit_complete', user_wallet: userWallet, deposit_processed: true })
+                .eq('id', exchange.id);
+            } catch {
+              await supabase.from('zk_exchanges')
+                .update({ status: 'deposit_complete', user_wallet: userWallet })
+                .eq('id', exchange.id);
+            }
+
+            processedCount++;
+            results.push({ exchangeId: exchange.exchange_id, status: 'processed', amount: finalAmount });
+            continue;
+
+          } catch (error: any) {
+            console.error(`  ❌ Base exchange error: ${error.message}`);
+            // Release claim
+            try {
+              await supabase.from('zk_exchanges').update({ deposit_processed: false, status: 'finished' }).eq('id', exchange.id);
+            } catch {
+              try { await supabase.from('zk_exchanges').update({ status: 'finished' }).eq('id', exchange.id); } catch {}
+            }
+            results.push({ exchangeId: exchange.exchange_id, status: 'error', error: error.message });
+            continue;
+          }
+        }
+        // ======================== END BASE CHAIN EXCHANGE PROCESSING ========================
 
         const tokenMint = token === 'USDC' ? USDC_MINT : USDT_MINT;
 

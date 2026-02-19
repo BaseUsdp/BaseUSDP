@@ -10,6 +10,19 @@ import { Connection, PublicKey, Keypair, Transaction, SystemProgram, Transaction
 import { getAssociatedTokenAddress, getAccount, createTransferInstruction, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { isBaseChain, getChangeNowCurrencies } from '../lib/chain-config.js';
+import {
+  generateHoldingWallet,
+  getBaseProvider,
+  getBaseSigner,
+  getUsdcAddress,
+  getUsdcContract,
+  getContractAddress,
+  getPrivacyPoolContract,
+  ERC20_ABI,
+} from '../lib/void402-base.js';
+import { getBaseIntermediateWalletPool } from '../lib/intermediate-wallet-pool-base.js';
+import { ethers } from 'ethers';
 
 const CHANGENOW_API_KEY = process.env.CHANGENOW_API_KEY;
 const CHANGENOW_BASE_URL = 'https://api.changenow.io/v1';
@@ -204,7 +217,182 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // PUBLIC / PARTIAL: Direct transfer to intermediate wallet (no ChangeNow)
       // =========================================================================
       console.log(`⚡ ${privacyLevel.toUpperCase()} PRIVACY: Processing direct transfer (no ChangeNow)`);
-      
+
+      // ======================== BASE CHAIN PUBLIC/PARTIAL ========================
+      if (isBaseChain()) {
+        try {
+          const provider = getBaseProvider();
+          const holdingWallet = generateHoldingWallet(split.deposit_id);
+          const usdcAddress = getUsdcAddress();
+          const poolAddress = getContractAddress();
+          const splitAmount = ethers.parseUnits(split.split_amount, 6);
+
+          // Check holding wallet USDC balance
+          const usdc = getUsdcContract(provider);
+          const holdingBalance: bigint = await usdc.balanceOf(holdingWallet.address);
+
+          if (holdingBalance < splitAmount) {
+            await supabase
+              .from('zk_split_queue')
+              .update({ status: 'failed', error_message: `Insufficient balance: have ${holdingBalance}, need ${splitAmount}`, updated_at: new Date().toISOString() })
+              .eq('id', split.id);
+            return res.status(400).json({ error: 'Insufficient balance in holding wallet' });
+          }
+
+          // Get or assign intermediate wallet
+          let { data: walletMapping } = await supabase
+            .from('zk_user_wallets')
+            .select('intermediate_wallet')
+            .eq('user_wallet', split.user_wallet)
+            .maybeSingle();
+
+          let intermediateAddress: string;
+
+          if (!walletMapping) {
+            const intermediatePool = getBaseIntermediateWalletPool();
+            await intermediatePool.initialize();
+            const intermediateWallet = await intermediatePool.getAvailableWallet();
+            intermediateAddress = intermediateWallet.address;
+
+            await supabase
+              .from('zk_user_wallets')
+              .insert({ user_wallet: split.user_wallet, intermediate_wallet: intermediateAddress, token: split.token });
+            console.log(`✅ Auto-assigned Base intermediate wallet: ${intermediateAddress}`);
+          } else {
+            intermediateAddress = walletMapping.intermediate_wallet;
+          }
+
+          // Get intermediate wallet private key from pool
+          const intermediatePool = getBaseIntermediateWalletPool();
+          await intermediatePool.initialize();
+          const intermediateWalletData = await intermediatePool.getWalletByAddress(intermediateAddress);
+
+          if (!intermediateWalletData) {
+            await supabase
+              .from('zk_split_queue')
+              .update({ status: 'failed', error_message: 'Intermediate wallet not found in Base pool', updated_at: new Date().toISOString() })
+              .eq('id', split.id);
+            return res.status(500).json({ error: 'Intermediate wallet not found' });
+          }
+
+          // STEP 1: Fund holding wallet with ETH for gas
+          const ethNeeded = ethers.parseEther("0.0005");
+          const holdingEthBalance = await provider.getBalance(holdingWallet.address);
+          if (holdingEthBalance < ethNeeded) {
+            const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
+            if (!collectionKey) throw new Error('COLLECTION_WALLET_PRIVATE_KEY_BASE not set');
+            const funder = getBaseSigner(collectionKey);
+            const fundTx = await funder.sendTransaction({ to: holdingWallet.address, value: ethNeeded });
+            await fundTx.wait();
+            console.log(`⚡ Funded holding wallet with ETH: ${fundTx.hash}`);
+          }
+
+          // STEP 2: Holding -> Intermediate (ERC20 transfer)
+          const holdingSigner = new ethers.Wallet(holdingWallet.privateKey, provider);
+          const holdingUsdc = new ethers.Contract(usdcAddress, ERC20_ABI, holdingSigner);
+          const tx1 = await holdingUsdc.transfer(intermediateAddress, splitAmount);
+          await tx1.wait();
+          console.log(`✅ Holding -> Intermediate: ${tx1.hash}`);
+
+          // STEP 3: Fund intermediate with ETH for gas
+          const intEthBalance = await provider.getBalance(intermediateAddress);
+          const intEthNeeded = ethers.parseEther("0.001");
+          if (intEthBalance < intEthNeeded) {
+            const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
+            if (!collectionKey) throw new Error('COLLECTION_WALLET_PRIVATE_KEY_BASE not set');
+            const funder = getBaseSigner(collectionKey);
+            const fundTx = await funder.sendTransaction({ to: intermediateAddress, value: intEthNeeded });
+            await fundTx.wait();
+            console.log(`⚡ Funded intermediate with ETH: ${fundTx.hash}`);
+          }
+
+          // STEP 4: Intermediate -> Contract (approve + deposit)
+          const intSigner = new ethers.Wallet(intermediateWalletData.privateKey, provider);
+          const intUsdc = new ethers.Contract(usdcAddress, ERC20_ABI, intSigner);
+          const pool = getPrivacyPoolContract(intSigner);
+
+          const approveTx = await intUsdc.approve(poolAddress, splitAmount);
+          await approveTx.wait();
+          console.log(`✅ Intermediate approve: ${approveTx.hash}`);
+
+          const depositTx = await pool.deposit(usdcAddress, splitAmount);
+          const depositReceipt = await depositTx.wait();
+          console.log(`✅ Intermediate -> Pool deposit: ${depositReceipt.hash}`);
+
+          // Mark split as sent
+          await supabase
+            .from('zk_split_queue')
+            .update({
+              status: 'sent',
+              transaction_signature: depositReceipt.hash,
+              exchange_id: `direct_${privacyLevel}`,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', split.id);
+
+          // Record in zk_transactions
+          const amountInCurrency = Number(splitAmount) / 1e6;
+          const { error: txError } = await supabase.from('zk_transactions').insert({
+            sender_wallet: split.user_wallet,
+            recipient_wallet: split.user_wallet,
+            amount: amountInCurrency,
+            fee_percentage: 0,
+            token_symbol: split.token,
+            tx_hash: depositReceipt.hash,
+            status: 'completed',
+            privacy_level: privacyLevel,
+            transaction_type: 'deposit',
+          });
+          if (txError) {
+            console.warn(`⚠️ Failed to log transaction:`, txError.message);
+          }
+
+          // Check if all splits are done
+          const { data: allSplits } = await supabase
+            .from('zk_split_queue')
+            .select('id, status')
+            .eq('deposit_id', split.deposit_id);
+
+          const totalSplits = allSplits?.length || 1;
+          const sentSplits = allSplits?.filter((s: any) => s.status === 'sent').length || 1;
+          const pendingSplits = allSplits?.filter((s: any) => s.status === 'pending').length || 0;
+          const allSent = totalSplits > 0 && sentSplits === totalSplits;
+
+          if (allSent) {
+            await supabase
+              .from('zk_holding_wallets')
+              .update({ status: 'completed', updated_at: new Date().toISOString() })
+              .eq('deposit_id', split.deposit_id);
+            console.log(`✅ Base ${privacyLevel.toUpperCase()} ALL ${totalSplits} splits completed!`);
+          }
+
+          return res.status(200).json({
+            success: true,
+            message: allSent
+              ? `${privacyLevel.charAt(0).toUpperCase() + privacyLevel.slice(1)} deposit completed (no mixer)`
+              : `Split ${split.split_index + 1}/${totalSplits} completed`,
+            splitIndex: split.split_index + 1,
+            signature: depositReceipt.hash,
+            totalSplits,
+            sentSplits,
+            pendingSplits,
+            allSent,
+            depositComplete: allSent,
+            skipMixer: true,
+            privacyLevel,
+          });
+
+        } catch (error: any) {
+          console.error(`❌ Base ${privacyLevel.toUpperCase()} direct transfer failed:`, error);
+          await supabase
+            .from('zk_split_queue')
+            .update({ status: 'failed', error_message: error.message || 'Unknown error', updated_at: new Date().toISOString() })
+            .eq('id', split.id);
+          return res.status(500).json({ success: false, error: error.message || 'Failed to process direct transfer', privacyLevel });
+        }
+      }
+      // ======================== END BASE CHAIN PUBLIC/PARTIAL ========================
+
       try {
         const bs58 = (await import('bs58')).default;
         const connection = getSolanaConnection();
@@ -655,8 +843,170 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     
     // =========================================================================
-    // FULL PRIVACY: Use ChangeNow mixer (existing logic)
+    // FULL PRIVACY: Use ChangeNow mixer
     // =========================================================================
+
+    // ======================== BASE CHAIN FULL PRIVACY ========================
+    if (isBaseChain()) {
+      console.log(`🔒 Base FULL PRIVACY: Routing through ChangeNow mixer`);
+
+      const MIXER_WITHDRAWAL_WALLET_BASE = process.env.MIXER_WITHDRAWAL_WALLET_ADDRESS_BASE;
+      if (!CHANGENOW_API_KEY || !MIXER_WITHDRAWAL_WALLET_BASE) {
+        await supabase
+          .from('zk_split_queue')
+          .update({ status: 'failed', error_message: 'ChangeNow/Mixer not configured for Base', updated_at: new Date().toISOString() })
+          .eq('id', split.id);
+        return res.status(500).json({ error: 'Privacy Mixer not configured for Base' });
+      }
+
+      try {
+        const provider = getBaseProvider();
+        const holdingWallet = generateHoldingWallet(split.deposit_id);
+        const usdcAddress = getUsdcAddress();
+        const splitAmount = ethers.parseUnits(split.split_amount, 6);
+
+        // Check holding wallet USDC balance
+        const usdc = getUsdcContract(provider);
+        const holdingBalance: bigint = await usdc.balanceOf(holdingWallet.address);
+
+        if (holdingBalance < splitAmount) {
+          await supabase
+            .from('zk_split_queue')
+            .update({ status: 'failed', error_message: `Insufficient balance: have ${holdingBalance}, need ${splitAmount}`, updated_at: new Date().toISOString() })
+            .eq('id', split.id);
+          return res.status(400).json({ error: 'Insufficient balance in holding wallet' });
+        }
+
+        // Create ChangeNow exchange
+        const currencies = getChangeNowCurrencies();
+        const fromCurrency = split.token === 'USDC' ? currencies.USDC : currencies.USDT;
+        const toCurrency = fromCurrency;
+        const splitAmountInCurrency = (Number(splitAmount) / 1e6).toString();
+        const splitId = `${split.deposit_id}_split_${split.split_index + 1}`;
+
+        console.log(`📤 Creating ChangeNow exchange for Base split ${split.split_index + 1}...`);
+
+        const changenowResponse = await fetch(`${CHANGENOW_BASE_URL}/transactions/${CHANGENOW_API_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'User-Agent': 'Void402/1.0', 'Accept': 'application/json' },
+          body: JSON.stringify({
+            from: fromCurrency,
+            to: toCurrency,
+            address: MIXER_WITHDRAWAL_WALLET_BASE,
+            amount: splitAmountInCurrency,
+            userId: splitId,
+            contactEmail: '',
+          }),
+        });
+
+        const changenowData = await changenowResponse.json();
+        if (!changenowResponse.ok || !changenowData.id) {
+          throw new Error(`ChangeNow API error: ${JSON.stringify(changenowData)}`);
+        }
+
+        const payinAddress = changenowData.payinAddress || changenowData.address || changenowData.depositAddress;
+        if (!payinAddress) throw new Error('Missing deposit address in ChangeNow response');
+        if (payinAddress === MIXER_WITHDRAWAL_WALLET_BASE) throw new Error('ChangeNow returned withdrawal wallet as deposit address');
+
+        console.log(`✅ ChangeNow exchange ${changenowData.id} created. Deposit: ${payinAddress}`);
+
+        // Fund holding wallet with ETH for gas
+        const ethNeeded = ethers.parseEther("0.0005");
+        const holdingEthBalance = await provider.getBalance(holdingWallet.address);
+        if (holdingEthBalance < ethNeeded) {
+          const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
+          if (!collectionKey) throw new Error('COLLECTION_WALLET_PRIVATE_KEY_BASE not set');
+          const funder = getBaseSigner(collectionKey);
+          const fundTx = await funder.sendTransaction({ to: holdingWallet.address, value: ethNeeded });
+          await fundTx.wait();
+          console.log(`⚡ Funded holding wallet with ETH: ${fundTx.hash}`);
+        }
+
+        // Holding -> ChangeNow (ERC20 transfer)
+        const holdingSigner = new ethers.Wallet(holdingWallet.privateKey, provider);
+        const holdingUsdc = new ethers.Contract(usdcAddress, ERC20_ABI, holdingSigner);
+        const transferTx = await holdingUsdc.transfer(payinAddress, splitAmount);
+        const transferReceipt = await transferTx.wait();
+        console.log(`✅ Holding -> ChangeNow: ${transferReceipt.hash}`);
+
+        // Update queue with success
+        await supabase
+          .from('zk_split_queue')
+          .update({
+            status: 'sent',
+            exchange_id: changenowData.id,
+            exchange_deposit_address: payinAddress,
+            transaction_signature: transferReceipt.hash,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', split.id);
+
+        // Add to zk_exchanges for tracking
+        const { error: exchangeInsertError } = await supabase
+          .from('zk_exchanges')
+          .insert({
+            deposit_id: split.deposit_id,
+            exchange_id: changenowData.id,
+            split_index: split.split_index,
+            user_wallet: split.user_wallet,
+            token: split.token,
+            split_amount: splitAmountInCurrency,
+            status: 'waiting',
+            changenow_status: 'waiting',
+            deposit_processed: false,
+          });
+
+        if (exchangeInsertError) {
+          console.warn(`⚠️ Full insert failed, trying without deposit_processed...`);
+          await supabase
+            .from('zk_exchanges')
+            .insert({
+              deposit_id: split.deposit_id,
+              exchange_id: changenowData.id,
+              split_index: split.split_index,
+              user_wallet: split.user_wallet,
+              token: split.token,
+              split_amount: splitAmountInCurrency,
+              status: 'waiting',
+            });
+        }
+
+        // Check remaining splits
+        const { data: remainingSplits } = await supabase
+          .from('zk_split_queue')
+          .select('id, status, scheduled_at')
+          .eq('deposit_id', split.deposit_id)
+          .order('split_index', { ascending: true });
+
+        const totalSplits = remainingSplits?.length || 0;
+        const sentSplits = remainingSplits?.filter((s: any) => s.status === 'sent').length || 0;
+        const pendingSplitsCount = remainingSplits?.filter((s: any) => s.status === 'pending').length || 0;
+        const nextPending = remainingSplits?.find((s: any) => s.status === 'pending');
+
+        return res.status(200).json({
+          success: true,
+          message: `Split ${split.split_index + 1} sent to ChangeNow`,
+          splitIndex: split.split_index + 1,
+          exchangeId: changenowData.id,
+          signature: transferReceipt.hash,
+          totalSplits,
+          sentSplits,
+          pendingSplits: pendingSplitsCount,
+          nextScheduled: nextPending?.scheduled_at || null,
+          allSent: sentSplits === totalSplits,
+        });
+
+      } catch (error: any) {
+        console.error(`❌ Base FULL split failed:`, error);
+        await supabase
+          .from('zk_split_queue')
+          .update({ status: 'failed', error_message: error.message || 'Unknown error', updated_at: new Date().toISOString() })
+          .eq('id', split.id);
+        return res.status(500).json({ success: false, error: error.message || 'Failed to process split', splitIndex: split.split_index + 1 });
+      }
+    }
+    // ======================== END BASE CHAIN FULL PRIVACY ========================
+
     console.log(`🔒 FULL PRIVACY: Routing through ChangeNow mixer`);
 
     // Check if ChangeNow API is configured

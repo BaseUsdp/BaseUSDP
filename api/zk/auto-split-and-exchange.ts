@@ -16,6 +16,8 @@ import { Connection, PublicKey, Keypair } from '@solana/web3.js';
 import { getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { isBaseChain } from '../lib/chain-config.js';
+import { generateHoldingWallet, getUsdcContract, getBaseProvider } from '../lib/void402-base.js';
 
 // Token mint addresses
 const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
@@ -153,22 +155,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const connection = getSolanaConnection();
-    const holdingKeypair = generateHoldingWalletKeypair(depositId);
-    const holdingPubkey = holdingKeypair.publicKey;
-    const tokenMint = depositData.token === 'USDC' ? USDC_MINT : USDT_MINT;
-
-    // Check holding wallet token balance
-    const holdingTokenAccount = await getAssociatedTokenAddress(tokenMint, holdingPubkey);
-
+    // ========== Check holding wallet balance (chain-specific) ==========
     let actualAmount: bigint;
-    try {
-      const holdingAccount = await getAccount(connection, holdingTokenAccount);
-      actualAmount = holdingAccount.amount;
-    } catch (error: any) {
-      if (error.name === 'TokenAccountNotFoundError' || 
-          error.message?.includes('InvalidAccountData') ||
-          error.message?.includes('AccountNotFound')) {
+
+    if (isBaseChain()) {
+      // Base chain: check ERC20 balance of deterministic holding wallet
+      const holdingWallet = generateHoldingWallet(depositId);
+      const usdc = getUsdcContract(getBaseProvider());
+      const balance: bigint = await usdc.balanceOf(holdingWallet.address);
+
+      if (balance === 0n) {
+        return res.status(200).json({
+          success: false,
+          message: 'No funds detected in holding wallet yet',
+          holdingWalletAddress: holdingWallet.address,
+          depositId: depositId,
+        });
+      }
+
+      actualAmount = balance;
+    } else {
+      // Solana chain: check SPL token balance
+      const connection = getSolanaConnection();
+      const holdingKeypair = generateHoldingWalletKeypair(depositId);
+      const holdingPubkey = holdingKeypair.publicKey;
+      const tokenMint = depositData.token === 'USDC' ? USDC_MINT : USDT_MINT;
+
+      const holdingTokenAccount = await getAssociatedTokenAddress(tokenMint, holdingPubkey);
+
+      try {
+        const holdingAccount = await getAccount(connection, holdingTokenAccount);
+        actualAmount = holdingAccount.amount;
+      } catch (error: any) {
+        if (error.name === 'TokenAccountNotFoundError' ||
+            error.message?.includes('InvalidAccountData') ||
+            error.message?.includes('AccountNotFound')) {
+          return res.status(200).json({
+            success: false,
+            message: 'No funds detected in holding wallet yet',
+            holdingWalletAddress: holdingPubkey.toString(),
+            depositId: depositId
+          });
+        }
+        throw error;
+      }
+
+      if (actualAmount === BigInt(0)) {
         return res.status(200).json({
           success: false,
           message: 'No funds detected in holding wallet yet',
@@ -176,16 +208,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           depositId: depositId
         });
       }
-      throw error;
-    }
-
-    if (actualAmount === BigInt(0)) {
-      return res.status(200).json({
-        success: false,
-        message: 'No funds detected in holding wallet yet',
-        holdingWalletAddress: holdingPubkey.toString(),
-        depositId: depositId
-      });
     }
 
     // Verify amount is close to expected

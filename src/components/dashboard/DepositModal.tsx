@@ -170,7 +170,13 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
   };
 
   /**
-   * Handle Base chain deposit (EVM approve + deposit via Phantom)
+   * Handle Base chain deposit (EVM) — uses the same holding-wallet privacy pipeline as Solana
+   * 1. Create holding wallet -> get evmTransaction
+   * 2. User signs ERC20 transfer to holding wallet (single tx, no approve needed)
+   * 3. Poll auto-split-and-exchange (wait for funds + split)
+   * 4. Poll process-split-queue (process splits)
+   * 5. If full privacy: poll process-pending-exchanges (wait for mixer)
+   * 6. Success
    */
   const handleBaseDeposit = async () => {
     if (!isConnected || !fullWalletAddress) {
@@ -192,27 +198,42 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
       setError("");
       isCancelledRef.current = false;
       setStep("signing");
-      setProcessingStatus("Preparing deposit transactions...");
+      setProcessingStatus("Creating holding wallet...");
 
       const apiUrl = getApiUrl();
+      const depositAmount = parsedAmount;
 
-      // STEP 1: Get approve + deposit calldata from API
-      const depositResponse = await fetch(`${apiUrl}/api/zk/deposit`, {
+      console.log(`[Base Deposit] Starting deposit: ${depositAmount} ${token}`);
+
+      // ============================================
+      // STEP 1: Create holding wallet (returns evmTransaction)
+      // ============================================
+      const holdingResponse = await fetch(`${apiUrl}/api/zk/create-holding-wallet`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           wallet: fullWalletAddress,
-          amount: parsedAmount,
-          token: token === "X402" ? "USDC" : token,
+          amount: depositAmount,
+          token,
+          privacy_level: privacyLevel,
         }),
       });
 
-      const depositResult = await depositResponse.json();
-      if (!depositResult.success || !depositResult.transactions) {
-        throw new Error(depositResult.error || "Failed to prepare deposit");
+      const holdingResult = await holdingResponse.json();
+      if (!holdingResult.success) {
+        throw new Error(holdingResult.error || holdingResult.message || "Failed to create holding wallet");
       }
 
-      // STEP 2: Get Phantom EVM provider
+      const newDepositId = holdingResult.depositId;
+      setDepositId(newDepositId);
+      console.log(`[Base Deposit] Holding wallet: ${holdingResult.holdingWalletAddress}`);
+      console.log(`[Base Deposit] Deposit ID: ${newDepositId}`);
+
+      // ============================================
+      // STEP 2: User signs EVM transfer to holding wallet
+      // ============================================
+      setProcessingStatus("Please approve the transfer in your wallet...");
+
       const ethProvider = (window as any).phantom?.ethereum;
       if (!ethProvider) {
         throw new Error("Phantom Ethereum provider not found. Please update Phantom.");
@@ -247,64 +268,180 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
         throw new Error("No Ethereum accounts found in Phantom");
       }
 
-      // STEP 3: Send approve transaction
-      setProcessingStatus("Approve USDC spending in Phantom...");
-      const approveTx = depositResult.transactions.find((t: any) => t.label === "approve");
-      if (approveTx) {
-        const approveTxHash = await ethProvider.request({
-          method: "eth_sendTransaction",
-          params: [{ from: accounts[0], to: approveTx.to, data: approveTx.data, value: approveTx.value }],
-        });
-        console.log(`[Base Deposit] Approve tx: ${approveTxHash}`);
-        setProcessingStatus("Approval confirmed! Now depositing...");
-        // Brief wait for approval to be mined
-        await new Promise(r => setTimeout(r, 3000));
+      // Send ERC20 transfer (single tx — no approve needed, it's just usdc.transfer())
+      const evmTx = holdingResult.evmTransaction;
+      const txHash = await ethProvider.request({
+        method: "eth_sendTransaction",
+        params: [{ from: accounts[0], to: evmTx.to, data: evmTx.data, value: evmTx.value }],
+      });
+      console.log(`[Base Deposit] Transfer tx: ${txHash}`);
+      setTxSignature(txHash);
+
+      // ============================================
+      // STEP 3: Wait for funds + auto-split
+      // ============================================
+      setStep("waitingForFunds");
+      setProcessingStatus("Detecting funds in holding wallet...");
+
+      await new Promise((r) => setTimeout(r, 5000));
+
+      const splitResult = await pollEndpoint(
+        `${apiUrl}/api/zk/auto-split-and-exchange`,
+        { depositId: newDepositId },
+        (data) => {
+          if (data.success && data.numSplits > 0) {
+            return { done: true, data };
+          }
+          if (data.success === false && data.message?.includes("below minimum")) {
+            return { done: true, data: { error: data.message } };
+          }
+          setProcessingStatus(data.message || "Waiting for funds to arrive...");
+          return { done: false };
+        },
+        5000,
+        300000
+      );
+
+      if (splitResult.error) {
+        throw new Error(splitResult.error);
       }
 
-      // STEP 4: Send deposit transaction
-      setStep("submitting");
-      setProcessingStatus("Confirm deposit in Phantom...");
-      const depositTx = depositResult.transactions.find((t: any) => t.label === "deposit");
-      if (depositTx) {
-        const depositTxHash = await ethProvider.request({
-          method: "eth_sendTransaction",
-          params: [{ from: accounts[0], to: depositTx.to, data: depositTx.data, value: depositTx.value }],
-        });
-        console.log(`[Base Deposit] Deposit tx: ${depositTxHash}`);
-        setTxSignature(depositTxHash);
+      const numSplits = splitResult.numSplits || 1;
+      setTotalSplits(numSplits);
+      setSentSplits(0);
 
-        // STEP 5: Confirm deposit in database
-        setProcessingStatus("Recording deposit...");
-        const confirmResponse = await fetch(`${apiUrl}/api/zk/confirm-deposit`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            wallet: fullWalletAddress,
-            amount: parsedAmount,
-            token: token === "X402" ? "USDC" : token,
-            txHash: depositTxHash,
-          }),
-        });
+      console.log(`[Base Deposit] ${numSplits} splits queued`);
 
-        const confirmResult = await confirmResponse.json();
-        if (!confirmResult.success) {
-          throw new Error(confirmResult.error || "Failed to record deposit. Please contact support.");
-        }
+      // ============================================
+      // STEP 4: Process split queue
+      // ============================================
+      setStep("splitting");
+      const isDirectDeposit = privacyLevel === "public" || privacyLevel === "partial";
+      setProcessingStatus(
+        isDirectDeposit
+          ? `Processing splits (0/${numSplits})...`
+          : `Sending splits to privacy mixer (0/${numSplits})...`
+      );
+
+      let skipMixerStep = false;
+      const splitQueueResult = await pollEndpoint(
+        `${apiUrl}/api/zk/process-split-queue`,
+        { depositId: newDepositId, wallet: fullWalletAddress },
+        (data) => {
+          if (data.sentSplits !== undefined) {
+            setSentSplits(data.sentSplits);
+            setTotalSplits(data.totalSplits || numSplits);
+          }
+
+          if (data.depositComplete && data.skipMixer) {
+            skipMixerStep = true;
+            setProcessingStatus("Deposit complete!");
+            return { done: true, data };
+          }
+
+          if (data.allSent) {
+            if (data.skipMixer) {
+              skipMixerStep = true;
+              setProcessingStatus(`All ${data.totalSplits || numSplits} splits processed!`);
+            } else {
+              setProcessingStatus(`All ${data.totalSplits || numSplits} splits sent to privacy mixer`);
+            }
+            return { done: true, data };
+          }
+
+          const sent = data.sentSplits || 0;
+          const total = data.totalSplits || numSplits;
+          setProcessingStatus(
+            isDirectDeposit
+              ? `Processing splits (${sent}/${total})...`
+              : `Sending splits to privacy mixer (${sent}/${total})...`
+          );
+          return { done: false };
+        },
+        5000,
+        600000
+      );
+
+      console.log(`[Base Deposit] Split queue done. skipMixer=${skipMixerStep}`);
+
+      // ============================================
+      // STEP 5: Process pending exchanges (full privacy only)
+      // ============================================
+      if (!skipMixerStep) {
+        setStep("mixerProcessing");
+        setTotalExchanges(numSplits);
+        setProcessedExchanges(0);
+        setProcessingStatus("Waiting for privacy mixer to process...");
+
+        await pollEndpoint(
+          `${apiUrl}/api/zk/process-pending-exchanges`,
+          { wallet: fullWalletAddress, depositId: newDepositId },
+          (data) => {
+            if (data.completedExchanges !== undefined) {
+              setProcessedExchanges(data.completedExchanges);
+            }
+            if (data.totalExchanges !== undefined && data.totalExchanges > 0) {
+              setTotalExchanges(data.totalExchanges);
+            }
+
+            if (data.allComplete === true) {
+              setProcessingStatus("All exchanges processed!");
+              return { done: true, data };
+            }
+
+            if (data.results && data.results.length > 0) {
+              const statuses = data.results.map((r: any) => r.status);
+              if (statuses.includes("waiting")) {
+                setProcessingStatus("Privacy mixer is processing your funds...");
+              } else if (statuses.includes("exchanging")) {
+                setProcessingStatus("Privacy mixer exchange in progress...");
+              } else if (statuses.includes("confirming")) {
+                setProcessingStatus("Confirming mixer output...");
+              } else if (statuses.includes("waiting_for_funds")) {
+                setProcessingStatus("Waiting for mixer to receive funds...");
+              }
+            } else {
+              const completed = data.completedExchanges || 0;
+              const total = data.totalExchanges || numSplits;
+              setProcessingStatus(`Processing exchanges (${completed}/${total})...`);
+            }
+
+            return { done: false };
+          },
+          10000,
+          1800000
+        );
+
+        console.log(`[Base Deposit] All exchanges processed, deposit complete!`);
+      } else {
+        console.log(`[Base Deposit] Skipped mixer step (${privacyLevel} privacy)`);
       }
 
-      // STEP 6: Success
+      // ============================================
+      // STEP 6: Success!
+      // ============================================
       setStep("success");
+
       if (refreshBalance) {
         setTimeout(() => refreshBalance(), 2000);
       }
     } catch (err: any) {
       console.error("[Base Deposit] Error:", err);
-      if (err.message?.includes("rejected") || err.message?.includes("cancelled") || err.message?.includes("User rejected")) {
+      if (
+        err.message?.includes("rejected") ||
+        err.message?.includes("cancelled") ||
+        err.message?.includes("User rejected")
+      ) {
         setError("Transaction was cancelled");
       } else {
         setError(err.message || "Failed to process deposit");
       }
       setStep("failed");
+
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
     }
   };
 
