@@ -216,11 +216,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const minRequiredAmount = originalExpectedAmount > tolerance ? originalExpectedAmount - tolerance : originalExpectedAmount;
     
     if (actualAmount < minRequiredAmount) {
+      const holdingAddr = isBaseChain()
+        ? generateHoldingWallet(depositId).address
+        : generateHoldingWalletKeypair(depositId).publicKey.toString();
       console.log(`⚠️ AUTO-SPLIT: Insufficient funds - Expected: ${originalExpectedAmount.toString()}, Received: ${actualAmount.toString()}`);
       return res.status(200).json({
         success: false,
         message: 'Insufficient funds received',
-        holdingWalletAddress: holdingPubkey.toString(),
+        holdingWalletAddress: holdingAddr,
         depositId: depositId,
         expectedAmount: originalExpectedAmount.toString(),
         actualAmount: actualAmount.toString(),
