@@ -2,6 +2,13 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "functions": {
+    "api/zk/process-pending-exchanges.ts": { "maxDuration": 300 },
+    "api/zk/process-split-queue.ts": { "maxDuration": 120 },
+    "api/zk/auto-split-and-exchange.ts": { "maxDuration": 120 },
+    "api/zk/withdraw.ts": { "maxDuration": 300 },
+    "api/zk/transfer.ts": { "maxDuration": 120 }
+  },
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],

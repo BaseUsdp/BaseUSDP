@@ -123,17 +123,24 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
     timeoutMs: number,
     method: "POST" | "GET" = "POST"
   ): Promise<any> => {
+    // Clear any leftover interval from a previous polling step
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
+      let resolved = false;
 
       const poll = async () => {
-        if (isCancelledRef.current) {
-          reject(new Error("Cancelled"));
+        if (resolved || isCancelledRef.current) {
+          if (!resolved && isCancelledRef.current) reject(new Error("Cancelled"));
           return;
         }
 
         if (Date.now() - startTime > timeoutMs) {
-          reject(new Error("Timeout waiting for response"));
+          if (!resolved) { resolved = true; reject(new Error("Timeout waiting for response")); }
           return;
         }
 
@@ -147,10 +154,18 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
               };
 
           const response = await fetch(url, fetchOptions);
+          if (!response.ok) {
+            console.warn(`Poll response ${response.status}`);
+            return; // Retry on next interval
+          }
           const data = await response.json();
+
+          if (resolved) return; // Another poll already resolved
+
           const result = checkFn(data);
 
-          if (result.done) {
+          if (result.done && !resolved) {
+            resolved = true;
             if (pollingRef.current) {
               clearInterval(pollingRef.current);
               pollingRef.current = null;
@@ -407,44 +422,53 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
         setProcessedExchanges(0);
         setProcessingStatus("Waiting for privacy mixer to process...");
 
-        await pollEndpoint(
-          `${apiUrl}/api/zk/process-pending-exchanges`,
-          { wallet: fullWalletAddress, depositId: newDepositId },
-          (data) => {
-            if (data.completedExchanges !== undefined) {
-              setProcessedExchanges(data.completedExchanges);
-            }
-            if (data.totalExchanges !== undefined && data.totalExchanges > 0) {
-              setTotalExchanges(data.totalExchanges);
-            }
+        // Trigger processing every 30s in the background (supplements the cron)
+        const triggerProcessing = () => {
+          fetch(`${apiUrl}/api/zk/process-pending-exchanges`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ wallet: fullWalletAddress, depositId: newDepositId }),
+          }).catch(() => {});
+        };
+        triggerProcessing(); // Kick off immediately
+        const processingInterval = setInterval(triggerProcessing, 30000);
 
-            if (data.allComplete === true) {
-              setProcessingStatus("All exchanges processed!");
-              return { done: true, data };
-            }
-
-            if (data.results && data.results.length > 0) {
-              const statuses = data.results.map((r: any) => r.status);
-              if (statuses.includes("waiting")) {
-                setProcessingStatus("Privacy mixer is processing your funds...");
-              } else if (statuses.includes("exchanging")) {
-                setProcessingStatus("Privacy mixer exchange in progress...");
-              } else if (statuses.includes("confirming")) {
-                setProcessingStatus("Confirming mixer output...");
-              } else if (statuses.includes("waiting_for_funds")) {
-                setProcessingStatus("Waiting for mixer to receive funds...");
+        // Poll with statusOnly=true for fast status checks (no on-chain work)
+        try {
+          await pollEndpoint(
+            `${apiUrl}/api/zk/process-pending-exchanges`,
+            { wallet: fullWalletAddress, depositId: newDepositId, statusOnly: true },
+            (data) => {
+              if (data.completedExchanges !== undefined) {
+                setProcessedExchanges(data.completedExchanges);
               }
-            } else {
+              if (data.totalExchanges !== undefined && data.totalExchanges > 0) {
+                setTotalExchanges(data.totalExchanges);
+              }
+
+              if (data.allComplete === true) {
+                setProcessingStatus("All exchanges processed!");
+                return { done: true, data };
+              }
+
               const completed = data.completedExchanges || 0;
               const total = data.totalExchanges || numSplits;
-              setProcessingStatus(`Processing exchanges (${completed}/${total})...`);
-            }
+              if (total > 0 && completed > 0) {
+                setProcessingStatus(`Processing exchanges (${completed}/${total})...`);
+              } else if (total > 0) {
+                setProcessingStatus("Privacy mixer is processing your funds...");
+              } else {
+                setProcessingStatus("Waiting for privacy mixer to process...");
+              }
 
-            return { done: false };
-          },
-          10000,
-          1800000
-        );
+              return { done: false };
+            },
+            8000,    // Poll every 8 seconds
+            1800000  // 30 minute timeout
+          );
+        } finally {
+          clearInterval(processingInterval);
+        }
 
         console.log(`[Base Deposit] All exchanges processed, deposit complete!`);
       } else {
@@ -695,48 +719,53 @@ const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
         setProcessedExchanges(0);
         setProcessingStatus("Waiting for privacy mixer to process...");
 
-        // Poll process-pending-exchanges until ALL exchanges are deposited
-        await pollEndpoint(
-          `${apiUrl}/api/zk/process-pending-exchanges`,
-          { wallet: fullWalletAddress, depositId: newDepositId },
-          (data) => {
-            // Track progress from backend counts
-            if (data.completedExchanges !== undefined) {
-              setProcessedExchanges(data.completedExchanges);
-            }
-            if (data.totalExchanges !== undefined && data.totalExchanges > 0) {
-              setTotalExchanges(data.totalExchanges);
-            }
+        // Trigger processing every 30s in the background (supplements the cron)
+        const triggerProcessing = () => {
+          fetch(`${apiUrl}/api/zk/process-pending-exchanges`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ wallet: fullWalletAddress, depositId: newDepositId }),
+          }).catch(() => {});
+        };
+        triggerProcessing();
+        const processingInterval = setInterval(triggerProcessing, 30000);
 
-            // Backend tells us when ALL exchanges are complete
-            if (data.allComplete === true) {
-              setProcessingStatus("All exchanges processed!");
-              return { done: true, data };
-            }
-
-            // Update status message based on exchange states
-            if (data.results && data.results.length > 0) {
-              const statuses = data.results.map((r: any) => r.status);
-              if (statuses.includes("waiting")) {
-                setProcessingStatus("Privacy mixer is processing your funds...");
-              } else if (statuses.includes("exchanging")) {
-                setProcessingStatus("Privacy mixer exchange in progress...");
-              } else if (statuses.includes("confirming")) {
-                setProcessingStatus("Confirming mixer output...");
-              } else if (statuses.includes("waiting_for_funds")) {
-                setProcessingStatus("Waiting for mixer to receive funds...");
+        // Poll with statusOnly=true for fast status checks (no on-chain work)
+        try {
+          await pollEndpoint(
+            `${apiUrl}/api/zk/process-pending-exchanges`,
+            { wallet: fullWalletAddress, depositId: newDepositId, statusOnly: true },
+            (data) => {
+              if (data.completedExchanges !== undefined) {
+                setProcessedExchanges(data.completedExchanges);
               }
-            } else {
+              if (data.totalExchanges !== undefined && data.totalExchanges > 0) {
+                setTotalExchanges(data.totalExchanges);
+              }
+
+              if (data.allComplete === true) {
+                setProcessingStatus("All exchanges processed!");
+                return { done: true, data };
+              }
+
               const completed = data.completedExchanges || 0;
               const total = data.totalExchanges || numSplits;
-              setProcessingStatus(`Processing exchanges (${completed}/${total})...`);
-            }
+              if (total > 0 && completed > 0) {
+                setProcessingStatus(`Processing exchanges (${completed}/${total})...`);
+              } else if (total > 0) {
+                setProcessingStatus("Privacy mixer is processing your funds...");
+              } else {
+                setProcessingStatus("Waiting for privacy mixer to process...");
+              }
 
-            return { done: false };
-          },
-          10000,   // Poll every 10 seconds
-          1800000  // 30 minute timeout (ChangeNow can take time)
-        );
+              return { done: false };
+            },
+            8000,    // Poll every 8 seconds
+            1800000  // 30 minute timeout (ChangeNow can take time)
+          );
+        } finally {
+          clearInterval(processingInterval);
+        }
 
         console.log(`[Deposit] All exchanges processed, deposit complete!`);
       } else {

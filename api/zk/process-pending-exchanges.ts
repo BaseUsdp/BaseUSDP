@@ -112,8 +112,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log('🔍 process-pending-exchanges: Handler started');
 
   try {
-    const { wallet, depositId } = req.method === 'POST' ? (req.body || {}) : (req.query || {});
-    console.log(`📋 Processing exchanges for wallet: ${wallet || 'ALL'}, depositId: ${depositId || 'ALL'}`);
+    const params = req.method === 'POST' ? (req.body || {}) : (req.query || {});
+    const { wallet, depositId, statusOnly } = params;
+    console.log(`📋 Processing exchanges for wallet: ${wallet || 'ALL'}, depositId: ${depositId || 'ALL'}, statusOnly: ${!!statusOnly}`);
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -124,6 +125,68 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // ============ STATUS-ONLY MODE ============
+    // Fast path: just check exchange completion counts without triggering processing.
+    // The cron job (every 2 minutes) handles actual on-chain processing.
+    if (statusOnly && depositId) {
+      const { data: allExchanges } = await supabase
+        .from('zk_exchanges')
+        .select('id, status')
+        .eq('deposit_id', depositId);
+
+      if (allExchanges && allExchanges.length > 0) {
+        const completedCount = allExchanges.filter((e: any) => e.status === 'deposit_complete').length;
+        const allComplete = completedCount === allExchanges.length;
+
+        return res.status(200).json({
+          success: true,
+          message: allComplete ? 'All exchanges completed' : 'Processing...',
+          processed: 0,
+          depositId,
+          totalExchanges: allExchanges.length,
+          completedExchanges: completedCount,
+          allComplete,
+        });
+      }
+
+      // No exchanges yet — check if this is a public/partial deposit
+      const { data: holdingData } = await supabase
+        .from('zk_holding_wallets')
+        .select('privacy_level, status')
+        .eq('deposit_id', depositId)
+        .single();
+
+      if (holdingData) {
+        const privacyLevel = holdingData.privacy_level || 'full';
+        const isDirectDeposit = privacyLevel === 'public' || privacyLevel === 'partial';
+        if (isDirectDeposit) {
+          const allComplete = holdingData.status === 'completed';
+          return res.status(200).json({
+            success: true,
+            message: allComplete ? 'Direct deposit completed' : 'Processing direct deposit...',
+            processed: 0,
+            depositId,
+            totalExchanges: 0,
+            completedExchanges: 0,
+            allComplete,
+            privacyLevel,
+            skipMixer: true,
+          });
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'No pending exchanges yet',
+        processed: 0,
+        depositId,
+        totalExchanges: 0,
+        completedExchanges: 0,
+        allComplete: false,
+      });
+    }
+
+    // ============ FULL PROCESSING MODE ============
     // Find exchanges that haven't been credited to user yet
     // Skip 'deposit_complete' (already done). Include 'processing' so stale claims
     // can be detected and recovered (the loop handles stale claim detection).
@@ -133,7 +196,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .neq('status', 'deposit_complete')
       .order('created_at', { ascending: true })
       .limit(20);
-    
+
     // Filter by depositId first (most specific)
     if (depositId) {
       query = query.eq('deposit_id', depositId);
@@ -408,12 +471,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Exchange is finished - process it
         console.log(`  💰 Processing for user ${userWallet}`);
 
-        // Get user's intermediate wallet
-        let { data: walletMapping } = await supabase
+        // Get user's intermediate wallet (use limit(1) — user may have multiple token rows)
+        const { data: walletMappings } = await supabase
           .from('zk_user_wallets')
           .select('intermediate_wallet')
           .eq('user_wallet', userWallet)
-          .maybeSingle();
+          .limit(1);
+        const walletMapping = walletMappings?.[0] || null;
 
         let intermediateWallet: string;
 
@@ -470,11 +534,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               });
             
             if (insertError) {
-              const { data: existingMapping } = await supabase
+              const { data: existingMappings } = await supabase
                 .from('zk_user_wallets')
                 .select('intermediate_wallet')
                 .eq('user_wallet', userWallet)
-                .maybeSingle();
+                .limit(1);
+              const existingMapping = existingMappings?.[0] || null;
               
               if (existingMapping?.intermediate_wallet) {
                 intermediateWallet = existingMapping.intermediate_wallet;
