@@ -38,7 +38,6 @@ const TransactionFilters = ({
     { id: "all", label: "All" },
     { id: "sent", label: "Sent" },
     { id: "received", label: "Received" },
-    { id: "x402", label: "x402" },
     { id: "transfer", label: "Transfers" },
   ];
 

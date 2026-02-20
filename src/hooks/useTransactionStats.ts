@@ -6,81 +6,83 @@ interface TransactionStats {
   sent: number;
   received: number;
   transfers: number;
-  payments: number;
+  stables: number;
   yieldEarnings: number;
-  gasFees: number;
+  gasFeesEth: number;
   monthlySent: number;
   monthlyReceived: number;
   monthlyYield: number;
 }
+
+// Known gas costs per deposit on Base (ETH)
+const GAS_COST_FULL_PRIVACY = 0.002;
+const GAS_COST_PUBLIC = 0.001;
 
 export function useTransactionStats() {
   const { fullWalletAddress, isConnected } = useWallet();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const fetchTransactions = async () => {
+    if (!isConnected || !fullWalletAddress) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const result = await getTransactionHistory(fullWalletAddress, 100);
+      if (result && result.success) {
+        setTransactions(result.transactions);
+      }
+    } catch (err) {
+      console.error("Error fetching transaction stats:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchTransactions = async () => {
-      if (!isConnected || !fullWalletAddress) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        // Fetch last 100 transactions for stats calculation
-        const result = await getTransactionHistory(fullWalletAddress, 100);
-        if (result && result.success) {
-          setTransactions(result.transactions);
-        }
-      } catch (err) {
-        console.error("Error fetching transaction stats:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchTransactions();
-    // Refresh every 60 seconds
     const interval = setInterval(fetchTransactions, 60000);
     return () => clearInterval(interval);
   }, [fullWalletAddress, isConnected]);
 
-  const stats = useMemo(() => {
-    if (!transactions.length) {
-      return {
-        sent: 0,
-        received: 0,
-        transfers: 0,
-        payments: 0,
-        yieldEarnings: 0,
-        gasFees: 0,
-        monthlySent: 0,
-        monthlyReceived: 0,
-        monthlyYield: 0,
-      };
-    }
-
+  const stats = useMemo((): TransactionStats => {
     const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const defaults: TransactionStats = {
+      sent: 0,
+      received: 0,
+      transfers: 0,
+      stables: 0,
+      yieldEarnings: 0,
+      gasFeesEth: 0,
+      monthlySent: 0,
+      monthlyReceived: 0,
+      monthlyYield: 0,
+    };
+
+    if (!transactions.length) return defaults;
 
     let sent = 0;
     let received = 0;
     let transfers = 0;
-    let payments = 0;
-    let yieldEarnings = 0;
-    let gasFees = 0;
+    let stables = 0;
+    let gasFeesEth = 0;
     let monthlySent = 0;
     let monthlyReceived = 0;
-    let monthlyYield = 0;
 
     transactions.forEach(tx => {
       const txDate = new Date(tx.timestamp);
       const amount = tx.amount || 0;
-      const fee = tx.fee || 0;
+      const isThisMonth = txDate >= thisMonthStart;
 
-      // Determine direction: deposits are incoming, withdrawals are outgoing
+      // Only count this month's activity
+      if (!isThisMonth) return;
+
+      // Determine direction
       let isSent: boolean;
       if (tx.type === "deposit") {
         isSent = false;
@@ -90,28 +92,30 @@ export function useTransactionStats() {
         isSent = tx.from === fullWalletAddress;
       }
 
-      // All-time stats
       if (isSent) {
         sent += amount;
+        monthlySent += amount;
       } else {
         received += amount;
+        monthlyReceived += amount;
       }
 
+      // Transfers: user-to-user sends/receives
       if (tx.type === "transfer" || tx.type === "sent" || tx.type === "received") {
         transfers += amount;
-      } else if (tx.type === "payment") {
-        payments += amount;
       }
 
-      gasFees += fee;
+      // Stables: all USDC/USDT deposit and withdrawal volume
+      if (tx.type === "deposit" || tx.type === "withdraw") {
+        stables += amount;
+      }
 
-      // Monthly stats (this month)
-      if (txDate >= thisMonthStart) {
-        if (isSent) {
-          monthlySent += amount;
-        } else {
-          monthlyReceived += amount;
-        }
+      // Gas fees: each Base deposit costs ETH for gas
+      if (tx.type === "deposit") {
+        const gasCost = tx.privacyLevel === "public"
+          ? GAS_COST_PUBLIC
+          : GAS_COST_FULL_PRIVACY;
+        gasFeesEth += gasCost;
       }
     });
 
@@ -119,14 +123,14 @@ export function useTransactionStats() {
       sent,
       received,
       transfers,
-      payments,
-      yieldEarnings,
-      gasFees,
+      stables,
+      yieldEarnings: 0,
+      gasFeesEth,
       monthlySent,
       monthlyReceived,
-      monthlyYield,
+      monthlyYield: 0,
     };
   }, [transactions, fullWalletAddress]);
 
-  return { stats, isLoading };
+  return { stats, isLoading, refetch: fetchTransactions };
 }

@@ -49,7 +49,7 @@ const BalanceDisplay = ({ showBalance }: BalanceDisplayProps) => {
       }
       
       setTokenBalance(usdcBalance + usdtBalance);
-      setSolBalance(0); // SOL balance not tracked in ZK pool
+      setSolBalance(0); // ETH balance not tracked in ZK pool
       setError(null);
     } catch (err: any) {
       console.error("Error fetching balance:", err);
@@ -194,7 +194,7 @@ const BalanceDisplay = ({ showBalance }: BalanceDisplayProps) => {
               </span>
             </div>
           </motion.div>
-          {/* SOL Balance */}
+          {/* ETH Balance */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}

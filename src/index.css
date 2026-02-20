@@ -65,6 +65,65 @@
     --gradient-accent: linear-gradient(135deg, #0001ff / 0.3 0%, #0001ff / 0.1 50%, transparent 100%);
     --gradient-card: linear-gradient(180deg, hsl(260 15% 10%) 0%, hsl(260 15% 6%) 100%);
     --gradient-border: linear-gradient(135deg, #0001ff / 0.5, #0001ff / 0.3, transparent);
+
+    /* Dashboard surface tokens */
+    --dash-surface: rgba(255, 255, 255, 0.05);
+    --dash-surface-hover: rgba(255, 255, 255, 0.1);
+    --dash-border: rgba(255, 255, 255, 0.1);
+    --dash-overlay: rgba(0, 0, 0, 0.02);
+    --dash-sidebar: rgba(0, 0, 0, 0.3);
+    --dash-main: rgba(0, 0, 0, 0.2);
+    --dash-text: #d4d4d4;
+    --dash-text-muted: #a3a3a3;
+    --dash-text-faint: #737373;
+    --dash-text-heading: #e5e5e5;
+  }
+
+  /* Light mode overrides */
+  .light {
+    --background: 0 0% 96%;
+    --foreground: 240 10% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+
+    --primary: 240 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 92%;
+    --secondary-foreground: 240 10% 20%;
+
+    --muted: 240 5% 92%;
+    --muted-foreground: 240 5% 40%;
+
+    --accent: 240 100% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 6% 85%;
+    --input: 240 6% 85%;
+    --ring: 240 100% 50%;
+
+    --glass-bg: 0 0% 100% / 0.8;
+    --glass-border: 0 0% 0% / 0.08;
+    --glass-highlight: 0 0% 100% / 0.5;
+    --glass-shadow: 240 100% 50% / 0.05;
+
+    --dash-surface: rgba(0, 0, 0, 0.04);
+    --dash-surface-hover: rgba(0, 0, 0, 0.07);
+    --dash-border: rgba(0, 0, 0, 0.1);
+    --dash-overlay: rgba(255, 255, 255, 0.5);
+    --dash-sidebar: rgba(255, 255, 255, 0.7);
+    --dash-main: rgba(255, 255, 255, 0.5);
+    --dash-text: #404040;
+    --dash-text-muted: #525252;
+    --dash-text-faint: #737373;
+    --dash-text-heading: #171717;
   }
 }
 
@@ -118,10 +177,28 @@
     background: rgba(0, 1, 255, 0.7);
   }
 
+  .light ::-webkit-scrollbar-track {
+    background: hsl(0 0% 96%);
+  }
+
+  .light ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+  }
+
+  .light ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.25);
+  }
+
   /* Selection */
   ::selection {
     background: rgba(0, 1, 255, 0.3);
     color: hsl(0 0% 100%);
+  }
+
+  .light ::selection {
+    background: rgba(0, 1, 255, 0.2);
+    color: hsl(240 10% 10%);
   }
 }
 

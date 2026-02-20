@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Icon } from "@iconify/react";
@@ -12,9 +12,7 @@ import X402PaymentModal from "../X402PaymentModal";
 import PayX402Modal from "../PayX402Modal";
 import X402RequestsManagement from "../X402RequestsManagement";
 import {
-  getPhantomProvider,
   getMetaMaskEVMProvider,
-  WalletAdapter,
 } from "@/services/transactionSigningService";
 import { executeZKTransfer } from "@/services/api";
 import { getApiUrl } from "@/utils/apiConfig";
@@ -97,28 +95,6 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
     return recipient;
   };
 
-  // Get the appropriate wallet provider based on connected wallet type
-  const getWalletProvider = useCallback((): WalletAdapter | null => {
-    if (!isConnected || !walletType) {
-      return null;
-    }
-    
-    if (walletType === "phantom") {
-      const provider = getPhantomProvider();
-      if (provider && provider.publicKey) {
-        return {
-          ...provider,
-          connected: true,
-          publicKey: provider.publicKey,
-        } as WalletAdapter;
-      }
-    } else if (walletType === "metamask") {
-      // MetaMask is EVM-only, no Solana WalletAdapter
-      return null;
-    }
-    return null;
-  }, [walletType, isConnected]);
-
   // Validate wallet address (chain-aware)
   const isValidAddress = (address: string) => {
     if (activeChain === "base") {
@@ -161,61 +137,31 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
       return;
     }
 
-    // Get the wallet provider (Solana-specific; Base uses phantom.ethereum directly)
-    const wallet = getWalletProvider();
-
-    if (activeChain !== "base" && (!wallet || !wallet.publicKey)) {
-      setError("Wallet not connected. Please connect your wallet first.");
-      setStep("failed");
-      return;
-    }
-
     try {
       setStep("signing");
-      
-      const displayRecipient = recipientType === "username" 
+
+      const displayRecipient = recipientType === "username"
         ? `@${usernameInput.startsWith("@") ? usernameInput.substring(1) : usernameInput}`
         : recipient;
       const message = `Authorize ORB402 transfer:\nAmount: ${amount} USDC\nTo: ${displayRecipient}\nTimestamp: ${Date.now()}`;
-      
+
       let walletSignature: string;
       try {
         if (activeChain === "base") {
-          // EVM signing via Phantom ethereum provider
-          const ethereumProvider = (window as any).phantom?.ethereum;
-          if (!ethereumProvider) throw new Error("Phantom EVM provider not found");
+          // EVM signing via Phantom ethereum provider or MetaMask
+          const ethereumProvider = walletType === "phantom"
+            ? (window as any).phantom?.ethereum
+            : getMetaMaskEVMProvider();
+          if (!ethereumProvider) throw new Error("EVM wallet provider not found");
           const accounts = await ethereumProvider.request({ method: "eth_accounts" });
           if (!accounts || accounts.length === 0) throw new Error("No accounts connected");
-          const hexMessage = "0x" + Array.from(new TextEncoder().encode(message)).map(b => b.toString(16).padStart(2, "0")).join("");
+          const hexMessage = "0x" + Array.from(new TextEncoder().encode(message)).map((b: number) => b.toString(16).padStart(2, "0")).join("");
           walletSignature = await ethereumProvider.request({
             method: "personal_sign",
             params: [hexMessage, accounts[0]],
           });
         } else {
-        const encodedMessage = new TextEncoder().encode(message);
-
-        if (walletType === "phantom") {
-          const provider = (window as any).phantom?.solana;
-          if (!provider) throw new Error("Phantom wallet not found");
-
-          const signedMessage = await provider.signMessage(encodedMessage, "utf8");
-          if (!signedMessage || !signedMessage.signature) {
-            throw new Error("Failed to sign message");
-          }
-          const bs58 = (await import("bs58")).default;
-          walletSignature = bs58.encode(signedMessage.signature);
-        } else if (walletType === "metamask") {
-          const provider = getMetaMaskEVMProvider();
-          if (!provider) throw new Error("MetaMask wallet not found");
-
-          const accounts = await provider.request({ method: 'eth_accounts' });
-          walletSignature = await provider.request({
-            method: 'personal_sign',
-            params: [message, accounts[0]],
-          });
-        } else {
-          throw new Error("Unsupported wallet type");
-        }
+          throw new Error("Unsupported chain");
         }
       } catch (signError: any) {
         if (signError.message?.includes("reject") || signError.message?.includes("User rejected") || signError.message?.includes("User cancelled")) {
@@ -245,12 +191,6 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
       }
 
       const result = await executeZKTransfer(transferPayload);
-
-      if (activeChain !== "base" && (!wallet?.connected || !wallet?.publicKey)) {
-        setError("Wallet disconnected during transaction. Please reconnect and try again.");
-        setStep("failed");
-        return;
-      }
 
       if (result.success && result.signature) {
         setTxHash(result.signature);

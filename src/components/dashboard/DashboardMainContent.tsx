@@ -200,6 +200,42 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
     }
   };
 
+  const handleExportCSV = async () => {
+    if (!isConnected || !fullWalletAddress) return;
+    try {
+      const result = await getTransactionHistory(fullWalletAddress, 100);
+      if (!result?.success || !result.transactions.length) return;
+
+      const headers = ["Date", "Type", "Direction", "Amount (USD)", "Counterparty", "Status", "Tx Hash"];
+      const rows = result.transactions.map(tx => {
+        const direction = tx.type === "deposit" ? "received"
+          : tx.type === "withdraw" ? "sent"
+          : tx.from === fullWalletAddress ? "sent" : "received";
+        const counterparty = (tx as any).counterparty || (direction === "sent" ? tx.to : tx.from);
+        return [
+          new Date(tx.timestamp).toISOString(),
+          tx.type,
+          direction,
+          (tx.amount || 0).toFixed(2),
+          counterparty || "Unknown",
+          tx.status,
+          tx.signature,
+        ];
+      });
+
+      const csv = [headers, ...rows].map(row => row.map(c => `"${c}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `orb402_transactions_${new Date().toISOString().split("T")[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+    }
+  };
+
   if (activeTab === "settings") {
     return (
       <div className="p-4 sm:p-6">
@@ -244,13 +280,20 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
   return (
     <>
       {/* Content Header */}
-      <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2 text-xs text-neutral-300">
+      <div
+        className="flex items-center gap-2 px-3 py-2 text-xs"
+        style={{ borderBottom: '1px solid var(--dash-border)', color: 'var(--dash-text)' }}
+      >
         <Icon icon="ph:package-bold" className="h-4 w-4 text-sky-400" />
         <span>Dashboard</span>
-        <span className="text-neutral-500">•</span>
-        <span className="text-neutral-400">Privacy Mode: {privacyLevel}</span>
+        <span style={{ color: 'var(--dash-text-faint)' }}>•</span>
+        <span style={{ color: 'var(--dash-text-muted)' }}>Privacy Mode: {privacyLevel}</span>
         <div className="ml-auto">
-          <button className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 hover:bg-white/10 text-[11px] transition-colors">
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition-colors"
+            style={{ borderColor: 'var(--dash-border)', background: 'var(--dash-surface)', color: 'var(--dash-text)' }}
+          >
             <Icon icon="ph:upload-bold" className="w-3 h-3" />
             Export
           </button>
@@ -262,13 +305,14 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="overflow-hidden rounded-xl p-5 bg-gradient-to-br from-black/0 via-black/10 to-black/0 backdrop-blur border border-white/5"
+          className="overflow-hidden rounded-xl p-5 backdrop-blur"
+          style={{ border: '1px solid var(--dash-border)', background: 'var(--dash-surface)' }}
         >
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Icon icon="ph:shield-check-bold" className="w-4 h-4 text-sky-400" />
-                <span className="text-sm text-neutral-400">Encrypted Balance</span>
+                <span className="text-sm" style={{ color: 'var(--dash-text-muted)' }}>Encrypted Balance</span>
               </div>
               <div className="flex items-baseline gap-3">
                 <span className="text-3xl font-semibold tracking-tight">
@@ -276,24 +320,24 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
                 </span>
                 <button
                   onClick={() => setShowBalance(!showBalance)}
-                  className="p-1 hover:bg-white/10 rounded transition-colors"
+                  className="p-1 rounded transition-colors"
                 >
                   {showBalance ? (
-                    <Icon icon="ph:eye-slash-bold" className="w-4 h-4 text-neutral-400" />
+                    <Icon icon="ph:eye-slash-bold" className="w-4 h-4" style={{ color: 'var(--dash-text-muted)' }} />
                   ) : (
-                    <Icon icon="ph:eye-bold" className="w-4 h-4 text-neutral-400" />
+                    <Icon icon="ph:eye-bold" className="w-4 h-4" style={{ color: 'var(--dash-text-muted)' }} />
                   )}
                 </button>
                 <button
                   onClick={() => handleRefreshAll()}
                   disabled={isBalanceLoading}
-                  className="p-1 hover:bg-white/10 rounded transition-colors"
+                  className="p-1 rounded transition-colors"
                   title="Refresh all balances"
                 >
                   <Icon icon="ph:arrows-clockwise-bold" className={cn(
-                    "w-4 h-4 text-neutral-400",
+                    "w-4 h-4",
                     isBalanceLoading && "animate-spin"
-                  )} />
+                  )} style={{ color: 'var(--dash-text-muted)' }} />
                 </button>
               </div>
               <div className="flex items-center gap-1 text-xs mt-1 text-emerald-400">
@@ -302,7 +346,7 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
               </div>
             </div>
             <div className="text-right">
-              <div className="text-sm text-neutral-400 mb-1">Privacy</div>
+              <div className="text-sm mb-1" style={{ color: 'var(--dash-text-muted)' }}>Privacy</div>
               <div className={cn(
                 "text-xl font-semibold capitalize",
                 privacyLevel === "full" ? "text-emerald-400" :
@@ -310,7 +354,7 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
               )}>
                 {privacyLevel}
               </div>
-              <div className="flex items-center gap-1 justify-end text-xs text-neutral-400 mt-1">
+              <div className="flex items-center gap-1 justify-end text-xs mt-1" style={{ color: 'var(--dash-text-muted)' }}>
                 <Icon icon="ph:lock-bold" className="w-3 h-3" />
                 ZK Protected
               </div>
@@ -319,10 +363,10 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
 
           {/* Quick Stats */}
           <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="rounded-lg bg-white/5 p-3">
+            <div className="rounded-lg p-3" style={{ background: 'var(--dash-surface)' }}>
               <div className="flex items-center gap-2 mb-1">
                 <Icon icon="ph:arrow-down-left-bold" className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs text-neutral-400">Received</span>
+                <span className="text-xs" style={{ color: 'var(--dash-text-muted)' }}>Received</span>
               </div>
               <p className="text-lg font-semibold">
                 {showBalance 
@@ -330,10 +374,10 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
                   : "••••"}
               </p>
             </div>
-            <div className="rounded-lg bg-white/5 p-3">
+            <div className="rounded-lg p-3" style={{ background: 'var(--dash-surface)' }}>
               <div className="flex items-center gap-2 mb-1">
                 <Icon icon="ph:arrow-up-right-bold" className="w-4 h-4 text-red-400" />
-                <span className="text-xs text-neutral-400">Sent</span>
+                <span className="text-xs" style={{ color: 'var(--dash-text-muted)' }}>Sent</span>
               </div>
               <p className="text-lg font-semibold">
                 {showBalance 
@@ -368,31 +412,32 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="rounded-xl p-4 bg-gradient-to-br from-black/0 via-black/10 to-black/0 backdrop-blur border border-white/5"
+            className="rounded-xl p-4 backdrop-blur"
+            style={{ border: '1px solid var(--dash-border)', background: 'var(--dash-surface)' }}
           >
             <div className="mb-3">
-              <div className="text-sm font-medium text-neutral-300">Stable Currencies</div>
+              <div className="text-sm font-medium" style={{ color: 'var(--dash-text)' }}>Stable Currencies</div>
             </div>
             <div className="flex items-center justify-evenly">
               <div className="flex flex-col items-center gap-1" title="USDC">
-                <img 
-                  src="https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png" 
-                  alt="USDC" 
+                <img
+                  src="https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png"
+                  alt="USDC"
                   className="w-7 h-7 rounded-full"
                 />
-                <span className="text-xs text-neutral-400">USDC</span>
-                <span className="text-sm font-medium text-white">
+                <span className="text-xs" style={{ color: 'var(--dash-text-muted)' }}>USDC</span>
+                <span className="text-sm font-medium" style={{ color: 'var(--dash-text-heading)' }}>
                   {showBalance ? `$${tokenBalances.usdc.toFixed(2)}` : "••••"}
                 </span>
               </div>
               <div className="flex flex-col items-center gap-1" title="USDT">
-                <img 
-                  src="https://assets.coingecko.com/coins/images/325/small/Tether.png" 
-                  alt="USDT" 
+                <img
+                  src="https://assets.coingecko.com/coins/images/325/small/Tether.png"
+                  alt="USDT"
                   className="w-7 h-7 rounded-full"
                 />
-                <span className="text-xs text-neutral-400">USDT</span>
-                <span className="text-sm font-medium text-white">
+                <span className="text-xs" style={{ color: 'var(--dash-text-muted)' }}>USDT</span>
+                <span className="text-sm font-medium" style={{ color: 'var(--dash-text-heading)' }}>
                   {showBalance ? `$${tokenBalances.usdt.toFixed(2)}` : "••••"}
                 </span>
               </div>
@@ -403,10 +448,11 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="rounded-xl p-4 bg-gradient-to-br from-black/0 via-black/10 to-black/0 backdrop-blur border border-white/5"
+            className="rounded-xl p-4 backdrop-blur"
+            style={{ border: '1px solid var(--dash-border)', background: 'var(--dash-surface)' }}
           >
             <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-medium text-neutral-300">Privacy Level</div>
+              <div className="text-sm font-medium" style={{ color: 'var(--dash-text)' }}>Privacy Level</div>
             </div>
             <PrivacyLevelSelector compact onNavigateToSettings={() => setActiveTab("settings")} />
           </motion.div>
@@ -417,13 +463,15 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="rounded-xl p-4 bg-gradient-to-br from-black/0 via-black/10 to-black/0 backdrop-blur border border-white/5"
+          className="rounded-xl p-4 backdrop-blur"
+          style={{ border: '1px solid var(--dash-border)', background: 'var(--dash-surface)' }}
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="text-sm font-medium text-neutral-300">Recent Transactions</div>
-            <button 
+            <div className="text-sm font-medium" style={{ color: 'var(--dash-text)' }}>Recent Transactions</div>
+            <button
               onClick={() => setActiveTab("history")}
-              className="text-xs text-neutral-500 hover:text-neutral-400 transition-colors"
+              className="text-xs transition-colors"
+              style={{ color: 'var(--dash-text-faint)' }}
             >
               See All
             </button>
@@ -431,10 +479,10 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
           <div className="space-y-2">
             {isLoadingTransactions ? (
               <div className="flex items-center justify-center py-4">
-                <Icon icon="ph:spinner-bold" className="w-5 h-5 text-neutral-400 animate-spin" />
+                <Icon icon="ph:spinner-bold" className="w-5 h-5 animate-spin" style={{ color: 'var(--dash-text-muted)' }} />
               </div>
             ) : recentTransactions.length === 0 ? (
-              <div className="text-center py-4 text-sm text-neutral-500">No transactions yet</div>
+              <div className="text-center py-4 text-sm" style={{ color: 'var(--dash-text-faint)' }}>No transactions yet</div>
             ) : (
               recentTransactions.map((tx, i) => (
                 <motion.div
@@ -442,20 +490,20 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.25 + i * 0.05 }}
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors"
+                  className="flex items-center gap-3 p-2 rounded-lg transition-colors"
                 >
                   <div className={cn("w-8 h-8 rounded-lg grid place-items-center", tx.bgColor)}>
                     <Icon icon={tx.icon} className={cn("w-4 h-4", tx.color)} />
                   </div>
                   <div className="flex-1">
-                    <div className="text-sm text-neutral-300">
+                    <div className="text-sm" style={{ color: 'var(--dash-text)' }}>
                       {tx.type === "deposit" ? "Deposit" :
                        tx.type === "withdraw" ? "Withdrawal" :
-                       tx.type === "sent" ? `Sent to ${tx.to}` : 
+                       tx.type === "sent" ? `Sent to ${tx.to}` :
                        tx.type === "received" ? `Received from ${tx.from}` :
                        tx.type === "x402" ? `x402 from ${tx.from || "Service"}` : `Transfer`}
                     </div>
-                    <div className="text-[11px] text-neutral-500">{tx.time}</div>
+                    <div className="text-[11px]" style={{ color: 'var(--dash-text-faint)' }}>{tx.time}</div>
                   </div>
                   <div className={cn(
                     "text-sm font-medium",

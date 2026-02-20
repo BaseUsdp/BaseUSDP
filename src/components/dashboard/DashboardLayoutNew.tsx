@@ -49,8 +49,10 @@ const DashboardLayoutNew = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] shadow-2xl backdrop-blur-xl"
+          className="relative w-full overflow-hidden rounded-2xl shadow-2xl backdrop-blur-xl"
           style={{
+            border: '1px solid var(--dash-border)',
+            background: 'var(--dash-overlay)',
             maskImage: "linear-gradient(180deg, black 0%, black 100%)",
           }}
         >
@@ -60,7 +62,10 @@ const DashboardLayoutNew = () => {
           {/* Main Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12">
             {/* Left Sidebar */}
-            <aside className="hidden lg:block lg:col-span-3 bg-black/30 border-r border-white/10">
+            <aside
+              className="hidden lg:block lg:col-span-3"
+              style={{ background: 'var(--dash-sidebar)', borderRight: '1px solid var(--dash-border)' }}
+            >
               <DashboardLeftSidebar
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
@@ -70,7 +75,7 @@ const DashboardLayoutNew = () => {
             </aside>
 
             {/* Main Content */}
-            <main className="lg:col-span-6 bg-black/20 min-h-[700px]">
+            <main className="lg:col-span-6 min-h-[700px]" style={{ background: 'var(--dash-main)' }}>
               <DashboardMainContent
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
@@ -81,7 +86,10 @@ const DashboardLayoutNew = () => {
             </main>
 
             {/* Right Sidebar */}
-            <aside className="hidden lg:block lg:col-span-3 bg-black/30 border-l border-white/10">
+            <aside
+              className="hidden lg:block lg:col-span-3"
+              style={{ background: 'var(--dash-sidebar)', borderLeft: '1px solid var(--dash-border)' }}
+            >
               <DashboardRightSidebar
                 showBalance={showBalance}
                 onNavigateToPaymentsTab={(tab) => {

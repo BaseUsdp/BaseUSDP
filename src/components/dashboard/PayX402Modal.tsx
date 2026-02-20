@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CreditCard, QrCode, Loader2, CheckCircle2, AlertCircle, Shield, ExternalLink, Copy, X } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
@@ -13,9 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getPaymentStatus, settleZKX402PaymentSimple } from "@/services/api";
 import {
-  getPhantomProvider,
   getMetaMaskEVMProvider,
-  WalletAdapter,
 } from "@/services/transactionSigningService";
 
 interface PayX402ModalProps {
@@ -41,17 +39,6 @@ const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
   const [txHash, setTxHash] = useState("");
   const [error, setError] = useState("");
-
-  // Get the appropriate wallet provider based on connected wallet type
-  const getWalletProvider = useCallback((): WalletAdapter | null => {
-    if (walletType === "phantom") {
-      return getPhantomProvider();
-    } else if (walletType === "metamask") {
-      // MetaMask is EVM-only, no Solana WalletAdapter
-      return null;
-    }
-    return null;
-  }, [walletType]);
 
   const handleLookup = async () => {
     if (!paymentId.trim()) return;
@@ -121,10 +108,7 @@ const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
       return;
     }
 
-    // Get the wallet provider
-    const wallet = getWalletProvider();
-    
-    if (!wallet || !wallet.connected || !wallet.publicKey) {
+    if (!fullWalletAddress || !walletType) {
       setError("Wallet not connected. Please connect your wallet first.");
       setStep("failed");
       return;
@@ -142,32 +126,24 @@ const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
       // Create message to sign
       const message = `Authorize ORB402 x402 payment:\nPayment ID: ${paymentDetails.id}\nAmount: ${paymentDetails.amount} USDC\nTimestamp: ${Date.now()}`;
       
-      // Sign message with wallet
+      // Sign message with wallet (EVM signing for Base chain)
       let walletSignature: string;
       try {
-        const encodedMessage = new TextEncoder().encode(message);
-        
-        if (walletType === "phantom") {
-          const provider = (window as any).phantom?.solana;
-          if (!provider) throw new Error("Phantom wallet not found");
-          
-          const signedMessage = await provider.signMessage(encodedMessage, "utf8");
-          if (!signedMessage || !signedMessage.signature) {
-            throw new Error("Failed to sign message");
-          }
-          const bs58 = (await import("bs58")).default;
-          walletSignature = bs58.encode(signedMessage.signature);
-        } else if (walletType === "metamask") {
-          const provider = getMetaMaskEVMProvider();
-          if (!provider) throw new Error("MetaMask wallet not found");
-
-          const accounts = await provider.request({ method: 'eth_accounts' });
-          walletSignature = await provider.request({
-            method: 'personal_sign',
-            params: [message, accounts[0]],
+        if (activeChain === "base") {
+          // EVM signing via Phantom ethereum provider or MetaMask
+          const ethereumProvider = walletType === "phantom"
+            ? (window as any).phantom?.ethereum
+            : getMetaMaskEVMProvider();
+          if (!ethereumProvider) throw new Error("EVM wallet provider not found");
+          const accounts = await ethereumProvider.request({ method: "eth_accounts" });
+          if (!accounts || accounts.length === 0) throw new Error("No accounts connected");
+          const hexMessage = "0x" + Array.from(new TextEncoder().encode(message)).map((b: number) => b.toString(16).padStart(2, "0")).join("");
+          walletSignature = await ethereumProvider.request({
+            method: "personal_sign",
+            params: [hexMessage, accounts[0]],
           });
         } else {
-          throw new Error("Unsupported wallet type");
+          throw new Error("Unsupported chain");
         }
       } catch (signError: any) {
         if (signError.message?.includes("reject") || signError.message?.includes("User rejected") || signError.message?.includes("User cancelled")) {
