@@ -14,6 +14,7 @@ import PaymentsSection from "./sections/PaymentsSection";
 import HistorySection from "./sections/HistorySection";
 import WithdrawSection from "./sections/WithdrawSection";
 import MessagesSection from "./sections/MessagesSection";
+import AITerminalSection from "./sections/AITerminalSection";
 import { getTransactionHistory, TransactionHistoryResponse, getZKBalance } from "@/services/api";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
 
@@ -235,6 +236,12 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
       console.error("Export failed:", err);
     }
   };
+
+  if (activeTab === "terminal") {
+    return (
+      <AITerminalSection showBalance={showBalance} setActiveTab={setActiveTab} />
+    );
+  }
 
   if (activeTab === "settings") {
     return (

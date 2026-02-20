@@ -11,7 +11,8 @@ import {
   Settings,
   History,
   ArrowUpRight,
-  MessageSquare
+  MessageSquare,
+  Terminal
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
 
   const navItems = [
     { id: "overview", label: "Dashboard", icon: LayoutDashboard },
+    { id: "terminal", label: "AI Terminal", icon: Terminal },
     { id: "payments", label: "Payments", icon: Send },
     { id: "withdraw", label: "Withdraw", icon: ArrowUpRight },
     { id: "history", label: "History", icon: History },
