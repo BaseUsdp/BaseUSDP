@@ -34,6 +34,8 @@ const AITerminalSection = ({ showBalance, setActiveTab }: AITerminalSectionProps
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [sendInitialRecipient, setSendInitialRecipient] = useState<string | undefined>();
+  const [sendInitialAmount, setSendInitialAmount] = useState<string | undefined>();
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [x402ModalOpen, setX402ModalOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -54,6 +56,8 @@ const AITerminalSection = ({ showBalance, setActiveTab }: AITerminalSectionProps
   const executeAction = (action: { type: string; params?: Record<string, string> }) => {
     switch (action.type) {
       case "send_payment":
+        setSendInitialRecipient(action.params?.recipient);
+        setSendInitialAmount(action.params?.amount);
         setSendModalOpen(true);
         break;
       case "deposit":
@@ -327,7 +331,7 @@ const AITerminalSection = ({ showBalance, setActiveTab }: AITerminalSectionProps
       </div>
 
       {/* Modals triggered by AI actions */}
-      <SendPaymentModal open={sendModalOpen} onOpenChange={setSendModalOpen} />
+      <SendPaymentModal open={sendModalOpen} onOpenChange={setSendModalOpen} initialRecipient={sendInitialRecipient} initialAmount={sendInitialAmount} />
       <DepositModal open={depositModalOpen} onOpenChange={setDepositModalOpen} />
       <X402PaymentModal open={x402ModalOpen} onOpenChange={setX402ModalOpen} />
     </>

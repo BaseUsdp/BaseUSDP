@@ -27,11 +27,13 @@ type RecipientType = "address" | "username";
 interface SendPaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialRecipient?: string;
+  initialAmount?: string;
 }
 
 type TransactionStep = "form" | "preview" | "signing" | "encrypting" | "pending" | "success" | "failed";
 
-const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
+const SendPaymentModal = ({ open, onOpenChange, initialRecipient, initialAmount }: SendPaymentModalProps) => {
   const { encryptedBalance, privacyLevel, walletType, isConnected, fullWalletAddress, refreshBalance, activeChain } = useWallet();
   const apiUrl = getApiUrl();
   
@@ -52,6 +54,24 @@ const SendPaymentModal = ({ open, onOpenChange }: SendPaymentModalProps) => {
   const [error, setError] = useState("");
   const [currentUsername, setCurrentUsername] = useState<string | null>(null);
   const [tokenBalances, setTokenBalances] = useState<{ usdc: number; usdt: number }>({ usdc: 0, usdt: 0 });
+
+  // Pre-fill from AI Terminal or external caller
+  useEffect(() => {
+    if (open) {
+      if (initialRecipient) {
+        if (initialRecipient.startsWith("@")) {
+          setRecipientType("username");
+          setUsernameInput(initialRecipient.replace(/^@/, ""));
+        } else {
+          setRecipientType("address");
+          setRecipient(initialRecipient);
+        }
+      }
+      if (initialAmount) {
+        setAmount(initialAmount);
+      }
+    }
+  }, [open, initialRecipient, initialAmount]);
 
   // Fetch per-token balances
   useEffect(() => {
