@@ -22,8 +22,8 @@ Available actions:
    Include amount param if the user specified it.
 
 4. deposit - Open the deposit modal
-   { "type": "deposit", "params": { "amount": "100" } }
-   Include amount param if the user specified it.
+   { "type": "deposit", "params": { "amount": "100", "token": "USDC" } }
+   Include amount and token params if the user specified them. Token must be "USDC" or "USDT". Default to "USDC" if not specified.
 
 5. withdraw - Open the withdraw form
    { "type": "withdraw", "params": { "amount": "50" } }
