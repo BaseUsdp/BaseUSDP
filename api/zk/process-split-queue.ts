@@ -229,15 +229,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
           const holdingBalance: bigint = await tokenContract.balanceOf(holdingWallet.address);
 
-          if (holdingBalance < splitAmount) {
-            await supabase
-              .from('zk_split_queue')
-              .update({ status: 'failed', error_message: `Insufficient balance: have ${holdingBalance}, need ${splitAmount}`, updated_at: new Date().toISOString() })
-              .eq('id', split.id);
-            return res.status(400).json({ error: 'Insufficient balance in holding wallet' });
-          }
-
-          // Get or assign intermediate wallet
+          // Get or assign intermediate wallet (needed for both fresh and retry flows)
           let { data: walletMapping } = await supabase
             .from('zk_user_wallets')
             .select('intermediate_wallet')
@@ -273,70 +265,87 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(500).json({ error: 'Intermediate wallet not found' });
           }
 
-          // STEP 1: Fund holding wallet with ETH for gas
-          const ethNeeded = ethers.parseEther("0.0005");
-          const holdingEthBalance = await provider.getBalance(holdingWallet.address);
-          if (holdingEthBalance < ethNeeded) {
-            const fundAmount = ethNeeded - holdingEthBalance;
-            let funded = false;
-            const funderKeys = [
-              { name: 'collection', key: process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE },
-              { name: 'mixer', key: process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY_BASE },
-            ];
-            for (const { name, key } of funderKeys) {
-              if (!key || funded) continue;
-              try {
-                const funder = new ethers.Wallet(key, provider);
-                const funderBalance = await provider.getBalance(funder.address);
-                const estimatedGas = ethers.parseEther("0.00015");
-                if (funderBalance < fundAmount + estimatedGas) {
-                  console.warn(`  ⚠️ ${name} wallet (${funder.address.slice(0, 10)}...) insufficient ETH: ${ethers.formatEther(funderBalance)}`);
-                  continue;
-                }
-                const fundTx = await funder.sendTransaction({ to: holdingWallet.address, value: fundAmount });
-                await fundTx.wait();
-                console.log(`⚡ Funded holding wallet with ${ethers.formatEther(fundAmount)} ETH from ${name} wallet: ${fundTx.hash}`);
-                funded = true;
-              } catch (fundErr: any) {
-                console.warn(`  ⚠️ Failed to fund from ${name} wallet: ${fundErr.message}`);
-              }
-            }
-            if (!funded) throw new Error('Cannot fund holding wallet with ETH - all funder wallets depleted');
+          // Check if intermediate wallet already has tokens from a previous attempt
+          // (e.g., holding→intermediate succeeded but pool deposit failed on retry)
+          const intermediateBalance: bigint = await tokenContract.balanceOf(intermediateAddress);
+          const alreadyTransferred = holdingBalance < splitAmount && intermediateBalance >= splitAmount;
+
+          if (holdingBalance < splitAmount && !alreadyTransferred) {
+            await supabase
+              .from('zk_split_queue')
+              .update({ status: 'failed', error_message: `Insufficient balance: have ${holdingBalance}, need ${splitAmount}`, updated_at: new Date().toISOString() })
+              .eq('id', split.id);
+            return res.status(400).json({ error: 'Insufficient balance in holding wallet' });
           }
 
-          // STEP 2: Holding -> Intermediate (ERC20 transfer)
-          const holdingSigner = new ethers.Wallet(holdingWallet.privateKey, provider);
-          const holdingToken = new ethers.Contract(tokenAddress, ERC20_ABI, holdingSigner);
-          const tx1 = await holdingToken.transfer(intermediateAddress, splitAmount);
-          await tx1.wait();
-          console.log(`✅ Holding -> Intermediate: ${tx1.hash}`);
-
-          // STEP 2b: Sweep remaining ETH from holding wallet back to collection wallet
-          try {
-            const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
-            if (collectionKey) {
-              const collectionAddress = new ethers.Wallet(collectionKey).address;
-              const holdingEthRemaining = await provider.getBalance(holdingWallet.address);
-              if (holdingEthRemaining > 0n) {
-                const feeData = await provider.getFeeData();
-                const gasPrice = feeData.gasPrice || ethers.parseUnits("0.1", "gwei");
-                const gasCost = gasPrice * 21000n;
-                const sweepAmount = holdingEthRemaining - gasCost;
-                if (sweepAmount > 0n) {
-                  const sweepTx = await holdingSigner.sendTransaction({
-                    to: collectionAddress,
-                    value: sweepAmount,
-                    gasLimit: 21000n,
-                    gasPrice,
-                  });
-                  await sweepTx.wait();
-                  console.log(`🧹 Swept ${ethers.formatEther(sweepAmount)} ETH from holding wallet: ${sweepTx.hash}`);
+          if (alreadyTransferred) {
+            console.log(`🔄 RETRY: Intermediate wallet already has ${ethers.formatUnits(intermediateBalance, 6)} ${split.token} from previous attempt, skipping transfer`);
+          } else {
+            // STEP 1: Fund holding wallet with ETH for gas
+            const ethNeeded = ethers.parseEther("0.0005");
+            const holdingEthBalance = await provider.getBalance(holdingWallet.address);
+            if (holdingEthBalance < ethNeeded) {
+              const fundAmount = ethNeeded - holdingEthBalance;
+              let funded = false;
+              const funderKeys = [
+                { name: 'collection', key: process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE },
+                { name: 'mixer', key: process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY_BASE },
+              ];
+              for (const { name, key } of funderKeys) {
+                if (!key || funded) continue;
+                try {
+                  const funder = new ethers.Wallet(key, provider);
+                  const funderBalance = await provider.getBalance(funder.address);
+                  const estimatedGas = ethers.parseEther("0.00015");
+                  if (funderBalance < fundAmount + estimatedGas) {
+                    console.warn(`  ⚠️ ${name} wallet (${funder.address.slice(0, 10)}...) insufficient ETH: ${ethers.formatEther(funderBalance)}`);
+                    continue;
+                  }
+                  const fundTx = await funder.sendTransaction({ to: holdingWallet.address, value: fundAmount });
+                  await fundTx.wait();
+                  console.log(`⚡ Funded holding wallet with ${ethers.formatEther(fundAmount)} ETH from ${name} wallet: ${fundTx.hash}`);
+                  funded = true;
+                } catch (fundErr: any) {
+                  console.warn(`  ⚠️ Failed to fund from ${name} wallet: ${fundErr.message}`);
                 }
               }
+              if (!funded) throw new Error('Cannot fund holding wallet with ETH - all funder wallets depleted');
             }
-          } catch (sweepErr: any) {
-            console.warn(`⚠️ ETH sweep failed (non-critical): ${sweepErr.message}`);
-          }
+
+            // STEP 2: Holding -> Intermediate (ERC20 transfer)
+            const holdingSigner = new ethers.Wallet(holdingWallet.privateKey, provider);
+            const holdingToken = new ethers.Contract(tokenAddress, ERC20_ABI, holdingSigner);
+            const tx1 = await holdingToken.transfer(intermediateAddress, splitAmount);
+            await tx1.wait();
+            console.log(`✅ Holding -> Intermediate: ${tx1.hash}`);
+
+            // STEP 2b: Sweep remaining ETH from holding wallet back to collection wallet
+            try {
+              const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
+              if (collectionKey) {
+                const collectionAddress = new ethers.Wallet(collectionKey).address;
+                const holdingEthRemaining = await provider.getBalance(holdingWallet.address);
+                if (holdingEthRemaining > 0n) {
+                  const feeData = await provider.getFeeData();
+                  const gasPrice = feeData.gasPrice || ethers.parseUnits("0.1", "gwei");
+                  const gasCost = gasPrice * 21000n;
+                  const sweepAmount = holdingEthRemaining - gasCost;
+                  if (sweepAmount > 0n) {
+                    const sweepTx = await holdingSigner.sendTransaction({
+                      to: collectionAddress,
+                      value: sweepAmount,
+                      gasLimit: 21000n,
+                      gasPrice,
+                    });
+                    await sweepTx.wait();
+                    console.log(`🧹 Swept ${ethers.formatEther(sweepAmount)} ETH from holding wallet: ${sweepTx.hash}`);
+                  }
+                }
+              }
+            } catch (sweepErr: any) {
+              console.warn(`⚠️ ETH sweep failed (non-critical): ${sweepErr.message}`);
+            }
+          } // end else (fresh transfer, not retry)
 
           // STEP 3: Fund intermediate with ETH for gas
           const intEthBalance = await provider.getBalance(intermediateAddress);
