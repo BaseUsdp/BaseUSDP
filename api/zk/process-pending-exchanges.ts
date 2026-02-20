@@ -125,12 +125,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Find exchanges that haven't been credited to user yet
-    // Use status to track processing: 'deposit_complete' means done, skip those
-    // Also skip 'processing' — another instance is actively working on it
+    // Skip 'deposit_complete' (already done). Include 'processing' so stale claims
+    // can be detected and recovered (the loop handles stale claim detection).
     let query = supabase
       .from('zk_exchanges')
       .select('*')
-      .not('status', 'in', '("deposit_complete","processing")')
+      .neq('status', 'deposit_complete')
       .order('created_at', { ascending: true })
       .limit(20);
     
@@ -325,12 +325,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         // If deposit_processed is true but status is NOT deposit_complete,
-        // another instance might still be working on it. DO NOT reset the claim
-        // mid-flight — only the error handler at the bottom resets claims on failure.
+        // another instance might still be working on it — OR it's a stale claim.
+        // Check created_at to detect stale claims (stuck for >10 minutes).
         if (exchange.deposit_processed === true) {
-          console.log(`  ⏭️ Exchange is being processed by another instance, skipping`);
-          results.push({ exchangeId: exchange.exchange_id, status: 'in_progress' });
-          continue;
+          const createdAt = new Date(exchange.created_at).getTime();
+          const staleCutoffMs = 10 * 60 * 1000; // 10 minutes
+          const ageMs = Date.now() - createdAt;
+
+          if (ageMs > staleCutoffMs) {
+            console.log(`  🔄 Stale claim detected (age ${Math.round(ageMs / 60000)}m), resetting for retry...`);
+            try {
+              await supabase.from('zk_exchanges')
+                .update({ deposit_processed: false, status: 'finished' })
+                .eq('id', exchange.id)
+                .eq('status', 'processing');
+            } catch {
+              try {
+                await supabase.from('zk_exchanges')
+                  .update({ status: 'finished' })
+                  .eq('id', exchange.id);
+              } catch {}
+            }
+            // Fall through to normal claim flow below
+          } else {
+            console.log(`  ⏭️ Exchange is being processed by another instance (age ${Math.round(ageMs / 1000)}s), skipping`);
+            results.push({ exchangeId: exchange.exchange_id, status: 'in_progress' });
+            continue;
+          }
         }
 
         // ======== ATOMIC CLAIM: prevent duplicate processing ========
@@ -432,6 +453,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
             
             if (!foundWallet) {
+              // Release claim before continuing — prevents permanent stuck state
+              try { await supabase.from('zk_exchanges').update({ deposit_processed: false, status: 'finished' }).eq('id', exchange.id); } catch {}
               results.push({ exchangeId: exchange.exchange_id, status: 'error', error: 'No intermediate wallets' });
               continue;
             }
@@ -456,6 +479,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               if (existingMapping?.intermediate_wallet) {
                 intermediateWallet = existingMapping.intermediate_wallet;
               } else {
+                // Release claim before continuing — prevents permanent stuck state
+                try { await supabase.from('zk_exchanges').update({ deposit_processed: false, status: 'finished' }).eq('id', exchange.id); } catch {}
                 results.push({ exchangeId: exchange.exchange_id, status: 'error', error: 'Failed to assign intermediate wallet' });
                 continue;
               }
@@ -464,6 +489,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
           } catch (poolError: any) {
             console.error(`  ❌ Error creating intermediate wallet:`, poolError.message);
+            // Release claim before continuing — prevents permanent stuck state
+            try { await supabase.from('zk_exchanges').update({ deposit_processed: false, status: 'finished' }).eq('id', exchange.id); } catch {}
             results.push({ exchangeId: exchange.exchange_id, status: 'error', error: 'Failed to create intermediate wallet' });
             continue;
           }
@@ -482,6 +509,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const mixerPrivateKey = process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY_BASE;
 
             if (!mixerAddress || !mixerPrivateKey) {
+              // Release claim before continuing — prevents permanent stuck state
+              try { await supabase.from('zk_exchanges').update({ deposit_processed: false, status: 'finished' }).eq('id', exchange.id); } catch {}
               results.push({ exchangeId: exchange.exchange_id, status: 'error', error: 'Base mixer not configured' });
               continue;
             }
@@ -568,6 +597,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const intWalletData = await basePool.getWalletByAddress(intermediateWallet);
 
             if (!intWalletData) {
+              // Release claim before continuing — prevents permanent stuck state
+              try { await supabase.from('zk_exchanges').update({ deposit_processed: false, status: 'finished' }).eq('id', exchange.id); } catch {}
               results.push({ exchangeId: exchange.exchange_id, status: 'error', error: 'No Base intermediate keypair' });
               continue;
             }
@@ -645,6 +676,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const mixerPrivateKey = process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY;
 
         if (!mixerAddress || !mixerPrivateKey) {
+          // Release claim before continuing — prevents permanent stuck state
+          try { await supabase.from('zk_exchanges').update({ deposit_processed: false, status: 'finished' }).eq('id', exchange.id); } catch {}
           results.push({ exchangeId: exchange.exchange_id, status: 'error', error: 'Mixer not configured' });
           continue;
         }
@@ -689,12 +722,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             console.log(`  💰 Mixer balance: ${mixerBalance}`);
           } catch {
             console.log(`  ⚠️ No funds in mixer yet`);
+            // Release claim so it can be retried
+            try { await supabase.from('zk_exchanges').update({ deposit_processed: false, status: 'finished' }).eq('id', exchange.id); } catch {}
             results.push({ exchangeId: exchange.exchange_id, status: 'waiting_for_funds' });
             continue;
           }
 
           if (mixerBalance < actualOutputAmount * 0.5) {
             console.log(`  ⚠️ Balance too low: ${mixerBalance}, need ~${actualOutputAmount}`);
+            // Release claim so it can be retried
+            try { await supabase.from('zk_exchanges').update({ deposit_processed: false, status: 'finished' }).eq('id', exchange.id); } catch {}
             results.push({ exchangeId: exchange.exchange_id, status: 'waiting_for_funds', balance: mixerBalance });
             continue;
           }
@@ -756,6 +793,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const intWalletData = await walletPool.getWalletByPublicKey(intermediateWallet);
         if (!intWalletData) {
+          // Release claim before continuing — prevents permanent stuck state
+          try { await supabase.from('zk_exchanges').update({ deposit_processed: false, status: 'finished' }).eq('id', exchange.id); } catch {}
           results.push({ exchangeId: exchange.exchange_id, status: 'error', error: 'No keypair' });
           continue;
         }

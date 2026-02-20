@@ -167,9 +167,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Resolve the correct token address (USDC or USDT on Base)
       const tokenAddress = getTokenAddress(token);
 
-      // Build DepositRouter transaction: router.depositWithGas(token, holdingWallet, amount) + ETH
+      // Pre-check: verify user has sufficient token balance before building transaction
       const depositAmount = parseFloat(amount);
       const transferAmount = ethers.parseUnits(depositAmount.toString(), 6);
+      try {
+        const provider = getBaseProvider();
+        const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+        const userBalance: bigint = await tokenContract.balanceOf(wallet);
+        if (userBalance < transferAmount) {
+          const userBalanceFormatted = ethers.formatUnits(userBalance, 6);
+          return res.status(400).json({
+            error: `Insufficient ${token} balance`,
+            message: `Your wallet has ${userBalanceFormatted} ${token} but you're trying to deposit ${depositAmount} ${token}. Please reduce the deposit amount or add more ${token} to your wallet.`,
+          });
+        }
+      } catch (balanceCheckErr: any) {
+        console.warn(`⚠️ Could not pre-check balance: ${balanceCheckErr.message}`);
+        // Continue anyway — the transaction will fail on-chain if balance is insufficient
+      }
+
+      // Build DepositRouter transaction: router.depositWithGas(token, holdingWallet, amount) + ETH
       const routerAddress = getDepositRouterAddress();
       const routerInterface = new ethers.Interface(DEPOSIT_ROUTER_ABI);
       const depositData = routerInterface.encodeFunctionData('depositWithGas', [
@@ -184,9 +201,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? ethers.parseEther('0.001')  // holding wallet gas only
         : ethers.parseEther('0.002'); // holding + intermediate wallet gas
 
-      // Check if user needs to approve the router for this token
+      // Check if user needs to approve the router for this token (one-time unlimited approval)
       let needsApproval = false;
       let approveTransaction = undefined;
+      const MAX_APPROVAL = ethers.MaxUint256;
       try {
         const provider = getBaseProvider();
         const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
@@ -196,7 +214,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const erc20Interface = new ethers.Interface(ERC20_ABI);
           const approveData = erc20Interface.encodeFunctionData('approve', [
             routerAddress,
-            transferAmount,
+            MAX_APPROVAL,
           ]);
           approveTransaction = {
             to: tokenAddress,
@@ -210,7 +228,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const erc20Interface = new ethers.Interface(ERC20_ABI);
         const approveData = erc20Interface.encodeFunctionData('approve', [
           routerAddress,
-          transferAmount,
+          MAX_APPROVAL,
         ]);
         approveTransaction = {
           to: tokenAddress,
