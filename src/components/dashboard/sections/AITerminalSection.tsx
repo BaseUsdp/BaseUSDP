@@ -18,6 +18,7 @@ interface TerminalMessage {
 interface AITerminalSectionProps {
   showBalance: boolean;
   setActiveTab: (tab: string) => void;
+  onWithdraw?: (amount?: string) => void;
 }
 
 const SUGGESTED_COMMANDS = [
@@ -28,7 +29,7 @@ const SUGGESTED_COMMANDS = [
   "What can you do?",
 ];
 
-const AITerminalSection = ({ showBalance, setActiveTab }: AITerminalSectionProps) => {
+const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminalSectionProps) => {
   const { encryptedBalance, walletAddress, isConnected, activeChain } = useWallet();
   const [messages, setMessages] = useState<TerminalMessage[]>([]);
   const [input, setInput] = useState("");
@@ -37,7 +38,9 @@ const AITerminalSection = ({ showBalance, setActiveTab }: AITerminalSectionProps
   const [sendInitialRecipient, setSendInitialRecipient] = useState<string | undefined>();
   const [sendInitialAmount, setSendInitialAmount] = useState<string | undefined>();
   const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [depositInitialAmount, setDepositInitialAmount] = useState<string | undefined>();
   const [x402ModalOpen, setX402ModalOpen] = useState(false);
+  const [x402InitialAmount, setX402InitialAmount] = useState<string | undefined>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -61,10 +64,15 @@ const AITerminalSection = ({ showBalance, setActiveTab }: AITerminalSectionProps
         setSendModalOpen(true);
         break;
       case "deposit":
+        setDepositInitialAmount(action.params?.amount);
         setDepositModalOpen(true);
         break;
       case "create_payment":
+        setX402InitialAmount(action.params?.amount);
         setX402ModalOpen(true);
+        break;
+      case "withdraw":
+        onWithdraw?.(action.params?.amount);
         break;
       case "show_history":
         setActiveTab("history");
@@ -332,8 +340,8 @@ const AITerminalSection = ({ showBalance, setActiveTab }: AITerminalSectionProps
 
       {/* Modals triggered by AI actions */}
       <SendPaymentModal open={sendModalOpen} onOpenChange={setSendModalOpen} initialRecipient={sendInitialRecipient} initialAmount={sendInitialAmount} />
-      <DepositModal open={depositModalOpen} onOpenChange={setDepositModalOpen} />
-      <X402PaymentModal open={x402ModalOpen} onOpenChange={setX402ModalOpen} />
+      <DepositModal open={depositModalOpen} onOpenChange={setDepositModalOpen} initialAmount={depositInitialAmount} />
+      <X402PaymentModal open={x402ModalOpen} onOpenChange={setX402ModalOpen} initialAmount={x402InitialAmount} />
     </>
   );
 };

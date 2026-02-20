@@ -19,17 +19,23 @@ Available actions:
 
 3. create_payment - Create an x402 payment request
    { "type": "create_payment", "params": { "amount": "25" } }
+   Include amount param if the user specified it.
 
 4. deposit - Open the deposit modal
-   { "type": "deposit" }
+   { "type": "deposit", "params": { "amount": "100" } }
+   Include amount param if the user specified it.
 
-5. show_history - Show transaction history
+5. withdraw - Open the withdraw form
+   { "type": "withdraw", "params": { "amount": "50" } }
+   Include amount param if the user specified it.
+
+6. show_history - Show transaction history
    { "type": "show_history" }
 
-6. navigate - Navigate to a dashboard section
-   { "type": "navigate", "params": { "tab": "overview|payments|withdraw|history|messages|settings" } }
+7. navigate - Navigate to a dashboard section
+   { "type": "navigate", "params": { "tab": "overview|payments|history|messages|settings" } }
 
-7. help - Show what you can do
+8. help - Show what you can do
    { "type": "help" }
 
 Rules:

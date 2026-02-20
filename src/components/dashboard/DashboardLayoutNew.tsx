@@ -14,6 +14,7 @@ const DashboardLayoutNew = () => {
   const [showBalance, setShowBalance] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [paymentsInitialTab, setPaymentsInitialTab] = useState<string | undefined>(undefined);
+  const [withdrawInitialAmount, setWithdrawInitialAmount] = useState<string | undefined>(undefined);
   const [unreadMessages, setUnreadMessages] = useState(0);
 
   const fetchUnreadCount = useCallback(async () => {
@@ -82,6 +83,7 @@ const DashboardLayoutNew = () => {
                 showBalance={showBalance}
                 setShowBalance={setShowBalance}
                 paymentsInitialTab={paymentsInitialTab}
+                withdrawInitialAmount={withdrawInitialAmount}
               />
             </main>
 

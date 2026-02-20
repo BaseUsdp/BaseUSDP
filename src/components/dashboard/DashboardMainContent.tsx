@@ -24,11 +24,13 @@ interface DashboardMainContentProps {
   showBalance: boolean;
   setShowBalance: (show: boolean) => void;
   paymentsInitialTab?: string;
+  withdrawInitialAmount?: string;
 }
 
-const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBalance, paymentsInitialTab }: DashboardMainContentProps) => {
+const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBalance, paymentsInitialTab, withdrawInitialAmount }: DashboardMainContentProps) => {
   const { encryptedBalance, privacyLevel, refreshBalance, isBalanceLoading, fullWalletAddress, isConnected } = useWallet();
   const { stats, isLoading: isLoadingStats } = useTransactionStats();
+  const [localWithdrawAmount, setLocalWithdrawAmount] = useState<string | undefined>(undefined);
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [x402ModalOpen, setX402ModalOpen] = useState(false);
@@ -239,7 +241,10 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
 
   if (activeTab === "terminal") {
     return (
-      <AITerminalSection showBalance={showBalance} setActiveTab={setActiveTab} />
+      <AITerminalSection showBalance={showBalance} setActiveTab={setActiveTab} onWithdraw={(amount) => {
+        setLocalWithdrawAmount(amount);
+        setActiveTab("withdraw");
+      }} />
     );
   }
 
@@ -270,7 +275,7 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
   if (activeTab === "withdraw") {
     return (
       <div className="p-4 sm:p-6">
-        <WithdrawSection showBalance={showBalance} />
+        <WithdrawSection showBalance={showBalance} initialAmount={withdrawInitialAmount || localWithdrawAmount} />
       </div>
     );
   }

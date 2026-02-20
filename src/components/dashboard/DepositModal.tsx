@@ -41,6 +41,7 @@ import { getPhantomProvider, getMetaMaskEVMProvider, WalletAdapter } from "@/ser
 interface DepositModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialAmount?: string;
 }
 
 type DepositStep =
@@ -55,10 +56,17 @@ type DepositStep =
 
 const MAX_AMOUNT = 999999.99;
 
-const DepositModal = ({ open, onOpenChange }: DepositModalProps) => {
+const DepositModal = ({ open, onOpenChange, initialAmount }: DepositModalProps) => {
   const { fullWalletAddress, isConnected, walletType, refreshBalance, privacyLevel, activeChain } = useWallet();
 
   const [amount, setAmount] = useState("");
+
+  // Pre-fill from AI Terminal
+  useEffect(() => {
+    if (open && initialAmount) {
+      setAmount(initialAmount);
+    }
+  }, [open, initialAmount]);
 
   // Sanitize amount input — no negatives, max 999,999.99
   const handleAmountChange = (value: string) => {

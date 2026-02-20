@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Download, QrCode, Copy, CheckCircle, Loader2, ExternalLink, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { getApiUrl } from "@/utils/apiConfig";
 interface X402PaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialAmount?: string;
 }
 
 type CreateStep = "form" | "creating" | "success" | "error";
@@ -31,10 +32,17 @@ interface PaymentRequest {
   paymentLink: string;
 }
 
-const X402PaymentModal = ({ open, onOpenChange }: X402PaymentModalProps) => {
+const X402PaymentModal = ({ open, onOpenChange, initialAmount }: X402PaymentModalProps) => {
   const { fullWalletAddress } = useWallet();
   const [serviceName, setServiceName] = useState("");
   const [amount, setAmount] = useState("");
+
+  // Pre-fill from AI Terminal
+  useEffect(() => {
+    if (open && initialAmount) {
+      setAmount(initialAmount);
+    }
+  }, [open, initialAmount]);
   const [description, setDescription] = useState("");
   const [step, setStep] = useState<CreateStep>("form");
   const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
