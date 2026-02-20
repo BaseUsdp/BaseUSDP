@@ -218,9 +218,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // ======================== BASE CHAIN PUBLIC/PARTIAL ========================
       if (isBaseChain()) {
+        const provider = getBaseProvider();
+        const holdingWallet = generateHoldingWallet(split.deposit_id);
+
+        // Helper: sweep all remaining ETH from holding wallet back to collection wallet
+        const sweepHoldingWalletETH = async () => {
+          try {
+            const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
+            if (!collectionKey) return;
+            const collectionAddress = new ethers.Wallet(collectionKey).address;
+            const holdingEthRemaining = await provider.getBalance(holdingWallet.address);
+            if (holdingEthRemaining === 0n) return;
+            // Use block baseFee for accurate gas cost (legacy type 0 tx for reliability)
+            const block = await provider.getBlock('latest');
+            const baseFee = block?.baseFeePerGas || 0n;
+            const gasPrice = baseFee + ethers.parseUnits("0.001", "gwei");
+            const gasLimit = 21000n;
+            const gasCost = gasPrice * gasLimit;
+            // Leave 10% gas buffer to avoid rounding issues
+            const sweepAmount = holdingEthRemaining - gasCost - (gasCost / 10n);
+            if (sweepAmount <= 0n) {
+              console.log(`🧹 Holding wallet ETH (${ethers.formatEther(holdingEthRemaining)}) too small to sweep after gas`);
+              return;
+            }
+            const holdingSigner = new ethers.Wallet(holdingWallet.privateKey, provider);
+            const nonce = await provider.getTransactionCount(holdingWallet.address);
+            const sweepTx = await holdingSigner.sendTransaction({
+              to: collectionAddress,
+              value: sweepAmount,
+              gasLimit,
+              gasPrice,
+              nonce,
+              type: 0, // Legacy tx for reliable gas estimation
+              chainId: 8453,
+            });
+            await sweepTx.wait();
+            console.log(`🧹 Swept ${ethers.formatEther(sweepAmount)} ETH from holding wallet: ${sweepTx.hash}`);
+          } catch (sweepErr: any) {
+            console.warn(`⚠️ ETH sweep failed (non-critical): ${sweepErr.message}`);
+          }
+        };
+
         try {
-          const provider = getBaseProvider();
-          const holdingWallet = generateHoldingWallet(split.deposit_id);
           const tokenAddress = getTokenAddress(split.token || 'USDC');
           const poolAddress = getContractAddress();
           const splitAmount = ethers.parseUnits(split.split_amount, 6);
@@ -271,6 +310,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const alreadyTransferred = holdingBalance < splitAmount && intermediateBalance >= splitAmount;
 
           if (holdingBalance < splitAmount && !alreadyTransferred) {
+            // No tokens in holding OR intermediate — genuinely insufficient
+            await sweepHoldingWalletETH(); // Reclaim any stranded ETH before failing
             await supabase
               .from('zk_split_queue')
               .update({ status: 'failed', error_message: `Insufficient balance: have ${holdingBalance}, need ${splitAmount}`, updated_at: new Date().toISOString() })
@@ -280,6 +321,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           if (alreadyTransferred) {
             console.log(`🔄 RETRY: Intermediate wallet already has ${ethers.formatUnits(intermediateBalance, 6)} ${split.token} from previous attempt, skipping transfer`);
+            // Sweep any ETH stranded from the previous failed attempt
+            await sweepHoldingWalletETH();
           } else {
             // STEP 1: Fund holding wallet with ETH for gas
             const ethNeeded = ethers.parseEther("0.0005");
@@ -319,33 +362,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await tx1.wait();
             console.log(`✅ Holding -> Intermediate: ${tx1.hash}`);
 
-            // STEP 2b: Sweep remaining ETH from holding wallet back to collection wallet
-            try {
-              const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
-              if (collectionKey) {
-                const collectionAddress = new ethers.Wallet(collectionKey).address;
-                const holdingEthRemaining = await provider.getBalance(holdingWallet.address);
-                if (holdingEthRemaining > 0n) {
-                  const feeData = await provider.getFeeData();
-                  const gasPrice = feeData.gasPrice || ethers.parseUnits("0.1", "gwei");
-                  const gasCost = gasPrice * 21000n;
-                  const sweepAmount = holdingEthRemaining - gasCost;
-                  if (sweepAmount > 0n) {
-                    const sweepTx = await holdingSigner.sendTransaction({
-                      to: collectionAddress,
-                      value: sweepAmount,
-                      gasLimit: 21000n,
-                      gasPrice,
-                    });
-                    await sweepTx.wait();
-                    console.log(`🧹 Swept ${ethers.formatEther(sweepAmount)} ETH from holding wallet: ${sweepTx.hash}`);
-                  }
-                }
-              }
-            } catch (sweepErr: any) {
-              console.warn(`⚠️ ETH sweep failed (non-critical): ${sweepErr.message}`);
-            }
-          } // end else (fresh transfer, not retry)
+            // STEP 2b: Sweep remaining ETH from holding wallet
+            await sweepHoldingWalletETH();
+          }
 
           // STEP 3: Fund intermediate with ETH for gas
           const intEthBalance = await provider.getBalance(intermediateAddress);
@@ -456,6 +475,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         } catch (error: any) {
           console.error(`❌ Base ${privacyLevel.toUpperCase()} direct transfer failed:`, error);
+          // Always try to sweep stranded ETH from holding wallet on failure
+          await sweepHoldingWalletETH();
           await supabase
             .from('zk_split_queue')
             .update({ status: 'failed', error_message: error.message || 'Unknown error', updated_at: new Date().toISOString() })
@@ -931,9 +952,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: 'Privacy Mixer not configured for Base' });
       }
 
+      const fullProvider = getBaseProvider();
+      const fullHoldingWallet = generateHoldingWallet(split.deposit_id);
+
+      // Helper: sweep all remaining ETH from holding wallet back to collection wallet
+      const sweepFullHoldingETH = async () => {
+        try {
+          const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
+          if (!collectionKey) return;
+          const collectionAddress = new ethers.Wallet(collectionKey).address;
+          const holdingEthRemaining = await fullProvider.getBalance(fullHoldingWallet.address);
+          if (holdingEthRemaining === 0n) return;
+          const block = await fullProvider.getBlock('latest');
+          const baseFee = block?.baseFeePerGas || 0n;
+          const gasPrice = baseFee + ethers.parseUnits("0.001", "gwei");
+          const gasLimit = 21000n;
+          const gasCost = gasPrice * gasLimit;
+          const sweepAmount = holdingEthRemaining - gasCost - (gasCost / 10n);
+          if (sweepAmount <= 0n) return;
+          const holdingSigner = new ethers.Wallet(fullHoldingWallet.privateKey, fullProvider);
+          const nonce = await fullProvider.getTransactionCount(fullHoldingWallet.address);
+          const sweepTx = await holdingSigner.sendTransaction({
+            to: collectionAddress, value: sweepAmount, gasLimit, gasPrice, nonce, type: 0, chainId: 8453,
+          });
+          await sweepTx.wait();
+          console.log(`🧹 Swept ${ethers.formatEther(sweepAmount)} ETH from holding wallet: ${sweepTx.hash}`);
+        } catch (sweepErr: any) {
+          console.warn(`⚠️ ETH sweep failed (non-critical): ${sweepErr.message}`);
+        }
+      };
+
       try {
-        const provider = getBaseProvider();
-        const holdingWallet = generateHoldingWallet(split.deposit_id);
+        const provider = fullProvider;
+        const holdingWallet = fullHoldingWallet;
         const tokenAddress = getTokenAddress(split.token || 'USDC');
         const splitAmount = ethers.parseUnits(split.split_amount, 6);
 
@@ -1021,31 +1072,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log(`✅ Holding -> ChangeNow: ${transferReceipt.hash}`);
 
         // Sweep remaining ETH from holding wallet back to collection wallet
-        try {
-          const collectionKey = process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE;
-          if (collectionKey) {
-            const collectionAddress = new ethers.Wallet(collectionKey).address;
-            const holdingEthRemaining = await provider.getBalance(holdingWallet.address);
-            if (holdingEthRemaining > 0n) {
-              const feeData = await provider.getFeeData();
-              const gasPrice = feeData.gasPrice || ethers.parseUnits("0.1", "gwei");
-              const gasCost = gasPrice * 21000n;
-              const sweepAmount = holdingEthRemaining - gasCost;
-              if (sweepAmount > 0n) {
-                const sweepTx = await holdingSigner.sendTransaction({
-                  to: collectionAddress,
-                  value: sweepAmount,
-                  gasLimit: 21000n,
-                  gasPrice,
-                });
-                await sweepTx.wait();
-                console.log(`🧹 Swept ${ethers.formatEther(sweepAmount)} ETH from holding wallet: ${sweepTx.hash}`);
-              }
-            }
-          }
-        } catch (sweepErr: any) {
-          console.warn(`⚠️ ETH sweep failed (non-critical): ${sweepErr.message}`);
-        }
+        await sweepFullHoldingETH();
 
         // Update queue with success
         await supabase
@@ -1116,6 +1143,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       } catch (error: any) {
         console.error(`❌ Base FULL split failed:`, error);
+        // Always try to sweep stranded ETH from holding wallet on failure
+        await sweepFullHoldingETH();
         await supabase
           .from('zk_split_queue')
           .update({ status: 'failed', error_message: error.message || 'Unknown error', updated_at: new Date().toISOString() })
