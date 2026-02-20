@@ -59,12 +59,13 @@ const SendPaymentModal = ({ open, onOpenChange, initialRecipient, initialAmount 
   useEffect(() => {
     if (open) {
       if (initialRecipient) {
-        if (initialRecipient.startsWith("@")) {
-          setRecipientType("username");
-          setUsernameInput(initialRecipient.replace(/^@/, ""));
-        } else {
+        const isAddress = initialRecipient.startsWith("0x") || initialRecipient.length >= 32;
+        if (isAddress) {
           setRecipientType("address");
           setRecipient(initialRecipient);
+        } else {
+          setRecipientType("username");
+          setUsernameInput(initialRecipient.replace(/^@/, ""));
         }
       }
       if (initialAmount) {
