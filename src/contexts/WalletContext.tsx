@@ -15,7 +15,7 @@ const BASE_MAINNET_HEX = "0x2105";
 const BASE_SEPOLIA_HEX = "0x14a34";
 
 // Determine target chain based on environment
-const isProduction = typeof window !== "undefined" && (window.location.hostname === "void402.com" || window.location.hostname === "www.void402.com" || window.location.hostname.endsWith(".vercel.app"));
+const isProduction = typeof window !== "undefined" && (window.location.hostname === "void402.com" || window.location.hostname === "www.void402.com" || window.location.hostname === "orb402.com" || window.location.hostname === "www.orb402.com" || window.location.hostname.endsWith(".vercel.app"));
 const TARGET_CHAIN_ID = isProduction ? BASE_MAINNET_CHAIN_ID : BASE_SEPOLIA_CHAIN_ID;
 const TARGET_CHAIN_HEX = isProduction ? BASE_MAINNET_HEX : BASE_SEPOLIA_HEX;
 

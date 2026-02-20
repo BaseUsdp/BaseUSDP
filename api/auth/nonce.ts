@@ -16,6 +16,8 @@ const NONCE_EXPIRATION_MS = 5 * 60 * 1000; // 5 minutes
 const ALLOWED_ORIGINS = [
   "https://void402.com",
   "https://www.void402.com",
+  "https://orb402.com",
+  "https://www.orb402.com",
   "http://localhost:5173",
   "http://localhost:3000",
 ];

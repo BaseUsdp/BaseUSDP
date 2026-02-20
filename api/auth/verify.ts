@@ -22,6 +22,8 @@ const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 const ALLOWED_ORIGINS = [
   "https://void402.com",
   "https://www.void402.com",
+  "https://orb402.com",
+  "https://www.orb402.com",
   "http://localhost:5173",
   "http://localhost:3000",
 ];

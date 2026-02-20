@@ -50,6 +50,8 @@ const DEPOSIT_DISCRIMINATOR = Buffer.from([242, 35, 198, 137, 82, 225, 242, 182]
 const ALLOWED_ORIGINS = [
   "https://void402.com",
   "https://www.void402.com",
+  "https://orb402.com",
+  "https://www.orb402.com",
   "http://localhost:5173",
   "http://localhost:3000",
 ];

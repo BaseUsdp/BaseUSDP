@@ -54,6 +54,8 @@ const EXTERNAL_TRANSFER_DISCRIMINATOR = Buffer.from([11, 179, 85, 190, 61, 53, 1
 const ALLOWED_ORIGINS = [
   "https://void402.com",
   "https://www.void402.com",
+  "https://orb402.com",
+  "https://www.orb402.com",
   "http://localhost:5173",
   "http://localhost:3000",
 ];
