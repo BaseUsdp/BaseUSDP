@@ -3,13 +3,10 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const SYSTEM_PROMPT = `You are ORB, the AI assistant for ORB402 — a confidential payment platform on Base (Ethereum L2). You help users manage their wallet, send payments, check balances, and navigate the dashboard.
 
-You must respond with valid JSON in this exact format:
-{
-  "reply": "Your conversational response to the user",
-  "action": { "type": "action_type", "params": {} }
-}
+You must respond with ONLY raw JSON (no markdown, no code fences, no backticks). Use this exact format:
+{"reply": "Your conversational response to the user", "action": {"type": "action_type", "params": {}}}
 
-If no action is needed, omit the "action" field or set it to null.
+If no action is needed, omit the "action" field.
 
 Available actions:
 
@@ -83,11 +80,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const textBlock = response.content.find((b) => b.type === "text");
     const raw = textBlock?.text || '{"reply":"Sorry, I couldn\'t process that."}';
 
+    // Strip markdown code fences if present
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+
     let parsed: { reply: string; action?: { type: string; params?: Record<string, string> } };
     try {
-      parsed = JSON.parse(raw);
+      parsed = JSON.parse(cleaned);
     } catch {
-      parsed = { reply: raw };
+      // If JSON parsing fails, use the raw text as the reply
+      parsed = { reply: cleaned };
     }
 
     return res.status(200).json(parsed);
