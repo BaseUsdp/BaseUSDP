@@ -37,6 +37,7 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [sendInitialRecipient, setSendInitialRecipient] = useState<string | undefined>();
   const [sendInitialAmount, setSendInitialAmount] = useState<string | undefined>();
+  const [sendInitialToken, setSendInitialToken] = useState<"USDC" | "USDT" | undefined>();
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [depositInitialAmount, setDepositInitialAmount] = useState<string | undefined>();
   const [depositInitialToken, setDepositInitialToken] = useState<"USDC" | "USDT" | undefined>();
@@ -62,6 +63,7 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
       case "send_payment":
         setSendInitialRecipient(action.params?.recipient);
         setSendInitialAmount(action.params?.amount);
+        setSendInitialToken(action.params?.token as "USDC" | "USDT" | undefined);
         setSendModalOpen(true);
         break;
       case "deposit":
@@ -341,7 +343,7 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
       </div>
 
       {/* Modals triggered by AI actions */}
-      <SendPaymentModal open={sendModalOpen} onOpenChange={setSendModalOpen} initialRecipient={sendInitialRecipient} initialAmount={sendInitialAmount} />
+      <SendPaymentModal open={sendModalOpen} onOpenChange={setSendModalOpen} initialRecipient={sendInitialRecipient} initialAmount={sendInitialAmount} initialToken={sendInitialToken} />
       <DepositModal open={depositModalOpen} onOpenChange={setDepositModalOpen} initialAmount={depositInitialAmount} initialToken={depositInitialToken} />
       <X402PaymentModal open={x402ModalOpen} onOpenChange={setX402ModalOpen} initialAmount={x402InitialAmount} />
     </>

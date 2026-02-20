@@ -29,11 +29,12 @@ interface SendPaymentModalProps {
   onOpenChange: (open: boolean) => void;
   initialRecipient?: string;
   initialAmount?: string;
+  initialToken?: "USDC" | "USDT";
 }
 
 type TransactionStep = "form" | "preview" | "signing" | "encrypting" | "pending" | "success" | "failed";
 
-const SendPaymentModal = ({ open, onOpenChange, initialRecipient, initialAmount }: SendPaymentModalProps) => {
+const SendPaymentModal = ({ open, onOpenChange, initialRecipient, initialAmount, initialToken }: SendPaymentModalProps) => {
   const { encryptedBalance, privacyLevel, walletType, isConnected, fullWalletAddress, refreshBalance, activeChain } = useWallet();
   const apiUrl = getApiUrl();
   
@@ -71,8 +72,11 @@ const SendPaymentModal = ({ open, onOpenChange, initialRecipient, initialAmount 
       if (initialAmount) {
         setAmount(initialAmount);
       }
+      if (initialToken) {
+        setSelectedToken(initialToken);
+      }
     }
-  }, [open, initialRecipient, initialAmount]);
+  }, [open, initialRecipient, initialAmount, initialToken]);
 
   // Fetch per-token balances
   useEffect(() => {

@@ -14,8 +14,8 @@ Available actions:
    { "type": "show_balance" }
 
 2. send_payment - Open the send payment form
-   { "type": "send_payment", "params": { "recipient": "@username or address", "amount": "50" } }
-   Only include params if the user specified them. If they just say "send payment", use no params.
+   { "type": "send_payment", "params": { "recipient": "@username or address", "amount": "50", "token": "USDC" } }
+   Only include params if the user specified them. If they just say "send payment", use no params. Token must be "USDC" or "USDT". Default to "USDC" if not specified.
 
 3. create_payment - Create an x402 payment request
    { "type": "create_payment", "params": { "amount": "25" } }
