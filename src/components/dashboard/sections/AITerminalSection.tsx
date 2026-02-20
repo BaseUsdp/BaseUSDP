@@ -18,7 +18,7 @@ interface TerminalMessage {
 interface AITerminalSectionProps {
   showBalance: boolean;
   setActiveTab: (tab: string) => void;
-  onWithdraw?: (amount?: string) => void;
+  onWithdraw?: (amount?: string, token?: string) => void;
 }
 
 const SUGGESTED_COMMANDS = [
@@ -76,7 +76,7 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
         setX402ModalOpen(true);
         break;
       case "withdraw":
-        onWithdraw?.(action.params?.amount);
+        onWithdraw?.(action.params?.amount, action.params?.token);
         break;
       case "show_history":
         setActiveTab("history");

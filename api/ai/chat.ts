@@ -26,8 +26,8 @@ Available actions:
    Include amount and token params if the user specified them. Token must be "USDC" or "USDT". Default to "USDC" if not specified.
 
 5. withdraw - Open the withdraw form
-   { "type": "withdraw", "params": { "amount": "50" } }
-   Include amount param if the user specified it.
+   { "type": "withdraw", "params": { "amount": "50", "token": "USDC" } }
+   Include amount and token params if the user specified them. Token must be "USDC" or "USDT". Default to "USDC" if not specified.
 
 6. show_history - Show transaction history
    { "type": "show_history" }

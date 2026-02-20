@@ -11,23 +11,23 @@ import { authService } from "@/services/authService";
 interface WithdrawSectionProps {
   showBalance: boolean;
   initialAmount?: string;
+  initialToken?: "USDC" | "USDT";
 }
 
 type Token = "USDC" | "USDT";
 
 type WithdrawStep = "form" | "confirm" | "processing" | "success" | "error";
 
-const WithdrawSection = ({ showBalance, initialAmount }: WithdrawSectionProps) => {
+const WithdrawSection = ({ showBalance, initialAmount, initialToken }: WithdrawSectionProps) => {
   const { fullWalletAddress, encryptedBalance, refreshBalance, activeChain } = useWallet();
   const [step, setStep] = useState<WithdrawStep>("form");
   const [amount, setAmount] = useState("");
 
   // Pre-fill from AI Terminal
   useEffect(() => {
-    if (initialAmount) {
-      setAmount(initialAmount);
-    }
-  }, [initialAmount]);
+    if (initialAmount) setAmount(initialAmount);
+    if (initialToken) setToken(initialToken);
+  }, [initialAmount, initialToken]);
   const [token, setToken] = useState<Token>("USDC");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
