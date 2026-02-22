@@ -75,8 +75,8 @@ const AgentsSection = () => {
         const policy = updated.agent_spending_policies?.[0];
         if (policy) {
           setPolicyForm({
-            max_per_tx: policy.max_per_tx || 1000,
-            daily_limit: policy.daily_limit || 5000,
+            max_per_tx: parseFloat(String(policy.max_per_tx)) || 1000,
+            daily_limit: parseFloat(String(policy.daily_limit)) || 5000,
           });
         }
       }
@@ -168,8 +168,8 @@ const AgentsSection = () => {
     const policy = agent.agent_spending_policies?.[0];
     if (policy) {
       setPolicyForm({
-        max_per_tx: policy.max_per_tx || 1000,
-        daily_limit: policy.daily_limit || 5000,
+        max_per_tx: parseFloat(String(policy.max_per_tx)) || 1000,
+        daily_limit: parseFloat(String(policy.daily_limit)) || 5000,
       });
     }
     setView("detail");
