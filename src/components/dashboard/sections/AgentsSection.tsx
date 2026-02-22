@@ -66,6 +66,23 @@ const AgentsSection = () => {
     fetchAgents();
   }, [fullWalletAddress]);
 
+  // Keep selectedAgent in sync when agents list refreshes
+  useEffect(() => {
+    if (selectedAgent) {
+      const updated = agents.find(a => a.id === selectedAgent.id);
+      if (updated) {
+        setSelectedAgent(updated);
+        const policy = updated.agent_spending_policies?.[0];
+        if (policy) {
+          setPolicyForm({
+            max_per_tx: policy.max_per_tx || 1000,
+            daily_limit: policy.daily_limit || 5000,
+          });
+        }
+      }
+    }
+  }, [agents]);
+
   const handleRegister = async () => {
     if (!fullWalletAddress || !newName.trim()) return;
     setRegistering(true);
