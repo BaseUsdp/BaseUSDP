@@ -12,7 +12,8 @@ import {
   History,
   ArrowUpRight,
   MessageSquare,
-  Terminal
+  Terminal,
+  Bot
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
   const navItems = [
     { id: "overview", label: "Dashboard", icon: LayoutDashboard },
     { id: "terminal", label: "AI Terminal", icon: Terminal },
+    { id: "agents", label: "Agents", icon: Bot },
     { id: "payments", label: "Payments", icon: Send },
     { id: "withdraw", label: "Withdraw", icon: ArrowUpRight },
     { id: "history", label: "History", icon: History },
@@ -84,14 +86,14 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
               disabled={item.id === "messages" || item.id === "terminal"}
               className={cn(
                 "w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors",
-                item.id === "messages" || item.id === "terminal"
+                (item.id === "messages" || item.id === "terminal")
                   ? "cursor-not-allowed opacity-50"
                   : activeTab === item.id
                   ? "bg-sky-500/20 text-sky-400"
                   : ""
               )}
               style={
-                item.id === "messages" || item.id === "terminal"
+                (item.id === "messages" || item.id === "terminal")
                   ? { color: 'var(--dash-text-faint)' }
                   : activeTab === item.id
                   ? undefined

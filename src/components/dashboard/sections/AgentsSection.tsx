@@ -1,0 +1,487 @@
+import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { Icon } from "@iconify/react";
+import { useWallet } from "@/contexts/WalletContext";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import {
+  listAgents,
+  registerAgent,
+  updateAgent,
+  generateAgentKey,
+  updateAgentPolicy,
+  getAgentLogs,
+  type AgentProfile,
+  type AgentSpendingLogEntry,
+} from "@/services/api";
+
+type AgentView = "list" | "detail" | "register";
+
+const AgentsSection = () => {
+  const { fullWalletAddress } = useWallet();
+  const { toast } = useToast();
+
+  const [view, setView] = useState<AgentView>("list");
+  const [agents, setAgents] = useState<AgentProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedAgent, setSelectedAgent] = useState<AgentProfile | null>(null);
+
+  // Register form
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [registering, setRegistering] = useState(false);
+
+  // API Key state
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [generatingKey, setGeneratingKey] = useState(false);
+
+  // Policy editing
+  const [policyForm, setPolicyForm] = useState({
+    max_per_tx: 1000,
+    daily_limit: 5000,
+  });
+
+  // Logs
+  const [logs, setLogs] = useState<AgentSpendingLogEntry[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  // Detail tab
+  const [detailTab, setDetailTab] = useState<"overview" | "keys" | "policy" | "logs">("overview");
+
+  const fetchAgents = async () => {
+    if (!fullWalletAddress) return;
+    try {
+      setLoading(true);
+      const result = await listAgents(fullWalletAddress);
+      if (result.success) setAgents(result.agents);
+    } catch (err) {
+      console.error("Failed to fetch agents:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAgents();
+  }, [fullWalletAddress]);
+
+  const handleRegister = async () => {
+    if (!fullWalletAddress || !newName.trim()) return;
+    setRegistering(true);
+    try {
+      const result = await registerAgent(fullWalletAddress, newName.trim(), newDescription.trim() || undefined);
+      if (result.success) {
+        toast({ title: "Agent registered", description: `${newName} is ready to configure.` });
+        setNewName("");
+        setNewDescription("");
+        setView("list");
+        fetchAgents();
+      } else {
+        toast({ title: "Registration failed", description: result.error, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  const handleToggleStatus = async (agent: AgentProfile) => {
+    if (!fullWalletAddress) return;
+    const newStatus = agent.status === "active" ? "paused" : "active";
+    try {
+      const result = await updateAgent(fullWalletAddress, agent.id, { status: newStatus });
+      if (result.success) {
+        toast({ title: `Agent ${newStatus}` });
+        fetchAgents();
+        if (selectedAgent?.id === agent.id && result.agent) {
+          setSelectedAgent(result.agent);
+        }
+      }
+    } catch {}
+  };
+
+  const handleGenerateKey = async () => {
+    if (!fullWalletAddress || !selectedAgent) return;
+    setGeneratingKey(true);
+    try {
+      const result = await generateAgentKey(fullWalletAddress, selectedAgent.id);
+      if (result.success && result.key) {
+        setGeneratedKey(result.key);
+        toast({ title: "API key generated", description: "Copy it now — it won't be shown again." });
+      } else {
+        toast({ title: "Failed", description: result.error, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setGeneratingKey(false);
+    }
+  };
+
+  const handleSavePolicy = async () => {
+    if (!fullWalletAddress || !selectedAgent) return;
+    try {
+      const result = await updateAgentPolicy(fullWalletAddress, selectedAgent.id, policyForm);
+      if (result.success) {
+        toast({ title: "Policy updated" });
+        fetchAgents();
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleFetchLogs = async () => {
+    if (!fullWalletAddress || !selectedAgent) return;
+    setLogsLoading(true);
+    try {
+      const result = await getAgentLogs(fullWalletAddress, selectedAgent.id);
+      if (result.success) setLogs(result.logs);
+    } catch {} finally {
+      setLogsLoading(false);
+    }
+  };
+
+  const openDetail = (agent: AgentProfile) => {
+    setSelectedAgent(agent);
+    setDetailTab("overview");
+    setGeneratedKey(null);
+    const policy = agent.agent_spending_policies?.[0];
+    if (policy) {
+      setPolicyForm({
+        max_per_tx: policy.max_per_tx || 1000,
+        daily_limit: policy.daily_limit || 5000,
+      });
+    }
+    setView("detail");
+  };
+
+  // ==================== RENDER ====================
+
+  // Register View
+  if (view === "register") {
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 max-w-4xl">
+        <div className="mb-2">
+          <button onClick={() => setView("list")} className="text-sm text-muted-foreground hover:text-primary mb-2 flex items-center gap-1">
+            <Icon icon="ph:arrow-left-bold" className="w-4 h-4" /> Back to Agents
+          </button>
+          <h1 className="font-display text-3xl font-bold">Register Agent<span className="text-primary">.</span></h1>
+          <p className="text-muted-foreground mt-1">Create a new AI agent that can transact on your behalf</p>
+        </div>
+
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-6 space-y-4">
+          <div>
+            <label className="text-sm font-medium mb-1 block">Agent Name</label>
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="e.g., Treasury Bot"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Description (optional)</label>
+            <textarea
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              placeholder="What does this agent do?"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm min-h-[80px] resize-none"
+            />
+          </div>
+          <Button
+            onClick={handleRegister}
+            disabled={!newName.trim() || registering}
+            className="w-full bg-primary hover:bg-primary/90"
+          >
+            {registering ? (
+              <><Icon icon="ph:spinner-bold" className="w-4 h-4 mr-2 animate-spin" /> Registering...</>
+            ) : (
+              <><Icon icon="ph:robot-bold" className="w-4 h-4 mr-2" /> Register Agent</>
+            )}
+          </Button>
+        </motion.div>
+      </motion.div>
+    );
+  }
+
+  // Detail View
+  if (view === "detail" && selectedAgent) {
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 max-w-4xl">
+        <div className="mb-2">
+          <button onClick={() => { setView("list"); setGeneratedKey(null); }} className="text-sm text-muted-foreground hover:text-primary mb-2 flex items-center gap-1">
+            <Icon icon="ph:arrow-left-bold" className="w-4 h-4" /> Back to Agents
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-sky-500/20 flex items-center justify-center">
+              <Icon icon="ph:robot-bold" className="w-5 h-5 text-sky-400" />
+            </div>
+            <div>
+              <h1 className="font-display text-2xl font-bold">{selectedAgent.name}</h1>
+              <span className={cn(
+                "text-xs px-2 py-0.5 rounded-full font-medium",
+                selectedAgent.status === "active" ? "bg-emerald-500/20 text-emerald-400" :
+                selectedAgent.status === "paused" ? "bg-yellow-500/20 text-yellow-400" :
+                "bg-red-500/20 text-red-400"
+              )}>
+                {selectedAgent.status}
+              </span>
+            </div>
+            <div className="ml-auto">
+              <Button variant="outline" size="sm" onClick={() => handleToggleStatus(selectedAgent)}>
+                {selectedAgent.status === "active" ? "Pause" : "Resume"}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 border-b border-border pb-1">
+          {(["overview", "keys", "policy", "logs"] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => {
+                setDetailTab(tab);
+                if (tab === "logs") handleFetchLogs();
+              }}
+              className={cn(
+                "px-3 py-1.5 text-sm rounded-t-lg transition-colors capitalize",
+                detailTab === tab ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Overview Tab */}
+        {detailTab === "overview" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Agent ID</p>
+                <p className="text-sm font-mono">{selectedAgent.id.slice(0, 8)}...</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Owner</p>
+                <p className="text-sm font-mono">{selectedAgent.owner_wallet.slice(0, 6)}...{selectedAgent.owner_wallet.slice(-4)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Created</p>
+                <p className="text-sm">{new Date(selectedAgent.created_at).toLocaleDateString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Status</p>
+                <p className="text-sm font-medium capitalize">{selectedAgent.status}</p>
+              </div>
+            </div>
+            {selectedAgent.description && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Description</p>
+                <p className="text-sm">{selectedAgent.description}</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* Keys Tab */}
+        {detailTab === "keys" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+            <div className="rounded-2xl border border-border bg-card p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <Icon icon="ph:key-bold" className="w-5 h-5 text-yellow-400" />
+                <h3 className="font-display text-lg font-bold">API Keys</h3>
+              </div>
+
+              {generatedKey && (
+                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-4 mb-4">
+                  <p className="text-xs text-emerald-400 font-medium mb-1">New API Key — copy now, shown once only:</p>
+                  <div className="flex items-center gap-2">
+                    <code className="text-sm font-mono bg-background px-2 py-1 rounded flex-1 overflow-x-auto">{generatedKey}</code>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      navigator.clipboard.writeText(generatedKey);
+                      toast({ title: "Copied!" });
+                    }}>
+                      <Icon icon="ph:copy-bold" className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <Button onClick={handleGenerateKey} disabled={generatingKey} className="bg-primary hover:bg-primary/90">
+                {generatingKey ? (
+                  <><Icon icon="ph:spinner-bold" className="w-4 h-4 mr-2 animate-spin" /> Generating...</>
+                ) : (
+                  <><Icon icon="ph:plus-bold" className="w-4 h-4 mr-2" /> Generate New Key</>
+                )}
+              </Button>
+
+              <div className="mt-4 rounded-xl bg-primary/5 border border-primary/20 p-3">
+                <p className="text-xs text-muted-foreground">
+                  Use the key in requests via <code className="bg-background px-1 rounded">X-Agent-Key</code> header
+                  or <code className="bg-background px-1 rounded">Authorization: AgentKey &lt;key&gt;</code>
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Policy Tab */}
+        {detailTab === "policy" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-6 space-y-4">
+            <div className="flex items-center gap-3 mb-2">
+              <Icon icon="ph:shield-check-bold" className="w-5 h-5 text-sky-400" />
+              <h3 className="font-display text-lg font-bold">Spending Policy</h3>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Max Per Transaction ($)</label>
+                <input
+                  type="number"
+                  value={policyForm.max_per_tx}
+                  onChange={(e) => setPolicyForm(p => ({ ...p, max_per_tx: parseFloat(e.target.value) || 0 }))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Daily Limit ($)</label>
+                <input
+                  type="number"
+                  value={policyForm.daily_limit}
+                  onChange={(e) => setPolicyForm(p => ({ ...p, daily_limit: parseFloat(e.target.value) || 0 }))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <Button onClick={handleSavePolicy} className="bg-primary hover:bg-primary/90">
+              <Icon icon="ph:floppy-disk-bold" className="w-4 h-4 mr-2" /> Save Policy
+            </Button>
+          </motion.div>
+        )}
+
+        {/* Logs Tab */}
+        {detailTab === "logs" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Icon icon="ph:list-bold" className="w-5 h-5 text-purple-400" />
+              <h3 className="font-display text-lg font-bold">Spending Log</h3>
+            </div>
+
+            {logsLoading ? (
+              <div className="flex justify-center py-8">
+                <Icon icon="ph:spinner-bold" className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : logs.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No activity yet</p>
+            ) : (
+              <div className="space-y-2">
+                {logs.map(log => (
+                  <div key={log.id} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/30">
+                    <div className={cn("w-2 h-2 rounded-full",
+                      log.status === "completed" ? "bg-emerald-500" :
+                      log.status === "blocked" ? "bg-red-500" :
+                      log.status === "failed" ? "bg-orange-500" : "bg-yellow-500"
+                    )} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm">
+                        {log.action} — ${parseFloat(String(log.amount)).toFixed(2)} {log.token}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {log.status}{log.reason ? ` — ${log.reason}` : ""}
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                      {new Date(log.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </motion.div>
+    );
+  }
+
+  // List View (default)
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 max-w-4xl">
+      <div className="mb-2 flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-bold">
+            Agents<span className="text-primary">.</span>
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Manage AI agents with programmatic access to your private wallet
+          </p>
+        </div>
+        <Button onClick={() => setView("register")} className="bg-primary hover:bg-primary/90">
+          <Icon icon="ph:plus-bold" className="w-4 h-4 mr-2" /> New Agent
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Icon icon="ph:spinner-bold" className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : agents.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-border bg-card p-12 text-center"
+        >
+          <Icon icon="ph:robot-bold" className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="font-display text-xl font-bold mb-2">No Agents Yet</h3>
+          <p className="text-muted-foreground mb-6">
+            Create your first AI agent to enable programmatic transfers with spending controls.
+          </p>
+          <Button onClick={() => setView("register")} className="bg-primary hover:bg-primary/90">
+            <Icon icon="ph:robot-bold" className="w-4 h-4 mr-2" /> Register Your First Agent
+          </Button>
+        </motion.div>
+      ) : (
+        <div className="space-y-3">
+          {agents.map((agent, i) => (
+            <motion.div
+              key={agent.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              onClick={() => openDetail(agent)}
+              className="rounded-xl border border-border bg-card p-4 cursor-pointer hover:border-primary/50 transition-all"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-sky-500/20 flex items-center justify-center">
+                  <Icon icon="ph:robot-bold" className="w-5 h-5 text-sky-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-sm">{agent.name}</h3>
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                      agent.status === "active" ? "bg-emerald-500/20 text-emerald-400" :
+                      agent.status === "paused" ? "bg-yellow-500/20 text-yellow-400" :
+                      "bg-red-500/20 text-red-400"
+                    )}>
+                      {agent.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{agent.description || "No description"}</p>
+                </div>
+                <Icon icon="ph:caret-right-bold" className="w-4 h-4 text-muted-foreground" />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
+export default AgentsSection;

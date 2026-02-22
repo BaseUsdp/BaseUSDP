@@ -15,6 +15,7 @@ import HistorySection from "./sections/HistorySection";
 import WithdrawSection from "./sections/WithdrawSection";
 import MessagesSection from "./sections/MessagesSection";
 import AITerminalSection from "./sections/AITerminalSection";
+import AgentsSection from "./sections/AgentsSection";
 import { getTransactionHistory, TransactionHistoryResponse, getZKBalance } from "@/services/api";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
 
@@ -248,6 +249,14 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
         setLocalWithdrawToken(token as "USDC" | "USDT" | undefined);
         setActiveTab("withdraw");
       }} />
+    );
+  }
+
+  if (activeTab === "agents") {
+    return (
+      <div className="p-4 sm:p-6">
+        <AgentsSection />
+      </div>
     );
   }
 

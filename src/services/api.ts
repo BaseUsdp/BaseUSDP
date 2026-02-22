@@ -692,5 +692,160 @@ export const markMessagesRead = async (
   });
 };
 
+// ==========================================================================
+// Agent API Types & Functions
+// ==========================================================================
+
+export interface AgentProfile {
+  id: string;
+  owner_wallet: string;
+  name: string;
+  description: string | null;
+  status: 'active' | 'paused' | 'revoked';
+  created_at: string;
+  updated_at: string;
+  agent_spending_policies?: AgentSpendingPolicy[];
+}
+
+export interface AgentSpendingPolicy {
+  id: string;
+  agent_id: string;
+  max_per_tx: number;
+  daily_limit: number;
+  allowed_tokens: string[];
+  allowed_recipients: string[] | null;
+  blocked_recipients: string[] | null;
+  time_window_start: string | null;
+  time_window_end: string | null;
+}
+
+export interface AgentApiKeyInfo {
+  id: string;
+  key_prefix: string;
+  label: string | null;
+  scopes: string[];
+  expires_at: string | null;
+  revoked: boolean;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+export interface AgentSpendingLogEntry {
+  id: string;
+  agent_id: string;
+  action: 'transfer' | 'withdraw';
+  amount: number;
+  token: string;
+  recipient: string | null;
+  status: 'allowed' | 'blocked' | 'completed' | 'failed';
+  reason: string | null;
+  tx_hash: string | null;
+  created_at: string;
+}
+
+/**
+ * Register a new AI agent
+ */
+export const registerAgent = async (
+  wallet: string,
+  name: string,
+  description?: string
+): Promise<{ success: boolean; agent?: AgentProfile; error?: string }> => {
+  return api.request("/api/agents/register", {
+    method: "POST",
+    body: JSON.stringify({ wallet, name, description }),
+  });
+};
+
+/**
+ * List operator's agents
+ */
+export const listAgents = async (
+  wallet: string
+): Promise<{ success: boolean; agents: AgentProfile[] }> => {
+  return api.request(`/api/agents?wallet=${encodeURIComponent(wallet)}`);
+};
+
+/**
+ * Update agent details
+ */
+export const updateAgent = async (
+  wallet: string,
+  agentId: string,
+  updates: { name?: string; description?: string; status?: string }
+): Promise<{ success: boolean; agent?: AgentProfile; error?: string }> => {
+  return api.request("/api/agents/update", {
+    method: "PUT",
+    body: JSON.stringify({ wallet, agent_id: agentId, ...updates }),
+  });
+};
+
+/**
+ * Generate API key for an agent
+ */
+export const generateAgentKey = async (
+  wallet: string,
+  agentId: string,
+  label?: string,
+  scopes?: string[],
+  expiresInDays?: number
+): Promise<{ success: boolean; key?: string; key_id?: string; key_prefix?: string; error?: string }> => {
+  return api.request("/api/agents/keys", {
+    method: "POST",
+    body: JSON.stringify({
+      wallet,
+      agent_id: agentId,
+      label,
+      scopes,
+      expires_in_days: expiresInDays,
+    }),
+  });
+};
+
+/**
+ * Revoke an API key
+ */
+export const revokeAgentKey = async (
+  wallet: string,
+  keyId: string
+): Promise<{ success: boolean; error?: string }> => {
+  return api.request("/api/agents/keys", {
+    method: "DELETE",
+    body: JSON.stringify({ wallet, key_id: keyId }),
+  });
+};
+
+/**
+ * Update agent spending policy
+ */
+export const updateAgentPolicy = async (
+  wallet: string,
+  agentId: string,
+  policy: Partial<AgentSpendingPolicy>
+): Promise<{ success: boolean; policy?: AgentSpendingPolicy; error?: string }> => {
+  return api.request("/api/agents/policy", {
+    method: "PUT",
+    body: JSON.stringify({ wallet, agent_id: agentId, ...policy }),
+  });
+};
+
+/**
+ * Get agent spending logs
+ */
+export const getAgentLogs = async (
+  wallet: string,
+  agentId: string,
+  limit?: number,
+  offset?: number
+): Promise<{ success: boolean; logs: AgentSpendingLogEntry[]; total: number }> => {
+  const params = new URLSearchParams({
+    wallet,
+    agent_id: agentId,
+    limit: (limit || 50).toString(),
+    offset: (offset || 0).toString(),
+  });
+  return api.request(`/api/agents/logs?${params.toString()}`);
+};
+
 export default api;
 
