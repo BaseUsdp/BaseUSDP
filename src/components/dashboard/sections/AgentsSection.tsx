@@ -343,9 +343,17 @@ const AgentsSection = () => {
         {detailTab === "overview" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-6 space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Agent ID</p>
-                <p className="text-sm font-mono">{selectedAgent.id.slice(0, 8)}...</p>
+              <div className="col-span-2">
+                <p className="text-xs text-muted-foreground mb-1">Agent ID</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-mono bg-secondary/50 px-2 py-1 rounded break-all">{selectedAgent.id}</p>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(selectedAgent.id); toast({ title: "Copied!" }); }}
+                    className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    <Icon icon="ph:copy-bold" className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Owner</p>
