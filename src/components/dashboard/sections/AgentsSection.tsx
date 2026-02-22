@@ -504,36 +504,29 @@ const AgentsSection = () => {
     const steps = [
       {
         num: 1,
-        icon: "ph:identification-card-bold",
-        color: "text-sky-400",
-        title: "Get your Agent ID",
-        description: "Go to your agent's Overview tab — copy the Agent ID (e.g., 513d044f-1a25-4016-a176-282acf4b3995).",
-      },
-      {
-        num: 2,
         icon: "ph:key-bold",
         color: "text-yellow-400",
         title: "Generate an API Key",
-        description: "Go to the Keys tab → click \"Generate New Key\" → copy the key (orbk_...). Save it somewhere — it's shown once only.",
+        description: "Go to your agent's Keys tab → click \"Generate New Key\" → copy the key (orbk_...). Save it somewhere — it's shown once only.",
       },
       {
-        num: 3,
+        num: 2,
         icon: "ph:wallet-bold",
         color: "text-emerald-400",
         title: "Make sure you have pool balance",
         description: "You need funds deposited in your ORB dashboard. If your balance is 0, deposit some USDC first via the Deposit flow.",
       },
       {
-        num: 4,
+        num: 3,
         icon: "ph:magnifying-glass-bold",
         color: "text-emerald-400",
         title: "Test: Check Balance",
-        description: "You should get back your pool balance.",
-        code: `curl ${baseUrl}/api/agents/YOUR_AGENT_ID/balance \\
+        description: "The API key identifies your agent — no agent ID needed in the URL. You should get back your pool balance.",
+        code: `curl ${baseUrl}/api/agents/balance \\
   -H "X-Agent-Key: orbk_your_key_here"`,
       },
       {
-        num: 5,
+        num: 4,
         icon: "ph:paper-plane-tilt-bold",
         color: "text-sky-400",
         title: "Test: Send a Transfer",
@@ -548,7 +541,7 @@ const AgentsSection = () => {
   }'`,
       },
       {
-        num: 6,
+        num: 5,
         icon: "ph:shield-check-bold",
         color: "text-red-400",
         title: "Test: Policy Enforcement",
@@ -563,12 +556,12 @@ const AgentsSection = () => {
   }'`,
       },
       {
-        num: 7,
+        num: 6,
         icon: "ph:list-bold",
         color: "text-purple-400",
         title: "Test: Check Spending Logs",
         description: "You should see both the successful and blocked attempts logged.",
-        code: `curl ${baseUrl}/api/agents/YOUR_AGENT_ID/logs \\
+        code: `curl ${baseUrl}/api/agents/logs \\
   -H "X-Agent-Key: orbk_your_key_here"`,
       },
     ];
