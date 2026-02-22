@@ -9,6 +9,7 @@ import {
   listAgents,
   registerAgent,
   updateAgent,
+  deleteAgent,
   generateAgentKey,
   updateAgentPolicy,
   getAgentLogs,
@@ -45,6 +46,10 @@ const AgentsSection = () => {
   // Logs
   const [logs, setLogs] = useState<AgentSpendingLogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+
+  // Delete confirmation
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Detail tab
   const [detailTab, setDetailTab] = useState<"overview" | "keys" | "policy" | "logs">("overview");
@@ -161,10 +166,32 @@ const AgentsSection = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!fullWalletAddress || !selectedAgent) return;
+    setDeleting(true);
+    try {
+      const result = await deleteAgent(fullWalletAddress, selectedAgent.id);
+      if (result.success) {
+        toast({ title: "Agent deleted", description: `${selectedAgent.name} has been permanently removed.` });
+        setSelectedAgent(null);
+        setConfirmDelete(false);
+        setView("list");
+        fetchAgents();
+      } else {
+        toast({ title: "Delete failed", description: result.error, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const openDetail = (agent: AgentProfile) => {
     setSelectedAgent(agent);
     setDetailTab("overview");
     setGeneratedKey(null);
+    setConfirmDelete(false);
     const policy = agent.agent_spending_policies?.[0];
     if (policy) {
       setPolicyForm({
@@ -248,13 +275,53 @@ const AgentsSection = () => {
                 {selectedAgent.status}
               </span>
             </div>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => handleToggleStatus(selectedAgent)}>
                 {selectedAgent.status === "active" ? "Pause" : "Resume"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-400"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Icon icon="ph:trash-bold" className="w-4 h-4" />
               </Button>
             </div>
           </div>
         </div>
+
+        {/* Delete Confirmation */}
+        {confirmDelete && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 flex items-center gap-4"
+          >
+            <Icon icon="ph:warning-bold" className="w-5 h-5 text-red-400 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-400">Delete this agent?</p>
+              <p className="text-xs text-muted-foreground">This will permanently remove the agent, all API keys, policies, and spending logs.</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <><Icon icon="ph:spinner-bold" className="w-4 h-4 mr-1 animate-spin" /> Deleting...</>
+                ) : (
+                  "Delete"
+                )}
+              </Button>
+            </div>
+          </motion.div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-1 border-b border-border pb-1">

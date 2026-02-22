@@ -781,6 +781,19 @@ export const updateAgent = async (
 };
 
 /**
+ * Delete an agent and all associated data
+ */
+export const deleteAgent = async (
+  wallet: string,
+  agentId: string
+): Promise<{ success: boolean; error?: string }> => {
+  return api.request("/api/agents/delete", {
+    method: "DELETE",
+    body: JSON.stringify({ wallet, agent_id: agentId }),
+  });
+};
+
+/**
  * Generate API key for an agent
  */
 export const generateAgentKey = async (
