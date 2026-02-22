@@ -66,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const message = `Sign this message to authenticate with Void402.\n\nNonce: ${nonce}\n\nThis signature will not trigger any blockchain transaction.`;
+    const message = `Sign this message to authenticate with ORB402.\n\nNonce: ${nonce}\n\nThis signature will not trigger any blockchain transaction.`;
 
     console.log(`✅ Generated nonce for wallet ${walletAddress.slice(0, 8)}...`);
 

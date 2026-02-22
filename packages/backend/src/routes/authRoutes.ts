@@ -90,7 +90,7 @@ router.post(
     const nonce = generateNonce(walletAddress);
     
     // The message the user needs to sign
-    const message = `Sign this message to authenticate with Void402.\n\nNonce: ${nonce}\n\nThis signature will not trigger any blockchain transaction.`;
+    const message = `Sign this message to authenticate with ORB402.\n\nNonce: ${nonce}\n\nThis signature will not trigger any blockchain transaction.`;
 
     logger.info(`Nonce generated for wallet: ${walletAddress.slice(0, 8)}...`);
 
@@ -154,7 +154,7 @@ router.post(
     }
 
     // Reconstruct the message that was signed
-    const message = `Sign this message to authenticate with Void402.\n\nNonce: ${nonce}\n\nThis signature will not trigger any blockchain transaction.`;
+    const message = `Sign this message to authenticate with ORB402.\n\nNonce: ${nonce}\n\nThis signature will not trigger any blockchain transaction.`;
 
     // SECURITY: Verify the cryptographic signature
     const isValidSignature = verifySignature(message, signature, walletAddress);
