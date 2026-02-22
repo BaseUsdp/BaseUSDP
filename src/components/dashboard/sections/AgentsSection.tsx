@@ -501,95 +501,124 @@ const AgentsSection = () => {
   // Docs View
   if (view === "docs") {
     const baseUrl = "https://www.orb402.com";
+    const steps = [
+      {
+        num: 1,
+        icon: "ph:identification-card-bold",
+        color: "text-sky-400",
+        title: "Get your Agent ID",
+        description: "Go to your agent's Overview tab — copy the Agent ID (e.g., 513d044f-1a25-4016-a176-282acf4b3995).",
+      },
+      {
+        num: 2,
+        icon: "ph:key-bold",
+        color: "text-yellow-400",
+        title: "Generate an API Key",
+        description: "Go to the Keys tab → click \"Generate New Key\" → copy the key (orbk_...). Save it somewhere — it's shown once only.",
+      },
+      {
+        num: 3,
+        icon: "ph:wallet-bold",
+        color: "text-emerald-400",
+        title: "Make sure you have pool balance",
+        description: "You need funds deposited in your ORB dashboard. If your balance is 0, deposit some USDC first via the Deposit flow.",
+      },
+      {
+        num: 4,
+        icon: "ph:magnifying-glass-bold",
+        color: "text-emerald-400",
+        title: "Test: Check Balance",
+        description: "You should get back your pool balance.",
+        code: `curl ${baseUrl}/api/agents/YOUR_AGENT_ID/balance \\
+  -H "X-Agent-Key: orbk_your_key_here"`,
+      },
+      {
+        num: 5,
+        icon: "ph:paper-plane-tilt-bold",
+        color: "text-sky-400",
+        title: "Test: Send a Transfer",
+        description: "Start with a small amount (e.g., $1). If successful, you'll get a tx hash back.",
+        code: `curl -X POST ${baseUrl}/api/agents/transfer \\
+  -H "X-Agent-Key: orbk_your_key_here" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to": "0xSomeRecipientAddress",
+    "amount": 1,
+    "token": "USDC"
+  }'`,
+      },
+      {
+        num: 6,
+        icon: "ph:shield-check-bold",
+        color: "text-red-400",
+        title: "Test: Policy Enforcement",
+        description: "Set your policy to something low (e.g., max per tx = $5, daily limit = $10), then try sending more than allowed. This should get blocked by the spending policy.",
+        code: `curl -X POST ${baseUrl}/api/agents/transfer \\
+  -H "X-Agent-Key: orbk_your_key_here" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to": "0xSomeAddress",
+    "amount": 100,
+    "token": "USDC"
+  }'`,
+      },
+      {
+        num: 7,
+        icon: "ph:list-bold",
+        color: "text-purple-400",
+        title: "Test: Check Spending Logs",
+        description: "You should see both the successful and blocked attempts logged.",
+        code: `curl ${baseUrl}/api/agents/YOUR_AGENT_ID/logs \\
+  -H "X-Agent-Key: orbk_your_key_here"`,
+      },
+    ];
+
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 max-w-4xl">
         <div className="mb-2">
           <button onClick={() => setView("list")} className="text-sm text-muted-foreground hover:text-primary mb-2 flex items-center gap-1">
             <Icon icon="ph:arrow-left-bold" className="w-4 h-4" /> Back to Agents
           </button>
-          <h1 className="font-display text-3xl font-bold">API Documentation<span className="text-primary">.</span></h1>
-          <p className="text-muted-foreground mt-1">Use these endpoints to integrate your AI agent with ORB</p>
+          <h1 className="font-display text-3xl font-bold">API Docs<span className="text-primary">.</span></h1>
+          <p className="text-muted-foreground mt-1">Step-by-step guide to test your agent</p>
         </div>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-6 space-y-3">
+        {steps.map((step, i) => (
+          <motion.div
+            key={step.num}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.04 }}
+            className="rounded-2xl border border-border bg-card p-6 space-y-3"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                {step.num}
+              </div>
+              <Icon icon={step.icon} className={cn("w-5 h-5 shrink-0", step.color)} />
+              <h3 className="font-display text-lg font-bold">{step.title}</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">{step.description}</p>
+            {step.code && (
+              <div className="rounded-xl bg-secondary/50 p-4 font-mono text-xs overflow-x-auto whitespace-pre">{step.code}</div>
+            )}
+          </motion.div>
+        ))}
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: steps.length * 0.04 }}
+          className="rounded-2xl border border-primary/30 bg-primary/5 p-6 space-y-2"
+        >
           <div className="flex items-center gap-3 mb-1">
-            <Icon icon="ph:key-bold" className="w-5 h-5 text-yellow-400" />
-            <h3 className="font-display text-lg font-bold">Authentication</h3>
+            <Icon icon="ph:lightbulb-bold" className="w-5 h-5 text-primary" />
+            <h3 className="font-display text-lg font-bold">Quick Tip</h3>
           </div>
           <p className="text-sm text-muted-foreground">
-            Include your API key in every request using one of these methods:
+            You can run all of these from your terminal (Git Bash, PowerShell, or any CLI).
+            Replace <code className="bg-secondary px-1.5 py-0.5 rounded font-mono text-xs">YOUR_AGENT_ID</code> and <code className="bg-secondary px-1.5 py-0.5 rounded font-mono text-xs">orbk_your_key_here</code> with your actual values.
           </p>
-          <div className="rounded-xl bg-secondary/50 p-4 font-mono text-xs space-y-2 overflow-x-auto">
-            <p className="text-muted-foreground"># Option 1: X-Agent-Key header</p>
-            <p>X-Agent-Key: orbk_your_key_here</p>
-            <p className="text-muted-foreground mt-3"># Option 2: Authorization header</p>
-            <p>Authorization: AgentKey orbk_your_key_here</p>
-          </div>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="rounded-2xl border border-border bg-card p-6 space-y-3">
-          <div className="flex items-center gap-3 mb-1">
-            <Icon icon="ph:paper-plane-tilt-bold" className="w-5 h-5 text-sky-400" />
-            <h3 className="font-display text-lg font-bold">Transfer Funds</h3>
-          </div>
-          <p className="text-sm text-muted-foreground">Send a private transfer to another wallet address.</p>
-          <div className="rounded-xl bg-secondary/50 p-4 font-mono text-xs overflow-x-auto whitespace-pre">{`curl -X POST ${baseUrl}/api/agents/transfer \\
-  -H "X-Agent-Key: orbk_your_key_here" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "to": "0xRecipientAddress",
-    "amount": 10,
-    "token": "USDC"
-  }'`}</div>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-2xl border border-border bg-card p-6 space-y-3">
-          <div className="flex items-center gap-3 mb-1">
-            <Icon icon="ph:arrow-square-out-bold" className="w-5 h-5 text-purple-400" />
-            <h3 className="font-display text-lg font-bold">Withdraw Funds</h3>
-          </div>
-          <p className="text-sm text-muted-foreground">Withdraw from your pool balance to an external wallet.</p>
-          <div className="rounded-xl bg-secondary/50 p-4 font-mono text-xs overflow-x-auto whitespace-pre">{`curl -X POST ${baseUrl}/api/agents/withdraw \\
-  -H "X-Agent-Key: orbk_your_key_here" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "to": "0xExternalWallet",
-    "amount": 50,
-    "token": "USDC"
-  }'`}</div>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="rounded-2xl border border-border bg-card p-6 space-y-3">
-          <div className="flex items-center gap-3 mb-1">
-            <Icon icon="ph:wallet-bold" className="w-5 h-5 text-emerald-400" />
-            <h3 className="font-display text-lg font-bold">Check Balance</h3>
-          </div>
-          <p className="text-sm text-muted-foreground">Query your pool balance. Replace <code className="bg-secondary px-1 rounded">AGENT_ID</code> with your agent's ID.</p>
-          <div className="rounded-xl bg-secondary/50 p-4 font-mono text-xs overflow-x-auto whitespace-pre">{`curl ${baseUrl}/api/agents/AGENT_ID/balance \\
-  -H "X-Agent-Key: orbk_your_key_here"`}</div>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="rounded-2xl border border-border bg-card p-6 space-y-3">
-          <div className="flex items-center gap-3 mb-1">
-            <Icon icon="ph:list-bold" className="w-5 h-5 text-orange-400" />
-            <h3 className="font-display text-lg font-bold">Spending Logs</h3>
-          </div>
-          <p className="text-sm text-muted-foreground">Retrieve the audit trail of all transaction attempts by this agent.</p>
-          <div className="rounded-xl bg-secondary/50 p-4 font-mono text-xs overflow-x-auto whitespace-pre">{`curl ${baseUrl}/api/agents/AGENT_ID/logs \\
-  -H "X-Agent-Key: orbk_your_key_here"`}</div>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="rounded-2xl border border-primary/30 bg-primary/5 p-6 space-y-2">
-          <div className="flex items-center gap-3 mb-1">
-            <Icon icon="ph:info-bold" className="w-5 h-5 text-primary" />
-            <h3 className="font-display text-lg font-bold">Notes</h3>
-          </div>
-          <ul className="text-sm text-muted-foreground space-y-1.5 list-disc list-inside">
-            <li>All transfers go through the privacy pool — recipient cannot trace the sender</li>
-            <li>Transactions are subject to your agent's spending policy (per-tx max, daily limit)</li>
-            <li>Supported tokens: USDC, USDT</li>
-            <li>API keys can be revoked anytime from the agent's Keys tab</li>
-          </ul>
         </motion.div>
       </motion.div>
     );
