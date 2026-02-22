@@ -59,12 +59,7 @@ const AgentsSection = () => {
     try {
       setLoading(true);
       const result = await listAgents(fullWalletAddress);
-      if (result.success) {
-        console.log("[Agents] fetched agents:", JSON.stringify(result.agents.map(a => ({
-          id: a.id, name: a.name, policies: a.agent_spending_policies
-        }))));
-        setAgents(result.agents);
-      }
+      if (result.success) setAgents(result.agents);
     } catch (err) {
       console.error("Failed to fetch agents:", err);
     } finally {
@@ -187,7 +182,8 @@ const AgentsSection = () => {
   };
 
   const parsePolicyFromAgent = (agent: AgentProfile) => {
-    const policy = agent.agent_spending_policies?.[0];
+    const raw = agent.agent_spending_policies;
+    const policy = Array.isArray(raw) ? raw[0] : raw;
     return {
       max_per_tx: policy ? (parseFloat(String(policy.max_per_tx)) || 1000) : 1000,
       daily_limit: policy ? (parseFloat(String(policy.daily_limit)) || 5000) : 5000,
@@ -195,13 +191,11 @@ const AgentsSection = () => {
   };
 
   const openDetail = (agent: AgentProfile) => {
-    const parsed = parsePolicyFromAgent(agent);
-    console.log("[Agents] openDetail policy:", { raw: agent.agent_spending_policies, parsed });
     setSelectedAgent(agent);
     setDetailTab("overview");
     setGeneratedKey(null);
     setConfirmDelete(false);
-    setPolicyForm(parsed);
+    setPolicyForm(parsePolicyFromAgent(agent));
     setView("detail");
   };
 

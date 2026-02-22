@@ -704,7 +704,7 @@ export interface AgentProfile {
   status: 'active' | 'paused' | 'revoked';
   created_at: string;
   updated_at: string;
-  agent_spending_policies?: AgentSpendingPolicy[];
+  agent_spending_policies?: AgentSpendingPolicy[] | AgentSpendingPolicy;
 }
 
 export interface AgentSpendingPolicy {
