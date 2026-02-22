@@ -65,11 +65,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Collect all unique wallet addresses from transactions to resolve usernames
+    // Collect all unique wallet addresses and agent IDs from transactions
     const allWallets = new Set<string>();
+    const allAgentIds = new Set<string>();
     (transactions || []).forEach((tx: any) => {
       if (tx.sender_wallet && tx.sender_wallet !== wallet) allWallets.add(tx.sender_wallet);
       if (tx.recipient_wallet && tx.recipient_wallet !== wallet) allWallets.add(tx.recipient_wallet);
+      if (tx.agent_id) allAgentIds.add(tx.agent_id);
     });
 
     // Look up usernames for all counterparty wallets (Void402 users)
@@ -85,6 +87,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (p.wallet_address && p.username) {
             walletToUsername[p.wallet_address] = p.username;
           }
+        }
+      }
+    }
+
+    // Look up agent names for bot transactions
+    const agentIdToName: Record<string, string> = {};
+    if (allAgentIds.size > 0) {
+      const { data: agents } = await supabase
+        .from("agent_profiles")
+        .select("id, name")
+        .in("id", [...allAgentIds]);
+
+      if (agents) {
+        for (const a of agents) {
+          agentIdToName[a.id] = a.name;
         }
       }
     }
@@ -125,6 +142,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         signature: tx.tx_hash,
         txHash: tx.tx_hash,
         privacyLevel: tx.privacy_level || "full",
+        agentId: tx.agent_id || null,
+        agentName: tx.agent_id ? (agentIdToName[tx.agent_id] || "Bot") : null,
       };
     });
 

@@ -162,6 +162,7 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
               icon,
               color,
               bgColor,
+              agentName: (tx as any).agentName || null,
             };
           });
           setRecentTransactions(converted);
@@ -520,12 +521,18 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
                     <Icon icon={tx.icon} className={cn("w-4 h-4", tx.color)} />
                   </div>
                   <div className="flex-1">
-                    <div className="text-sm" style={{ color: 'var(--dash-text)' }}>
+                    <div className="text-sm flex items-center gap-1.5" style={{ color: 'var(--dash-text)' }}>
                       {tx.type === "deposit" ? "Deposit" :
                        tx.type === "withdraw" ? "Withdrawal" :
                        tx.type === "sent" ? `Sent to ${tx.to}` :
                        tx.type === "received" ? `Received from ${tx.from}` :
                        tx.type === "x402" ? `x402 from ${tx.from || "Service"}` : `Transfer`}
+                      {tx.agentName && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-400 font-medium">
+                          <Icon icon="ph:robot-bold" className="w-3 h-3" />
+                          {tx.agentName}
+                        </span>
+                      )}
                     </div>
                     <div className="text-[11px]" style={{ color: 'var(--dash-text-faint)' }}>{tx.time}</div>
                   </div>

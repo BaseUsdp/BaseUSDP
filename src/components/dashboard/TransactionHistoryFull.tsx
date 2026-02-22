@@ -28,6 +28,7 @@ interface Transaction {
   txHash: string;
   privacyLevel: "public" | "partial" | "full";
   paymentId?: string;
+  agentName?: string | null;
 }
 
 // Convert API transaction to UI transaction format
@@ -69,6 +70,7 @@ const convertApiTransaction = (tx: TransactionHistoryResponse["transactions"][0]
     txHash: tx.signature,
     privacyLevel: "full", // All transactions are encrypted
     paymentId: tx.type === "payment" ? tx.signature : undefined,
+    agentName: (tx as any).agentName || null,
   };
 };
 
@@ -272,6 +274,12 @@ const TransactionHistoryFull = ({ showBalance }: TransactionHistoryFullProps) =>
                   {tx.type === "deposit" && (
                     <span className="text-xs px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 font-medium">
                       Deposit
+                    </span>
+                  )}
+                  {tx.agentName && (
+                    <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 font-medium">
+                      <Icon icon="ph:robot-bold" className="w-3 h-3" />
+                      {tx.agentName}
                     </span>
                   )}
                 </div>
