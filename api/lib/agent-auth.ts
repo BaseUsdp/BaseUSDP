@@ -8,7 +8,7 @@
 
 import type { VercelRequest } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -35,10 +35,7 @@ export function hashApiKey(rawKey: string): string {
  * Returns the raw key (show once) and its hash (store in DB)
  */
 export function generateAgentApiKey(): { rawKey: string; keyHash: string; keyPrefix: string } {
-  const bytes = new Uint8Array(32);
-  // Use crypto.getRandomValues equivalent in Node
-  require('crypto').randomFillSync(bytes);
-  const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  const hex = randomBytes(32).toString('hex');
   const rawKey = `orbk_${hex}`;
   const keyHash = hashApiKey(rawKey);
   const keyPrefix = `orbk_${hex.slice(0, 8)}...`;
