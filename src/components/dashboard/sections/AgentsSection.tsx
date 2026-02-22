@@ -530,12 +530,12 @@ const AgentsSection = () => {
         icon: "ph:paper-plane-tilt-bold",
         color: "text-sky-400",
         title: "Test: Send a Transfer",
-        description: "Start with a small amount (e.g., $1). If successful, you'll get a tx hash back.",
+        description: "Start with a small amount (e.g., $1). \"to\" accepts a username or 0x address. If successful, you'll get a tx hash back.",
         code: `curl -X POST ${baseUrl}/api/agents/transfer \\
   -H "X-Agent-Key: orbk_your_key_here" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "to": "0xSomeRecipientAddress",
+    "to": "username_or_0xAddress",
     "amount": 1,
     "token": "USDC"
   }'`,

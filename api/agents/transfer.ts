@@ -60,7 +60,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(403).json({ error: 'API key does not have transfer scope' });
   }
 
-  const { recipient_wallet, recipient_username, amount, token, force_external } = req.body || {};
+  const { recipient_wallet, recipient_username, to, amount, token, force_external } = req.body || {};
+  // "to" is a shorthand: if it looks like an address use as wallet, otherwise treat as username
+  const resolvedRecipientWallet = recipient_wallet || (to && to.startsWith('0x') ? to : undefined);
+  const resolvedRecipientUsername = recipient_username || (to && !to.startsWith('0x') ? to : undefined);
 
   if (!amount || !token) {
     return res.status(400).json({ error: 'amount and token are required' });
@@ -99,22 +102,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Resolve recipient
-  let resolvedRecipient = recipient_wallet;
-  if (!resolvedRecipient && recipient_username) {
-    const cleanUsername = recipient_username.startsWith("@") ? recipient_username.substring(1) : recipient_username;
+  let resolvedRecipient = resolvedRecipientWallet;
+  if (!resolvedRecipient && resolvedRecipientUsername) {
+    const cleanUsername = resolvedRecipientUsername.startsWith("@") ? resolvedRecipientUsername.substring(1) : resolvedRecipientUsername;
     const { data: userProfile } = await supabase
       .from("user_profiles")
       .select("wallet_address")
       .ilike("username", cleanUsername)
       .maybeSingle();
     if (!userProfile) {
-      return res.status(404).json({ error: `Username "${recipient_username}" not found` });
+      return res.status(404).json({ error: `Username "${resolvedRecipientUsername}" not found` });
     }
     resolvedRecipient = userProfile.wallet_address;
   }
 
   if (!resolvedRecipient) {
-    return res.status(400).json({ error: 'recipient_wallet or recipient_username is required' });
+    return res.status(400).json({ error: '"to" (username or 0x address), "recipient_wallet", or "recipient_username" is required' });
   }
 
   if (!isValidBaseAddress(resolvedRecipient)) {
@@ -199,14 +202,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Determine internal vs external
     let recipientIsVoid402User = false;
-    if (!force_external && !recipient_username) {
+    if (!force_external && !resolvedRecipientUsername) {
       const { data: recipientProfile } = await supabase
         .from('user_profiles')
         .select('id')
         .ilike('wallet_address', resolvedRecipient)
         .maybeSingle();
       if (recipientProfile) recipientIsVoid402User = true;
-    } else if (recipient_username) {
+    } else if (resolvedRecipientUsername) {
       recipientIsVoid402User = true;
     }
 

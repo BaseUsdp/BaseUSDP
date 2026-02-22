@@ -57,10 +57,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(403).json({ error: 'API key does not have withdraw scope' });
   }
 
-  const { recipient_wallet, amount, token } = req.body || {};
+  const { recipient_wallet, to, amount, token } = req.body || {};
+  const resolvedWallet = recipient_wallet || to;
 
-  if (!recipient_wallet || !amount || !token) {
-    return res.status(400).json({ error: 'recipient_wallet, amount, and token are required' });
+  if (!resolvedWallet || !amount || !token) {
+    return res.status(400).json({ error: '"to" (or "recipient_wallet"), amount, and token are required' });
   }
 
   if (!['USDC', 'USDT'].includes(token)) {
@@ -72,18 +73,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Invalid amount' });
   }
 
-  if (!isValidBaseAddress(recipient_wallet)) {
+  if (!isValidBaseAddress(resolvedWallet)) {
     return res.status(400).json({ error: 'Invalid recipient address' });
   }
 
   // Check spending policy
-  const policyCheck = await checkSpendingPolicy(auth.agentId, withdrawAmount, token, recipient_wallet);
+  const policyCheck = await checkSpendingPolicy(auth.agentId, withdrawAmount, token, resolvedWallet);
   if (!policyCheck.allowed) {
-    await logSpendingAttempt(auth.agentId, 'withdraw', withdrawAmount, token, 'blocked', recipient_wallet, policyCheck.reason);
+    await logSpendingAttempt(auth.agentId, 'withdraw', withdrawAmount, token, 'blocked', resolvedWallet, policyCheck.reason);
     return res.status(403).json({ error: policyCheck.reason || 'Policy violation' });
   }
 
-  await logSpendingAttempt(auth.agentId, 'withdraw', withdrawAmount, token, 'allowed', recipient_wallet);
+  await logSpendingAttempt(auth.agentId, 'withdraw', withdrawAmount, token, 'allowed', resolvedWallet);
 
   if (!isBaseChain()) {
     return res.status(400).json({ error: 'Agent withdrawals are only supported on Base chain' });
@@ -112,7 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!intWalletData) {
-      await logSpendingAttempt(auth.agentId, 'withdraw', withdrawAmount, token, 'failed', recipient_wallet, 'Insufficient pool balance');
+      await logSpendingAttempt(auth.agentId, 'withdraw', withdrawAmount, token, 'failed', resolvedWallet, 'Insufficient pool balance');
       return res.status(400).json({ error: 'Insufficient pool balance' });
     }
 
@@ -132,7 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await uploadTx.wait();
 
     // External transfer (withdrawal)
-    const transferTx = await privacyPoolContract.externalTransfer(proofId, recipient_wallet, 0n);
+    const transferTx = await privacyPoolContract.externalTransfer(proofId, resolvedWallet, 0n);
     const receipt = await transferTx.wait();
     const signature = receipt.hash;
 
@@ -140,7 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       await supabase.from('zk_transactions').insert({
         sender_wallet: auth.ownerWallet,
-        recipient_wallet,
+        resolvedWallet,
         amount: withdrawAmount,
         fee_percentage: 0,
         token_symbol: token,
@@ -152,18 +153,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     } catch {}
 
-    await logSpendingAttempt(auth.agentId, 'withdraw', withdrawAmount, token, 'completed', recipient_wallet, undefined, signature);
+    await logSpendingAttempt(auth.agentId, 'withdraw', withdrawAmount, token, 'completed', resolvedWallet, undefined, signature);
 
     return res.status(200).json({
       success: true,
       signature,
       amount: withdrawAmount,
       token,
-      recipient: recipient_wallet,
+      recipient: resolvedWallet,
     });
   } catch (err: any) {
     console.error(`[Agent Withdraw] Error:`, err.message);
-    await logSpendingAttempt(auth.agentId, 'withdraw', withdrawAmount, token, 'failed', recipient_wallet, err.message);
+    await logSpendingAttempt(auth.agentId, 'withdraw', withdrawAmount, token, 'failed', resolvedWallet, err.message);
     return res.status(500).json({ error: 'Withdrawal failed: ' + err.message });
   }
 }
