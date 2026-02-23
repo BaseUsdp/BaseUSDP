@@ -18,6 +18,11 @@ const FAQSection = () => {
 
   const faqs = [
     {
+      icon: "ph:globe-bold",
+      question: "What is Web 4.0?",
+      answer: "Web 4.0 represents the next evolution of the internet — an autonomous, agent-driven economy where AI agents, machines, and humans transact value seamlessly. Unlike Web3 which focused on decentralization, Web 4.0 adds intelligence and autonomy: AI agents independently negotiate, pay, and settle transactions. ORB402 provides the confidential payment infrastructure that makes this possible, ensuring privacy for both human and machine participants.",
+    },
+    {
       icon: "ph:shield-check-bold",
       question: "What are Zero-Knowledge Proofs (ZK Proofs)?",
       answer: "ZK Proofs are cryptographic methods that allow one party to prove to another that a statement is true without revealing any additional information. This means your transaction amounts, balances, and financial data remain private while still being verifiable on the blockchain. ORB402 uses ZK Proofs to enable truly confidential transactions.",
@@ -32,12 +37,7 @@ const FAQSection = () => {
       question: "How does ORB402 protect my privacy?",
       answer: "ORB402 encrypts your transaction amounts and balances using ZK Proof technology. Unlike traditional blockchains where all data is public, only you can see your true balances. Third parties, including validators and observers, cannot view your financial activity.",
     },
-    {
-      icon: "ph:credit-card-bold",
-      question: "What are Anonymous Virtual Cards?",
-      answer: "Anonymous Virtual Cards are disposable payment cards generated on-demand for online purchases. Each card can have custom spending limits and merchant locks, ensuring your primary wallet remains hidden. Perfect for subscriptions, one-time purchases, or privacy-conscious shopping.",
-    },
-    {
+{
       icon: "ph:robot-bold",
       question: "Can AI agents use ORB402?",
       answer: "Yes! ORB402 is built for the agentic economy. AI agents can autonomously make and receive payments using the x402 protocol without exposing sensitive financial data. Our SDK enables developers to integrate confidential payments into any AI application.",

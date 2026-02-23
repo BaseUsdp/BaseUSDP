@@ -37,7 +37,7 @@ const AboutSection = () => {
                 Public blockchains promised a revolution in peer-to-peer finance, but their inherent transparency created a critical barrier to mainstream adoption. For institutions, enterprises, and any entity that values financial privacy, broadcasting every transaction to the world is not just a risk—it's a non-starter.
               </p>
               <p>
-                <span className="text-white font-medium">ORB402 was created to solve this fundamental problem.</span> By integrating cutting-edge Zero-Knowledge Proofs (ZK Proofs) with the internet-native x402 payment standard, we have created the world's first confidential payment layer for the on-chain economy.
+                <span className="text-white font-medium">ORB402 was created to solve this fundamental problem — and to power the Web 4.0 economy.</span> Web 4.0 is the era where autonomous agents and machines transact value independently, and privacy is non-negotiable. By integrating cutting-edge Zero-Knowledge Proofs (ZK Proofs) with the internet-native x402 payment standard, we have created the world's first confidential payment layer for this new autonomous internet economy.
               </p>
             </div>
           </motion.div>
@@ -104,7 +104,7 @@ const AboutSection = () => {
             {/* Filler Box 2 - Tech Partners */}
             <div className="glass-card rounded-2xl p-6 border-white/5">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">Built On</span>
+                <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">Web 4.0 Stack</span>
                 <Icon icon="ph:arrow-right" className="w-4 h-4 text-neutral-600" />
               </div>
               <div className="flex items-center gap-4">

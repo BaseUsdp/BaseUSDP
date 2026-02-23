@@ -134,21 +134,21 @@ const HeroSection = () => {
               >
                 <Icon icon="ph:lightning-fill" className="w-4 h-4 text-violet-400" />
                 <span className="text-[10px] font-mono text-violet-300 uppercase tracking-widest">
-                  x402 Protocol Enabled
+                  Web 4.0 Infrastructure · x402 Protocol
                 </span>
               </motion.div>
 
               {/* Main Headline */}
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-medium tracking-tight text-white mb-6 leading-[1.05]">
                 The <span className="gradient-text-violet">Confidential</span> Payment Layer
-                <span className="block text-neutral-600">for the Agentic Economy</span>
+                <span className="block text-neutral-600">for the Web 4.0 Economy</span>
               </h1>
 
               {/* Sub-headline */}
               <p className="text-neutral-400 text-lg leading-relaxed max-w-xl mb-10">
-                Our ZK Proof-powered infrastructure enables institutions, developers, and AI agents 
-                to transact on-chain with complete privacy, unlocking the future of secure, 
-                autonomous commerce.
+                Built for Web 4.0 — where autonomous agents, institutions, and developers transact
+                on-chain with complete privacy. ZK Proof-powered infrastructure for the next era of
+                secure, autonomous commerce.
               </p>
 
               {/* CTA Buttons */}

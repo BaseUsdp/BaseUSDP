@@ -63,18 +63,19 @@ const RoadmapSection = () => {
     {
       phase: "Phase 4",
       status: "UPCOMING",
-      title: "Agentic Economy",
+      title: "Web 4.0 Agentic Economy",
       subtitle: "Advanced Features",
       quarter: "Q4 2026",
       icon: "ph:brain-bold",
       progress: 0,
       color: "from-orange-500 to-amber-600",
       glowColor: "orange",
-      description: "Deep AI integrations establishing ORB402 as the default privacy layer for autonomous commerce.",
+      description: "Deep AI integrations establishing ORB402 as the default privacy layer for Web 4.0 — the autonomous, agent-driven internet economy.",
       milestones: [
         { name: "AI Agent SDK", done: false },
         { name: "Institutional Vaults", done: false },
         { name: "ZK Derivatives", done: false },
+        { name: "Web 4.0 Marketplace", done: false },
       ],
     },
   ];
