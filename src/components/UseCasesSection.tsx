@@ -8,29 +8,29 @@ const UseCasesSection = () => {
 
   const useCases = [
     {
-      icon: "ph:buildings-fill",
-      tag: "Enterprise",
-      title: "Institutional DeFi",
-      description: "Private trading, confidential settlements, and encrypted treasury management for enterprises.",
-      features: ["Private OTC Trading", "Encrypted Settlements", "Confidential Treasury", "Compliance Ready"],
+      icon: "ph:robot-fill",
+      tag: "Autonomous Agents",
+      title: "Agent-to-Agent Commerce",
+      description: "AI agents autonomously negotiate, pay, and settle transactions with built-in privacy — no human intervention required.",
+      features: ["Autonomous Payments", "Agent Identity Verification", "Private Negotiations", "Machine-Speed Settlement"],
       color: "violet",
       gradient: "from-violet-600 to-purple-600",
     },
     {
-      icon: "ph:user-fill",
-      tag: "Consumer",
-      title: "Consumer Privacy",
-      description: "Shop online, pay bills, and manage finances without exposing your data to anyone.",
-      features: ["Anonymous Payments", "Hidden Balances", "Zero Data Leaks", "Private History"],
+      icon: "ph:buildings-fill",
+      tag: "Enterprise",
+      title: "Machine-to-Machine Finance",
+      description: "Infrastructure for autonomous systems to transact at scale — encrypted APIs, private supply chains, and confidential M2M payments.",
+      features: ["Encrypted API Monetization", "Private Supply Chain Payments", "Confidential Treasury Ops", "Compliance-Ready Automation"],
       color: "emerald",
       gradient: "from-emerald-600 to-teal-600",
     },
     {
-      icon: "ph:palette-fill",
-      tag: "Creator",
-      title: "Creator Economy",
-      description: "Private payment rails for content creators and digital goods monetization.",
-      features: ["Private Earnings", "Anonymous Tips", "Encrypted Subscriptions", "Hidden Revenue"],
+      icon: "ph:user-fill",
+      tag: "Human Participants",
+      title: "Privacy-First for Humans",
+      description: "Humans in the Web 4.0 economy deserve the same privacy as machines. Transact, earn, and manage assets without surveillance.",
+      features: ["Anonymous Payments", "Hidden Balances", "Zero Data Leaks", "Agent-Compatible Wallets"],
       color: "pink",
       gradient: "from-pink-600 to-rose-600",
     },
@@ -69,10 +69,10 @@ const UseCasesSection = () => {
             Use Cases
           </div>
           <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-white mb-6 leading-[1.05]">
-            Built for <span className="gradient-text-violet">Everyone</span>
+            Built for the <span className="gradient-text-violet">Web 4.0</span> Economy
           </h2>
           <p className="text-neutral-400 text-lg max-w-2xl mx-auto">
-            From enterprises to creators, privacy-first payments designed for every use case.
+            From autonomous agents to human participants, confidential payments for every actor in the Web 4.0 economy.
           </p>
         </motion.div>
 
@@ -128,17 +128,6 @@ const UseCasesSection = () => {
                     </div>
                   ))}
                 </div>
-                <a 
-                  href="#" 
-                  className={`mt-8 flex items-center gap-2 text-xs font-mono uppercase tracking-widest group-hover:gap-3 transition-all ${
-                    useCase.color === 'violet' ? 'text-violet-400 hover:text-violet-300' :
-                    useCase.color === 'emerald' ? 'text-emerald-400 hover:text-emerald-300' :
-                    'text-pink-400 hover:text-pink-300'
-                  }`}
-                >
-                  Learn more
-                  <Icon icon="ph:arrow-right" className="w-4 h-4" />
-                </a>
               </div>
             </motion.div>
           ))}
