@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { AtSign, Send, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { AtSign, Send, Loader2, CheckCircle, AlertCircle, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useXMTP } from "@/contexts/XMTPContext";
 import { getApiUrl } from "@/utils/apiConfig";
@@ -13,10 +13,11 @@ interface SendMessageModalProps {
 }
 
 const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient }: SendMessageModalProps) => {
-  const { sendMessage, resolveUsername, canMessage } = useXMTP();
+  const { sendMessage, canMessage } = useXMTP();
   const [recipient, setRecipient] = useState(defaultRecipient || "");
   const [message, setMessage] = useState("");
   const [recipientError, setRecipientError] = useState<string | null>(null);
+  const [recipientWarning, setRecipientWarning] = useState<string | null>(null);
   const [recipientValid, setRecipientValid] = useState(false);
   const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
@@ -33,6 +34,7 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
       setRecipient("");
       setMessage("");
       setRecipientError(null);
+      setRecipientWarning(null);
       setRecipientValid(false);
       setResolvedAddress(null);
       setSendError(null);
@@ -44,6 +46,7 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
   useEffect(() => {
     if (recipient.length === 0) {
       setRecipientError(null);
+      setRecipientWarning(null);
       setRecipientValid(false);
       setResolvedAddress(null);
       setIsValidating(false);
@@ -51,6 +54,7 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
     }
     if (recipient.length < 3) {
       setRecipientError("Username must be at least 3 characters");
+      setRecipientWarning(null);
       setRecipientValid(false);
       setResolvedAddress(null);
       setIsValidating(false);
@@ -60,42 +64,48 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
     setIsValidating(true);
     const timeoutId = setTimeout(async () => {
       try {
-        // Step 1: Check if username exists
+        // Step 1: Check if username exists (also returns wallet_address)
         const response = await fetch(`${apiUrl}/api/user/check-username?username=${encodeURIComponent(recipient)}`);
         const data = await response.json();
         if (!data.exists) {
           setRecipientError("Username not found");
+          setRecipientWarning(null);
           setRecipientValid(false);
           setResolvedAddress(null);
           setIsValidating(false);
           return;
         }
 
-        // Step 2: Resolve wallet address
-        const addr = await resolveUsername(recipient);
+        // Use wallet_address from check-username response directly
+        const addr = data.wallet_address;
         if (!addr) {
           setRecipientError("Could not resolve wallet address");
+          setRecipientWarning(null);
           setRecipientValid(false);
           setResolvedAddress(null);
           setIsValidating(false);
           return;
         }
 
-        // Step 3: Check if recipient has XMTP identity
-        const canMsg = await canMessage(addr);
-        if (!canMsg) {
-          setRecipientError("User hasn't enabled messaging yet");
-          setRecipientValid(false);
-          setResolvedAddress(null);
-          setIsValidating(false);
-          return;
-        }
-
+        // Username valid + address resolved — mark as valid
         setRecipientError(null);
         setRecipientValid(true);
         setResolvedAddress(addr);
+
+        // Soft check: warn if recipient hasn't enabled XMTP yet
+        try {
+          const canMsg = await canMessage(addr);
+          if (!canMsg) {
+            setRecipientWarning("User hasn't enabled encrypted messaging yet. Message will be delivered when they do.");
+          } else {
+            setRecipientWarning(null);
+          }
+        } catch {
+          setRecipientWarning(null);
+        }
       } catch {
         setRecipientError("Could not verify username");
+        setRecipientWarning(null);
         setRecipientValid(false);
         setResolvedAddress(null);
       }
@@ -106,7 +116,7 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
       clearTimeout(timeoutId);
       setIsValidating(false);
     };
-  }, [recipient, apiUrl, resolveUsername, canMessage]);
+  }, [recipient, apiUrl, canMessage]);
 
   const canSend = recipientValid && resolvedAddress && message.trim().length > 0 && message.trim().length <= 1000 && !isSending;
 
@@ -154,6 +164,7 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
                 onChange={(e) => {
                   setRecipient(e.target.value.replace(/@/g, ""));
                   setRecipientError(null);
+                  setRecipientWarning(null);
                   setRecipientValid(false);
                   setResolvedAddress(null);
                   setSendError(null);
@@ -185,6 +196,16 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
               >
                 <AlertCircle className="w-3 h-3" />
                 {recipientError}
+              </motion.p>
+            )}
+            {!recipientError && recipientWarning && (
+              <motion.p
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-1.5 text-xs text-yellow-500/80 flex items-center gap-1"
+              >
+                <AlertTriangle className="w-3 h-3" />
+                {recipientWarning}
               </motion.p>
             )}
           </div>
