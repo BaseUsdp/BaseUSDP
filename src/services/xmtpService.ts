@@ -3,7 +3,7 @@
  * Singleton wrapper for decentralized, E2E-encrypted messaging via XMTP.
  */
 
-import { Client, ConsentEntityType, ConsentState, type Conversation, type DecodedMessage, type Signer, IdentifierKind, type Identifier } from "@xmtp/browser-sdk";
+import { Client, ConsentState, type Conversation, type DecodedMessage, type Signer, IdentifierKind, type Identifier } from "@xmtp/browser-sdk";
 import { toBytes, type Hex } from "viem";
 
 let xmtpClient: Client | null = null;
@@ -162,27 +162,25 @@ export async function canMessage(addresses: string[]): Promise<Map<string, boole
 }
 
 /**
- * Allow a conversation by its group ID (consent management).
+ * Allow a conversation by its ID (consent management).
  */
 export async function allowConversation(conversationId: string): Promise<void> {
   if (!xmtpClient) throw new Error("XMTP client not initialized");
 
-  await xmtpClient.setConsentStates([{
-    entityType: ConsentEntityType.GroupId,
-    entity: conversationId,
-    state: ConsentState.Allowed,
-  }]);
+  const conv = await xmtpClient.conversations.getConversationById(conversationId);
+  if (conv) {
+    await conv.updateConsentState(ConsentState.Allowed);
+  }
 }
 
 /**
- * Deny a conversation by its group ID (consent management).
+ * Deny a conversation by its ID (consent management).
  */
 export async function denyConversation(conversationId: string): Promise<void> {
   if (!xmtpClient) throw new Error("XMTP client not initialized");
 
-  await xmtpClient.setConsentStates([{
-    entityType: ConsentEntityType.GroupId,
-    entity: conversationId,
-    state: ConsentState.Denied,
-  }]);
+  const conv = await xmtpClient.conversations.getConversationById(conversationId);
+  if (conv) {
+    await conv.updateConsentState(ConsentState.Denied);
+  }
 }
