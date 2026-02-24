@@ -11,6 +11,7 @@ import {
   Settings,
   History,
   ArrowUpRight,
+  ArrowLeftRight,
   MessageSquare,
   Terminal,
   Bot
@@ -36,6 +37,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
     { id: "agents", label: "Agents", icon: Bot },
     { id: "payments", label: "Payments", icon: Send },
     { id: "withdraw", label: "Withdraw", icon: ArrowUpRight },
+    { id: "swap", label: "Swap", icon: ArrowLeftRight },
     { id: "history", label: "History", icon: History },
     { id: "messages", label: "Messages", icon: MessageSquare },
     { id: "settings", label: "Settings", icon: Settings },

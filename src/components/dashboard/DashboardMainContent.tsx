@@ -16,6 +16,7 @@ import WithdrawSection from "./sections/WithdrawSection";
 import MessagesSection from "./sections/MessagesSection";
 import AITerminalSection from "./sections/AITerminalSection";
 import AgentsSection from "./sections/AgentsSection";
+import SwapSection from "./sections/SwapSection";
 import { getTransactionHistory, TransactionHistoryResponse, getZKBalance } from "@/services/api";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
 
@@ -289,6 +290,14 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
     return (
       <div className="p-4 sm:p-6">
         <WithdrawSection showBalance={showBalance} initialAmount={withdrawInitialAmount || localWithdrawAmount} initialToken={withdrawInitialToken || localWithdrawToken} />
+      </div>
+    );
+  }
+
+  if (activeTab === "swap") {
+    return (
+      <div className="p-4 sm:p-6">
+        <SwapSection showBalance={showBalance} />
       </div>
     );
   }
