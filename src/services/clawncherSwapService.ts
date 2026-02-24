@@ -358,30 +358,37 @@ export class ClawnchSwapper {
         params: [taker, JSON.stringify(quote.permit2.eip712)],
       });
 
-      // Append signature to calldata: data + sig + uint256(sig_byte_length)
-      // Signature is "0x" + 130 hex chars = 65 bytes
+      // The 0x Settler reads the signature from the end of msg.data:
+      //   - Last 32 bytes = uint256(signatureByteLength)
+      //   - Previous signatureByteLength bytes = the raw signature
+      //   - Everything before that = the original calldata
       const sigWithout0x = signature.startsWith("0x")
         ? signature.slice(2)
         : signature;
-      const sigByteLength = sigWithout0x.length / 2; // should be 65
+      const sigByteLength = sigWithout0x.length / 2;
+
       // Encode length as uint256 (64 hex chars = 32 bytes)
       const lengthHex = sigByteLength.toString(16).padStart(64, "0");
 
       txData = (quote.transaction.data + sigWithout0x + lengthHex) as Hex;
 
+      console.log("[Swap] Raw signature hex:", sigWithout0x.slice(0, 20) + "...");
       console.log("[Swap] Signature length (bytes):", sigByteLength);
-      console.log("[Swap] Original data length:", quote.transaction.data.length);
-      console.log("[Swap] Final data length:", txData.length);
+      console.log("[Swap] Original calldata bytes:", (quote.transaction.data.length - 2) / 2);
+      console.log("[Swap] Final calldata bytes:", (txData.length - 2) / 2);
+      console.log("[Swap] Added bytes:", sigByteLength + 32);
     }
 
-    // 4. Send swap transaction
+    // 4. Send swap transaction with extra gas headroom for signature bytes
     const tx = quote.transaction;
+    const gasLimit = tx.gas > 0n ? tx.gas * 3n / 2n : 500000n; // 50% more gas
     const txHash: Hash = await this.provider.request({
       method: "eth_sendTransaction",
       params: [{
         from: taker,
         to: tx.to,
         data: txData,
+        gas: `0x${gasLimit.toString(16)}`,
         value: tx.value > 0n ? `0x${tx.value.toString(16)}` : "0x0",
       }],
     });
