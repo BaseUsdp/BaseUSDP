@@ -87,6 +87,16 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
           return;
         }
 
+        // XMTP requires an EVM (0x) address — reject Solana addresses
+        if (!addr.startsWith("0x")) {
+          setRecipientError("This user registered with a Solana wallet. Encrypted messaging requires an EVM wallet.");
+          setRecipientWarning(null);
+          setRecipientValid(false);
+          setResolvedAddress(null);
+          setIsValidating(false);
+          return;
+        }
+
         // Username valid + address resolved — mark as valid
         setRecipientError(null);
         setRecipientValid(true);
