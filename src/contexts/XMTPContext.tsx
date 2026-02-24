@@ -62,8 +62,31 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
   // Track which conversations user has "seen" (opened)
   const seenConversationsRef = useRef<Set<string>>(new Set());
   // Local consent overrides (SDK consent is unreliable in browser wrapper)
+  // Persisted in localStorage so they survive reconnects
   const consentOverridesRef = useRef<Map<string, "allowed" | "denied">>(new Map());
   const isStreamingRef = useRef(false);
+
+  // Load persisted consent overrides from localStorage
+  const loadConsentOverrides = useCallback(() => {
+    if (!fullWalletAddress) return;
+    try {
+      const key = `xmtp_consent_${fullWalletAddress.toLowerCase()}`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        const entries = JSON.parse(stored) as [string, "allowed" | "denied"][];
+        consentOverridesRef.current = new Map(entries);
+      }
+    } catch {}
+  }, [fullWalletAddress]);
+
+  const saveConsentOverrides = useCallback(() => {
+    if (!fullWalletAddress) return;
+    try {
+      const key = `xmtp_consent_${fullWalletAddress.toLowerCase()}`;
+      const entries = Array.from(consentOverridesRef.current.entries());
+      localStorage.setItem(key, JSON.stringify(entries));
+    } catch {}
+  }, [fullWalletAddress]);
 
   // Get EVM provider sign function
   const getSignFn = useCallback(() => {
@@ -108,6 +131,7 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
       const signer = xmtp.buildSigner(fullWalletAddress, signFn);
       await xmtp.initialize(signer);
       setInboxId(xmtp.getInboxId());
+      loadConsentOverrides();
       setIsXMTPReady(true);
 
       // Load initial conversations
@@ -257,6 +281,7 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
   const handleAllowConversation = useCallback(async (conversationId: string) => {
     // Update local state immediately
     consentOverridesRef.current.set(conversationId, "allowed");
+    saveConsentOverrides();
     setConversations((prev) =>
       prev.map((c) =>
         c.conversationId === conversationId ? { ...c, consentState: "allowed" } : c
@@ -264,7 +289,7 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
     );
     // Best-effort SDK update
     xmtp.allowConversation(conversationId).catch(() => {});
-  }, []);
+  }, [saveConsentOverrides]);
 
   /**
    * Deny a conversation.
@@ -272,6 +297,7 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
   const handleDenyConversation = useCallback(async (conversationId: string) => {
     // Update local state immediately
     consentOverridesRef.current.set(conversationId, "denied");
+    saveConsentOverrides();
     setConversations((prev) =>
       prev.map((c) =>
         c.conversationId === conversationId ? { ...c, consentState: "denied" } : c
@@ -280,7 +306,7 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
     setUnreadCount((prev) => Math.max(0, prev - 1));
     // Best-effort SDK update
     xmtp.denyConversation(conversationId).catch(() => {});
-  }, []);
+  }, [saveConsentOverrides]);
 
   return (
     <XMTPContext.Provider
