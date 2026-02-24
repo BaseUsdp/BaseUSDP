@@ -276,8 +276,8 @@ export class ClawnchSwapper {
   }): Promise<SwapResult> {
     const taker = await this.getTakerAddress();
 
-    // 1. Get firm quote
-    const quote = await this.getQuote({ ...params, taker });
+    // 1. Get initial quote to check allowance target
+    let quote = await this.getQuote({ ...params, taker });
 
     if (!quote.liquidityAvailable) {
       throw new Error("Insufficient liquidity available for this swap");
@@ -293,7 +293,6 @@ export class ClawnchSwapper {
       });
 
       if (currentAllowance < params.sellAmount) {
-        // Encode approve(spender, amount) calldata
         const approveData = encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
@@ -321,10 +320,13 @@ export class ClawnchSwapper {
             throw new Error("Token approval transaction failed");
           }
         }
+
+        // Get a FRESH quote after approval (old quote may have expired)
+        quote = await this.getQuote({ ...params, taker });
       }
     }
 
-    // 3. Send swap transaction (using raw provider like DepositModal)
+    // 3. Send swap transaction (let wallet estimate gas, don't pass quote's gas)
     const tx = quote.transaction;
     const txHash: Hash = await this.provider.request({
       method: "eth_sendTransaction",
@@ -333,7 +335,6 @@ export class ClawnchSwapper {
         to: tx.to,
         data: tx.data,
         value: tx.value > 0n ? `0x${tx.value.toString(16)}` : "0x0",
-        gas: tx.gas > 0n ? `0x${tx.gas.toString(16)}` : undefined,
       }],
     });
 
@@ -352,7 +353,7 @@ export class ClawnchSwapper {
         };
       }
       if (receipt && receipt.status === "0x0") {
-        throw new Error(`Swap transaction reverted: ${txHash}`);
+        throw new Error(`Swap transaction reverted. View on Basescan: https://basescan.org/tx/${txHash}`);
       }
     }
 
