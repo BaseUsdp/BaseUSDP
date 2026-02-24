@@ -77,15 +77,8 @@ export async function getConversationMessages(
 ): Promise<DecodedMessage[]> {
   if (!xmtpClient) throw new Error("XMTP client not initialized");
 
-  const conversations = await xmtpClient.conversations.list();
-  const dm = conversations.find((c) => {
-    // DM conversations have the peer address in their members
-    return c.id.toLowerCase().includes(peerAddress.toLowerCase());
-  });
-
-  if (!dm) return [];
-
-  const messages = await dm.messages();
+  const conversation = await xmtpClient.conversations.createDmWithIdentifier(ethIdentifier(peerAddress));
+  const messages = await conversation.messages();
   return messages;
 }
 
