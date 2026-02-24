@@ -49,18 +49,17 @@ const DashboardTopBar = ({ showBalance, setShowBalance, setActiveTab, unreadMess
         </Link>
 
         <button
-          disabled
-          className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-not-allowed"
-          style={{ ...btnStyle, opacity: 0.5 }}
+          onClick={() => setActiveTab("messages")}
+          className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg border"
+          style={btnStyle}
         >
           <MessageSquare className="h-4 w-4" />
           <span className="text-xs font-medium hidden sm:inline">Messages</span>
-          <span
-            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-            style={{ background: 'var(--dash-surface)', color: 'var(--dash-text-faint)' }}
-          >
-            Soon
-          </span>
+          {unreadMessages > 0 && (
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
+              {unreadMessages}
+            </span>
+          )}
         </button>
       </div>
 
