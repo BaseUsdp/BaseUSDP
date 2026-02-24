@@ -13,9 +13,6 @@ import {
   erc20Abi,
   encodeFunctionData,
   maxUint256,
-  concat,
-  numberToHex,
-  size,
   type Address,
   type Hash,
   type Hex,
@@ -298,15 +295,13 @@ export class ClawnchSwapper {
 
   /**
    * Append the Permit2 signature to the transaction data.
-   * 0x v2 expects the signature appended to the calldata with a length suffix.
+   * 0x v2 expects: originalData + signature + uint256(signatureByteLength)
    */
   private appendSignatureToData(txData: Hex, signature: Hex): Hex {
-    const signatureLength = size(signature);
-    return concat([
-      txData,
-      signature,
-      numberToHex(signatureLength, { size: 32 }),
-    ]);
+    const sigHex = signature.slice(2); // strip "0x"
+    const sigByteLen = sigHex.length / 2;
+    const lenHex = sigByteLen.toString(16).padStart(64, "0");
+    return `${txData}${sigHex}${lenHex}` as Hex;
   }
 
   async swap(params: {
