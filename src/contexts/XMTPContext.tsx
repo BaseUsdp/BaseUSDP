@@ -8,7 +8,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { useWallet } from "@/contexts/WalletContext";
 import * as xmtp from "@/services/xmtpService";
 import { useAddressResolver } from "@/hooks/useAddressResolver";
-import type { DecodedMessage } from "@xmtp/browser-sdk";
+import { ConsentState, type DecodedMessage } from "@xmtp/browser-sdk";
 
 export interface XMTPConversation {
   peerAddress: string;
@@ -129,9 +129,9 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
         // Determine consent state
         let consentState: "allowed" | "denied" | "unknown" = "unknown";
         try {
-          const state = conv.consentState;
-          if (state === "allowed") consentState = "allowed";
-          else if (state === "denied") consentState = "denied";
+          const state = conv.consentState();
+          if (state === ConsentState.Allowed) consentState = "allowed";
+          else if (state === ConsentState.Denied) consentState = "denied";
         } catch {
           // Default to unknown
         }
