@@ -2,10 +2,11 @@
  * Clawncher Swap Service
  *
  * Calls the Clawncher swap API (0x aggregation proxy) directly.
- * Uses viem for on-chain interactions (allowance, approve).
- * Handles 0x v2 Permit2 flow: approve → sign permit → send swap tx.
- * No dependency on the @clawnch/clawncher-sdk package to avoid bundling
- * issues with server-side modules (wayfinder, @uniswap/v4-sdk).
+ * Uses the AllowanceHolder path: approve → send tx (no Permit2 signing).
+ * Matches the official @clawnch/clawncher-sdk swap flow exactly.
+ *
+ * No dependency on the SDK to avoid bundling issues with server-side
+ * modules (wayfinder, @uniswap/v4-sdk).
  */
 import {
   createPublicClient,
@@ -28,8 +29,6 @@ import { getApiUrl } from "@/utils/apiConfig";
 export const NATIVE_TOKEN_ADDRESS: Address =
   "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 const BASE_CHAIN_ID = 8453;
-const PERMIT2_ADDRESS: Address =
-  "0x000000000022D473030F116dDEE9F6B43aC78BA3";
 
 // ORB402 fee configuration
 const ORB402_FEE_RECIPIENT: Address =
@@ -61,11 +60,6 @@ export interface SwapPriceResult {
 }
 
 export interface SwapQuoteResult extends SwapPriceResult {
-  permit2?: {
-    type: string;
-    hash: Hex;
-    eip712: any;
-  };
   transaction: {
     to: Address;
     data: Hex;
@@ -173,7 +167,7 @@ function parsePriceResponse(raw: any): SwapPriceResult {
     gas: BigInt(raw.gas || raw.transaction?.gas || "0"),
     gasPrice: BigInt(raw.gasPrice || raw.transaction?.gasPrice || "0"),
     totalNetworkFee: BigInt(raw.totalNetworkFee || "0"),
-    allowanceTarget: raw.allowanceTarget || PERMIT2_ADDRESS,
+    allowanceTarget: raw.allowanceTarget,
     liquidityAvailable: raw.liquidityAvailable ?? true,
     blockNumber: raw.blockNumber ?? "0",
   };
@@ -184,7 +178,6 @@ function parseQuoteResponse(raw: any): SwapQuoteResult {
   const tx = raw.transaction;
   return {
     ...base,
-    permit2: raw.permit2 || undefined,
     transaction: {
       to: tx.to,
       data: tx.data,
@@ -278,32 +271,14 @@ export class ClawnchSwapper {
   }
 
   /**
-   * Sign the Permit2 EIP-712 message returned by the 0x quote.
-   * This is required for ERC20 swaps — the 0x v2 API uses Permit2
-   * instead of traditional allowance-based approvals.
+   * Execute a full swap: quote → approve if needed → send transaction.
+   *
+   * Matches the official Clawncher SDK flow exactly:
+   * 1. Approve sellToken to quote.allowanceTarget (if ERC20 and insufficient)
+   * 2. Get fresh quote
+   * 3. Send transaction.data directly (no Permit2 signing needed —
+   *    the Settler contract uses msg.sender authorization)
    */
-  private async signPermit2(
-    taker: Address,
-    permit2: { eip712: any }
-  ): Promise<Hex> {
-    const signature: Hex = await this.provider.request({
-      method: "eth_signTypedData_v4",
-      params: [taker, JSON.stringify(permit2.eip712)],
-    });
-    return signature;
-  }
-
-  /**
-   * Append the Permit2 signature to the transaction data.
-   * 0x v2 expects: originalData + signature + uint256(signatureByteLength)
-   */
-  private appendSignatureToData(txData: Hex, signature: Hex): Hex {
-    const sigHex = signature.slice(2); // strip "0x"
-    const sigByteLen = sigHex.length / 2;
-    const lenHex = sigByteLen.toString(16).padStart(64, "0");
-    return `${txData}${sigHex}${lenHex}` as Hex;
-  }
-
   async swap(params: {
     sellToken: Address;
     buyToken: Address;
@@ -312,20 +287,28 @@ export class ClawnchSwapper {
   }): Promise<SwapResult> {
     const taker = await this.getTakerAddress();
 
-    // 1. For ERC20 sells, ensure Permit2 contract has allowance
+    // 1. Get initial quote to find allowanceTarget
+    let quote = await this.getQuote({ ...params, taker });
+
+    if (!quote.liquidityAvailable) {
+      throw new Error("Insufficient liquidity available for this swap");
+    }
+
+    // 2. Approve token if selling ERC20
     if (!isNativeToken(params.sellToken)) {
+      const spender = quote.allowanceTarget;
       const currentAllowance = await this.publicClient.readContract({
         address: params.sellToken,
         abi: erc20Abi,
         functionName: "allowance",
-        args: [taker, PERMIT2_ADDRESS],
+        args: [taker, spender],
       });
 
       if (currentAllowance < params.sellAmount) {
         const approveData = encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
-          args: [PERMIT2_ADDRESS, maxUint256],
+          args: [spender, maxUint256],
         });
 
         const approveHash = await this.provider.request({
@@ -352,29 +335,20 @@ export class ClawnchSwapper {
       }
     }
 
-    // 2. Get a FRESH quote right before sending
-    const quote = await this.getQuote({ ...params, taker });
+    // 3. Get FRESH quote right before sending (old one may have expired)
+    quote = await this.getQuote({ ...params, taker });
 
-    if (!quote.liquidityAvailable) {
-      throw new Error("Insufficient liquidity available for this swap");
-    }
-
-    // 3. If the quote includes a Permit2 message, sign it and append to tx data
-    let txData = quote.transaction.data;
-
-    if (quote.permit2) {
-      const signature = await this.signPermit2(taker, quote.permit2);
-      txData = this.appendSignatureToData(txData, signature);
-    }
-
-    // 4. Send swap transaction
+    // 4. Send swap transaction exactly as returned by API
+    //    (no Permit2 signature needed — msg.sender is the taker)
     const tx = quote.transaction;
     const txHash: Hash = await this.provider.request({
       method: "eth_sendTransaction",
       params: [{
         from: taker,
         to: tx.to,
-        data: txData,
+        data: tx.data,
+        gas: tx.gas > 0n ? `0x${tx.gas.toString(16)}` : undefined,
+        gasPrice: tx.gasPrice > 0n ? `0x${tx.gasPrice.toString(16)}` : undefined,
         value: tx.value > 0n ? `0x${tx.value.toString(16)}` : "0x0",
       }],
     });
