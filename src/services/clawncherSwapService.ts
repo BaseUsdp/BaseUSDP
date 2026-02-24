@@ -14,6 +14,7 @@ import {
   erc20Abi,
   encodeFunctionData,
   maxUint256,
+  maxUint160,
   type Address,
   type Hash,
   type Hex,
@@ -29,6 +30,39 @@ import { getApiUrl } from "@/utils/apiConfig";
 export const NATIVE_TOKEN_ADDRESS: Address =
   "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 const BASE_CHAIN_ID = 8453;
+const PERMIT2_ADDRESS: Address =
+  "0x000000000022D473030F116dDEE9F6B43aC78BA3";
+
+// Minimal Permit2 ABI for allowance checking and approval
+const permit2Abi = [
+  {
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "token", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    name: "allowance",
+    outputs: [
+      { name: "amount", type: "uint160" },
+      { name: "expiration", type: "uint48" },
+      { name: "nonce", type: "uint48" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint160" },
+      { name: "expiration", type: "uint48" },
+    ],
+    name: "approve",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+] as const;
 
 // ORB402 fee configuration
 const ORB402_FEE_RECIPIENT: Address =
@@ -271,13 +305,31 @@ export class ClawnchSwapper {
   }
 
   /**
-   * Execute a full swap: quote → approve if needed → send transaction.
+   * Wait for a transaction to be confirmed.
+   */
+  private async waitForTx(hash: string, maxAttempts = 30): Promise<void> {
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const receipt = await this.provider.request({
+        method: "eth_getTransactionReceipt",
+        params: [hash],
+      });
+      if (receipt && receipt.status === "0x1") return;
+      if (receipt && receipt.status === "0x0") {
+        throw new Error("Transaction failed");
+      }
+    }
+    throw new Error("Transaction confirmation timed out");
+  }
+
+  /**
+   * Execute a full swap with Permit2 AllowanceTransfer flow:
    *
-   * Matches the official Clawncher SDK flow exactly:
-   * 1. Approve sellToken to quote.allowanceTarget (if ERC20 and insufficient)
-   * 2. Get fresh quote
-   * 3. Send transaction.data directly (no Permit2 signing needed —
-   *    the Settler contract uses msg.sender authorization)
+   * For ERC-20 sells, three approvals are needed:
+   *   Step 1: ERC20.approve(Permit2, max) — one-time per token
+   *   Step 2: Permit2.approve(token, settler, amount, expiration) — grants
+   *           the Settler contract permission to pull tokens via Permit2
+   *   Step 3: Get fresh quote and send swap transaction
    */
   async swap(params: {
     sellToken: Address;
@@ -287,28 +339,30 @@ export class ClawnchSwapper {
   }): Promise<SwapResult> {
     const taker = await this.getTakerAddress();
 
-    // 1. Get initial quote to find allowanceTarget
+    // 1. Get initial quote to find the settler contract address
     let quote = await this.getQuote({ ...params, taker });
 
     if (!quote.liquidityAvailable) {
       throw new Error("Insufficient liquidity available for this swap");
     }
 
-    // 2. Approve token if selling ERC20
+    const settlerAddress = quote.transaction.to;
+
+    // 2. For ERC-20 sells, set up Permit2 allowances
     if (!isNativeToken(params.sellToken)) {
-      const spender = quote.allowanceTarget;
-      const currentAllowance = await this.publicClient.readContract({
+      // Step 2a: Ensure ERC20 token has approved Permit2 contract
+      const erc20Allowance = await this.publicClient.readContract({
         address: params.sellToken,
         abi: erc20Abi,
         functionName: "allowance",
-        args: [taker, spender],
+        args: [taker, PERMIT2_ADDRESS],
       });
 
-      if (currentAllowance < params.sellAmount) {
+      if (erc20Allowance < params.sellAmount) {
         const approveData = encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
-          args: [spender, maxUint256],
+          args: [PERMIT2_ADDRESS, maxUint256],
         });
 
         const approveHash = await this.provider.request({
@@ -320,26 +374,49 @@ export class ClawnchSwapper {
           }],
         });
 
-        // Wait for approval confirmation
-        for (let i = 0; i < 30; i++) {
-          await new Promise((r) => setTimeout(r, 2000));
-          const receipt = await this.provider.request({
-            method: "eth_getTransactionReceipt",
-            params: [approveHash],
-          });
-          if (receipt && receipt.status === "0x1") break;
-          if (receipt && receipt.status === "0x0") {
-            throw new Error("Token approval transaction failed");
-          }
-        }
+        await this.waitForTx(approveHash);
+      }
+
+      // Step 2b: Ensure Permit2 has granted allowance to the Settler contract
+      const [permit2Amount, permit2Expiration] = await this.publicClient.readContract({
+        address: PERMIT2_ADDRESS,
+        abi: permit2Abi,
+        functionName: "allowance",
+        args: [taker, params.sellToken, settlerAddress],
+      });
+
+      const now = Math.floor(Date.now() / 1000);
+      if (permit2Amount < params.sellAmount || permit2Expiration <= now) {
+        // Approve Settler on Permit2 with maxUint160 amount, 30 day expiration
+        const expiration = now + 30 * 24 * 60 * 60;
+        const permit2ApproveData = encodeFunctionData({
+          abi: permit2Abi,
+          functionName: "approve",
+          args: [
+            params.sellToken,
+            settlerAddress,
+            maxUint160,
+            expiration,
+          ],
+        });
+
+        const permit2Hash = await this.provider.request({
+          method: "eth_sendTransaction",
+          params: [{
+            from: taker,
+            to: PERMIT2_ADDRESS,
+            data: permit2ApproveData,
+          }],
+        });
+
+        await this.waitForTx(permit2Hash);
       }
     }
 
     // 3. Get FRESH quote right before sending (old one may have expired)
     quote = await this.getQuote({ ...params, taker });
 
-    // 4. Send swap transaction exactly as returned by API
-    //    (no Permit2 signature needed — msg.sender is the taker)
+    // 4. Send swap transaction
     const tx = quote.transaction;
     const txHash: Hash = await this.provider.request({
       method: "eth_sendTransaction",
