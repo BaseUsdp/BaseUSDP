@@ -30,6 +30,7 @@ const ChatModal = ({ open, onClose, username, peerAddress, onMessageSent }: Chat
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const skipConvoUpdateRef = useRef(false);
 
   // Check consent state for this conversation
   const convoEntry = conversations.find(
@@ -91,8 +92,13 @@ const ChatModal = ({ open, onClose, username, peerAddress, onMessageSent }: Chat
   // Re-map messages when conversations update (real-time stream)
   useEffect(() => {
     if (!open || !resolvedAddress || isLoading) return;
+    if (skipConvoUpdateRef.current) {
+      skipConvoUpdateRef.current = false;
+      return;
+    }
 
-    // Refresh messages from stream updates
+    // getConversation marks unread=false which updates conversations — skip that cycle
+    skipConvoUpdateRef.current = true;
     getConversation(resolvedAddress).then((xmtpMessages) => {
       const mapped: DisplayMessage[] = xmtpMessages
         .filter((msg) => msg.kind === GroupMessageKind.Application)
