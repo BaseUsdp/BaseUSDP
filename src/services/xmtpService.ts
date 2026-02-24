@@ -3,18 +3,22 @@
  * Singleton wrapper for decentralized, E2E-encrypted messaging via XMTP.
  */
 
-import { Client, type Conversation, type DecodedMessage } from "@xmtp/browser-sdk";
+import { Client, type Conversation, type DecodedMessage, type Signer, IdentifierKind, type Identifier } from "@xmtp/browser-sdk";
 import { toBytes, type Hex } from "viem";
-
-// XMTP Signer interface adapter
-interface XMTPSigner {
-  getAddress: () => string;
-  signMessage: (message: string) => Promise<Uint8Array>;
-}
 
 let xmtpClient: Client | null = null;
 let activeStream: AsyncIterable<DecodedMessage> | null = null;
 let streamAbortController: AbortController | null = null;
+
+/**
+ * Build an Identifier for an Ethereum address.
+ */
+function ethIdentifier(address: string): Identifier {
+  return {
+    identifier: address.toLowerCase(),
+    identifierKind: IdentifierKind.Ethereum,
+  };
+}
 
 /**
  * Adapts an EVM personal_sign function to XMTP's Signer interface.
@@ -22,9 +26,10 @@ let streamAbortController: AbortController | null = null;
 export function buildSigner(
   address: string,
   signFn: (message: string, address: string) => Promise<string>
-): XMTPSigner {
+): Signer {
   return {
-    getAddress: () => address,
+    type: "EOA",
+    getIdentifier: () => ethIdentifier(address),
     signMessage: async (message: string): Promise<Uint8Array> => {
       const hexSig = await signFn(message, address);
       return toBytes(hexSig as Hex);
@@ -36,7 +41,7 @@ export function buildSigner(
  * Initialize the XMTP client with the given signer.
  * Caches the client for reuse.
  */
-export async function initialize(signer: XMTPSigner): Promise<Client> {
+export async function initialize(signer: Signer): Promise<Client> {
   if (xmtpClient) return xmtpClient;
 
   const client = await Client.create(signer, {
@@ -60,7 +65,7 @@ export function getClient(): Client | null {
 export async function sendMessage(peerAddress: string, text: string): Promise<void> {
   if (!xmtpClient) throw new Error("XMTP client not initialized");
 
-  const conversation = await xmtpClient.conversations.newDm(peerAddress);
+  const conversation = await xmtpClient.conversations.createDmWithIdentifier(ethIdentifier(peerAddress));
   await conversation.send(text);
 }
 
@@ -145,14 +150,13 @@ export function disconnect(): void {
 export async function canMessage(addresses: string[]): Promise<Map<string, boolean>> {
   if (!xmtpClient) throw new Error("XMTP client not initialized");
 
+  const identifiers = addresses.map((a) => ethIdentifier(a));
+  const sdkResults = await xmtpClient.canMessage(identifiers);
+
+  // Map back from identifier string to original address
   const results = new Map<string, boolean>();
   for (const address of addresses) {
-    try {
-      const canMsg = await xmtpClient.canMessage([address]);
-      results.set(address, canMsg.get(address) ?? false);
-    } catch {
-      results.set(address, false);
-    }
+    results.set(address, sdkResults.get(address.toLowerCase()) ?? false);
   }
   return results;
 }
