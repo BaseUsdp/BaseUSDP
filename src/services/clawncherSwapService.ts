@@ -2,11 +2,10 @@
  * Clawncher Swap Service
  *
  * Calls the Clawncher swap API (0x aggregation proxy) directly.
- * Uses the AllowanceHolder path: approve → send tx (no Permit2 signing).
- * Matches the official @clawnch/clawncher-sdk swap flow exactly.
+ * Uses Permit2 SignatureTransfer: approve Permit2 → sign EIP-712 → append sig to calldata.
  *
- * No dependency on the SDK to avoid bundling issues with server-side
- * modules (wayfinder, @uniswap/v4-sdk).
+ * No dependency on the @clawnch/clawncher-sdk package to avoid bundling
+ * issues with server-side modules (wayfinder, @uniswap/v4-sdk).
  */
 import {
   createPublicClient,
@@ -14,7 +13,6 @@ import {
   erc20Abi,
   encodeFunctionData,
   maxUint256,
-  maxUint160,
   type Address,
   type Hash,
   type Hex,
@@ -32,37 +30,6 @@ export const NATIVE_TOKEN_ADDRESS: Address =
 const BASE_CHAIN_ID = 8453;
 const PERMIT2_ADDRESS: Address =
   "0x000000000022D473030F116dDEE9F6B43aC78BA3";
-
-// Minimal Permit2 ABI for allowance checking and approval
-const permit2Abi = [
-  {
-    inputs: [
-      { name: "owner", type: "address" },
-      { name: "token", type: "address" },
-      { name: "spender", type: "address" },
-    ],
-    name: "allowance",
-    outputs: [
-      { name: "amount", type: "uint160" },
-      { name: "expiration", type: "uint48" },
-      { name: "nonce", type: "uint48" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { name: "token", type: "address" },
-      { name: "spender", type: "address" },
-      { name: "amount", type: "uint160" },
-      { name: "expiration", type: "uint48" },
-    ],
-    name: "approve",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-] as const;
 
 // ORB402 fee configuration
 const ORB402_FEE_RECIPIENT: Address =
@@ -94,6 +61,11 @@ export interface SwapPriceResult {
 }
 
 export interface SwapQuoteResult extends SwapPriceResult {
+  permit2?: {
+    type: string;
+    hash: string;
+    eip712: any;
+  };
   transaction: {
     to: Address;
     data: Hex;
@@ -212,6 +184,7 @@ function parseQuoteResponse(raw: any): SwapQuoteResult {
   const tx = raw.transaction;
   return {
     ...base,
+    permit2: raw.permit2 || undefined,
     transaction: {
       to: tx.to,
       data: tx.data,
@@ -323,13 +296,13 @@ export class ClawnchSwapper {
   }
 
   /**
-   * Execute a full swap with Permit2 AllowanceTransfer flow:
+   * Execute a full swap using Permit2 SignatureTransfer:
    *
-   * For ERC-20 sells, three approvals are needed:
    *   Step 1: ERC20.approve(Permit2, max) — one-time per token
-   *   Step 2: Permit2.approve(token, settler, amount, expiration) — grants
-   *           the Settler contract permission to pull tokens via Permit2
-   *   Step 3: Get fresh quote and send swap transaction
+   *   Step 2: Get fresh quote (includes permit2.eip712 message)
+   *   Step 3: Sign permit2.eip712 via eth_signTypedData_v4
+   *   Step 4: Append signature + length to transaction.data
+   *   Step 5: Send the swap transaction
    */
   async swap(params: {
     sellToken: Address;
@@ -339,18 +312,8 @@ export class ClawnchSwapper {
   }): Promise<SwapResult> {
     const taker = await this.getTakerAddress();
 
-    // 1. Get initial quote to find the settler contract address
-    let quote = await this.getQuote({ ...params, taker });
-
-    if (!quote.liquidityAvailable) {
-      throw new Error("Insufficient liquidity available for this swap");
-    }
-
-    const settlerAddress = quote.transaction.to;
-
-    // 2. For ERC-20 sells, set up Permit2 allowances
+    // 1. For ERC-20 sells, ensure Permit2 has ERC20 approval
     if (!isNativeToken(params.sellToken)) {
-      // Step 2a: Ensure ERC20 token has approved Permit2 contract
       const erc20Allowance = await this.publicClient.readContract({
         address: params.sellToken,
         abi: erc20Abi,
@@ -376,45 +339,40 @@ export class ClawnchSwapper {
 
         await this.waitForTx(approveHash);
       }
-
-      // Step 2b: Ensure Permit2 has granted allowance to the Settler contract
-      const [permit2Amount, permit2Expiration] = await this.publicClient.readContract({
-        address: PERMIT2_ADDRESS,
-        abi: permit2Abi,
-        functionName: "allowance",
-        args: [taker, params.sellToken, settlerAddress],
-      });
-
-      const now = Math.floor(Date.now() / 1000);
-      if (permit2Amount < params.sellAmount || permit2Expiration <= now) {
-        // Approve Settler on Permit2 with maxUint160 amount, 30 day expiration
-        const expiration = now + 30 * 24 * 60 * 60;
-        const permit2ApproveData = encodeFunctionData({
-          abi: permit2Abi,
-          functionName: "approve",
-          args: [
-            params.sellToken,
-            settlerAddress,
-            maxUint160,
-            expiration,
-          ],
-        });
-
-        const permit2Hash = await this.provider.request({
-          method: "eth_sendTransaction",
-          params: [{
-            from: taker,
-            to: PERMIT2_ADDRESS,
-            data: permit2ApproveData,
-          }],
-        });
-
-        await this.waitForTx(permit2Hash);
-      }
     }
 
-    // 3. Get FRESH quote right before sending (old one may have expired)
-    quote = await this.getQuote({ ...params, taker });
+    // 2. Get FRESH quote (must be as close to sending as possible)
+    const quote = await this.getQuote({ ...params, taker });
+
+    if (!quote.liquidityAvailable) {
+      throw new Error("Insufficient liquidity available for this swap");
+    }
+
+    // 3. Build the final transaction data
+    let txData: Hex = quote.transaction.data;
+
+    if (quote.permit2 && quote.permit2.eip712) {
+      // Sign the Permit2 EIP-712 typed data
+      const signature: string = await this.provider.request({
+        method: "eth_signTypedData_v4",
+        params: [taker, JSON.stringify(quote.permit2.eip712)],
+      });
+
+      // Append signature to calldata: data + sig + uint256(sig_byte_length)
+      // Signature is "0x" + 130 hex chars = 65 bytes
+      const sigWithout0x = signature.startsWith("0x")
+        ? signature.slice(2)
+        : signature;
+      const sigByteLength = sigWithout0x.length / 2; // should be 65
+      // Encode length as uint256 (64 hex chars = 32 bytes)
+      const lengthHex = sigByteLength.toString(16).padStart(64, "0");
+
+      txData = (quote.transaction.data + sigWithout0x + lengthHex) as Hex;
+
+      console.log("[Swap] Signature length (bytes):", sigByteLength);
+      console.log("[Swap] Original data length:", quote.transaction.data.length);
+      console.log("[Swap] Final data length:", txData.length);
+    }
 
     // 4. Send swap transaction
     const tx = quote.transaction;
@@ -423,9 +381,7 @@ export class ClawnchSwapper {
       params: [{
         from: taker,
         to: tx.to,
-        data: tx.data,
-        gas: tx.gas > 0n ? `0x${tx.gas.toString(16)}` : undefined,
-        gasPrice: tx.gasPrice > 0n ? `0x${tx.gasPrice.toString(16)}` : undefined,
+        data: txData,
         value: tx.value > 0n ? `0x${tx.value.toString(16)}` : "0x0",
       }],
     });
