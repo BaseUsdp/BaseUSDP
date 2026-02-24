@@ -20,6 +20,7 @@ import {
   type WalletClient,
 } from "viem";
 import { base } from "viem/chains";
+import { getApiUrl } from "@/utils/apiConfig";
 
 // ============================================================================
 // Constants
@@ -27,8 +28,6 @@ import { base } from "viem/chains";
 
 export const NATIVE_TOKEN_ADDRESS: Address =
   "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
-
-const CLAWNCH_API_BASE = "https://clawn.ch";
 const BASE_CHAIN_ID = 8453;
 
 // ORB402 fee configuration
@@ -139,7 +138,8 @@ function buildQuery(params: Record<string, string | undefined>): string {
 }
 
 async function apiRequest(path: string): Promise<any> {
-  const url = `${CLAWNCH_API_BASE}/api/swap${path}`;
+  const apiBase = getApiUrl();
+  const url = `${apiBase}/api/swap${path}`;
   const response = await fetch(url, {
     method: "GET",
     headers: { Accept: "application/json" },
