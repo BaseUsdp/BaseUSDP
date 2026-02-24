@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, Loader2, User, ShieldCheck, ShieldX } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useXMTP } from "@/contexts/XMTPContext";
-import type { DecodedMessage } from "@xmtp/browser-sdk";
+import { GroupMessageKind, type DecodedMessage } from "@xmtp/browser-sdk";
 
 interface ChatModalProps {
   open: boolean;
@@ -71,12 +71,14 @@ const ChatModal = ({ open, onClose, username, peerAddress, onMessageSent }: Chat
       setError(null);
       try {
         const xmtpMessages = await getConversation(resolvedAddress);
-        const mapped: DisplayMessage[] = xmtpMessages.map((msg) => ({
-          id: msg.id,
-          content: String(msg.content),
-          isMine: msg.senderInboxId === fullWalletAddress?.toLowerCase(),
-          timestamp: new Date(Number(msg.sentAtNs / 1_000_000n)),
-        }));
+        const mapped: DisplayMessage[] = xmtpMessages
+          .filter((msg) => msg.kind === GroupMessageKind.Application)
+          .map((msg) => ({
+            id: msg.id,
+            content: typeof msg.content === "string" ? msg.content : (msg.fallback || ""),
+            isMine: msg.senderInboxId === fullWalletAddress?.toLowerCase(),
+            timestamp: new Date(Number(msg.sentAtNs / 1_000_000n)),
+          }));
         setMessages(mapped);
       } catch (err: any) {
         setError(err.message || "Failed to load conversation");
@@ -94,12 +96,14 @@ const ChatModal = ({ open, onClose, username, peerAddress, onMessageSent }: Chat
 
     // Refresh messages from stream updates
     getConversation(resolvedAddress).then((xmtpMessages) => {
-      const mapped: DisplayMessage[] = xmtpMessages.map((msg) => ({
-        id: msg.id,
-        content: String(msg.content),
-        isMine: msg.senderInboxId === fullWalletAddress?.toLowerCase(),
-        timestamp: new Date(Number(msg.sentAtNs / 1_000_000n)),
-      }));
+      const mapped: DisplayMessage[] = xmtpMessages
+        .filter((msg) => msg.kind === GroupMessageKind.Application)
+        .map((msg) => ({
+          id: msg.id,
+          content: typeof msg.content === "string" ? msg.content : (msg.fallback || ""),
+          isMine: msg.senderInboxId === fullWalletAddress?.toLowerCase(),
+          timestamp: new Date(Number(msg.sentAtNs / 1_000_000n)),
+        }));
       setMessages(mapped);
     }).catch(() => {});
   }, [conversations]); // eslint-disable-line react-hooks/exhaustive-deps

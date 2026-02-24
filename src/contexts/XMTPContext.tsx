@@ -8,7 +8,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { useWallet } from "@/contexts/WalletContext";
 import * as xmtp from "@/services/xmtpService";
 import { useAddressResolver } from "@/hooks/useAddressResolver";
-import { ConsentState, type DecodedMessage } from "@xmtp/browser-sdk";
+import { ConsentState, GroupMessageKind, type DecodedMessage } from "@xmtp/browser-sdk";
 
 export interface XMTPConversation {
   conversationId: string;
@@ -33,6 +33,16 @@ interface XMTPContextType {
   allowConversation: (conversationId: string) => Promise<void>;
   denyConversation: (conversationId: string) => Promise<void>;
   canMessage: (address: string) => Promise<boolean>;
+}
+
+/**
+ * Extract displayable text from a DecodedMessage.
+ * Text messages have string content; others may be objects.
+ */
+function extractText(msg: DecodedMessage): string {
+  if (typeof msg.content === "string") return msg.content;
+  if (msg.fallback) return msg.fallback;
+  return "";
 }
 
 const XMTPContext = createContext<XMTPContextType | undefined>(undefined);
@@ -116,8 +126,9 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
       const mapped: XMTPConversation[] = [];
 
       for (const conv of convos) {
-        const messages = await conv.messages({ limit: 1n });
-        const lastMsg = messages[0];
+        // Get last application message (skip membership changes)
+        const messages = await conv.messages({ limit: 5n });
+        const lastMsg = messages.find((m) => m.kind === GroupMessageKind.Application);
 
         // Extract peer address from conversation members
         const members = await conv.members();
@@ -146,7 +157,7 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
           conversationId: conv.id,
           peerAddress: peerAddr,
           peerUsername: peerUser,
-          lastMessage: lastMsg ? String(lastMsg.content) : "",
+          lastMessage: lastMsg ? extractText(lastMsg) : "",
           lastMessageAt: lastMsg ? new Date(Number(lastMsg.sentAtNs / 1_000_000n)) : new Date(0),
           unread: !seenConversationsRef.current.has(peerAddr.toLowerCase()),
           consentState,
