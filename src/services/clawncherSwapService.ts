@@ -8,16 +8,14 @@
  */
 import {
   createPublicClient,
-  createWalletClient,
-  custom,
   http,
   erc20Abi,
+  encodeFunctionData,
   maxUint256,
   type Address,
   type Hash,
   type Hex,
   type PublicClient,
-  type WalletClient,
 } from "viem";
 import { base } from "viem/chains";
 import { getApiUrl } from "@/utils/apiConfig";
@@ -215,14 +213,11 @@ function buildSwapQuery(
 // ============================================================================
 
 export class ClawnchSwapper {
-  private wallet: WalletClient;
+  private provider: any;
   private publicClient: PublicClient;
 
   constructor(provider: any) {
-    this.wallet = createWalletClient({
-      chain: base,
-      transport: custom(provider),
-    });
+    this.provider = provider;
     this.publicClient = createPublicClient({
       chain: base,
       transport: http(),
@@ -230,8 +225,11 @@ export class ClawnchSwapper {
   }
 
   async getTakerAddress(): Promise<Address> {
-    const [address] = await this.wallet.getAddresses();
-    return address;
+    const accounts = await this.provider.request({ method: "eth_accounts" });
+    if (!accounts || accounts.length === 0) {
+      throw new Error("No accounts found. Please connect your wallet.");
+    }
+    return accounts[0] as Address;
   }
 
   async getPrice(params: {
@@ -285,7 +283,7 @@ export class ClawnchSwapper {
       throw new Error("Insufficient liquidity available for this swap");
     }
 
-    // 2. Approve token if selling ERC20
+    // 2. Approve token if selling ERC20 (using raw provider like DepositModal)
     if (!isNativeToken(params.sellToken)) {
       const currentAllowance = await this.publicClient.readContract({
         address: params.sellToken,
@@ -295,45 +293,70 @@ export class ClawnchSwapper {
       });
 
       if (currentAllowance < params.sellAmount) {
-        const approveHash = await this.wallet.writeContract({
-          account: taker,
-          chain: base,
-          address: params.sellToken,
+        // Encode approve(spender, amount) calldata
+        const approveData = encodeFunctionData({
           abi: erc20Abi,
           functionName: "approve",
           args: [quote.allowanceTarget, maxUint256],
         });
-        await this.publicClient.waitForTransactionReceipt({
-          hash: approveHash,
+
+        const approveHash = await this.provider.request({
+          method: "eth_sendTransaction",
+          params: [{
+            from: taker,
+            to: params.sellToken,
+            data: approveData,
+          }],
         });
+
+        // Wait for approval confirmation
+        for (let i = 0; i < 30; i++) {
+          await new Promise((r) => setTimeout(r, 2000));
+          const receipt = await this.provider.request({
+            method: "eth_getTransactionReceipt",
+            params: [approveHash],
+          });
+          if (receipt && receipt.status === "0x1") break;
+          if (receipt && receipt.status === "0x0") {
+            throw new Error("Token approval transaction failed");
+          }
+        }
       }
     }
 
-    // 3. Send swap transaction
+    // 3. Send swap transaction (using raw provider like DepositModal)
     const tx = quote.transaction;
-    const txHash = await this.wallet.sendTransaction({
-      account: taker,
-      chain: base,
-      to: tx.to,
-      data: tx.data,
-      gas: tx.gas > 0n ? tx.gas : undefined,
-      value: tx.value,
+    const txHash: Hash = await this.provider.request({
+      method: "eth_sendTransaction",
+      params: [{
+        from: taker,
+        to: tx.to,
+        data: tx.data,
+        value: tx.value > 0n ? `0x${tx.value.toString(16)}` : "0x0",
+        gas: tx.gas > 0n ? `0x${tx.gas.toString(16)}` : undefined,
+      }],
     });
 
     // 4. Wait for confirmation
-    const receipt = await this.publicClient.waitForTransactionReceipt({
-      hash: txHash,
-    });
-
-    if (receipt.status === "reverted") {
-      throw new Error(`Swap transaction reverted: ${txHash}`);
+    for (let i = 0; i < 60; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const receipt = await this.provider.request({
+        method: "eth_getTransactionReceipt",
+        params: [txHash],
+      });
+      if (receipt && receipt.status === "0x1") {
+        return {
+          txHash,
+          buyAmount: quote.buyAmount,
+          sellAmount: quote.sellAmount,
+        };
+      }
+      if (receipt && receipt.status === "0x0") {
+        throw new Error(`Swap transaction reverted: ${txHash}`);
+      }
     }
 
-    return {
-      txHash,
-      buyAmount: quote.buyAmount,
-      sellAmount: quote.sellAmount,
-    };
+    throw new Error("Transaction confirmation timed out");
   }
 }
 
