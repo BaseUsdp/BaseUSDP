@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { AtSign, Send, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { sendMessage } from "@/services/api";
+import { useXMTP } from "@/contexts/XMTPContext";
 import { getApiUrl } from "@/utils/apiConfig";
 
 interface SendMessageModalProps {
@@ -13,10 +13,12 @@ interface SendMessageModalProps {
 }
 
 const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient }: SendMessageModalProps) => {
+  const { sendMessage, resolveUsername, canMessage } = useXMTP();
   const [recipient, setRecipient] = useState(defaultRecipient || "");
   const [message, setMessage] = useState("");
   const [recipientError, setRecipientError] = useState<string | null>(null);
   const [recipientValid, setRecipientValid] = useState(false);
+  const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -32,22 +34,25 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
       setMessage("");
       setRecipientError(null);
       setRecipientValid(false);
+      setResolvedAddress(null);
       setSendError(null);
       setSendSuccess(false);
     }
   }, [open, defaultRecipient]);
 
-  // Debounced username validation
+  // Debounced username validation + XMTP canMessage check
   useEffect(() => {
     if (recipient.length === 0) {
       setRecipientError(null);
       setRecipientValid(false);
+      setResolvedAddress(null);
       setIsValidating(false);
       return;
     }
     if (recipient.length < 3) {
       setRecipientError("Username must be at least 3 characters");
       setRecipientValid(false);
+      setResolvedAddress(null);
       setIsValidating(false);
       return;
     }
@@ -55,18 +60,44 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
     setIsValidating(true);
     const timeoutId = setTimeout(async () => {
       try {
+        // Step 1: Check if username exists
         const response = await fetch(`${apiUrl}/api/user/check-username?username=${encodeURIComponent(recipient)}`);
         const data = await response.json();
-        if (data.exists) {
-          setRecipientError(null);
-          setRecipientValid(true);
-        } else {
+        if (!data.exists) {
           setRecipientError("Username not found");
           setRecipientValid(false);
+          setResolvedAddress(null);
+          setIsValidating(false);
+          return;
         }
+
+        // Step 2: Resolve wallet address
+        const addr = await resolveUsername(recipient);
+        if (!addr) {
+          setRecipientError("Could not resolve wallet address");
+          setRecipientValid(false);
+          setResolvedAddress(null);
+          setIsValidating(false);
+          return;
+        }
+
+        // Step 3: Check if recipient has XMTP identity
+        const canMsg = await canMessage(addr);
+        if (!canMsg) {
+          setRecipientError("User hasn't enabled messaging yet");
+          setRecipientValid(false);
+          setResolvedAddress(null);
+          setIsValidating(false);
+          return;
+        }
+
+        setRecipientError(null);
+        setRecipientValid(true);
+        setResolvedAddress(addr);
       } catch {
         setRecipientError("Could not verify username");
         setRecipientValid(false);
+        setResolvedAddress(null);
       }
       setIsValidating(false);
     }, 400);
@@ -75,31 +106,23 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
       clearTimeout(timeoutId);
       setIsValidating(false);
     };
-  }, [recipient, apiUrl]);
+  }, [recipient, apiUrl, resolveUsername, canMessage]);
 
-  const canSend = recipientValid && message.trim().length > 0 && message.trim().length <= 1000 && !isSending;
+  const canSend = recipientValid && resolvedAddress && message.trim().length > 0 && message.trim().length <= 1000 && !isSending;
 
   const handleSend = async () => {
-    if (!canSend) return;
+    if (!canSend || !resolvedAddress) return;
 
     setIsSending(true);
     setSendError(null);
 
     try {
-      const result = await sendMessage({
-        recipient_username: recipient.trim(),
-        message: message.trim(),
-      });
-
-      if (result.success) {
-        setSendSuccess(true);
-        onMessageSent?.();
-        setTimeout(() => {
-          onOpenChange(false);
-        }, 1200);
-      } else {
-        setSendError(result.error || "Failed to send message");
-      }
+      await sendMessage(resolvedAddress, message.trim());
+      setSendSuccess(true);
+      onMessageSent?.();
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 1200);
     } catch (err: any) {
       setSendError(err.message || "Failed to send message");
     } finally {
@@ -113,7 +136,7 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
         <DialogHeader>
           <DialogTitle className="text-white">Send Message</DialogTitle>
           <DialogDescription className="text-white/50">
-            Send a private message to another ORB402 user
+            Send an encrypted message to another ORB402 user
           </DialogDescription>
         </DialogHeader>
 
@@ -132,6 +155,7 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
                   setRecipient(e.target.value.replace(/@/g, ""));
                   setRecipientError(null);
                   setRecipientValid(false);
+                  setResolvedAddress(null);
                   setSendError(null);
                 }}
                 placeholder="username"

@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { WalletProvider } from "@/contexts/WalletContext";
+import { XMTPProvider } from "@/contexts/XMTPContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
@@ -20,6 +21,7 @@ const App = () => (
     <ThemeProvider>
     <TooltipProvider>
       <WalletProvider>
+        <XMTPProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
@@ -34,6 +36,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        </XMTPProvider>
       </WalletProvider>
     </TooltipProvider>
     </ThemeProvider>

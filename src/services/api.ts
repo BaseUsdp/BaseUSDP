@@ -640,6 +640,9 @@ export const executeZKTransfer = async (
 
 // ============================================================================
 // Messaging Types & Functions
+// @deprecated — These centralized Supabase-backed messaging functions are
+// replaced by the XMTP decentralized messaging integration (see xmtpService.ts
+// and XMTPContext.tsx). Kept as fallback; will be removed in a future release.
 // ============================================================================
 
 export interface Message {

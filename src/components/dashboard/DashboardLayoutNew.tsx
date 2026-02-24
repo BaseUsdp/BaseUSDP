@@ -1,37 +1,21 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { useWallet } from "@/contexts/WalletContext";
+import { useXMTP } from "@/contexts/XMTPContext";
 import NetworkWarningBanner from "./NetworkWarningBanner";
 import DashboardTopBar from "./DashboardTopBar";
 import DashboardLeftSidebar from "./DashboardLeftSidebar";
 import DashboardRightSidebar from "./DashboardRightSidebar";
 import DashboardMainContent from "./DashboardMainContent";
 import WalletConnectPrompt from "./WalletConnectPrompt";
-import { getUnreadMessageCount } from "@/services/api";
 
 const DashboardLayoutNew = () => {
   const { isConnected } = useWallet();
+  const { unreadCount: unreadMessages } = useXMTP();
   const [showBalance, setShowBalance] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [paymentsInitialTab, setPaymentsInitialTab] = useState<string | undefined>(undefined);
   const [withdrawInitialAmount, setWithdrawInitialAmount] = useState<string | undefined>(undefined);
-  const [unreadMessages, setUnreadMessages] = useState(0);
-
-  const fetchUnreadCount = useCallback(async () => {
-    try {
-      const res = await getUnreadMessageCount();
-      if (res.success) setUnreadMessages(res.count);
-    } catch {
-      // Silently fail
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isConnected) return;
-    fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
-  }, [isConnected, fetchUnreadCount]);
 
   if (!isConnected) {
     return (

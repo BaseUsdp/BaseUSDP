@@ -1,18 +1,31 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Send, Loader2, User } from "lucide-react";
-import { getConversation, sendMessage, markMessagesRead, type Message } from "@/services/api";
+import { X, Send, Loader2, User, ShieldCheck, ShieldX } from "lucide-react";
+import { useWallet } from "@/contexts/WalletContext";
+import { useXMTP } from "@/contexts/XMTPContext";
+import type { DecodedMessage } from "@xmtp/browser-sdk";
 
 interface ChatModalProps {
   open: boolean;
   onClose: () => void;
   username: string;
+  peerAddress?: string;
   onMessageSent?: () => void;
 }
 
-const ChatModal = ({ open, onClose, username, onMessageSent }: ChatModalProps) => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [myUsername, setMyUsername] = useState("");
+interface DisplayMessage {
+  id: string;
+  content: string;
+  isMine: boolean;
+  timestamp: Date;
+}
+
+const ChatModal = ({ open, onClose, username, peerAddress, onMessageSent }: ChatModalProps) => {
+  const { fullWalletAddress } = useWallet();
+  const { sendMessage, getConversation, resolveUsername, allowAddress, denyAddress, conversations } = useXMTP();
+
+  const [messages, setMessages] = useState<DisplayMessage[]>([]);
+  const [resolvedAddress, setResolvedAddress] = useState<string | null>(peerAddress || null);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
@@ -20,66 +33,114 @@ const ChatModal = ({ open, onClose, username, onMessageSent }: ChatModalProps) =
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Check consent state for this conversation
+  const convoEntry = conversations.find(
+    (c) => c.peerAddress.toLowerCase() === resolvedAddress?.toLowerCase()
+  );
+  const consentState = convoEntry?.consentState || "unknown";
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const fetchConversation = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await getConversation(username);
-      if (res.success) {
-        setMessages(res.messages);
-        setMyUsername(res.my_username);
+  // Resolve username to address if not provided
+  useEffect(() => {
+    if (!open) return;
+    if (peerAddress) {
+      setResolvedAddress(peerAddress);
+      return;
+    }
+    if (username) {
+      resolveUsername(username).then((addr) => {
+        if (addr) {
+          setResolvedAddress(addr);
+        } else {
+          setError("Could not resolve wallet address for this user");
+          setIsLoading(false);
+        }
+      });
+    }
+  }, [open, username, peerAddress, resolveUsername]);
+
+  // Fetch messages when address is resolved
+  useEffect(() => {
+    if (!open || !resolvedAddress) return;
+
+    const fetchMessages = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const xmtpMessages = await getConversation(resolvedAddress);
+        const mapped: DisplayMessage[] = xmtpMessages.map((msg) => ({
+          id: msg.id,
+          content: String(msg.content),
+          isMine: msg.senderInboxId === fullWalletAddress?.toLowerCase(),
+          timestamp: new Date(Number(msg.sentAtNs / 1_000_000n)),
+        }));
+        setMessages(mapped);
+      } catch (err: any) {
+        setError(err.message || "Failed to load conversation");
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to load conversation");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+
+    fetchMessages();
+  }, [open, resolvedAddress, getConversation, fullWalletAddress]);
+
+  // Re-map messages when conversations update (real-time stream)
+  useEffect(() => {
+    if (!open || !resolvedAddress || isLoading) return;
+
+    // Refresh messages from stream updates
+    getConversation(resolvedAddress).then((xmtpMessages) => {
+      const mapped: DisplayMessage[] = xmtpMessages.map((msg) => ({
+        id: msg.id,
+        content: String(msg.content),
+        isMine: msg.senderInboxId === fullWalletAddress?.toLowerCase(),
+        timestamp: new Date(Number(msg.sentAtNs / 1_000_000n)),
+      }));
+      setMessages(mapped);
+    }).catch(() => {});
+  }, [conversations]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (open && username) {
-      fetchConversation();
-      // Mark messages from this user as read
-      markMessagesRead(username).catch(() => {});
-    }
-  }, [open, username]);
-
-  useEffect(() => {
-    if (!isLoading) {
-      scrollToBottom();
-    }
+    if (!isLoading) scrollToBottom();
   }, [messages, isLoading]);
 
   useEffect(() => {
-    if (open && !isLoading) {
-      inputRef.current?.focus();
-    }
+    if (open && !isLoading) inputRef.current?.focus();
   }, [open, isLoading]);
 
+  // Reset state on close
+  useEffect(() => {
+    if (!open) {
+      setMessages([]);
+      setResolvedAddress(peerAddress || null);
+      setError(null);
+      setNewMessage("");
+    }
+  }, [open, peerAddress]);
+
   const handleSend = async () => {
-    if (!newMessage.trim() || isSending) return;
+    if (!newMessage.trim() || isSending || !resolvedAddress) return;
 
     setIsSending(true);
     try {
-      const result = await sendMessage({
-        recipient_username: username,
-        message: newMessage.trim(),
-      });
-      if (result.success) {
-        setNewMessage("");
-        onMessageSent?.();
-        // Refetch conversation to show the new message
-        const res = await getConversation(username);
-        if (res.success) {
-          setMessages(res.messages);
-        }
-      } else {
-        setError(result.error || "Failed to send");
-      }
+      await sendMessage(resolvedAddress, newMessage.trim());
+      setNewMessage("");
+      onMessageSent?.();
+
+      // Optimistic update — add sent message immediately
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `local-${Date.now()}`,
+          content: newMessage.trim(),
+          isMine: true,
+          timestamp: new Date(),
+        },
+      ]);
     } catch (err: any) {
       setError(err.message || "Failed to send message");
     } finally {
@@ -94,8 +155,20 @@ const ChatModal = ({ open, onClose, username, onMessageSent }: ChatModalProps) =
     }
   };
 
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
+  const handleAllow = async () => {
+    if (resolvedAddress) {
+      await allowAddress(resolvedAddress);
+    }
+  };
+
+  const handleDeny = async () => {
+    if (resolvedAddress) {
+      await denyAddress(resolvedAddress);
+      onClose();
+    }
+  };
+
+  const formatTime = (date: Date) => {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / 86400000);
@@ -137,7 +210,7 @@ const ChatModal = ({ open, onClose, username, onMessageSent }: ChatModalProps) =
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white">@{username}</p>
-                  <p className="text-xs text-white/40">Private conversation</p>
+                  <p className="text-xs text-white/40">E2E encrypted</p>
                 </div>
               </div>
               <button
@@ -147,6 +220,29 @@ const ChatModal = ({ open, onClose, username, onMessageSent }: ChatModalProps) =
                 <X className="w-5 h-5 text-white/50" />
               </button>
             </div>
+
+            {/* Consent banner for message requests */}
+            {consentState === "unknown" && (
+              <div className="px-5 py-3 bg-yellow-500/5 border-b border-yellow-500/20 flex items-center justify-between">
+                <p className="text-xs text-yellow-500/80">This is a message request from an unknown contact.</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleAllow}
+                    className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium text-green-400 hover:bg-green-500/10 border border-green-500/20"
+                  >
+                    <ShieldCheck className="w-3 h-3" />
+                    Accept
+                  </button>
+                  <button
+                    onClick={handleDeny}
+                    className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 border border-red-500/20"
+                  >
+                    <ShieldX className="w-3 h-3" />
+                    Block
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 min-h-[300px] max-h-[50vh]">
@@ -164,28 +260,25 @@ const ChatModal = ({ open, onClose, username, onMessageSent }: ChatModalProps) =
                   <p className="text-xs text-white/25 mt-1">Send a message to start the conversation</p>
                 </div>
               ) : (
-                messages.map((msg) => {
-                  const isMine = msg.sender_username === myUsername;
-                  return (
+                messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.isMine ? "justify-end" : "justify-start"}`}
+                  >
                     <div
-                      key={msg.id}
-                      className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                      className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${
+                        msg.isMine
+                          ? "bg-primary/20 border border-primary/30 rounded-br-md"
+                          : "bg-white/5 border border-white/10 rounded-bl-md"
+                      }`}
                     >
-                      <div
-                        className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${
-                          isMine
-                            ? "bg-primary/20 border border-primary/30 rounded-br-md"
-                            : "bg-white/5 border border-white/10 rounded-bl-md"
-                        }`}
-                      >
-                        <p className="text-sm text-white/90 leading-relaxed break-words">{msg.message}</p>
-                        <p className={`text-[10px] mt-1 ${isMine ? "text-primary/50" : "text-white/30"}`}>
-                          {formatTime(msg.created_at)}
-                        </p>
-                      </div>
+                      <p className="text-sm text-white/90 leading-relaxed break-words">{msg.content}</p>
+                      <p className={`text-[10px] mt-1 ${msg.isMine ? "text-primary/50" : "text-white/30"}`}>
+                        {formatTime(msg.timestamp)}
+                      </p>
                     </div>
-                  );
-                })
+                  </div>
+                ))
               )}
               <div ref={messagesEndRef} />
             </div>

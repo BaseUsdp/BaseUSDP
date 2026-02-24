@@ -1,44 +1,24 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, Send, Inbox, Loader2, RefreshCw, User, Reply } from "lucide-react";
+import { MessageSquare, Send, Inbox, Loader2, User, Reply, ShieldCheck, ShieldX, ShieldQuestion } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getSentMessages, getReceivedMessages, type Message } from "@/services/api";
+import { useXMTP, type XMTPConversation } from "@/contexts/XMTPContext";
 import SendMessageModal from "../SendMessageModal";
 import ChatModal from "../ChatModal";
+import XMTPSetupBanner from "../XMTPSetupBanner";
 
 const MessagesSection = () => {
-  const [activeTab, setActiveTab] = useState("received");
+  const { isXMTPReady, conversations } = useXMTP();
+  const [activeTab, setActiveTab] = useState("inbox");
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<string | undefined>(undefined);
-  const [chatWith, setChatWith] = useState<string | null>(null);
-  const [receivedMessages, setReceivedMessages] = useState<Message[]>([]);
-  const [sentMessages, setSentMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [chatWith, setChatWith] = useState<{ username: string; peerAddress: string } | null>(null);
 
-  const fetchMessages = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const [receivedRes, sentRes] = await Promise.all([
-        getReceivedMessages(),
-        getSentMessages(),
-      ]);
-      if (receivedRes.success) setReceivedMessages(receivedRes.messages);
-      if (sentRes.success) setSentMessages(sentRes.messages);
-    } catch (err: any) {
-      setError(err.message || "Failed to load messages");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  // Split conversations by consent state
+  const allowedConversations = conversations.filter((c) => c.consentState === "allowed");
+  const requestConversations = conversations.filter((c) => c.consentState === "unknown");
 
-  useEffect(() => {
-    fetchMessages();
-  }, [fetchMessages]);
-
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
+  const formatTime = (date: Date) => {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -52,74 +32,70 @@ const MessagesSection = () => {
     return date.toLocaleDateString();
   };
 
-  const MessageCard = ({ msg, type, onReply, onOpenChat }: { msg: Message; type: "received" | "sent"; onReply?: (username: string) => void; onOpenChat?: (username: string) => void }) => (
+  const ConversationCard = ({ conv, isRequest }: { conv: XMTPConversation; isRequest?: boolean }) => (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      onClick={() => {
-        const chatUser = type === "received" ? msg.sender_username : msg.recipient_username;
-        if (chatUser && onOpenChat) onOpenChat(chatUser);
-      }}
+      onClick={() =>
+        setChatWith({
+          username: conv.peerUsername || conv.peerAddress.slice(0, 10) + "...",
+          peerAddress: conv.peerAddress,
+        })
+      }
       className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors cursor-pointer"
     >
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-            <User className="w-4 h-4 text-primary" />
+          <div className="relative">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+              <User className="w-4 h-4 text-primary" />
+            </div>
+            {conv.unread && (
+              <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-[#0a0a0a]" />
+            )}
           </div>
           <div>
             <p className="text-sm font-medium text-white">
-              {type === "received" ? (
-                <>
-                  <span className="text-white/50">From </span>
-                  @{msg.sender_username}
-                </>
-              ) : (
-                <>
-                  <span className="text-white/50">To </span>
-                  @{msg.recipient_username}
-                </>
-              )}
+              @{conv.peerUsername || conv.peerAddress.slice(0, 10) + "..."}
             </p>
+            {isRequest && (
+              <span className="text-[10px] text-yellow-500/80 flex items-center gap-0.5">
+                <ShieldQuestion className="w-3 h-3" />
+                Message request
+              </span>
+            )}
           </div>
         </div>
-        <span className="text-xs text-white/40 whitespace-nowrap">{formatTime(msg.created_at)}</span>
+        <span className="text-xs text-white/40 whitespace-nowrap">
+          {conv.lastMessageAt.getTime() > 0 ? formatTime(conv.lastMessageAt) : ""}
+        </span>
       </div>
-      <p className="text-sm text-white/70 leading-relaxed pl-10">{msg.message}</p>
-      {type === "received" && onReply && msg.sender_username && (
-        <div className="pl-10 mt-2">
-          <button
-            onClick={(e) => { e.stopPropagation(); onReply(msg.sender_username!); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 border border-primary/20 hover:border-primary/40 transition-all"
-          >
-            <Reply className="w-3.5 h-3.5" />
-            Reply
-          </button>
-        </div>
-      )}
+      <p className="text-sm text-white/70 leading-relaxed pl-10 truncate">
+        {conv.lastMessage || "No messages yet"}
+      </p>
     </motion.div>
   );
 
-  const EmptyState = ({ type }: { type: "received" | "sent" }) => (
+  const EmptyState = ({ type }: { type: "inbox" | "requests" }) => (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="flex flex-col items-center justify-center py-16 text-center"
     >
       <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-        {type === "received" ? (
+        {type === "inbox" ? (
           <Inbox className="w-8 h-8 text-white/20" />
         ) : (
-          <Send className="w-8 h-8 text-white/20" />
+          <ShieldQuestion className="w-8 h-8 text-white/20" />
         )}
       </div>
       <h3 className="text-lg font-semibold text-white/50 mb-1">
-        {type === "received" ? "No messages received" : "No messages sent"}
+        {type === "inbox" ? "No conversations yet" : "No message requests"}
       </h3>
       <p className="text-sm text-white/30">
-        {type === "received"
-          ? "Messages from other users will appear here"
-          : "Messages you send will appear here"}
+        {type === "inbox"
+          ? "Start a conversation by sending a message"
+          : "Messages from unknown contacts will appear here"}
       </p>
     </motion.div>
   );
@@ -133,17 +109,10 @@ const MessagesSection = () => {
             Messages<span className="text-primary">.</span>
           </h1>
           <p className="text-muted-foreground mt-1">
-            Send and receive private messages
+            End-to-end encrypted messaging
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchMessages}
-            disabled={isLoading}
-            className="p-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-white/70"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
-          </button>
+        {isXMTPReady && (
           <button
             onClick={() => {
               setReplyTo(undefined);
@@ -154,101 +123,75 @@ const MessagesSection = () => {
             <Send className="w-4 h-4" />
             Send Message
           </button>
-        </div>
+        )}
       </div>
 
-      {/* Error */}
-      {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-4 rounded-xl bg-red-500/10 border border-red-500/20"
-        >
-          <p className="text-sm text-red-400">{error}</p>
-        </motion.div>
+      {/* XMTP Setup Banner (when not initialized) */}
+      {!isXMTPReady ? (
+        <XMTPSetupBanner />
+      ) : (
+        <>
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <TabsList className="bg-secondary/50 p-1">
+              <TabsTrigger value="inbox" className="gap-2">
+                <Inbox className="w-4 h-4" />
+                Inbox
+                {allowedConversations.length > 0 && (
+                  <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
+                    {allowedConversations.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="requests" className="gap-2">
+                <ShieldQuestion className="w-4 h-4" />
+                Requests
+                {requestConversations.length > 0 && (
+                  <span className="text-[10px] bg-yellow-500/20 text-yellow-500 px-1.5 py-0.5 rounded-full">
+                    {requestConversations.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Inbox Tab */}
+            <TabsContent value="inbox">
+              {allowedConversations.length === 0 ? (
+                <EmptyState type="inbox" />
+              ) : (
+                <div className="space-y-3">
+                  <AnimatePresence>
+                    {allowedConversations.map((conv) => (
+                      <ConversationCard key={conv.peerAddress} conv={conv} />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Requests Tab */}
+            <TabsContent value="requests">
+              {requestConversations.length === 0 ? (
+                <EmptyState type="requests" />
+              ) : (
+                <div className="space-y-3">
+                  <AnimatePresence>
+                    {requestConversations.map((conv) => (
+                      <ConversationCard key={conv.peerAddress} conv={conv} isRequest />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </>
       )}
-
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="bg-secondary/50 p-1">
-          <TabsTrigger value="received" className="gap-2">
-            <Inbox className="w-4 h-4" />
-            Received
-            {receivedMessages.length > 0 && (
-              <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
-                {receivedMessages.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="sent" className="gap-2">
-            <Send className="w-4 h-4" />
-            Sent
-            {sentMessages.length > 0 && (
-              <span className="text-[10px] bg-white/10 text-white/50 px-1.5 py-0.5 rounded-full">
-                {sentMessages.length}
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Received Tab */}
-        <TabsContent value="received">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-6 h-6 text-primary animate-spin" />
-            </div>
-          ) : receivedMessages.length === 0 ? (
-            <EmptyState type="received" />
-          ) : (
-            <div className="space-y-3">
-              <AnimatePresence>
-                {receivedMessages.map((msg) => (
-                  <MessageCard
-                    key={msg.id}
-                    msg={msg}
-                    type="received"
-                    onReply={(username) => {
-                      setReplyTo(username);
-                      setSendModalOpen(true);
-                    }}
-                    onOpenChat={(username) => setChatWith(username)}
-                  />
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Sent Tab */}
-        <TabsContent value="sent">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-6 h-6 text-primary animate-spin" />
-            </div>
-          ) : sentMessages.length === 0 ? (
-            <EmptyState type="sent" />
-          ) : (
-            <div className="space-y-3">
-              <AnimatePresence>
-                {sentMessages.map((msg) => (
-                  <MessageCard
-                    key={msg.id}
-                    msg={msg}
-                    type="sent"
-                    onOpenChat={(username) => setChatWith(username)}
-                  />
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
 
       {/* Send Message Modal */}
       <SendMessageModal
         open={sendModalOpen}
         onOpenChange={setSendModalOpen}
-        onMessageSent={fetchMessages}
+        onMessageSent={() => {}}
         defaultRecipient={replyTo}
       />
 
@@ -256,8 +199,9 @@ const MessagesSection = () => {
       <ChatModal
         open={!!chatWith}
         onClose={() => setChatWith(null)}
-        username={chatWith || ""}
-        onMessageSent={fetchMessages}
+        username={chatWith?.username || ""}
+        peerAddress={chatWith?.peerAddress}
+        onMessageSent={() => {}}
       />
     </div>
   );
