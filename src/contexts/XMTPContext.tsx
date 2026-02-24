@@ -49,6 +49,8 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
 
   // Track which conversations user has "seen" (opened)
   const seenConversationsRef = useRef<Set<string>>(new Set());
+  // Local consent overrides (SDK consent is unreliable in browser wrapper)
+  const consentOverridesRef = useRef<Map<string, "allowed" | "denied">>(new Map());
   const isStreamingRef = useRef(false);
 
   // Get EVM provider sign function
@@ -127,14 +129,17 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
         // Resolve peer username
         const peerUser = peerAddr ? await resolveAddress(peerAddr) : null;
 
-        // Determine consent state
-        let consentState: "allowed" | "denied" | "unknown" = "unknown";
-        try {
-          const state = conv.consentState();
-          if (state === ConsentState.Allowed) consentState = "allowed";
-          else if (state === ConsentState.Denied) consentState = "denied";
-        } catch {
-          // Default to unknown
+        // Determine consent state (local override takes priority)
+        let consentState: "allowed" | "denied" | "unknown" =
+          consentOverridesRef.current.get(conv.id) || "unknown";
+        if (!consentOverridesRef.current.has(conv.id)) {
+          try {
+            const state = conv.consentState();
+            if (state === ConsentState.Allowed) consentState = "allowed";
+            else if (state === ConsentState.Denied) consentState = "denied";
+          } catch {
+            // Default to unknown
+          }
         }
 
         mapped.push({
@@ -189,6 +194,7 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
         setConversations([]);
         setUnreadCount(0);
         seenConversationsRef.current.clear();
+        consentOverridesRef.current.clear();
         isStreamingRef.current = false;
       }
     }
@@ -235,17 +241,32 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
    * Allow a conversation.
    */
   const handleAllowConversation = useCallback(async (conversationId: string) => {
-    await xmtp.allowConversation(conversationId);
-    await refreshConversations();
-  }, [refreshConversations]);
+    // Update local state immediately
+    consentOverridesRef.current.set(conversationId, "allowed");
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.conversationId === conversationId ? { ...c, consentState: "allowed" } : c
+      )
+    );
+    // Best-effort SDK update
+    xmtp.allowConversation(conversationId).catch(() => {});
+  }, []);
 
   /**
    * Deny a conversation.
    */
   const handleDenyConversation = useCallback(async (conversationId: string) => {
-    await xmtp.denyConversation(conversationId);
-    await refreshConversations();
-  }, [refreshConversations]);
+    // Update local state immediately
+    consentOverridesRef.current.set(conversationId, "denied");
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.conversationId === conversationId ? { ...c, consentState: "denied" } : c
+      )
+    );
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+    // Best-effort SDK update
+    xmtp.denyConversation(conversationId).catch(() => {});
+  }, []);
 
   return (
     <XMTPContext.Provider
