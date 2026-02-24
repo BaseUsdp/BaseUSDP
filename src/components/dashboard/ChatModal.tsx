@@ -22,7 +22,7 @@ interface DisplayMessage {
 
 const ChatModal = ({ open, onClose, username, peerAddress, onMessageSent }: ChatModalProps) => {
   const { fullWalletAddress } = useWallet();
-  const { sendMessage, getConversation, resolveUsername, allowAddress, denyAddress, conversations } = useXMTP();
+  const { sendMessage, getConversation, resolveUsername, allowConversation, denyConversation, conversations } = useXMTP();
 
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [resolvedAddress, setResolvedAddress] = useState<string | null>(peerAddress || null);
@@ -156,14 +156,14 @@ const ChatModal = ({ open, onClose, username, peerAddress, onMessageSent }: Chat
   };
 
   const handleAllow = async () => {
-    if (resolvedAddress) {
-      await allowAddress(resolvedAddress);
+    if (convoEntry?.conversationId) {
+      await allowConversation(convoEntry.conversationId);
     }
   };
 
   const handleDeny = async () => {
-    if (resolvedAddress) {
-      await denyAddress(resolvedAddress);
+    if (convoEntry?.conversationId) {
+      await denyConversation(convoEntry.conversationId);
       onClose();
     }
   };

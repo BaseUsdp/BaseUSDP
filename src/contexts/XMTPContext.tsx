@@ -11,6 +11,7 @@ import { useAddressResolver } from "@/hooks/useAddressResolver";
 import { ConsentState, type DecodedMessage } from "@xmtp/browser-sdk";
 
 export interface XMTPConversation {
+  conversationId: string;
   peerAddress: string;
   peerUsername: string | null;
   lastMessage: string;
@@ -29,8 +30,8 @@ interface XMTPContextType {
   sendMessage: (peerAddress: string, text: string) => Promise<void>;
   getConversation: (peerAddress: string) => Promise<DecodedMessage[]>;
   resolveUsername: (username: string) => Promise<string | null>;
-  allowAddress: (address: string) => Promise<void>;
-  denyAddress: (address: string) => Promise<void>;
+  allowConversation: (conversationId: string) => Promise<void>;
+  denyConversation: (conversationId: string) => Promise<void>;
   canMessage: (address: string) => Promise<boolean>;
 }
 
@@ -137,6 +138,7 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
         }
 
         mapped.push({
+          conversationId: conv.id,
           peerAddress: peerAddr,
           peerUsername: peerUser,
           lastMessage: lastMsg ? String(lastMsg.content) : "",
@@ -230,18 +232,18 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   /**
-   * Allow a contact.
+   * Allow a conversation.
    */
-  const handleAllowAddress = useCallback(async (address: string) => {
-    await xmtp.allowAddress(address);
+  const handleAllowConversation = useCallback(async (conversationId: string) => {
+    await xmtp.allowConversation(conversationId);
     await refreshConversations();
   }, [refreshConversations]);
 
   /**
-   * Deny a contact.
+   * Deny a conversation.
    */
-  const handleDenyAddress = useCallback(async (address: string) => {
-    await xmtp.denyAddress(address);
+  const handleDenyConversation = useCallback(async (conversationId: string) => {
+    await xmtp.denyConversation(conversationId);
     await refreshConversations();
   }, [refreshConversations]);
 
@@ -257,8 +259,8 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
         sendMessage: handleSendMessage,
         getConversation: handleGetConversation,
         resolveUsername,
-        allowAddress: handleAllowAddress,
-        denyAddress: handleDenyAddress,
+        allowConversation: handleAllowConversation,
+        denyConversation: handleDenyConversation,
         canMessage: handleCanMessage,
       }}
     >

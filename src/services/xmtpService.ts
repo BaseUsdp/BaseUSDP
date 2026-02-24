@@ -3,7 +3,7 @@
  * Singleton wrapper for decentralized, E2E-encrypted messaging via XMTP.
  */
 
-import { Client, ConsentState, type Conversation, type DecodedMessage, type Signer, IdentifierKind, type Identifier } from "@xmtp/browser-sdk";
+import { Client, ConsentEntityType, ConsentState, type Conversation, type DecodedMessage, type Signer, IdentifierKind, type Identifier } from "@xmtp/browser-sdk";
 import { toBytes, type Hex } from "viem";
 
 let xmtpClient: Client | null = null;
@@ -162,48 +162,27 @@ export async function canMessage(addresses: string[]): Promise<Map<string, boole
 }
 
 /**
- * Find conversation by peer address (checks member identifiers).
+ * Allow a conversation by its group ID (consent management).
  */
-async function findConversationByPeer(address: string): Promise<Conversation | null> {
-  if (!xmtpClient) return null;
+export async function allowConversation(conversationId: string): Promise<void> {
+  if (!xmtpClient) throw new Error("XMTP client not initialized");
 
-  const conversations = await xmtpClient.conversations.list();
-  for (const conv of conversations) {
-    try {
-      const members = await conv.members();
-      const hasPeer = members.some((m) =>
-        m.accountIdentifiers.some(
-          (id) => id.identifier.toLowerCase() === address.toLowerCase()
-        )
-      );
-      if (hasPeer) return conv;
-    } catch {
-      // Skip conversations we can't inspect
-    }
-  }
-  return null;
+  await xmtpClient.setConsentStates([{
+    entityType: ConsentEntityType.GroupId,
+    entity: conversationId,
+    state: ConsentState.Allowed,
+  }]);
 }
 
 /**
- * Allow a contact address (consent management).
+ * Deny a conversation by its group ID (consent management).
  */
-export async function allowAddress(address: string): Promise<void> {
+export async function denyConversation(conversationId: string): Promise<void> {
   if (!xmtpClient) throw new Error("XMTP client not initialized");
 
-  const conv = await findConversationByPeer(address);
-  if (conv) {
-    await conv.updateConsentState(ConsentState.Allowed);
-  }
-}
-
-/**
- * Deny a contact address (consent management).
- */
-export async function denyAddress(address: string): Promise<void> {
-  if (!xmtpClient) throw new Error("XMTP client not initialized");
-
-  const conv = await findConversationByPeer(address);
-  if (conv) {
-    await conv.updateConsentState(ConsentState.Denied);
-  }
+  await xmtpClient.setConsentStates([{
+    entityType: ConsentEntityType.GroupId,
+    entity: conversationId,
+    state: ConsentState.Denied,
+  }]);
 }
