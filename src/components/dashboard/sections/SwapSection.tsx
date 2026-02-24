@@ -16,7 +16,7 @@ interface SwapSectionProps {
   showBalance: boolean;
 }
 
-const SLIPPAGE_PRESETS = [50, 100, 200]; // 0.5%, 1%, 2%
+const SLIPPAGE_PRESETS = [100, 200, 300]; // 1%, 2%, 3%
 
 const SwapSection = ({ showBalance }: SwapSectionProps) => {
   const { isConnected } = useWallet();

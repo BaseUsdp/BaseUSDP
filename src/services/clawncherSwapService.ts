@@ -201,7 +201,7 @@ function buildSwapQuery(
     sellToken: params.sellToken,
     buyToken: params.buyToken,
     sellAmount: params.sellAmount.toString(),
-    slippageBps: (params.slippageBps ?? 100).toString(),
+    slippageBps: (params.slippageBps ?? 300).toString(),
     taker: includeTaker ? params.taker : undefined,
     swapFeeRecipient: ORB402_FEE_RECIPIENT,
     swapFeeBps: ORB402_FEE_BPS.toString(),
@@ -320,13 +320,14 @@ export class ClawnchSwapper {
             throw new Error("Token approval transaction failed");
           }
         }
-
-        // Get a FRESH quote after approval (old quote may have expired)
-        quote = await this.getQuote({ ...params, taker });
       }
     }
 
-    // 3. Send swap transaction (let wallet estimate gas, don't pass quote's gas)
+    // 3. Always get a FRESH quote right before sending (quotes expire quickly,
+    //    and proxy latency makes them even more stale)
+    quote = await this.getQuote({ ...params, taker });
+
+    // 4. Send swap transaction (let wallet estimate gas, don't pass quote's gas)
     const tx = quote.transaction;
     const txHash: Hash = await this.provider.request({
       method: "eth_sendTransaction",
@@ -338,7 +339,7 @@ export class ClawnchSwapper {
       }],
     });
 
-    // 4. Wait for confirmation
+    // 5. Wait for confirmation
     for (let i = 0; i < 60; i++) {
       await new Promise((r) => setTimeout(r, 2000));
       const receipt = await this.provider.request({

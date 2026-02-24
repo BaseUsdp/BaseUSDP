@@ -25,7 +25,7 @@ export function useSwap() {
   const [sellToken, setSellToken] = useState<TokenInfo>(BASE_TOKENS[0]); // ETH
   const [buyToken, setBuyToken] = useState<TokenInfo>(BASE_TOKENS[1]); // USDC
   const [sellAmount, setSellAmount] = useState("");
-  const [slippageBps, setSlippageBps] = useState(100); // 1%
+  const [slippageBps, setSlippageBps] = useState(300); // 3%
   const [priceResult, setPriceResult] = useState<SwapPriceResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
