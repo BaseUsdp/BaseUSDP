@@ -358,25 +358,26 @@ export class ClawnchSwapper {
         params: [taker, JSON.stringify(quote.permit2.eip712)],
       });
 
-      // The 0x Settler reads the signature from the end of msg.data:
-      //   - Last 32 bytes = uint256(signatureByteLength)
-      //   - Previous signatureByteLength bytes = the raw signature
-      //   - Everything before that = the original calldata
+      // The last action in the calldata has an ABI-encoded bytes offset (0xc0)
+      // pointing to where the signature should be. We append it as ABI-encoded
+      // bytes: uint256(length) + signature padded to 32-byte boundary
       const sigWithout0x = signature.startsWith("0x")
         ? signature.slice(2)
         : signature;
-      const sigByteLength = sigWithout0x.length / 2;
+      const sigByteLength = sigWithout0x.length / 2; // 65
 
-      // Encode length as uint256 (64 hex chars = 32 bytes)
+      // ABI-encoded bytes: uint256(length) + data padded to 32 bytes
       const lengthHex = sigByteLength.toString(16).padStart(64, "0");
+      // Pad signature to next 32-byte boundary (65 -> 96 bytes = 192 hex chars)
+      const paddedSig = sigWithout0x.padEnd(
+        Math.ceil(sigByteLength / 32) * 64, "0"
+      );
 
-      txData = (quote.transaction.data + sigWithout0x + lengthHex) as Hex;
+      txData = (quote.transaction.data + lengthHex + paddedSig) as Hex;
 
-      console.log("[Swap] Raw signature hex:", sigWithout0x.slice(0, 20) + "...");
-      console.log("[Swap] Signature length (bytes):", sigByteLength);
+      console.log("[Swap] Signature bytes:", sigByteLength);
       console.log("[Swap] Original calldata bytes:", (quote.transaction.data.length - 2) / 2);
       console.log("[Swap] Final calldata bytes:", (txData.length - 2) / 2);
-      console.log("[Swap] Added bytes:", sigByteLength + 32);
     }
 
     // 4. Send swap transaction with extra gas headroom for signature bytes
