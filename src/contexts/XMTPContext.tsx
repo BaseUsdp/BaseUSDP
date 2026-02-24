@@ -119,9 +119,9 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
         // Extract peer address from conversation members
         const members = await conv.members();
         const peerMember = members.find(
-          (m) => m.accountAddresses[0]?.toLowerCase() !== fullWalletAddress.toLowerCase()
+          (m) => m.accountIdentifiers[0]?.identifier?.toLowerCase() !== fullWalletAddress.toLowerCase()
         );
-        const peerAddr = peerMember?.accountAddresses[0] || "";
+        const peerAddr = peerMember?.accountIdentifiers[0]?.identifier || "";
 
         // Resolve peer username
         const peerUser = peerAddr ? await resolveAddress(peerAddr) : null;

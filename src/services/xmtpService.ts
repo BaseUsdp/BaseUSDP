@@ -66,7 +66,7 @@ export async function sendMessage(peerAddress: string, text: string): Promise<vo
   if (!xmtpClient) throw new Error("XMTP client not initialized");
 
   const conversation = await xmtpClient.conversations.createDmWithIdentifier(ethIdentifier(peerAddress));
-  await conversation.send(text);
+  await conversation.sendText(text);
 }
 
 /**
