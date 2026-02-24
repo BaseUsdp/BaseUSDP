@@ -140,7 +140,7 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
           peerAddress: peerAddr,
           peerUsername: peerUser,
           lastMessage: lastMsg ? String(lastMsg.content) : "",
-          lastMessageAt: lastMsg ? new Date(lastMsg.sentAtNs / 1_000_000n) : new Date(0),
+          lastMessageAt: lastMsg ? new Date(Number(lastMsg.sentAtNs / 1_000_000n)) : new Date(0),
           unread: !seenConversationsRef.current.has(peerAddr.toLowerCase()),
           consentState,
         });
