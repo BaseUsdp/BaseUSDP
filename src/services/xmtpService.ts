@@ -60,6 +60,13 @@ export function getClient(): Client | null {
 }
 
 /**
+ * Get the current client's inbox ID (used to identify "my" messages).
+ */
+export function getInboxId(): string | null {
+  return xmtpClient?.inboxId ?? null;
+}
+
+/**
  * Send a text message to a peer address.
  */
 export async function sendMessage(peerAddress: string, text: string): Promise<void> {

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, Loader2, User, ShieldCheck, ShieldX } from "lucide-react";
-import { useWallet } from "@/contexts/WalletContext";
 import { useXMTP } from "@/contexts/XMTPContext";
 import { GroupMessageKind, type DecodedMessage } from "@xmtp/browser-sdk";
 
@@ -21,8 +20,7 @@ interface DisplayMessage {
 }
 
 const ChatModal = ({ open, onClose, username, peerAddress, onMessageSent }: ChatModalProps) => {
-  const { fullWalletAddress } = useWallet();
-  const { sendMessage, getConversation, resolveUsername, allowConversation, denyConversation, conversations } = useXMTP();
+  const { sendMessage, getConversation, resolveUsername, allowConversation, denyConversation, conversations, inboxId } = useXMTP();
 
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [resolvedAddress, setResolvedAddress] = useState<string | null>(peerAddress || null);
@@ -76,7 +74,7 @@ const ChatModal = ({ open, onClose, username, peerAddress, onMessageSent }: Chat
           .map((msg) => ({
             id: msg.id,
             content: typeof msg.content === "string" ? msg.content : (msg.fallback || ""),
-            isMine: msg.senderInboxId === fullWalletAddress?.toLowerCase(),
+            isMine: msg.senderInboxId === inboxId,
             timestamp: new Date(Number(msg.sentAtNs / 1_000_000n)),
           }));
         setMessages(mapped);
@@ -88,7 +86,7 @@ const ChatModal = ({ open, onClose, username, peerAddress, onMessageSent }: Chat
     };
 
     fetchMessages();
-  }, [open, resolvedAddress, getConversation, fullWalletAddress]);
+  }, [open, resolvedAddress, getConversation, inboxId]);
 
   // Re-map messages when conversations update (real-time stream)
   useEffect(() => {
@@ -101,7 +99,7 @@ const ChatModal = ({ open, onClose, username, peerAddress, onMessageSent }: Chat
         .map((msg) => ({
           id: msg.id,
           content: typeof msg.content === "string" ? msg.content : (msg.fallback || ""),
-          isMine: msg.senderInboxId === fullWalletAddress?.toLowerCase(),
+          isMine: msg.senderInboxId === inboxId,
           timestamp: new Date(Number(msg.sentAtNs / 1_000_000n)),
         }));
       setMessages(mapped);

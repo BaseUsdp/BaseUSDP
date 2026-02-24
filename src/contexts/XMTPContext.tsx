@@ -26,6 +26,7 @@ interface XMTPContextType {
   initError: string | null;
   conversations: XMTPConversation[];
   unreadCount: number;
+  inboxId: string | null;
   initializeXMTP: () => Promise<void>;
   sendMessage: (peerAddress: string, text: string) => Promise<void>;
   getConversation: (peerAddress: string) => Promise<DecodedMessage[]>;
@@ -56,6 +57,7 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
   const [initError, setInitError] = useState<string | null>(null);
   const [conversations, setConversations] = useState<XMTPConversation[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [inboxId, setInboxId] = useState<string | null>(null);
 
   // Track which conversations user has "seen" (opened)
   const seenConversationsRef = useRef<Set<string>>(new Set());
@@ -105,6 +107,7 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
     try {
       const signer = xmtp.buildSigner(fullWalletAddress, signFn);
       await xmtp.initialize(signer);
+      setInboxId(xmtp.getInboxId());
       setIsXMTPReady(true);
 
       // Load initial conversations
@@ -287,6 +290,7 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
         initError,
         conversations,
         unreadCount,
+        inboxId,
         initializeXMTP,
         sendMessage: handleSendMessage,
         getConversation: handleGetConversation,
