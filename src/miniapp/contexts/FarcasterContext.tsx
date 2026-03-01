@@ -1,9 +1,9 @@
 /**
  * Farcaster Context Provider
- * Mirrors WalletContext but for Farcaster Mini App:
- * Provides fid, username, walletAddress, isAuthenticated, bearerToken, provider, balance
+ * Mirrors WalletContext but for Farcaster Mini App.
  *
  * On mount: init SDK → authenticate → connect wallet → fetch balance
+ * If SDK is unavailable (not in Warpcast), shows helpful message.
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
@@ -15,31 +15,21 @@ import { getApiUrl } from "@/utils/apiConfig";
 const API_BASE = getApiUrl();
 
 interface FarcasterContextValue {
-  // Identity
   fid: number | null;
   farcasterUsername: string | null;
   walletAddress: string | null;
-
-  // Auth state
   isAuthenticated: boolean;
   isAuthenticating: boolean;
   bearerToken: string | null;
   authError: string | null;
-
-  // Wallet
   provider: any | null;
   isWalletConnected: boolean;
-
-  // Balance
   balance: { usdc: number; usdt: number } | null;
   isBalanceLoading: boolean;
-
-  // Mini App context
   location: "cast_embed" | "notification" | "launcher" | "direct_cast" | null;
   isClientAdded: boolean;
   isContextLoaded: boolean;
-
-  // Actions
+  sdkAvailable: boolean;
   authenticate: () => Promise<any>;
   refreshBalance: () => Promise<void>;
   logout: () => void;
@@ -84,12 +74,17 @@ export function FarcasterProvider({ children }: { children: React.ReactNode }) {
     }
   }, [auth.walletAddress, auth.bearerToken]);
 
-  // Auto-authenticate once SDK context is loaded
+  // Auto-authenticate only if SDK is available
   useEffect(() => {
-    if (miniAppContext.isLoaded && !auth.isAuthenticated && !auth.isAuthenticating) {
+    if (
+      miniAppContext.isLoaded &&
+      miniAppContext.sdkAvailable &&
+      !auth.isAuthenticated &&
+      !auth.isAuthenticating
+    ) {
       auth.authenticate();
     }
-  }, [miniAppContext.isLoaded]);
+  }, [miniAppContext.isLoaded, miniAppContext.sdkAvailable]);
 
   // Connect wallet after auth
   useEffect(() => {
@@ -98,7 +93,7 @@ export function FarcasterProvider({ children }: { children: React.ReactNode }) {
     }
   }, [auth.isAuthenticated]);
 
-  // Fetch balance after wallet connection
+  // Fetch balance after auth
   useEffect(() => {
     if (auth.isAuthenticated && auth.walletAddress) {
       fetchBalance();
@@ -120,6 +115,7 @@ export function FarcasterProvider({ children }: { children: React.ReactNode }) {
     location: miniAppContext.location,
     isClientAdded: miniAppContext.isClientAdded,
     isContextLoaded: miniAppContext.isLoaded,
+    sdkAvailable: miniAppContext.sdkAvailable,
     authenticate: auth.authenticate,
     refreshBalance: fetchBalance,
     logout: auth.logout,

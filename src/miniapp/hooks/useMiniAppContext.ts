@@ -1,7 +1,7 @@
 /**
  * Farcaster Mini App Context Hook
  * Wraps sdk.context to parse user info, client state, and launch location
- * Uses dynamic import to avoid crashes outside Farcaster iframe
+ * Fully safe — catches all SDK errors including postMessage failures
  */
 
 import { useState, useEffect } from "react";
@@ -15,6 +15,7 @@ export interface MiniAppContextData {
   location: "cast_embed" | "notification" | "launcher" | "direct_cast" | null;
   castEmbedUrl: string | null;
   isLoaded: boolean;
+  sdkAvailable: boolean;
 }
 
 export function useMiniAppContext(): MiniAppContextData {
@@ -27,17 +28,35 @@ export function useMiniAppContext(): MiniAppContextData {
     location: null,
     castEmbedUrl: null,
     isLoaded: false,
+    sdkAvailable: false,
   });
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadContext() {
       try {
-        const { default: sdk } = await import("@farcaster/miniapp-sdk");
-        const context = await sdk.context;
+        const sdkModule = await import("@farcaster/miniapp-sdk");
+        const sdk = sdkModule.default;
 
-        const user = context?.user;
-        const client = context?.client;
-        const location = context?.location;
+        // Race sdk.context against a timeout — if the host isn't there,
+        // postMessage will never resolve
+        const context = await Promise.race([
+          sdk.context,
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+        ]);
+
+        if (cancelled) return;
+
+        if (!context) {
+          // SDK loaded but no host responded — not in Warpcast Mini App viewer
+          setContextData((prev) => ({ ...prev, isLoaded: true, sdkAvailable: false }));
+          return;
+        }
+
+        const user = context.user;
+        const client = context.client;
+        const location = context.location;
 
         let locationType: MiniAppContextData["location"] = null;
         let embedUrl: string | null = null;
@@ -53,6 +72,8 @@ export function useMiniAppContext(): MiniAppContextData {
           locationType = "direct_cast";
         }
 
+        if (cancelled) return;
+
         setContextData({
           fid: user?.fid || null,
           username: user?.username || null,
@@ -62,14 +83,18 @@ export function useMiniAppContext(): MiniAppContextData {
           location: locationType,
           castEmbedUrl: embedUrl,
           isLoaded: true,
+          sdkAvailable: true,
         });
       } catch (error) {
-        console.warn("[MiniApp] Failed to load SDK context:", error);
-        setContextData((prev) => ({ ...prev, isLoaded: true }));
+        console.warn("[MiniApp] SDK context unavailable:", error);
+        if (!cancelled) {
+          setContextData((prev) => ({ ...prev, isLoaded: true, sdkAvailable: false }));
+        }
       }
     }
 
     loadContext();
+    return () => { cancelled = true; };
   }, []);
 
   return contextData;

@@ -2,12 +2,10 @@
  * Farcaster Mini App Root Component
  * Entry point rendered at /miniapp/*
  *
- * Always renders the Mini App — the FarcasterContext handles auth gracefully.
- * If SDK is unavailable (opened outside Warpcast), auth will fail and
- * MiniAppLayout shows an error with retry option.
+ * Includes error boundary to catch SDK crashes gracefully.
  */
 
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FarcasterProvider } from "./contexts/FarcasterContext";
@@ -27,11 +25,70 @@ const miniAppQueryClient = new QueryClient({
   },
 });
 
+/**
+ * Error boundary to catch SDK crashes
+ */
+class MiniAppErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: string }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: "" };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message || "Something went wrong" };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error("[MiniApp] Uncaught error:", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen bg-[#0a0a0a] text-white px-6">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6">
+            <span className="text-2xl font-bold">O</span>
+          </div>
+          <h1 className="text-xl font-bold mb-2">ORB402 Mini App</h1>
+          <p className="text-sm text-zinc-400 text-center mb-6 max-w-xs">
+            This Mini App needs to be opened from inside Warpcast. Tap a cast
+            embed or launch it from the Mini Apps section.
+          </p>
+          <div className="space-y-3 w-full max-w-xs">
+            <a
+              href="https://warpcast.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-semibold text-center transition-colors"
+            >
+              Open Warpcast
+            </a>
+            <a
+              href="https://orb402.com/dashboard"
+              className="block w-full py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm font-medium text-zinc-300 text-center transition-colors"
+            >
+              Go to ORB402 Dashboard
+            </a>
+          </div>
+          <p className="text-[10px] text-zinc-700 mt-6 font-mono">
+            {this.state.error}
+          </p>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 function MiniAppInner() {
   useEffect(() => {
     import("@farcaster/miniapp-sdk")
       .then(({ default: sdk }) => sdk.actions.ready())
-      .catch(() => { /* Not in Farcaster context */ });
+      .catch(() => {});
   }, []);
 
   return (
@@ -49,10 +106,12 @@ function MiniAppInner() {
 
 export default function MiniApp() {
   return (
-    <QueryClientProvider client={miniAppQueryClient}>
-      <FarcasterProvider>
-        <MiniAppInner />
-      </FarcasterProvider>
-    </QueryClientProvider>
+    <MiniAppErrorBoundary>
+      <QueryClientProvider client={miniAppQueryClient}>
+        <FarcasterProvider>
+          <MiniAppInner />
+        </FarcasterProvider>
+      </QueryClientProvider>
+    </MiniAppErrorBoundary>
   );
 }
