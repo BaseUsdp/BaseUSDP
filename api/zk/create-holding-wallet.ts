@@ -203,10 +203,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? ethers.parseEther('0.001')  // holding wallet gas only
         : ethers.parseEther('0.002'); // holding + intermediate wallet gas
 
-      // Check if user needs to approve the router for this token (one-time unlimited approval)
+      // Check if user needs to approve the router for this token (exact amount only)
       let needsApproval = false;
       let approveTransaction = undefined;
-      const MAX_APPROVAL = ethers.MaxUint256;
       try {
         const provider = getBaseProvider();
         const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
@@ -216,7 +215,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const erc20Interface = new ethers.Interface(ERC20_ABI);
           const approveData = erc20Interface.encodeFunctionData('approve', [
             routerAddress,
-            MAX_APPROVAL,
+            transferAmount,
           ]);
           approveTransaction = {
             to: tokenAddress,
@@ -230,7 +229,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const erc20Interface = new ethers.Interface(ERC20_ABI);
         const approveData = erc20Interface.encodeFunctionData('approve', [
           routerAddress,
-          MAX_APPROVAL,
+          transferAmount,
         ]);
         approveTransaction = {
           to: tokenAddress,
