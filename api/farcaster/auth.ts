@@ -2,8 +2,9 @@
  * Farcaster Auth Bridge
  * POST /api/farcaster/auth
  *
- * Verifies Farcaster Quick Auth JWT, resolves FID → wallet via Neynar,
- * creates an ORB402 session (same auth_sessions table as SIWE flow).
+ * Verifies SIWF (Sign In With Farcaster) message+signature,
+ * resolves FID → wallet via Neynar, creates an ORB402 session
+ * (same auth_sessions table as SIWE flow).
  *
  * After this, all existing /api/zk/*, /api/payments/* endpoints work
  * unchanged via Bearer token.
@@ -12,7 +13,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
-import { verifyFarcasterJwt } from "../lib/farcaster-auth.js";
+import { verifySIWFCredential } from "../lib/farcaster-auth.js";
 import { resolveFidToWallet } from "../lib/farcaster-neynar.js";
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -60,17 +61,23 @@ export default async function handler(
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    const { farcasterJwt } = req.body || {};
+    const { message, signature, nonce } = req.body || {};
 
-    if (!farcasterJwt) {
+    if (!message || !signature || !nonce) {
       return res
         .status(400)
-        .json({ success: false, error: "farcasterJwt is required" });
+        .json({ success: false, error: "message, signature, and nonce are required" });
     }
 
-    // 1. Verify JWT
+    // 1. Verify SIWF credential
     const domain = process.env.FARCASTER_DOMAIN || "orb402.com";
-    const { fid } = await verifyFarcasterJwt(farcasterJwt, domain);
+    const { fid } = await verifySIWFCredential({
+      message,
+      signature,
+      nonce,
+      domain,
+      acceptAuthAddress: true,
+    });
 
     // 2. Resolve FID → wallet via Neynar
     const { walletAddress, username } = await resolveFidToWallet(fid);

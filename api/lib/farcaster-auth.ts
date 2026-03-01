@@ -1,35 +1,49 @@
 /**
- * Farcaster Quick Auth JWT Verification
- * Verifies JWTs issued by Farcaster's Quick Auth flow
+ * Farcaster SIWF (Sign In With Farcaster) Verification
+ * Verifies message + signature from sdk.actions.signIn()
  */
 
-import { createClient } from "@farcaster/quick-auth";
+import { createAppClient, viemConnector } from "@farcaster/auth-client";
 
-let quickAuthClient: Awaited<ReturnType<typeof createClient>> | null = null;
+let appClient: ReturnType<typeof createAppClient> | null = null;
 
-async function getQuickAuthClient() {
-  if (!quickAuthClient) {
-    quickAuthClient = await createClient();
+function getAppClient() {
+  if (!appClient) {
+    appClient = createAppClient({
+      ethereum: viemConnector(),
+    });
   }
-  return quickAuthClient;
+  return appClient;
 }
 
 /**
- * Verify a Farcaster Quick Auth JWT and extract the FID
+ * Verify a SIWF message+signature and extract the FID
  */
-export async function verifyFarcasterJwt(
-  token: string,
-  domain: string
-): Promise<{ fid: number }> {
-  const client = await getQuickAuthClient();
+export async function verifySIWFCredential(params: {
+  message: string;
+  signature: string;
+  nonce: string;
+  domain: string;
+  acceptAuthAddress?: boolean;
+}): Promise<{ fid: number }> {
+  const client = getAppClient();
 
-  const result = await client.verifyToken({
-    token,
-    domain,
+  const result = await client.verifySignInMessage({
+    message: params.message,
+    signature: params.signature as `0x${string}`,
+    nonce: params.nonce,
+    domain: params.domain,
+    acceptAuthAddress: params.acceptAuthAddress ?? true,
   });
 
+  if (!result.success || result.isError) {
+    throw new Error(
+      result.error?.message || "SIWF verification failed"
+    );
+  }
+
   if (!result.fid) {
-    throw new Error("JWT verification succeeded but no FID found");
+    throw new Error("SIWF verification succeeded but no FID found");
   }
 
   return { fid: Number(result.fid) };

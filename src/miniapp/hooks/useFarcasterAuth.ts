@@ -1,9 +1,10 @@
 /**
  * Farcaster Authentication Hook
- * Uses Quick Auth SDK to sign in, then exchanges JWT for ORB402 Bearer token
+ * Uses SIWF (Sign In With Farcaster) to get a signed credential,
+ * then exchanges it for an ORB402 Bearer token.
  *
+ * sdk.actions.signIn returns { message, signature } — NOT a JWT.
  * Token is stored in React state (NOT localStorage — iframe sandbox may block it)
- * Uses dynamic import to avoid crashes outside Farcaster iframe
  */
 
 import { useState, useCallback } from "react";
@@ -42,27 +43,31 @@ export function useFarcasterAuth() {
     try {
       const { default: sdk } = await import("@farcaster/miniapp-sdk");
 
-      // Generate alphanumeric nonce (min 8 chars, no hyphens)
+      // Generate alphanumeric nonce (min 8 chars)
       const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)))
         .map((b) => b.toString(36))
         .join("")
         .slice(0, 16);
 
-      // Use Farcaster Quick Auth to get a signed JWT
+      // SIWF: returns { message, signature }
       const signInResult = await sdk.actions.signIn({
         nonce,
         acceptAuthAddress: true,
       });
 
-      if (!signInResult?.token) {
-        throw new Error("Sign-in did not return a token");
+      if (!signInResult?.message || !signInResult?.signature) {
+        throw new Error("Sign-in did not return message and signature");
       }
 
-      // Exchange Farcaster JWT for ORB402 Bearer token
+      // Exchange SIWF credential for ORB402 Bearer token
       const response = await fetch(`${API_BASE}/api/farcaster/auth`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ farcasterJwt: signInResult.token }),
+        body: JSON.stringify({
+          message: signInResult.message,
+          signature: signInResult.signature,
+          nonce,
+        }),
       });
 
       if (!response.ok) {
