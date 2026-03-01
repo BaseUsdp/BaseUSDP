@@ -198,10 +198,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ]);
 
       // ETH to forward to collection wallet for backend gas funding
-      // Public mode skips intermediate wallet, so needs less gas
+      // Base gas is very cheap (~$0.01/tx), so minimal ETH needed
       const ethForGas = privacyLevel === 'public'
-        ? ethers.parseEther('0.001')  // holding wallet gas only
-        : ethers.parseEther('0.002'); // holding + intermediate wallet gas
+        ? ethers.parseEther('0.00015')  // holding wallet gas only
+        : ethers.parseEther('0.0003');  // holding + intermediate wallet gas
 
       // Check if user needs to approve the router for this token (exact amount only)
       let needsApproval = false;
