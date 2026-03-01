@@ -10,6 +10,7 @@
     "api/zk/transfer.ts": { "maxDuration": 120 }
   },
   "rewrites": [
+    { "source": "/.well-known/farcaster.json", "destination": "/farcaster.json" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "crons": [

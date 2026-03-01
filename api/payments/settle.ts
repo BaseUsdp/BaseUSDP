@@ -7,6 +7,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { sendFarcasterNotification, getFidByWallet } from '../lib/farcaster-notifications';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -73,6 +74,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     console.log(`[Payments] Settled payment ${payment_id}`);
+
+    // Send Farcaster notification to payment creator if they have a linked FID
+    try {
+      const { data: payment } = await supabase
+        .from('payment_requests')
+        .select('user_wallet')
+        .eq('payment_id', payment_id)
+        .single();
+
+      if (payment?.user_wallet) {
+        const creatorFid = await getFidByWallet(payment.user_wallet);
+        if (creatorFid) {
+          await sendFarcasterNotification(creatorFid, 'payment_settled');
+        }
+      }
+    } catch (notifError: any) {
+      // Non-critical: log but don't fail the settlement
+      console.warn('[Payments] Farcaster notification failed:', notifError.message);
+    }
 
     return res.status(200).json({
       success: true,

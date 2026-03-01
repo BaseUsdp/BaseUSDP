@@ -1,0 +1,17 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjI4NDg5NzYsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHhlNzVBN2U5QTVEMzU2MTZiYTdCNGRCZUJDMUJmNWFjQjYwMkVCNmQ3In0",
+    "payload": "eyJkb21haW4iOiJvcmI0MDIuY29tIn0",
+    "signature": "gSbiyYB7WUTaGXvWDjPcIcaDwx7oAffcoGp5ZA1H16tJUQtMoD+6XZYrhtYHLPWppS7nrr5okGV7vrIob29A4hw="
+  },
+  "miniapp": {
+    "name": "ORB402 Private Payments",
+    "homeUrl": "https://orb402.com/miniapp",
+    "iconUrl": "https://orb402.com/favicon-ORB.jpg",
+    "splashImageUrl": "https://orb402.com/social-preview.png",
+    "splashBackgroundColor": "#0a0a0a",
+    "webhookUrl": "https://orb402.com/api/farcaster/webhook",
+    "primaryCategory": "finance",
+    "requiredChains": ["eip155:8453"]
+  }
+}
