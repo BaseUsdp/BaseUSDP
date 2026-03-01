@@ -13,7 +13,7 @@ import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 
 const BASE_WALLET_ADDRESS = process.env.BASE_WALLET_ADDRESS;
-const BASE_RPC_URL = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
+const BASE_RPC_URL = 'https://mainnet.base.org';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;

@@ -21,7 +21,7 @@ const MIXER_WITHDRAWAL_WALLET = process.env.MIXER_WITHDRAWAL_WALLET_ADDRESS;
 // Base USDC contract and constants
 const BASE_USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 const BASE_USDC_DECIMALS = 6;
-const BASE_RPC_URL = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
+const BASE_RPC_URL = 'https://mainnet.base.org';
 const TRANSFER_EVENT_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
 // Max blocks to scan per request (Base ~2s blocks, 2000 = ~67 min)
@@ -66,9 +66,9 @@ async function detectUsdcTransfers(
   blockNumber: number;
 }>> {
   console.log(`[x402] Scanning blocks ${fromBlock} to ${toBlock} for transfers to ${targetAddress}`);
-  
+
   const targetAddressTopic = '0x000000000000000000000000' + targetAddress.toLowerCase().replace('0x', '');
-  
+
   const response = await fetch(BASE_RPC_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -90,7 +90,7 @@ async function detectUsdcTransfers(
   });
 
   const data = await response.json();
-  
+
   if (data.error) {
     console.error('[x402] RPC error:', data.error);
     throw new Error(`RPC error: ${data.error.message}`);
