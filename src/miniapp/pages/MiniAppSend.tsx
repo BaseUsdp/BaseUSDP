@@ -52,6 +52,11 @@ export default function MiniAppSend() {
 
   const handlePreview = () => {
     if (!recipient || !isAmountValid) return;
+    if (recipient.hasDeposited === false) {
+      setError("This user hasn't deposited yet — they must deposit before they can receive transfers");
+      return;
+    }
+    setError(null);
     setStep("preview");
   };
 
