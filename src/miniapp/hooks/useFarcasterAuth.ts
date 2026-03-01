@@ -3,10 +3,10 @@
  * Uses Quick Auth SDK to sign in, then exchanges JWT for ORB402 Bearer token
  *
  * Token is stored in React state (NOT localStorage — iframe sandbox may block it)
+ * Uses dynamic import to avoid crashes outside Farcaster iframe
  */
 
 import { useState, useCallback } from "react";
-import sdk from "@farcaster/miniapp-sdk";
 import { getApiUrl } from "@/utils/apiConfig";
 
 const API_BASE = getApiUrl();
@@ -40,6 +40,8 @@ export function useFarcasterAuth() {
     }));
 
     try {
+      const { default: sdk } = await import("@farcaster/miniapp-sdk");
+
       // Generate nonce for the sign-in request
       const nonce = crypto.randomUUID();
 

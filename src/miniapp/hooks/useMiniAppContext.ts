@@ -1,10 +1,10 @@
 /**
  * Farcaster Mini App Context Hook
  * Wraps sdk.context to parse user info, client state, and launch location
+ * Uses dynamic import to avoid crashes outside Farcaster iframe
  */
 
 import { useState, useEffect } from "react";
-import sdk from "@farcaster/miniapp-sdk";
 
 export interface MiniAppContextData {
   fid: number | null;
@@ -32,6 +32,7 @@ export function useMiniAppContext(): MiniAppContextData {
   useEffect(() => {
     async function loadContext() {
       try {
+        const { default: sdk } = await import("@farcaster/miniapp-sdk");
         const context = await sdk.context;
 
         const user = context?.user;

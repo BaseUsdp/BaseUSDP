@@ -2,10 +2,10 @@
  * Farcaster Wallet Hook
  * Gets EIP-1193 provider from the Farcaster SDK
  * Enforces Base chain (reuses ensureBaseChain pattern from WalletContext)
+ * Uses dynamic import to avoid crashes outside Farcaster iframe
  */
 
 import { useState, useCallback, useEffect } from "react";
-import sdk from "@farcaster/miniapp-sdk";
 
 const BASE_CHAIN_ID = "0x2105"; // 8453
 const BASE_CHAIN_CONFIG = {
@@ -37,6 +37,7 @@ export function useFarcasterWallet() {
     setWalletState((prev) => ({ ...prev, isConnecting: true, error: null }));
 
     try {
+      const { default: sdk } = await import("@farcaster/miniapp-sdk");
       const provider = await sdk.wallet.getEthereumProvider();
 
       if (!provider) {

@@ -2,10 +2,10 @@
  * Share Cast Button
  * Composes a privacy-safe Farcaster cast after a successful payment
  * Default text: "Sent a private payment via ORB402" (no amount, no recipient)
+ * Uses dynamic import to avoid crashes outside Farcaster iframe
  */
 
 import { Share2 } from "lucide-react";
-import sdk from "@farcaster/miniapp-sdk";
 
 interface ShareCastButtonProps {
   paymentId?: string;
@@ -20,6 +20,8 @@ export function ShareCastButton({
 }: ShareCastButtonProps) {
   const handleShare = async () => {
     try {
+      const { default: sdk } = await import("@farcaster/miniapp-sdk");
+
       const embeds: string[] = [];
 
       if (paymentId) {
