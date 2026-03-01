@@ -37,23 +37,24 @@ export async function verifyBearerToken(
       return { valid: false, error: 'Database not configured' };
     }
 
-    // Look up session in database
-    const { data: session, error } = await supabase
+    // Look up session in database (case-insensitive wallet match, newest first)
+    const { data: sessions, error } = await supabase
       .from('auth_sessions')
       .select('*')
       .eq('session_token', token)
-      .eq('user_wallet', wallet)
-      .single();
+      .ilike('user_wallet', wallet)
+      .order('created_at', { ascending: false })
+      .limit(1);
 
     if (error) {
       console.log(`[Bearer Auth] Session lookup error for ${wallet.slice(0,8)}...: ${error.message}`);
-      // Check if table doesn't exist
       if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
         return { valid: false, error: 'Session table not configured' };
       }
       return { valid: false, error: 'Invalid session token' };
     }
-    
+
+    const session = sessions?.[0];
     if (!session) {
       console.log(`[Bearer Auth] No session found for ${wallet.slice(0,8)}...`);
       return { valid: false, error: 'Session not found' };
