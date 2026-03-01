@@ -8,7 +8,7 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { resolveFarcasterUsername } from "../lib/farcaster-neynar";
+import { resolveFarcasterUsername } from "../lib/farcaster-neynar.js";
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey =

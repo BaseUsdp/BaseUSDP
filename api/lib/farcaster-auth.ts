@@ -3,13 +3,13 @@
  * Verifies JWTs issued by Farcaster's Quick Auth flow
  */
 
-import { createQuickAuthClient } from "@farcaster/quick-auth";
+import { createClient } from "@farcaster/quick-auth";
 
-let quickAuthClient: Awaited<ReturnType<typeof createQuickAuthClient>> | null = null;
+let quickAuthClient: Awaited<ReturnType<typeof createClient>> | null = null;
 
 async function getQuickAuthClient() {
   if (!quickAuthClient) {
-    quickAuthClient = await createQuickAuthClient();
+    quickAuthClient = await createClient();
   }
   return quickAuthClient;
 }

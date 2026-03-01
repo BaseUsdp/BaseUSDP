@@ -12,8 +12,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
-import { verifyFarcasterJwt } from "../lib/farcaster-auth";
-import { resolveFidToWallet } from "../lib/farcaster-neynar";
+import { verifyFarcasterJwt } from "../lib/farcaster-auth.js";
+import { resolveFidToWallet } from "../lib/farcaster-neynar.js";
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey =
