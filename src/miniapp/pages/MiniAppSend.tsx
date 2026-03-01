@@ -70,12 +70,13 @@ export default function MiniAppSend() {
       const accounts = await provider.request({ method: "eth_accounts" });
       const senderAddress = accounts[0] || walletAddress;
 
+      const msgHex = Array.from(new TextEncoder().encode(messageToSign))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+
       const signature = await provider.request({
         method: "personal_sign",
-        params: [
-          `0x${Buffer.from(messageToSign).toString("hex")}`,
-          senderAddress,
-        ],
+        params: [`0x${msgHex}`, senderAddress],
       });
 
       setStep("encrypting");
