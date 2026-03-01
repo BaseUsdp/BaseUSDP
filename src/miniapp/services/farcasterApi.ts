@@ -183,6 +183,24 @@ class FarcasterApiClient {
     });
   }
 
+  // Process pending exchanges (mixer completion)
+  async processPendingExchanges(params: {
+    wallet: string;
+    depositId?: string;
+    statusOnly?: boolean;
+  }) {
+    return this.request<{
+      success: boolean;
+      allComplete?: boolean;
+      completedExchanges?: number;
+      totalExchanges?: number;
+      error?: string;
+    }>("/api/zk/process-pending-exchanges", {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
+  }
+
   // Cast payment settings
   async getCastPaymentSettings() {
     return this.request<{
