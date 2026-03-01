@@ -12,13 +12,13 @@ import farcasterApi from "../services/farcasterApi";
 
 interface Transaction {
   signature: string;
-  timestamp: number;
+  timestamp: string | number;
   type: string;
   status: string;
   from?: string;
   to?: string;
   amount?: number;
-  fee: number;
+  fee?: number;
   memo?: string;
 }
 
@@ -54,8 +54,11 @@ export default function MiniAppHistory() {
     fetchHistory();
   }, [walletAddress]);
 
-  const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp * 1000);
+  const formatDate = (timestamp: string | number) => {
+    const date = typeof timestamp === "string"
+      ? new Date(timestamp)
+      : new Date(timestamp * 1000);
+    if (isNaN(date.getTime())) return "—";
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
