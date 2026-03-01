@@ -28,14 +28,35 @@ const miniAppQueryClient = new QueryClient({
 });
 
 /**
- * Detect if we're running inside a Farcaster iframe
+ * Detect if we're likely running inside Farcaster/Warpcast
+ * Checks for: iframe, SDK message channel, Warpcast user agent, or mobile webview
  */
-function isFarcasterFrame(): boolean {
+function isFarcasterContext(): boolean {
   try {
-    return window !== window.parent;
+    // Check if inside an iframe
+    if (window !== window.parent) return true;
   } catch {
     return true; // cross-origin iframe
   }
+
+  // Check user agent for Warpcast
+  const ua = navigator.userAgent || "";
+  if (ua.includes("Warpcast") || ua.includes("Farcaster")) return true;
+
+  // Check if opened in a mobile webview (common pattern for Mini Apps)
+  const isWebView =
+    ua.includes("wv") || // Android WebView
+    (ua.includes("Mobile") && !ua.includes("Safari") && ua.includes("AppleWebKit")); // iOS WebView
+  if (isWebView) return true;
+
+  // Check for Farcaster SDK message handler on window
+  if (typeof (window as any).__farcaster__ !== "undefined") return true;
+
+  // Check URL params that Farcaster might inject
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("fc_action") || params.has("fc_context")) return true;
+
+  return false;
 }
 
 /**
@@ -95,14 +116,35 @@ function MiniAppInner() {
 }
 
 export default function MiniApp() {
-  const [isInFrame, setIsInFrame] = useState<boolean | null>(null);
+  const [envChecked, setEnvChecked] = useState(false);
+  const [isFarcaster, setIsFarcaster] = useState(false);
 
   useEffect(() => {
-    setIsInFrame(isFarcasterFrame());
+    const detected = isFarcasterContext();
+
+    if (detected) {
+      setIsFarcaster(true);
+      setEnvChecked(true);
+    } else {
+      // If simple detection fails, try initializing the SDK as final check
+      import("@farcaster/miniapp-sdk")
+        .then(async ({ default: sdk }) => {
+          const context = await Promise.race([
+            sdk.context,
+            new Promise((_, reject) => setTimeout(() => reject("timeout"), 3000)),
+          ]);
+          setIsFarcaster(!!context);
+          setEnvChecked(true);
+        })
+        .catch(() => {
+          setIsFarcaster(false);
+          setEnvChecked(true);
+        });
+    }
   }, []);
 
   // Still detecting
-  if (isInFrame === null) {
+  if (!envChecked) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0a0a0a]">
         <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
@@ -111,7 +153,7 @@ export default function MiniApp() {
   }
 
   // Outside Farcaster — show fallback
-  if (!isInFrame) {
+  if (!isFarcaster) {
     return <OutsideFarcasterFallback />;
   }
 
