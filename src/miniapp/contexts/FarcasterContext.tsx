@@ -55,9 +55,10 @@ export function FarcasterProvider({ children }: { children: React.ReactNode }) {
         Authorization: `Bearer ${auth.bearerToken}`,
       };
 
+      const wallet = auth.walletAddress.toLowerCase();
       const [usdcRes, usdtRes] = await Promise.all([
-        fetch(`${API_BASE}/api/zk/balance/${auth.walletAddress}?token=USDC`, { headers }),
-        fetch(`${API_BASE}/api/zk/balance/${auth.walletAddress}?token=USDT`, { headers }),
+        fetch(`${API_BASE}/api/zk/balance/${wallet}?token=USDC`, { headers }),
+        fetch(`${API_BASE}/api/zk/balance/${wallet}?token=USDT`, { headers }),
       ]);
 
       const usdcData = await usdcRes.json();

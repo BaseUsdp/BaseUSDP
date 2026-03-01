@@ -110,10 +110,12 @@ export default function MiniAppDeposit() {
     setError(null);
     setProgress(0);
 
+    const wallet = walletAddress.toLowerCase();
+
     try {
       // === STEP 1: Create holding wallet ===
       const holdingResult = await farcasterApi.createHoldingWallet({
-        wallet: walletAddress,
+        wallet,
         amount: parsedAmount,
         token,
       });
@@ -162,7 +164,7 @@ export default function MiniAppDeposit() {
 
       await pollUntil(async () => {
         const data = await farcasterApi.autoSplitAndExchange({
-          wallet: walletAddress,
+          wallet,
           holdingWallet,
           amount: parsedAmount,
           token,
@@ -183,7 +185,7 @@ export default function MiniAppDeposit() {
       setStatusText("Sending splits...");
 
       const splitResult = await pollUntil(async () => {
-        const data = await farcasterApi.processSplitQueue({ wallet: walletAddress });
+        const data = await farcasterApi.processSplitQueue({ wallet });
 
         if (data.success) {
           const allSent = (data as any).allSent;
@@ -211,7 +213,7 @@ export default function MiniAppDeposit() {
         // Trigger processing periodically (supplements cron)
         const triggerProcessing = () => {
           farcasterApi.processPendingExchanges({
-            wallet: walletAddress,
+            wallet,
             depositId,
           }).catch(() => {});
         };
@@ -221,7 +223,7 @@ export default function MiniAppDeposit() {
         try {
           await pollUntil(async () => {
             const data = await farcasterApi.processPendingExchanges({
-              wallet: walletAddress,
+              wallet,
               depositId,
               statusOnly: true,
             });

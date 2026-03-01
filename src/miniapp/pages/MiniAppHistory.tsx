@@ -41,7 +41,7 @@ export default function MiniAppHistory() {
     setError(null);
 
     try {
-      const result = await farcasterApi.getTransactionHistory(walletAddress, 20);
+      const result = await farcasterApi.getTransactionHistory(walletAddress.toLowerCase(), 20);
       setTransactions(result.transactions || []);
     } catch (err: any) {
       setError(err.message || "Failed to load history");

@@ -71,9 +71,9 @@ export default function MiniAppSend() {
       const nonce = Date.now();
       const messageToSign = `ORB402 Transfer: ${parsedAmount} ${token} | Nonce: ${nonce}`;
 
-      // Sign with Farcaster wallet
+      // Sign with Farcaster wallet (lowercase for consistent DB matching)
       const accounts = await provider.request({ method: "eth_accounts" });
-      const senderAddress = accounts[0] || walletAddress;
+      const senderAddress = (accounts[0] || walletAddress).toLowerCase();
 
       const msgHex = Array.from(new TextEncoder().encode(messageToSign))
         .map((b) => b.toString(16).padStart(2, "0"))
