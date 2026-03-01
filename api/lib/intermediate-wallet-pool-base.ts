@@ -42,8 +42,8 @@ class IntermediateWalletPoolBase {
 
       this.wallets = walletsData.map((w: any, index: number) => ({
         index,
-        address: w.address,
-        privateKey: w.privateKey,
+        address: w.address.trim(),
+        privateKey: w.privateKey.trim().replace(/\s/g, ''),
         lastUsed: undefined,
         totalUses: 0,
       }));
