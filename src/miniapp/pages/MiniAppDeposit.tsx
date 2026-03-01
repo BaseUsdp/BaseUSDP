@@ -80,22 +80,21 @@ export default function MiniAppDeposit() {
       const accounts = await provider.request({ method: "eth_accounts" });
       const senderAddress = accounts[0] || walletAddress;
 
-      // USDC contract on Base
-      const tokenContract =
-        token === "USDC"
-          ? "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-          : "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2";
+      // Use API-provided transactions (DepositRouter: approve + depositWithGas)
+      const { needsApproval, approveTransaction, evmTransaction } = holdingResult;
 
-      // Amount in smallest units (6 decimals for both USDC and USDT on Base)
-      const amountInUnits = BigInt(Math.floor(parsedAmount * 1e6));
-      const amountHex = amountInUnits.toString(16).padStart(64, "0");
-      const recipientHex = holdingWallet.slice(2).padStart(64, "0");
+      if (!evmTransaction) {
+        throw new Error("No deposit transaction returned from server");
+      }
 
-      // ERC-20 approve + transfer data
-      const approveData = `0x095ea7b3${recipientHex}${amountHex}`;
-      const transferData = `0xa9059cbb${recipientHex}${amountHex}`;
+      // Build transaction list
+      const calls: { to: string; data: string; value: string }[] = [];
+      if (needsApproval && approveTransaction) {
+        calls.push(approveTransaction);
+      }
+      calls.push(evmTransaction);
 
-      // Try EIP-5792 batch (approve + transfer in one confirmation)
+      // Try EIP-5792 batch (all calls in one confirmation)
       try {
         setStep("signing");
         await provider.request({
@@ -103,41 +102,27 @@ export default function MiniAppDeposit() {
           params: [
             {
               from: senderAddress,
-              calls: [
-                { to: tokenContract, data: approveData, value: "0x0" },
-                { to: tokenContract, data: transferData, value: "0x0" },
-              ],
+              calls,
               chainId: "0x2105",
             },
           ],
         });
       } catch {
-        // Fallback: sequential approve → transfer
+        // Fallback: send each transaction sequentially
         setStep("signing");
-
-        await provider.request({
-          method: "eth_sendTransaction",
-          params: [
-            {
-              from: senderAddress,
-              to: tokenContract,
-              data: approveData,
-              value: "0x0",
-            },
-          ],
-        });
-
-        await provider.request({
-          method: "eth_sendTransaction",
-          params: [
-            {
-              from: senderAddress,
-              to: tokenContract,
-              data: transferData,
-              value: "0x0",
-            },
-          ],
-        });
+        for (const call of calls) {
+          await provider.request({
+            method: "eth_sendTransaction",
+            params: [
+              {
+                from: senderAddress,
+                to: call.to,
+                data: call.data,
+                value: call.value,
+              },
+            ],
+          });
+        }
       }
 
       // 3. Trigger auto-split
