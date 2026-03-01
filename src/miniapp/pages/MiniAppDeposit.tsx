@@ -74,6 +74,7 @@ export default function MiniAppDeposit() {
       }
 
       const holdingWallet = holdingResult.holdingWallet;
+      const depositId = holdingResult.depositId;
 
       // 2. Get accounts from provider
       const accounts = await provider.request({ method: "eth_accounts" });
@@ -147,6 +148,7 @@ export default function MiniAppDeposit() {
         holdingWallet,
         amount: parsedAmount,
         token,
+        depositId,
       });
 
       // 4. Poll split queue

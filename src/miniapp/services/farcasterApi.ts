@@ -137,6 +137,7 @@ class FarcasterApiClient {
       success: boolean;
       holdingWalletAddress?: string;
       holdingWallet?: string;
+      depositId?: string;
       needsApproval?: boolean;
       approveTransaction?: { to: string; data: string; value: string };
       evmTransaction?: { to: string; data: string; value: string };
@@ -158,6 +159,7 @@ class FarcasterApiClient {
     holdingWallet: string;
     amount: number;
     token: string;
+    depositId?: string;
   }) {
     return this.request<{
       success: boolean;
