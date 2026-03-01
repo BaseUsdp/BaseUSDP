@@ -87,7 +87,7 @@ export default function MiniAppDeposit() {
 
       // Amount in smallest units (6 decimals for both USDC and USDT on Base)
       const amountInUnits = BigInt(Math.floor(parsedAmount * 1e6));
-      const amountHex = "0x" + amountInUnits.toString(16).padStart(64, "0");
+      const amountHex = amountInUnits.toString(16).padStart(64, "0");
       const recipientHex = holdingWallet.slice(2).padStart(64, "0");
 
       // ERC-20 approve + transfer data
