@@ -172,6 +172,26 @@ class FarcasterApiClient {
     });
   }
 
+  // Cast payment settings
+  async getCastPaymentSettings() {
+    return this.request<{
+      success: boolean;
+      enabled: boolean;
+      daily_limit: number;
+    }>("/api/farcaster/cast-payment-settings");
+  }
+
+  async updateCastPaymentSettings(params: {
+    wallet: string;
+    enabled: boolean;
+    daily_limit?: number;
+  }) {
+    return this.request<{ success: boolean }>("/api/farcaster/cast-payment-settings", {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
+  }
+
   // Resolve Farcaster username (privacy-safe)
   async resolveFarcasterUser(username: string) {
     return this.request<{

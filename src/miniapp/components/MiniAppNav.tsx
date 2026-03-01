@@ -5,13 +5,14 @@
  */
 
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, Send, Clock, Settings } from "lucide-react";
+import { Home, Send, Clock, ArrowDownToLine, Settings } from "lucide-react";
 
 const NAV_ITEMS = [
   { path: "/miniapp", label: "Home", icon: Home },
   { path: "/miniapp/send", label: "Send", icon: Send },
+  { path: "/miniapp/deposit", label: "Deposit", icon: ArrowDownToLine },
   { path: "/miniapp/history", label: "History", icon: Clock },
-  { path: "/miniapp/deposit", label: "Deposit", icon: Settings },
+  { path: "/miniapp/settings", label: "Settings", icon: Settings },
 ] as const;
 
 export function MiniAppNav() {

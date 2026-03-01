@@ -32,10 +32,8 @@ import { getUSDPHolderTier, calculateFeePercentage } from '../lib/tier-service.j
 import { extractBearerToken, verifyBearerToken } from '../lib/bearer-auth.js';
 import bs58 from 'bs58';
 import { isBaseChain } from '../lib/chain-config.js';
-import { isValidBaseAddress, getPrivacyPoolContract, getUsdcAddress, parseUsdc, getBaseProvider } from '../lib/void402-base.js';
-import { generatePrivacyNonce, getProofId, generateMockProof } from '../lib/privacy-utils-base.js';
-import { getBaseIntermediateWalletPool } from '../lib/intermediate-wallet-pool-base.js';
-import { ethers as ethersLib } from 'ethers';
+import { isValidBaseAddress } from '../lib/void402-base.js';
+import { executeBaseTransfer } from '../lib/transfer-base.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -271,166 +269,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid recipient Base address' });
       }
 
-      if (sender_wallet.toLowerCase() === base_recipient_wallet.toLowerCase()) {
-        return res.status(400).json({ error: 'Self-transfers are not allowed' });
-      }
-
       const transferAmount = parseFloat(amount);
-      const usdcAddress = getUsdcAddress();
-      const provider = getBaseProvider();
-      const amountInUnits = parseUsdc(transferAmount.toString());
 
-      const baseIntPool = getBaseIntermediateWalletPool();
-      await baseIntPool.initialize();
+      const result = await executeBaseTransfer({
+        senderWallet: sender_wallet,
+        recipientWallet: base_recipient_wallet,
+        amount: transferAmount,
+        token,
+        forceExternal: !!force_external,
+      });
 
-      // Check ALL intermediate wallets in the pool for sufficient on-chain balance
-      // Intermediate wallets are shared infrastructure — any wallet with balance can execute
-      let intWalletData: any = null;
-      const readonlyPool = getPrivacyPoolContract(provider as any);
-      const allWallets = baseIntPool.getAllWallets();
-      for (const candidate of allWallets) {
-        try {
-          const [available] = await readonlyPool.getUserBalance(candidate.address, usdcAddress);
-          console.log(`[Base Transfer] Intermediate ${candidate.address.slice(0,10)}... pool balance: ${available.toString()}`);
-          if (available >= amountInUnits) {
-            intWalletData = candidate;
-            break;
-          }
-        } catch (e: any) {
-          console.warn(`[Base Transfer] Failed to check balance for ${candidate.address}: ${e.message}`);
-        }
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
       }
-
-      if (!intWalletData) {
-        return res.status(400).json({ error: 'Insufficient pool balance. No intermediate wallet has enough funds.' });
-      }
-
-      const intSigner = new ethersLib.Wallet(intWalletData.privateKey, provider);
-
-      // Fund intermediate wallet with ETH for gas if needed
-      const intEthBalance = await provider.getBalance(intWalletData.address);
-      const ethNeeded = ethersLib.parseEther("0.002");
-      if (intEthBalance < ethNeeded) {
-        const fundAmount = ethNeeded - intEthBalance;
-        let funded = false;
-        const funderKeys = [
-          { name: 'collection', key: process.env.COLLECTION_WALLET_PRIVATE_KEY_BASE },
-          { name: 'mixer', key: process.env.MIXER_WITHDRAWAL_WALLET_PRIVATE_KEY_BASE },
-        ];
-        for (const { name, key } of funderKeys) {
-          if (!key || funded) continue;
-          try {
-            const funder = new ethersLib.Wallet(key, provider);
-            const funderBalance = await provider.getBalance(funder.address);
-            const estimatedGas = ethersLib.parseEther("0.00015");
-            if (funderBalance < fundAmount + estimatedGas) {
-              console.warn(`[Base Transfer] ⚠️ ${name} wallet (${funder.address.slice(0, 10)}...) insufficient ETH: ${ethersLib.formatEther(funderBalance)}`);
-              continue;
-            }
-            const fundTx = await funder.sendTransaction({ to: intWalletData.address, value: fundAmount });
-            await fundTx.wait();
-            console.log(`[Base Transfer] Funded intermediate with ${ethersLib.formatEther(fundAmount)} ETH from ${name} wallet: ${fundTx.hash}`);
-            funded = true;
-          } catch (fundErr: any) {
-            console.warn(`[Base Transfer] ⚠️ Failed to fund from ${name} wallet: ${fundErr.message}`);
-          }
-        }
-        if (!funded) {
-          console.error('[Base Transfer] Cannot fund intermediate with ETH - all funder wallets depleted');
-        }
-      }
-
-      const privacyPoolContract = getPrivacyPoolContract(intSigner);
-
-      // Generate nonce and proof
-      const privacyNonce = generatePrivacyNonce(sender_wallet);
-      const proofId = getProofId(privacyNonce);
-      const { proofBytes, commitmentBytes, blindingFactorBytes } = generateMockProof(
-        sender_wallet,
-        amountInUnits,
-        privacyNonce,
-      );
-
-      // STEP 1: Upload proof (using intermediate wallet which has pool balance)
-      console.log(`[Base Transfer] Uploading proof for nonce ${privacyNonce}...`);
-      const uploadTx = await privacyPoolContract.uploadProof(
-        privacyNonce,
-        amountInUnits,
-        usdcAddress,
-        proofBytes,
-        commitmentBytes,
-        blindingFactorBytes,
-      );
-      const uploadReceipt = await uploadTx.wait();
-      console.log(`[Base Transfer] Proof uploaded: ${uploadReceipt.hash}`);
-
-      // STEP 2: Determine if internal (Void402 user) or external (raw address) transfer
-      const isBaseExternal = !!force_external || !recipient_username;
-
-      // Check if recipient is a Void402 user (has transactions or profile)
-      let recipientIsVoid402User = false;
-      if (!force_external && !recipient_username) {
-        const { data: recipientProfile } = await supabase!
-          .from('user_profiles')
-          .select('id')
-          .ilike('wallet_address', base_recipient_wallet)
-          .maybeSingle();
-        if (recipientProfile) {
-          recipientIsVoid402User = true;
-        }
-      } else if (recipient_username) {
-        recipientIsVoid402User = true;
-      }
-
-      const relayerFee = 0n;
-      let signature: string;
-
-      if (recipientIsVoid402User) {
-        // INTERNAL: Move pool balance to recipient (stays in contract)
-        console.log(`[Base Transfer] Executing internal transfer to Void402 user...`);
-        const transferTx = await privacyPoolContract.internalTransfer(
-          proofId,
-          base_recipient_wallet,
-          relayerFee,
-        );
-        const transferReceipt = await transferTx.wait();
-        signature = transferReceipt.hash;
-        console.log(`[Base Transfer] Internal transfer complete: ${signature}`);
-      } else {
-        // EXTERNAL: Send actual USDC tokens to recipient's wallet
-        console.log(`[Base Transfer] Executing external transfer to raw address...`);
-        const transferTx = await privacyPoolContract.externalTransfer(
-          proofId,
-          base_recipient_wallet,
-          relayerFee,
-        );
-        const transferReceipt = await transferTx.wait();
-        signature = transferReceipt.hash;
-        console.log(`[Base Transfer] External transfer complete: ${signature}`);
-      }
-
-      // Log to database
-      try {
-        await supabase!.from('zk_transactions').insert({
-          sender_wallet: sender_wallet,
-          recipient_wallet: base_recipient_wallet,
-          amount: transferAmount,
-          fee_percentage: 0,
-          token_symbol: token,
-          tx_hash: signature,
-          status: 'completed',
-          privacy_level: 'full',
-          transaction_type: 'transfer',
-        });
-      } catch (logErr: any) {
-        console.warn(`Failed to log Base transfer:`, logErr.message);
-      }
-
-      console.log(`Base internal transfer: ${sender_wallet.slice(0, 8)}... -> ${base_recipient_wallet.slice(0, 8)}... | $${transferAmount} ${token} | tx: ${signature}`);
 
       return res.status(200).json({
         success: true,
-        signature,
+        signature: result.txHash,
         amount: transferAmount,
         fee: 0,
         fee_percentage: 0,

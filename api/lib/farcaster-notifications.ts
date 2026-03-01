@@ -20,6 +20,7 @@ function getSupabase() {
 type NotificationEventType =
   | "payment_received"
   | "payment_settled"
+  | "payment_sent"
   | "deposit_complete";
 
 const NOTIFICATION_TEMPLATES: Record<
@@ -33,6 +34,10 @@ const NOTIFICATION_TEMPLATES: Record<
   payment_settled: {
     title: "ORB402",
     body: "Your payment request was settled",
+  },
+  payment_sent: {
+    title: "ORB402",
+    body: "Your cast payment was sent successfully",
   },
   deposit_complete: {
     title: "ORB402",

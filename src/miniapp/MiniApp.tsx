@@ -15,6 +15,7 @@ import MiniAppSend from "./pages/MiniAppSend";
 import MiniAppDeposit from "./pages/MiniAppDeposit";
 import MiniAppHistory from "./pages/MiniAppHistory";
 import MiniAppPayment from "./pages/MiniAppPayment";
+import MiniAppSettings from "./pages/MiniAppSettings";
 
 const miniAppQueryClient = new QueryClient({
   defaultOptions: {
@@ -98,6 +99,7 @@ function MiniAppInner() {
         <Route path="send" element={<MiniAppSend />} />
         <Route path="deposit" element={<MiniAppDeposit />} />
         <Route path="history" element={<MiniAppHistory />} />
+        <Route path="settings" element={<MiniAppSettings />} />
         <Route path="pay/:id" element={<MiniAppPayment />} />
       </Routes>
     </MiniAppLayout>

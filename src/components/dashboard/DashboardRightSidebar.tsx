@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Sparkles,
   RefreshCw,
@@ -10,12 +10,28 @@ import {
   Clock,
   Shield,
   Send,
-  Zap
+  Zap,
+  MessageCircle,
+  CheckCircle,
+  XCircle,
+  Loader2,
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
+import { getCastMentions, type CastMention, type CastMentionsStats } from "@/services/api";
 import SendPaymentModal from "./SendPaymentModal";
+
+function formatTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d`;
+}
 
 interface DashboardRightSidebarProps {
   showBalance: boolean;
@@ -27,6 +43,27 @@ const DashboardRightSidebar = ({ showBalance, onNavigateToPaymentsTab }: Dashboa
   const { stats, isLoading: isLoadingStats, refetch: refetchStats } = useTransactionStats();
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [castMentions, setCastMentions] = useState<CastMention[]>([]);
+  const [castStats, setCastStats] = useState<CastMentionsStats | null>(null);
+  const [isMentionsLoading, setIsMentionsLoading] = useState(true);
+
+  const fetchMentions = useCallback(async () => {
+    try {
+      const data = await getCastMentions(10);
+      setCastMentions(data.mentions);
+      setCastStats(data.stats);
+    } catch {
+      // silently fail — user may not have cast_payments table yet
+    } finally {
+      setIsMentionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMentions();
+    const interval = setInterval(fetchMentions, 60000);
+    return () => clearInterval(interval);
+  }, [fetchMentions]);
 
   const formatAmount = (amount: number, showSign: boolean = false) => {
     const sign = showSign ? (amount >= 0 ? "+" : "") : "";
@@ -48,7 +85,7 @@ const DashboardRightSidebar = ({ showBalance, onNavigateToPaymentsTab }: Dashboa
   const handleSyncAll = async () => {
     setIsSyncing(true);
     try {
-      await Promise.all([refreshBalance(), refetchStats()]);
+      await Promise.all([refreshBalance(), refetchStats(), fetchMentions()]);
     } finally {
       setIsSyncing(false);
     }
@@ -209,6 +246,66 @@ const DashboardRightSidebar = ({ showBalance, onNavigateToPaymentsTab }: Dashboa
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Farcaster Mentions */}
+        <div className="rounded-lg p-3" style={surface}>
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <MessageCircle className="w-3.5 h-3.5 text-purple-400" />
+              <span className="text-xs font-medium" style={{ color: 'var(--dash-text)' }}>Farcaster</span>
+            </div>
+            {castStats && (
+              <span className="px-1.5 py-0.5 rounded-full text-[11px] bg-purple-500/20 text-purple-400">
+                {castStats.total} this month
+              </span>
+            )}
+          </div>
+
+          {isMentionsLoading ? (
+            <div className="flex items-center justify-center py-3">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--dash-text-muted)' }} />
+            </div>
+          ) : castMentions.length === 0 ? (
+            <p className="text-[11px] py-2" style={{ color: 'var(--dash-text-muted)' }}>
+              No @orb402 mentions yet
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {castMentions.slice(0, 5).map((mention) => (
+                <motion.div
+                  key={mention.id}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex items-center justify-between p-1.5 rounded"
+                  style={surface}
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {mention.status === "completed" ? (
+                      <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0" />
+                    ) : mention.status === "failed" ? (
+                      <XCircle className="w-3 h-3 text-red-400 shrink-0" />
+                    ) : (
+                      <Loader2 className="w-3 h-3 text-amber-400 animate-spin shrink-0" />
+                    )}
+                    <span className="text-[11px] truncate" style={{ color: 'var(--dash-text)' }}>
+                      @{mention.senderUsername} → @{mention.recipientUsername}
+                    </span>
+                  </div>
+                  <span className="text-[10px] shrink-0 ml-1" style={{ color: 'var(--dash-text-faint)' }}>
+                    {formatTimeAgo(mention.createdAt)}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {castStats && castStats.completed > 0 && (
+            <div className="mt-2 pt-2 flex justify-between text-[11px]" style={{ borderTop: '1px solid var(--dash-border)' }}>
+              <span style={{ color: 'var(--dash-text-muted)' }}>Completed</span>
+              <span className="text-emerald-400">{castStats.completed}</span>
+            </div>
+          )}
         </div>
       </div>
 

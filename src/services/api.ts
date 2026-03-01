@@ -863,5 +863,40 @@ export const getAgentLogs = async (
   return api.request(`/api/agents/logs?${params.toString()}`);
 };
 
+// ==========================================================================
+// Farcaster Cast Mentions
+// ==========================================================================
+
+export interface CastMention {
+  id: string;
+  castHash: string;
+  senderUsername: string;
+  recipientUsername: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  errorMessage: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface CastMentionsStats {
+  total: number;
+  completed: number;
+  failed: number;
+  pending: number;
+  volume: number;
+}
+
+export interface CastMentionsResponse {
+  success: boolean;
+  mentions: CastMention[];
+  stats: CastMentionsStats;
+}
+
+export const getCastMentions = async (
+  limit: number = 20
+): Promise<CastMentionsResponse> => {
+  return api.request(`/api/farcaster/cast-mentions?limit=${limit}`);
+};
+
 export default api;
 
