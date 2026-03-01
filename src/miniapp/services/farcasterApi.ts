@@ -133,14 +133,23 @@ class FarcasterApiClient {
     amount: number;
     token: string;
   }) {
-    return this.request<{
+    const result = await this.request<{
       success: boolean;
+      holdingWalletAddress?: string;
       holdingWallet?: string;
+      needsApproval?: boolean;
+      approveTransaction?: { to: string; data: string; value: string };
+      evmTransaction?: { to: string; data: string; value: string };
       error?: string;
     }>("/api/zk/create-holding-wallet", {
       method: "POST",
       body: JSON.stringify(params),
     });
+    // Normalize: API returns holdingWalletAddress, frontend expects holdingWallet
+    return {
+      ...result,
+      holdingWallet: result.holdingWalletAddress || result.holdingWallet,
+    };
   }
 
   // Auto-split after deposit
