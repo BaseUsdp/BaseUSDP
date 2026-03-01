@@ -42,8 +42,11 @@ export function useFarcasterAuth() {
     try {
       const { default: sdk } = await import("@farcaster/miniapp-sdk");
 
-      // Generate nonce for the sign-in request
-      const nonce = crypto.randomUUID();
+      // Generate alphanumeric nonce (min 8 chars, no hyphens)
+      const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+        .map((b) => b.toString(36))
+        .join("")
+        .slice(0, 16);
 
       // Use Farcaster Quick Auth to get a signed JWT
       const signInResult = await sdk.actions.signIn({
