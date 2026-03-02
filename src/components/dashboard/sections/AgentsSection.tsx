@@ -14,8 +14,10 @@ import {
   updateAgentPolicy,
   getAgentLogs,
   provisionAgentKitWallet,
+  getAgentPassport,
   type AgentProfile,
   type AgentSpendingLogEntry,
+  type AgentPassportResponse,
 } from "@/services/api";
 
 type AgentView = "list" | "detail" | "register" | "docs";
@@ -57,6 +59,10 @@ const AgentsSection = () => {
 
   // AgentKit state
   const [provisioningWallet, setProvisioningWallet] = useState(false);
+
+  // Passport state
+  const [passportData, setPassportData] = useState<AgentPassportResponse["passport"] | null>(null);
+  const [passportLoading, setPassportLoading] = useState(false);
 
   const fetchAgents = async () => {
     if (!fullWalletAddress) return;
@@ -200,7 +206,16 @@ const AgentsSection = () => {
     setGeneratedKey(null);
     setConfirmDelete(false);
     setPolicyForm(parsePolicyFromAgent(agent));
+    setPassportData(null);
     setView("detail");
+    // Fetch passport data
+    if (agent.passport_token_id) {
+      setPassportLoading(true);
+      getAgentPassport(agent.id)
+        .then(result => setPassportData(result.passport))
+        .catch(() => {})
+        .finally(() => setPassportLoading(false));
+    }
   };
 
   // ==================== RENDER ====================
@@ -378,6 +393,97 @@ const AgentsSection = () => {
                 <p className="text-sm">{selectedAgent.description}</p>
               </div>
             )}
+
+            {/* ERC-8004 Passport */}
+            <div className="border-t border-border pt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Icon icon="ph:identification-badge-bold" className="w-4 h-4 text-violet-400" />
+                <p className="text-xs font-medium">On-Chain Identity Passport (ERC-8004)</p>
+                {selectedAgent.passport_token_id ? (
+                  <span className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                    selectedAgent.is_revoked ? "bg-red-500/20 text-red-400" :
+                    selectedAgent.is_verified ? "bg-sky-500/20 text-sky-400" :
+                    "bg-violet-500/20 text-violet-400"
+                  )}>
+                    {selectedAgent.is_revoked ? "Revoked" : selectedAgent.is_verified ? "Verified" : "Registered"}
+                  </span>
+                ) : (
+                  <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">No Passport</span>
+                )}
+              </div>
+
+              {selectedAgent.passport_token_id ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Token ID</p>
+                      <p className="text-sm font-mono">#{selectedAgent.passport_token_id}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Trust Score</p>
+                      <p className={cn(
+                        "text-sm font-bold",
+                        (passportData?.trustScore ?? selectedAgent.trust_score ?? 50) >= 70 ? "text-emerald-400" :
+                        (passportData?.trustScore ?? selectedAgent.trust_score ?? 50) >= 40 ? "text-yellow-400" :
+                        "text-red-400"
+                      )}>
+                        {passportData?.trustScore ?? selectedAgent.trust_score ?? 50} / 100
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Registration TX */}
+                  {selectedAgent.passport_tx_hash && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Registration TX</p>
+                      <a
+                        href={`https://sepolia.basescan.org/tx/${selectedAgent.passport_tx_hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-mono text-sky-400 hover:underline flex items-center gap-1"
+                      >
+                        {selectedAgent.passport_tx_hash.slice(0, 10)}...{selectedAgent.passport_tx_hash.slice(-8)}
+                        <Icon icon="ph:arrow-square-out-bold" className="w-3 h-3" />
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Reputation Details */}
+                  {passportLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Icon icon="ph:spinner-bold" className="w-4 h-4 animate-spin" /> Loading reputation...
+                    </div>
+                  ) : passportData?.reputation ? (
+                    <div className="rounded-xl bg-secondary/50 p-3 space-y-2">
+                      <p className="text-xs font-medium">Reputation Details</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-[10px] text-muted-foreground">Positive Signals</p>
+                          <p className="text-sm text-emerald-400 font-medium">{passportData.reputation.positiveSignals}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground">Negative Signals</p>
+                          <p className="text-sm text-red-400 font-medium">{passportData.reputation.negativeSignals}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground">Transactions</p>
+                          <p className="text-sm font-medium">{passportData.reputation.txCount}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground">Total Volume</p>
+                          <p className="text-sm font-medium">${passportData.reputation.totalVolume}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Passport will be minted automatically on next registration with a wallet.
+                </p>
+              )}
+            </div>
 
             {/* AgentKit Wallet */}
             <div className="border-t border-border pt-4 opacity-50">
@@ -707,6 +813,28 @@ const AgentsSection = () => {
                     )}>
                       {agent.status}
                     </span>
+                    {/* Passport Badge */}
+                    {agent.passport_token_id ? (
+                      <span className={cn(
+                        "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                        agent.is_revoked ? "bg-red-500/20 text-red-400" :
+                        agent.is_verified ? "bg-sky-500/20 text-sky-400" :
+                        "bg-violet-500/20 text-violet-400"
+                      )}>
+                        {agent.is_revoked ? "Revoked" : agent.is_verified ? "Verified" : "Registered"}
+                      </span>
+                    ) : null}
+                    {/* Trust Score */}
+                    {agent.trust_score != null && agent.passport_token_id && (
+                      <span className={cn(
+                        "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                        agent.trust_score >= 70 ? "bg-emerald-500/20 text-emerald-400" :
+                        agent.trust_score >= 40 ? "bg-yellow-500/20 text-yellow-400" :
+                        "bg-red-500/20 text-red-400"
+                      )}>
+                        Trust: {agent.trust_score}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{agent.description || "No description"}</p>
                 </div>

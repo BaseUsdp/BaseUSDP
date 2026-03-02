@@ -5,6 +5,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import { extractBearerToken, verifyBearerToken } from '../lib/bearer-auth.js';
+import { registerAgentOnChain } from '../lib/agent-onchain.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -66,6 +67,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   await supabase.from('agent_spending_policies').insert({
     agent_id: agent.id,
   });
+
+  // Register on-chain passport if agent has a wallet
+  if (wallet) {
+    try {
+      const metadataURI = JSON.stringify({
+        name,
+        description: description || '',
+        owner: wallet,
+        registeredAt: new Date().toISOString(),
+      });
+
+      const { tokenId, txHash } = await registerAgentOnChain(metadataURI);
+
+      await supabase
+        .from('agent_profiles')
+        .update({
+          passport_token_id: tokenId,
+          passport_tx_hash: txHash,
+          agent_wallet: wallet,
+        })
+        .eq('id', agent.id);
+
+      agent.passport_token_id = tokenId;
+      agent.passport_tx_hash = txHash;
+      agent.agent_wallet = wallet;
+    } catch (onChainErr: any) {
+      console.warn('[Agents] On-chain passport registration failed (non-blocking):', onChainErr.message);
+    }
+  }
 
   return res.status(201).json({ success: true, agent });
 }

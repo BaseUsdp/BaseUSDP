@@ -7,6 +7,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import { extractAgentKey, verifyAgentKey } from '../lib/agent-auth.js';
 import { checkSpendingPolicy, logSpendingAttempt } from '../lib/agent-policy.js';
+import { recordTransactionOnChain, syncTrustScoreToDb, getAgentTrustScore, isAgentRevoked as checkAgentRevoked } from '../lib/agent-onchain.js';
 import { isBaseChain } from '../lib/chain-config.js';
 import {
   isValidBaseAddress,
@@ -95,6 +96,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   await logSpendingAttempt(auth.agentId, 'transfer', transferAmount, token, 'allowed', recipient_wallet);
 
   if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+
+  // === Trust-gating: check agent passport status before transfer ===
+  const MIN_TRUST_SCORE = parseInt(process.env.MIN_AGENT_TRUST_SCORE || '0', 10);
+  if (MIN_TRUST_SCORE > 0) {
+    try {
+      const { data: agentProfile } = await supabase
+        .from('agent_profiles')
+        .select('passport_token_id, is_revoked, trust_score')
+        .eq('id', auth.agentId)
+        .single();
+
+      if (agentProfile?.passport_token_id) {
+        // Check revocation
+        if (agentProfile.is_revoked) {
+          await logSpendingAttempt(auth.agentId, 'transfer', transferAmount, token, 'blocked', resolvedRecipientWallet, 'Agent passport is revoked');
+          return res.status(403).json({ error: 'Agent passport is revoked' });
+        }
+
+        // Check trust score (use cached DB value, fall back to on-chain)
+        const trustScore = agentProfile.trust_score ?? 50;
+        if (trustScore < MIN_TRUST_SCORE) {
+          await logSpendingAttempt(auth.agentId, 'transfer', transferAmount, token, 'blocked', resolvedRecipientWallet, `Trust score too low: ${trustScore} < ${MIN_TRUST_SCORE}`);
+          return res.status(403).json({ error: `Agent trust score (${trustScore}) is below minimum (${MIN_TRUST_SCORE})` });
+        }
+      }
+    } catch (trustErr: any) {
+      console.warn('[Agent Transfer] Trust-gating check failed (non-blocking):', trustErr.message);
+    }
+  }
 
   // === Delegate to Base chain transfer logic (same as zk/transfer.ts) ===
   if (!isBaseChain()) {
@@ -246,6 +276,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Update spending log to completed
     await logSpendingAttempt(auth.agentId, 'transfer', transferAmount, token, 'completed', resolvedRecipient, undefined, signature);
+
+    // Record transaction on-chain for reputation + sync trust score (fire-and-forget)
+    try {
+      const { data: agentProfile } = await supabase
+        .from('agent_profiles')
+        .select('passport_token_id')
+        .eq('id', auth.agentId)
+        .single();
+
+      if (agentProfile?.passport_token_id) {
+        const tokenId = agentProfile.passport_token_id;
+        const repTxHash = await recordTransactionOnChain(tokenId, amountInUnits);
+
+        // Log to reputation log
+        await supabase.from('agent_onchain_reputation_log').insert({
+          agent_id: auth.agentId,
+          passport_token_id: tokenId,
+          event_type: 'transaction',
+          amount: transferAmount,
+          tx_hash: repTxHash,
+        });
+
+        // Fire-and-forget trust score sync
+        syncTrustScoreToDb(supabase, auth.agentId, tokenId).catch((e: any) =>
+          console.warn('[Agent Transfer] Trust score sync failed:', e.message)
+        );
+      }
+    } catch (repErr: any) {
+      console.warn('[Agent Transfer] On-chain reputation recording failed (non-blocking):', repErr.message);
+    }
 
     return res.status(200).json({
       success: true,

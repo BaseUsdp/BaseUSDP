@@ -708,6 +708,36 @@ export interface AgentProfile {
   created_at: string;
   updated_at: string;
   agent_spending_policies?: AgentSpendingPolicy[] | AgentSpendingPolicy;
+  // ERC-8004 Passport fields
+  passport_token_id?: number | null;
+  passport_tx_hash?: string | null;
+  passport_chain?: string | null;
+  agent_wallet?: string | null;
+  is_verified?: boolean;
+  is_revoked?: boolean;
+  trust_score?: number | null;
+  trust_score_updated_at?: string | null;
+}
+
+export interface AgentPassportResponse {
+  success: boolean;
+  passport: {
+    tokenId: number;
+    txHash: string;
+    chain: string;
+    wallet: string;
+    verified: boolean;
+    revoked: boolean;
+    trustScore: number;
+    reputation: {
+      positiveSignals: number;
+      negativeSignals: number;
+      txCount: number;
+      totalVolume: string;
+    } | null;
+    cached?: boolean;
+  } | null;
+  message?: string;
 }
 
 export interface AgentSpendingPolicy {
@@ -916,6 +946,32 @@ export const provisionAgentKitWallet = async (
   error?: string;
 }> => {
   return api.request("/api/agents/agentkit-wallet", {
+    method: "POST",
+    body: JSON.stringify({ wallet, agent_id: agentId }),
+  });
+};
+
+// ==========================================================================
+// ERC-8004 Agent Passport
+// ==========================================================================
+
+/**
+ * Get live on-chain passport status + reputation data for an agent
+ */
+export const getAgentPassport = async (
+  agentId: string
+): Promise<AgentPassportResponse> => {
+  return api.request(`/api/agents/passport?agent_id=${agentId}`);
+};
+
+/**
+ * Verify an agent's passport on-chain (admin only)
+ */
+export const verifyAgentPassport = async (
+  wallet: string,
+  agentId: string
+): Promise<{ success: boolean; txHash?: string; tokenId?: number; error?: string }> => {
+  return api.request("/api/agents/verify", {
     method: "POST",
     body: JSON.stringify({ wallet, agent_id: agentId }),
   });
