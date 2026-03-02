@@ -5,8 +5,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import { extractBearerToken, verifyBearerToken } from '../lib/bearer-auth.js';
-import { getIdentityRegistryContract } from '../lib/agent-onchain.js';
-import { getBaseSigner } from '../lib/void402-base.js';
+import { getIdentityRegistryContract, getAgentSigner } from '../lib/agent-onchain.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -73,7 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const signer = getBaseSigner();
+    const signer = getAgentSigner();
     const identity = getIdentityRegistryContract(signer);
 
     const tx = await identity.verifyAgent(agent.passport_token_id);

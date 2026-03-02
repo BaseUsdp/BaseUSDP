@@ -6,7 +6,19 @@
  */
 
 import { ethers } from 'ethers';
-import { getBaseProvider, getBaseSigner } from './void402-base.js';
+
+// Agent registries are deployed on Base Sepolia — always use Sepolia RPC
+const BASE_SEPOLIA_RPC = process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org';
+
+function getAgentProvider(): ethers.JsonRpcProvider {
+  return new ethers.JsonRpcProvider(BASE_SEPOLIA_RPC);
+}
+
+export function getAgentSigner(): ethers.Wallet {
+  const key = process.env.RELAYER_PRIVATE_KEY;
+  if (!key) throw new Error('RELAYER_PRIVATE_KEY not configured');
+  return new ethers.Wallet(key, getAgentProvider());
+}
 
 // --- ABIs ---
 
@@ -61,13 +73,13 @@ export function getReputationRegistryAddress(): string {
 
 export function getIdentityRegistryContract(signerOrProvider?: ethers.Signer | ethers.Provider): ethers.Contract {
   const address = getIdentityRegistryAddress();
-  const providerOrSigner = signerOrProvider || getBaseProvider();
+  const providerOrSigner = signerOrProvider || getAgentProvider();
   return new ethers.Contract(address, AGENT_IDENTITY_REGISTRY_ABI, providerOrSigner);
 }
 
 export function getReputationRegistryContract(signerOrProvider?: ethers.Signer | ethers.Provider): ethers.Contract {
   const address = getReputationRegistryAddress();
-  const providerOrSigner = signerOrProvider || getBaseProvider();
+  const providerOrSigner = signerOrProvider || getAgentProvider();
   return new ethers.Contract(address, AGENT_REPUTATION_REGISTRY_ABI, providerOrSigner);
 }
 
@@ -84,7 +96,7 @@ export async function registerAgentOnChain(metadataURI: string, agentId?: string
   txHash: string;
   agentAddress: string;
 }> {
-  const signer = getBaseSigner();
+  const signer = getAgentSigner();
   const identity = getIdentityRegistryContract(signer);
 
   // Generate a deterministic address for this agent so each gets a unique passport
@@ -93,18 +105,21 @@ export async function registerAgentOnChain(metadataURI: string, agentId?: string
     : signer.address;
 
   const tx = await identity.registerAgentFor(agentAddress, metadataURI);
+  const txHash = tx.hash;
   const receipt = await tx.wait();
 
   // Parse AgentRegistered event to get tokenId
   let tokenId = 0;
-  for (const log of receipt.logs) {
-    try {
-      const parsed = identity.interface.parseLog({ topics: log.topics, data: log.data });
-      if (parsed?.name === 'AgentRegistered') {
-        tokenId = Number(parsed.args.tokenId);
-        break;
-      }
-    } catch {}
+  if (receipt && receipt.logs) {
+    for (const log of receipt.logs) {
+      try {
+        const parsed = identity.interface.parseLog({ topics: log.topics, data: log.data });
+        if (parsed?.name === 'AgentRegistered') {
+          tokenId = Number(parsed.args.tokenId);
+          break;
+        }
+      } catch {}
+    }
   }
 
   // Fallback: query the contract directly if event parsing failed
@@ -115,7 +130,7 @@ export async function registerAgentOnChain(metadataURI: string, agentId?: string
     } catch {}
   }
 
-  return { tokenId, txHash: receipt.hash, agentAddress };
+  return { tokenId, txHash, agentAddress };
 }
 
 /**
@@ -125,7 +140,7 @@ export async function recordTransactionOnChain(
   tokenId: number,
   amountUSDC6Dec: bigint
 ): Promise<string> {
-  const signer = getBaseSigner();
+  const signer = getAgentSigner();
   const reputation = getReputationRegistryContract(signer);
 
   const tx = await reputation.recordTransaction(tokenId, amountUSDC6Dec);
@@ -141,7 +156,7 @@ export async function postSignalOnChain(
   positive: boolean,
   reason: string
 ): Promise<string> {
-  const signer = getBaseSigner();
+  const signer = getAgentSigner();
   const reputation = getReputationRegistryContract(signer);
 
   const tx = await reputation.postSignal(tokenId, positive, reason);
