@@ -7,11 +7,11 @@
 
 import { ethers } from 'ethers';
 
-// Agent registries are deployed on Base Sepolia — always use Sepolia RPC
-const BASE_SEPOLIA_RPC = process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org';
+// Agent registries are deployed on Base Mainnet
+const BASE_AGENT_RPC = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
 
 function getAgentProvider(): ethers.JsonRpcProvider {
-  return new ethers.JsonRpcProvider(BASE_SEPOLIA_RPC);
+  return new ethers.JsonRpcProvider(BASE_AGENT_RPC);
 }
 
 export function getAgentSigner(): ethers.Wallet {

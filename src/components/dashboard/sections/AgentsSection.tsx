@@ -438,7 +438,7 @@ const AgentsSection = () => {
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Registration TX</p>
                       <a
-                        href={`https://sepolia.basescan.org/tx/${selectedAgent.passport_tx_hash}`}
+                        href={`https://basescan.org/tx/${selectedAgent.passport_tx_hash}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs font-mono text-sky-400 hover:underline flex items-center gap-1"
