@@ -6,7 +6,7 @@
  */
 
 import { ethers } from 'ethers';
-import { getBaseProvider, getBaseSigner } from './void402-base';
+import { getBaseProvider, getBaseSigner } from './void402-base.js';
 
 // --- ABIs ---
 
