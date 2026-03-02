@@ -15,8 +15,8 @@ function getAgentProvider(): ethers.JsonRpcProvider {
 }
 
 export function getAgentSigner(): ethers.Wallet {
-  const key = process.env.RELAYER_PRIVATE_KEY;
-  if (!key) throw new Error('RELAYER_PRIVATE_KEY not configured');
+  const key = process.env.AGENT_RELAYER_PRIVATE_KEY || process.env.RELAYER_PRIVATE_KEY;
+  if (!key) throw new Error('AGENT_RELAYER_PRIVATE_KEY not configured');
   return new ethers.Wallet(key, getAgentProvider());
 }
 
