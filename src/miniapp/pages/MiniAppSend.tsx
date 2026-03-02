@@ -142,19 +142,17 @@ export default function MiniAppSend() {
         <div>
           <label className="text-xs text-zinc-400 mb-1.5 block">Token</label>
           <div className="flex gap-2">
-            {(["USDC", "USDT"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setToken(t)}
-                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
-                  token === t
-                    ? "bg-indigo-600 text-white"
-                    : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
+            <button
+              className="flex-1 py-2 rounded-xl text-sm font-medium bg-indigo-600 text-white"
+            >
+              USDC
+            </button>
+            <button
+              disabled
+              className="flex-1 py-2 rounded-xl text-sm font-medium bg-zinc-800 text-zinc-500 cursor-not-allowed"
+            >
+              USDT <span className="text-[10px]">(Soon)</span>
+            </button>
           </div>
           <p className="text-xs text-zinc-500 mt-1">
             Available: ${selectedBalance.toFixed(2)}

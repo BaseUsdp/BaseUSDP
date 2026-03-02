@@ -20,6 +20,8 @@ interface Transaction {
   amount?: number;
   fee?: number;
   memo?: string;
+  counterparty?: string;
+  counterpartyUsername?: string | null;
 }
 
 export default function MiniAppHistory() {
@@ -153,7 +155,7 @@ export default function MiniAppHistory() {
                   <div className="flex items-center gap-1 text-xs text-zinc-500">
                     <span>{formatDate(tx.timestamp)}</span>
                     <span>·</span>
-                    <span className="font-mono">{truncateHash(tx.signature)}</span>
+                    <span>{tx.counterpartyUsername ? tx.counterparty : truncateHash(tx.signature)}</span>
                   </div>
                 </div>
 
