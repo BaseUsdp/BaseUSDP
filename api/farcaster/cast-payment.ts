@@ -205,6 +205,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ ok: true, status: "recipient_not_found" });
     }
 
+    // Check if recipient has an ORB402 account
+    const { data: recipientProfile } = await supabase
+      .from("user_profiles")
+      .select("wallet_address")
+      .eq("wallet_address", recipientData.walletAddress)
+      .maybeSingle();
+
+    if (!recipientProfile) {
+      const replyHash = await replyCast(
+        castHash,
+        `@${authorUsername} @${parsed.recipientUsername} doesn't have an ORB402 account yet. They need to sign up at orb402.com first.`
+      );
+      await updateCastPayment(supabase, castHash, {
+        status: "failed",
+        error_message: "recipient_no_orb402_account",
+        reply_cast_hash: replyHash,
+      });
+      return res.status(200).json({ ok: true, status: "no_orb402_account" });
+    }
+
     // Update cast_payments with recipient info
     await supabase
       .from("cast_payments")
