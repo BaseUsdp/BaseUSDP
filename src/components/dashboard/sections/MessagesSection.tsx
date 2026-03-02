@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, Send, Inbox, Loader2, User, Reply, ShieldCheck, ShieldX, ShieldQuestion } from "lucide-react";
+import { MessageSquare, Send, Inbox, Loader2, User, Reply, ShieldCheck, ShieldX, ShieldQuestion, Globe } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useXMTP, type XMTPConversation } from "@/contexts/XMTPContext";
 import SendMessageModal from "../SendMessageModal";
 import ChatModal from "../ChatModal";
 import XMTPSetupBanner from "../XMTPSetupBanner";
+import GlobalChat from "../GlobalChat";
 
 const MessagesSection = () => {
   const { isXMTPReady, conversations } = useXMTP();
-  const [activeTab, setActiveTab] = useState("inbox");
+  const [activeTab, setActiveTab] = useState("global");
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<string | undefined>(undefined);
   const [chatWith, setChatWith] = useState<{ username: string; peerAddress: string } | null>(null);
@@ -112,7 +113,7 @@ const MessagesSection = () => {
             End-to-end encrypted messaging
           </p>
         </div>
-        {isXMTPReady && (
+        {isXMTPReady && activeTab !== "global" && (
           <button
             onClick={() => {
               setReplyTo(undefined);
@@ -126,66 +127,72 @@ const MessagesSection = () => {
         )}
       </div>
 
-      {/* XMTP Setup Banner (when not initialized) */}
-      {!isXMTPReady ? (
-        <XMTPSetupBanner />
-      ) : (
-        <>
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="bg-secondary/50 p-1">
-              <TabsTrigger value="inbox" className="gap-2">
-                <Inbox className="w-4 h-4" />
-                Inbox
-                {allowedConversations.length > 0 && (
-                  <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
-                    {allowedConversations.length}
-                  </span>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="requests" className="gap-2">
-                <ShieldQuestion className="w-4 h-4" />
-                Requests
-                {requestConversations.length > 0 && (
-                  <span className="text-[10px] bg-yellow-500/20 text-yellow-500 px-1.5 py-0.5 rounded-full">
-                    {requestConversations.length}
-                  </span>
-                )}
-              </TabsTrigger>
-            </TabsList>
+      {/* Tabs — Global is always available, Inbox/Requests require XMTP */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="bg-secondary/50 p-1">
+          <TabsTrigger value="inbox" className="gap-2">
+            <Inbox className="w-4 h-4" />
+            Inbox
+            {allowedConversations.length > 0 && (
+              <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
+                {allowedConversations.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="requests" className="gap-2">
+            <ShieldQuestion className="w-4 h-4" />
+            Requests
+            {requestConversations.length > 0 && (
+              <span className="text-[10px] bg-yellow-500/20 text-yellow-500 px-1.5 py-0.5 rounded-full">
+                {requestConversations.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="global" className="gap-2">
+            <Globe className="w-4 h-4" />
+            Global
+          </TabsTrigger>
+        </TabsList>
 
-            {/* Inbox Tab */}
-            <TabsContent value="inbox">
-              {allowedConversations.length === 0 ? (
-                <EmptyState type="inbox" />
-              ) : (
-                <div className="space-y-3">
-                  <AnimatePresence>
-                    {allowedConversations.map((conv) => (
-                      <ConversationCard key={conv.peerAddress} conv={conv} />
-                    ))}
-                  </AnimatePresence>
-                </div>
-              )}
-            </TabsContent>
+        {/* Inbox Tab */}
+        <TabsContent value="inbox">
+          {!isXMTPReady ? (
+            <XMTPSetupBanner />
+          ) : allowedConversations.length === 0 ? (
+            <EmptyState type="inbox" />
+          ) : (
+            <div className="space-y-3">
+              <AnimatePresence>
+                {allowedConversations.map((conv) => (
+                  <ConversationCard key={conv.peerAddress} conv={conv} />
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </TabsContent>
 
-            {/* Requests Tab */}
-            <TabsContent value="requests">
-              {requestConversations.length === 0 ? (
-                <EmptyState type="requests" />
-              ) : (
-                <div className="space-y-3">
-                  <AnimatePresence>
-                    {requestConversations.map((conv) => (
-                      <ConversationCard key={conv.peerAddress} conv={conv} isRequest />
-                    ))}
-                  </AnimatePresence>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </>
-      )}
+        {/* Requests Tab */}
+        <TabsContent value="requests">
+          {!isXMTPReady ? (
+            <XMTPSetupBanner />
+          ) : requestConversations.length === 0 ? (
+            <EmptyState type="requests" />
+          ) : (
+            <div className="space-y-3">
+              <AnimatePresence>
+                {requestConversations.map((conv) => (
+                  <ConversationCard key={conv.peerAddress} conv={conv} isRequest />
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Global Chat Tab */}
+        <TabsContent value="global">
+          <GlobalChat hasUsername={true} />
+        </TabsContent>
+      </Tabs>
 
       {/* Send Message Modal */}
       <SendMessageModal
