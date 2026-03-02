@@ -94,6 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       agent.agent_wallet = wallet;
     } catch (onChainErr: any) {
       console.warn('[Agents] On-chain passport registration failed (non-blocking):', onChainErr.message);
+      console.warn('[Agents] On-chain error details:', JSON.stringify({ code: onChainErr.code, reason: onChainErr.reason, stack: onChainErr.stack?.slice(0, 500) }));
     }
   }
 
