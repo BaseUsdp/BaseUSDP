@@ -16,7 +16,8 @@ export async function recordBotCast(
   content: string,
   metadata: Record<string, any> = {}
 ): Promise<string | null> {
-  const castHash = await publishCast(content);
+  const prefixedContent = `🤖 ${content}`;
+  const castHash = await publishCast(prefixedContent);
 
   const row: Record<string, any> = {
     cast_type: castType,
