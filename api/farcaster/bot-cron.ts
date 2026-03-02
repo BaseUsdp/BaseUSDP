@@ -247,8 +247,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   for (const [name, fn] of handlers) {
     try {
+      console.log(`[BotCron] Running handler: ${name}`);
       const hash = await fn();
       results[name] = hash ? `published (${hash})` : "skipped";
+      console.log(`[BotCron] ${name} → ${results[name]}`);
     } catch (error: any) {
       console.error(`[BotCron] Error in ${name}:`, error.message);
       results[name] = `error: ${error.message}`;
