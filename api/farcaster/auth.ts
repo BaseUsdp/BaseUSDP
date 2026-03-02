@@ -100,13 +100,15 @@ export default async function handler(
 
       // Fire-and-forget welcome cast (dedup by username)
       const displayName = username || `fc_${fid}`;
-      supabase
-        .from("bot_casts")
-        .select("id")
-        .eq("cast_type", "welcome")
-        .eq("status", "published")
-        .contains("metadata", { username: displayName })
-        .limit(1)
+      Promise.resolve(
+        supabase
+          .from("bot_casts")
+          .select("id")
+          .eq("cast_type", "welcome")
+          .eq("status", "published")
+          .contains("metadata", { username: displayName })
+          .limit(1)
+      )
         .then(({ data }: any) => {
           if (!data || data.length === 0) {
             recordBotCast(
