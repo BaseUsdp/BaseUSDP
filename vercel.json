@@ -9,7 +9,10 @@
     "api/zk/withdraw.ts": { "maxDuration": 300 },
     "api/zk/transfer.ts": { "maxDuration": 120 },
     "api/farcaster/cast-payment.ts": { "maxDuration": 120 },
-    "api/farcaster/bot-cron.ts": { "maxDuration": 60 }
+    "api/farcaster/bot-cron.ts": { "maxDuration": 60 },
+    "api/ai/chat.ts": { "maxDuration": 30 },
+    "api/agents/agentkit-transfer.ts": { "maxDuration": 120 },
+    "api/agents/agentkit-wallet.ts": { "maxDuration": 30 }
   },
   "rewrites": [
     { "source": "/.well-known/farcaster.json", "destination": "/farcaster.json" },

@@ -898,5 +898,27 @@ export const getCastMentions = async (
   return api.request(`/api/farcaster/cast-mentions?limit=${limit}`);
 };
 
-export default api;
+// ==========================================================================
+// AgentKit Wallet Provisioning
+// ==========================================================================
 
+/**
+ * Provision an AgentKit smart wallet for an agent
+ */
+export const provisionAgentKitWallet = async (
+  wallet: string,
+  agentId: string
+): Promise<{
+  success: boolean;
+  wallet_address?: string;
+  wallet_id?: string;
+  already_provisioned?: boolean;
+  error?: string;
+}> => {
+  return api.request("/api/agents/agentkit-wallet", {
+    method: "POST",
+    body: JSON.stringify({ wallet, agent_id: agentId }),
+  });
+};
+
+export default api;

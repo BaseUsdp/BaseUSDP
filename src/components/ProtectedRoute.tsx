@@ -16,6 +16,7 @@ import { useWallet } from "@/contexts/WalletContext";
 import { authService } from "@/services/authService";
 import WalletConnectPrompt from "@/components/dashboard/WalletConnectPrompt";
 import UsernameCreation from "@/components/dashboard/UsernameCreation";
+import dashboardPreviewBg from "@/assets/dashboard-preview.png";
 import { Button } from "@/components/ui/button";
 import { getApiUrl } from "@/utils/apiConfig";
 
@@ -200,8 +201,16 @@ const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) =
   // Not connected - show wallet connect prompt
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <WalletConnectPrompt />
+      <div className="relative min-h-screen bg-background flex items-center justify-center p-6 overflow-hidden">
+        {/* Blurred dashboard background */}
+        <div
+          className="absolute inset-0 bg-cover bg-center blur-md scale-105 opacity-30"
+          style={{ backgroundImage: `url(${dashboardPreviewBg})` }}
+        />
+        <div className="absolute inset-0 bg-background/60" />
+        <div className="relative z-10">
+          <WalletConnectPrompt />
+        </div>
       </div>
     );
   }

@@ -13,6 +13,7 @@ import {
   generateAgentKey,
   updateAgentPolicy,
   getAgentLogs,
+  provisionAgentKitWallet,
   type AgentProfile,
   type AgentSpendingLogEntry,
 } from "@/services/api";
@@ -53,6 +54,9 @@ const AgentsSection = () => {
 
   // Detail tab
   const [detailTab, setDetailTab] = useState<"overview" | "keys" | "policy" | "logs">("overview");
+
+  // AgentKit state
+  const [provisioningWallet, setProvisioningWallet] = useState(false);
 
   const fetchAgents = async () => {
     if (!fullWalletAddress) return;
@@ -374,6 +378,25 @@ const AgentsSection = () => {
                 <p className="text-sm">{selectedAgent.description}</p>
               </div>
             )}
+
+            {/* AgentKit Wallet */}
+            <div className="border-t border-border pt-4 opacity-50">
+              <div className="flex items-center gap-2 mb-2">
+                <Icon icon="ph:wallet-bold" className="w-4 h-4 text-sky-400" />
+                <p className="text-xs font-medium">Coinbase AgentKit Wallet</p>
+                <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">Soon</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-2">
+                Provision a Coinbase smart wallet for gasless transactions on Base.
+              </p>
+              <Button
+                size="sm"
+                disabled
+                className="bg-sky-600/50 text-white/50 cursor-not-allowed"
+              >
+                <Icon icon="ph:wallet-bold" className="w-4 h-4 mr-2" /> Enable AgentKit Wallet
+              </Button>
+            </div>
           </motion.div>
         )}
 

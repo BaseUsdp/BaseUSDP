@@ -84,18 +84,18 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => item.id !== "terminal" && item.id !== "swap" && item.id !== "messages" && setActiveTab(item.id)}
-              disabled={item.id === "terminal" || item.id === "swap" || item.id === "messages"}
+              onClick={() => item.id !== "swap" && item.id !== "messages" && setActiveTab(item.id)}
+              disabled={item.id === "swap" || item.id === "messages"}
               className={cn(
                 "w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors",
-                (item.id === "terminal" || item.id === "swap" || item.id === "messages")
+                (item.id === "swap" || item.id === "messages")
                   ? "cursor-not-allowed opacity-50"
                   : activeTab === item.id
                   ? "bg-sky-500/20 text-sky-400"
                   : ""
               )}
               style={
-                (item.id === "terminal" || item.id === "swap" || item.id === "messages")
+                (item.id === "swap" || item.id === "messages")
                   ? { color: 'var(--dash-text-faint)' }
                   : activeTab === item.id
                   ? undefined
@@ -104,7 +104,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
             >
               <item.icon className="w-4 h-4" />
               {item.label}
-              {(item.id === "terminal" || item.id === "swap" || item.id === "messages") && (
+              {(item.id === "swap" || item.id === "messages") && (
                 <span
                   className="ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded-full"
                   style={{ background: 'var(--dash-surface)', color: 'var(--dash-text-faint)' }}

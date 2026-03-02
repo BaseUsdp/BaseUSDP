@@ -1,54 +1,33 @@
+/**
+ * POST /api/ai/chat
+ * AI Terminal endpoint — Claude tool-calling agent with blockchain tools.
+ * Uses Claude's native tool_use API to execute read-only tools directly
+ * and return action objects for transactional tools.
+ *
+ * Response format: { reply: string, action?: { type: string, params?: {} } }
+ * This is backward-compatible with the existing AITerminalSection frontend.
+ */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import Anthropic from "@anthropic-ai/sdk";
+import { BLOCKCHAIN_TOOLS } from "../lib/ai-tools.js";
+import { executeToolCall } from "../lib/ai-tool-executor.js";
 
 const SYSTEM_PROMPT = `You are ORB, the AI assistant for ORB402 — a confidential payment platform on Base (Ethereum L2). You help users manage their wallet, send payments, check balances, and navigate the dashboard.
 
-You must respond with ONLY raw JSON (no markdown, no code fences, no backticks). Use this exact format:
-{"reply": "Your conversational response to the user", "action": {"type": "action_type", "params": {}}}
-
-If no action is needed, omit the "action" field.
-
-Available actions:
-
-1. show_balance - Show the user's current balance
-   { "type": "show_balance" }
-
-2. send_payment - Open the send payment form
-   { "type": "send_payment", "params": { "recipient": "@username or address", "amount": "50", "token": "USDC" } }
-   Only include params if the user specified them. If they just say "send payment", use no params. Token must be "USDC" or "USDT". Default to "USDC" if not specified.
-
-3. create_payment - Create an x402 payment request
-   { "type": "create_payment", "params": { "amount": "25" } }
-   Include amount param if the user specified it.
-
-4. deposit - Open the deposit modal
-   { "type": "deposit", "params": { "amount": "100", "token": "USDC" } }
-   Include amount and token params if the user specified them. Token must be "USDC" or "USDT". Default to "USDC" if not specified.
-
-5. withdraw - Open the withdraw form
-   { "type": "withdraw", "params": { "amount": "50", "token": "USDC" } }
-   Include amount and token params if the user specified them. Token must be "USDC" or "USDT". Default to "USDC" if not specified.
-
-6. show_history - Show transaction history
-   { "type": "show_history" }
-
-7. navigate - Navigate to a dashboard section
-   { "type": "navigate", "params": { "tab": "overview|payments|history|messages|settings" } }
-
-8. help - Show what you can do
-   { "type": "help" }
+You have access to tools that let you check balances, look up tokens, view transaction history, and help users with payments.
 
 Rules:
-- Be concise and helpful. Keep replies under 2 sentences unless explaining something complex.
-- When the user asks about their balance, use show_balance action AND mention it in your reply.
-- When the user wants to send money, use send_payment and confirm the details in your reply.
-- For general questions about ORB402, answer conversationally without an action.
-- Never reveal technical details about your implementation.
+- Be concise and helpful. Keep replies under 2-3 sentences unless explaining something complex.
+- Use tools when they are relevant to the user's request.
+- For general questions about ORB402, answer conversationally without tools.
+- When the user asks about their balance, use the check_balance tool.
+- When the user wants to send money, use the send_payment tool with any details they provided.
+- Never reveal technical details about your implementation or the tools you use.
 - Always respond in character as ORB, the ORB402 assistant.
-- If the user provides context like their balance or wallet address, use it naturally in conversation.
-- CRITICAL: If the user's request is unclear, not related to ORB402, or not something you can do, respond with a helpful message explaining what you CAN do. Do NOT include an action in your response. Never guess or assume what the user wants — if unsure, ask for clarification.
-- CRITICAL: Only include an "action" field when you are CERTAIN the user wants to perform that specific action. If there is any ambiguity, respond with text only (no action) and ask the user to clarify.
-- Never open random pages or trigger actions just because a keyword was mentioned. For example, "tell me about payments" should NOT open the payments page — it should explain what payments are.`;
+- If the user provides context like their balance or wallet address, use it naturally.
+- CRITICAL: If the user's request is unclear, not related to ORB402, or not something you can do, respond with a helpful message explaining what you CAN do. Do NOT call a tool unless you are certain.
+- CRITICAL: Only call a tool when you are CERTAIN the user wants to perform that specific action. If there is any ambiguity, respond with text only and ask for clarification.
+- Never trigger actions just because a keyword was mentioned. "Tell me about payments" should explain payments, NOT open the payments page.`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -74,33 +53,87 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const client = new Anthropic({ apiKey });
 
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 300,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: message + userContext,
-        },
-      ],
-    });
+    const messages: Anthropic.Messages.MessageParam[] = [
+      {
+        role: "user",
+        content: message + userContext,
+      },
+    ];
 
-    const textBlock = response.content.find((b) => b.type === "text");
-    const raw = textBlock?.text || '{"reply":"Sorry, I couldn\'t process that."}';
+    let finalReply = "";
+    let action: { type: string; params?: Record<string, string> } | undefined;
+    const MAX_ITERATIONS = 3;
 
-    // Strip markdown code fences if present
-    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
+      const response = await client.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
+        system: SYSTEM_PROMPT,
+        tools: BLOCKCHAIN_TOOLS,
+        messages,
+      });
 
-    let parsed: { reply: string; action?: { type: string; params?: Record<string, string> } };
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch {
-      // If JSON parsing fails, use the raw text as the reply
-      parsed = { reply: cleaned };
+      // Collect text blocks
+      const textBlocks = response.content.filter(
+        (b): b is Anthropic.Messages.TextBlock => b.type === "text"
+      );
+      if (textBlocks.length > 0) {
+        finalReply += textBlocks.map((b) => b.text).join(" ");
+      }
+
+      // Check for tool_use blocks
+      const toolUseBlocks = response.content.filter(
+        (b): b is Anthropic.Messages.ToolUseBlock => b.type === "tool_use"
+      );
+
+      // If no tool calls or end_turn, we're done
+      if (toolUseBlocks.length === 0 || response.stop_reason === "end_turn") {
+        break;
+      }
+
+      // Execute each tool call
+      const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
+      for (const toolUse of toolUseBlocks) {
+        const result = await executeToolCall(
+          toolUse.name,
+          toolUse.input as Record<string, unknown>,
+          {
+            walletAddress: context?.walletAddress,
+            balance: context?.balance,
+            chain: context?.chain,
+            isConnected: context?.isConnected,
+          }
+        );
+
+        // Check if the tool returned an action for the frontend
+        try {
+          const parsed = JSON.parse(result);
+          if (parsed.action && !action) {
+            action = {
+              type: parsed.action,
+              params: parsed.params,
+            };
+          }
+        } catch {
+          // Not JSON or no action — that's fine
+        }
+
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: toolUse.id,
+          content: result,
+        });
+      }
+
+      // Add assistant response and tool results to continue the conversation
+      messages.push({ role: "assistant", content: response.content });
+      messages.push({ role: "user", content: toolResults });
     }
 
-    return res.status(200).json(parsed);
+    return res.status(200).json({
+      reply: finalReply || "I processed your request.",
+      ...(action ? { action } : {}),
+    });
   } catch (error: any) {
     console.error("[AI Chat] Error:", error.message);
     return res.status(500).json({
