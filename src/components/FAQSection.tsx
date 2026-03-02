@@ -168,7 +168,7 @@ const FAQSection = () => {
               Join our Telegram
             </a>{" "}
             or{" "}
-            <a href="#" className="text-primary hover:underline">
+            <a href="https://orb402.gitbook.io/orb402" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
               read our docs
             </a>
           </p>
