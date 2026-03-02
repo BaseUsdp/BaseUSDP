@@ -96,13 +96,24 @@ export async function registerAgentOnChain(metadataURI: string, agentId?: string
   const receipt = await tx.wait();
 
   // Parse AgentRegistered event to get tokenId
-  const event = receipt.logs
-    .map((log: any) => {
-      try { return identity.interface.parseLog(log); } catch { return null; }
-    })
-    .find((e: any) => e?.name === 'AgentRegistered');
+  let tokenId = 0;
+  for (const log of receipt.logs) {
+    try {
+      const parsed = identity.interface.parseLog({ topics: log.topics, data: log.data });
+      if (parsed?.name === 'AgentRegistered') {
+        tokenId = Number(parsed.args.tokenId);
+        break;
+      }
+    } catch {}
+  }
 
-  const tokenId = event ? Number(event.args.tokenId) : 0;
+  // Fallback: query the contract directly if event parsing failed
+  if (tokenId === 0) {
+    try {
+      const passportId = await identity.getPassportId(agentAddress);
+      tokenId = Number(passportId);
+    } catch {}
+  }
 
   return { tokenId, txHash: receipt.hash, agentAddress };
 }

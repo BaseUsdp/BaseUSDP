@@ -209,7 +209,7 @@ const AgentsSection = () => {
     setPassportData(null);
     setView("detail");
     // Fetch passport data
-    if (agent.passport_token_id) {
+    if (agent.passport_token_id != null) {
       setPassportLoading(true);
       getAgentPassport(agent.id)
         .then(result => setPassportData(result.passport))
@@ -399,7 +399,7 @@ const AgentsSection = () => {
               <div className="flex items-center gap-2 mb-3">
                 <Icon icon="ph:identification-badge-bold" className="w-4 h-4 text-violet-400" />
                 <p className="text-xs font-medium">On-Chain Identity Passport (ERC-8004)</p>
-                {selectedAgent.passport_token_id ? (
+                {selectedAgent.passport_token_id != null ? (
                   <span className={cn(
                     "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
                     selectedAgent.is_revoked ? "bg-red-500/20 text-red-400" :
@@ -413,7 +413,7 @@ const AgentsSection = () => {
                 )}
               </div>
 
-              {selectedAgent.passport_token_id ? (
+              {selectedAgent.passport_token_id != null ? (
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -814,7 +814,7 @@ const AgentsSection = () => {
                       {agent.status}
                     </span>
                     {/* Passport Badge */}
-                    {agent.passport_token_id ? (
+                    {agent.passport_token_id != null ? (
                       <span className={cn(
                         "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
                         agent.is_revoked ? "bg-red-500/20 text-red-400" :
@@ -825,7 +825,7 @@ const AgentsSection = () => {
                       </span>
                     ) : null}
                     {/* Trust Score */}
-                    {agent.trust_score != null && agent.passport_token_id && (
+                    {agent.trust_score != null && agent.passport_token_id != null && (
                       <span className={cn(
                         "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
                         agent.trust_score >= 70 ? "bg-emerald-500/20 text-emerald-400" :
