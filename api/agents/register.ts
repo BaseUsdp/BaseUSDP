@@ -69,7 +69,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
 
   // Register on-chain passport if agent has a wallet
+  let onChainStatus: any = { attempted: false };
   if (wallet) {
+    onChainStatus.attempted = true;
     try {
       const metadataURI = JSON.stringify({
         name,
@@ -78,25 +80,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         registeredAt: new Date().toISOString(),
       });
 
-      const { tokenId, txHash } = await registerAgentOnChain(metadataURI, agent.id);
+      const { tokenId, txHash, agentAddress } = await registerAgentOnChain(metadataURI, agent.id);
 
       await supabase
         .from('agent_profiles')
         .update({
           passport_token_id: tokenId,
           passport_tx_hash: txHash,
-          agent_wallet: wallet,
+          agent_wallet: agentAddress,
         })
         .eq('id', agent.id);
 
       agent.passport_token_id = tokenId;
       agent.passport_tx_hash = txHash;
-      agent.agent_wallet = wallet;
+      agent.agent_wallet = agentAddress;
+      onChainStatus.success = true;
+      onChainStatus.tokenId = tokenId;
     } catch (onChainErr: any) {
-      console.warn('[Agents] On-chain passport registration failed (non-blocking):', onChainErr.message);
-      console.warn('[Agents] On-chain error details:', JSON.stringify({ code: onChainErr.code, reason: onChainErr.reason, stack: onChainErr.stack?.slice(0, 500) }));
+      onChainStatus.success = false;
+      onChainStatus.error = onChainErr.message;
     }
   }
 
-  return res.status(201).json({ success: true, agent });
+  return res.status(201).json({ success: true, agent, onChainStatus });
 }
