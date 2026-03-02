@@ -155,7 +155,7 @@ export default function MiniAppHistory() {
                   <div className="flex items-center gap-1 text-xs text-zinc-500">
                     <span>{formatDate(tx.timestamp)}</span>
                     <span>·</span>
-                    <span>{tx.counterpartyUsername ? tx.counterparty : truncateHash(tx.signature)}</span>
+                    <span>{tx.type === "deposit" ? "From your wallet" : tx.counterpartyUsername ? tx.counterparty : truncateHash(tx.signature)}</span>
                   </div>
                 </div>
 
