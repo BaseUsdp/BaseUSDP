@@ -198,49 +198,68 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ ok: true, status: "daily_limit" });
     }
 
-    // 8. Resolve recipient via Farcaster username
-    let recipientData;
-    try {
-      recipientData = await resolveFarcasterUsername(parsed.recipientUsername);
-    } catch (resolveErr: any) {
-      const replyHash = await replyCast(
-        castHash,
-        `@${authorUsername} Could not find @${parsed.recipientUsername} on Farcaster.`
-      );
-      await updateCastPayment(supabase, castHash, {
-        status: "failed",
-        error_message: `recipient_not_found: ${resolveErr.message}`,
-        reply_cast_hash: replyHash,
-      });
-      return res.status(200).json({ ok: true, status: "recipient_not_found" });
-    }
+    // 8. Resolve recipient — try ORB402 username first, then Farcaster username
+    let recipientWallet: string | null = null;
+    let recipientFid: number | null = null;
 
-    // Check if recipient has an ORB402 account
-    const { data: recipientProfile } = await supabase
+    // Try ORB402 username lookup first
+    const { data: orb402Profile } = await supabase
       .from("user_profiles")
-      .select("wallet_address")
-      .eq("wallet_address", recipientData.walletAddress)
+      .select("wallet_address, username")
+      .ilike("username", parsed.recipientUsername)
       .maybeSingle();
 
-    if (!recipientProfile) {
-      const replyHash = await replyCast(
-        castHash,
-        `@${authorUsername} @${parsed.recipientUsername} doesn't have an ORB402 account yet. They need to sign up at orb402.com first.`
-      );
-      await updateCastPayment(supabase, castHash, {
-        status: "failed",
-        error_message: "recipient_no_orb402_account",
-        reply_cast_hash: replyHash,
-      });
-      return res.status(200).json({ ok: true, status: "no_orb402_account" });
+    if (orb402Profile?.wallet_address) {
+      recipientWallet = orb402Profile.wallet_address;
+      console.log(`[CastPayment] Resolved as ORB402 user: ${orb402Profile.username} → ${recipientWallet.slice(0, 10)}...`);
+    } else {
+      // Fall back to Farcaster username
+      try {
+        const farcasterData = await resolveFarcasterUsername(parsed.recipientUsername);
+        recipientFid = farcasterData.fid;
+
+        // Check if this Farcaster user has an ORB402 account
+        const { data: fcProfile } = await supabase
+          .from("user_profiles")
+          .select("wallet_address")
+          .eq("wallet_address", farcasterData.walletAddress)
+          .maybeSingle();
+
+        if (fcProfile) {
+          recipientWallet = farcasterData.walletAddress;
+          console.log(`[CastPayment] Resolved via Farcaster: @${parsed.recipientUsername} → ${recipientWallet.slice(0, 10)}...`);
+        } else {
+          const replyHash = await replyCast(
+            castHash,
+            `@${authorUsername} @${parsed.recipientUsername} doesn't have an ORB402 account yet. They need to sign up at orb402.com first.`
+          );
+          await updateCastPayment(supabase, castHash, {
+            status: "failed",
+            error_message: "recipient_no_orb402_account",
+            reply_cast_hash: replyHash,
+          });
+          return res.status(200).json({ ok: true, status: "no_orb402_account" });
+        }
+      } catch (resolveErr: any) {
+        const replyHash = await replyCast(
+          castHash,
+          `@${authorUsername} Could not find @${parsed.recipientUsername} on ORB402 or Farcaster.`
+        );
+        await updateCastPayment(supabase, castHash, {
+          status: "failed",
+          error_message: `recipient_not_found: ${resolveErr.message}`,
+          reply_cast_hash: replyHash,
+        });
+        return res.status(200).json({ ok: true, status: "recipient_not_found" });
+      }
     }
 
     // Update cast_payments with recipient info
     await supabase
       .from("cast_payments")
       .update({
-        recipient_fid: recipientData.fid,
-        recipient_wallet: recipientData.walletAddress,
+        recipient_fid: recipientFid,
+        recipient_wallet: recipientWallet,
         status: "processing",
       })
       .eq("cast_hash", castHash);
@@ -248,7 +267,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 9. Execute ZK transfer
     const transferResult = await executeBaseTransfer({
       senderWallet: senderWallet,
-      recipientWallet: recipientData.walletAddress,
+      recipientWallet: recipientWallet!,
       amount: parsed.amount,
       token: parsed.token,
     });
