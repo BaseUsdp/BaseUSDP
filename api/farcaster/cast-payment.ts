@@ -80,18 +80,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const authorFid: number = cast.author?.fid;
     const authorUsername: string = cast.author?.username || "";
 
+    console.log(`[CastPayment] Cast hash: ${castHash}, text: "${castText}", authorFid: ${authorFid}, authorUsername: ${authorUsername}, BOT_FID: ${BOT_FID}`);
+
     if (!castHash || !authorFid) {
+      console.warn("[CastPayment] Missing cast fields, skipping");
       return res.status(200).json({ ok: true, skipped: "missing cast fields" });
     }
 
     // 3. Ignore self-mentions (bot's own casts)
     if (BOT_FID && authorFid === BOT_FID) {
+      console.log("[CastPayment] Self-mention, skipping");
       return res.status(200).json({ ok: true, skipped: "self-mention" });
     }
 
     // 4. Parse cast text — if not a payment command, silently ignore
     const parsed = parseCastPayment(castText);
     if (!parsed) {
+      console.log(`[CastPayment] Not a payment command: "${castText}"`);
       return res.status(200).json({ ok: true, skipped: "not a payment command" });
     }
 
