@@ -87,10 +87,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ ok: true, skipped: "missing cast fields" });
     }
 
-    // 3. Ignore self-mentions (bot's own casts)
-    if (BOT_FID && authorFid === BOT_FID) {
-      console.log("[CastPayment] Self-mention, skipping");
-      return res.status(200).json({ ok: true, skipped: "self-mention" });
+    // 3. Skip bot's own REPLY casts (prevent loops), but allow payment commands from bot account
+    if (BOT_FID && authorFid === BOT_FID && cast.parent_hash) {
+      console.log("[CastPayment] Bot reply cast, skipping");
+      return res.status(200).json({ ok: true, skipped: "bot-reply" });
     }
 
     // 4. Parse cast text — if not a payment command, silently ignore
