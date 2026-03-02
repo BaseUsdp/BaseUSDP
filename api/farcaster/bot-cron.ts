@@ -232,6 +232,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
+
+  // Debug mode: ?debug=1 returns dedup status without publishing
+  const debug = req.query?.debug === "1";
+  if (debug) {
+    const debugInfo: Record<string, any> = {};
+    try {
+      debugInfo.daily_stats_cast_today = await wasCastToday(supabase, "daily_stats");
+      debugInfo.privacy_tip_cast_today = await wasCastToday(supabase, "privacy_tip");
+      debugInfo.uptime_cast_today = await wasCastToday(supabase, "uptime");
+      debugInfo.feature_cast_today = await wasCastToday(supabase, "feature");
+      debugInfo.engagement_cast_today = await wasCastToday(supabase, "engagement");
+      debugInfo.weekly_recap_cast_this_week = await wasCastThisWeek(supabase, "weekly_recap");
+      debugInfo.leaderboard_cast_this_week = await wasCastThisWeek(supabase, "leaderboard");
+      debugInfo.today_is = new Date().toISOString();
+      debugInfo.day_of_week = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date().getUTCDay()];
+      const { count } = await supabase.from("bot_casts").select("*", { count: "exact", head: true });
+      debugInfo.total_bot_casts = count;
+      const { data: recentCasts } = await supabase.from("bot_casts").select("cast_type, status, created_at").order("created_at", { ascending: false }).limit(5);
+      debugInfo.recent_casts = recentCasts;
+    } catch (e: any) {
+      debugInfo.error = e.message;
+    }
+    return res.status(200).json({ debug: true, ...debugInfo });
+  }
+
   const results: Record<string, string> = {};
 
   const handlers: Array<[string, () => Promise<string | null>]> = [
