@@ -78,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         registeredAt: new Date().toISOString(),
       });
 
-      const { tokenId, txHash } = await registerAgentOnChain(metadataURI);
+      const { tokenId, txHash } = await registerAgentOnChain(metadataURI, agent.id);
 
       await supabase
         .from('agent_profiles')

@@ -12,6 +12,7 @@ import { getBaseProvider, getBaseSigner } from './void402-base.js';
 
 export const AGENT_IDENTITY_REGISTRY_ABI = [
   'function registerAgent(string metadataURI) external returns (uint256)',
+  'function registerAgentFor(address operator, string metadataURI) external returns (uint256)',
   'function verifyAgent(uint256 tokenId) external',
   'function revokeAgent(uint256 tokenId) external',
   'function isAgentVerified(uint256 tokenId) view returns (bool)',
@@ -74,18 +75,24 @@ export function getReputationRegistryContract(signerOrProvider?: ethers.Signer |
 
 /**
  * Register an agent on-chain by minting a passport NFT.
- * Uses the relayer wallet to submit the transaction on behalf of the agent.
- * Note: The passport is minted TO the relayer address. The agent_wallet in DB
- * tracks which agent it belongs to.
+ * Uses the relayer wallet (contract owner) to call registerAgentFor(),
+ * minting a passport to a deterministic address derived from the agent ID.
+ * This allows multiple agents to each have their own passport.
  */
-export async function registerAgentOnChain(metadataURI: string): Promise<{
+export async function registerAgentOnChain(metadataURI: string, agentId?: string): Promise<{
   tokenId: number;
   txHash: string;
+  agentAddress: string;
 }> {
   const signer = getBaseSigner();
   const identity = getIdentityRegistryContract(signer);
 
-  const tx = await identity.registerAgent(metadataURI);
+  // Generate a deterministic address for this agent so each gets a unique passport
+  const agentAddress = agentId
+    ? ethers.computeAddress(ethers.keccak256(ethers.toUtf8Bytes(`agent-passport-${agentId}`)))
+    : signer.address;
+
+  const tx = await identity.registerAgentFor(agentAddress, metadataURI);
   const receipt = await tx.wait();
 
   // Parse AgentRegistered event to get tokenId
@@ -97,7 +104,7 @@ export async function registerAgentOnChain(metadataURI: string): Promise<{
 
   const tokenId = event ? Number(event.args.tokenId) : 0;
 
-  return { tokenId, txHash: receipt.hash };
+  return { tokenId, txHash: receipt.hash, agentAddress };
 }
 
 /**

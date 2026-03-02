@@ -46,6 +46,24 @@ contract AgentIdentityRegistry is ERC721, Ownable, IERC4906, IERC8004Identity {
     }
 
     /**
+     * @notice Register an agent on behalf of an operator (owner only)
+     * @param operator The address to mint the passport for
+     * @param metadataURI URI pointing to agent metadata JSON
+     * @return tokenId The minted passport token ID
+     */
+    function registerAgentFor(address operator, string calldata metadataURI) external onlyOwner returns (uint256) {
+        if (_passportIds[operator] != 0) revert AlreadyRegistered();
+
+        uint256 tokenId = _nextTokenId++;
+        _safeMint(operator, tokenId);
+        _tokenURIs[tokenId] = metadataURI;
+        _passportIds[operator] = tokenId;
+
+        emit AgentRegistered(tokenId, operator, metadataURI);
+        return tokenId;
+    }
+
+    /**
      * @inheritdoc IERC8004Identity
      */
     function verifyAgent(uint256 tokenId) external onlyOwner {

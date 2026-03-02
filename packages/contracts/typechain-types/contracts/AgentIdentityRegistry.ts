@@ -37,6 +37,7 @@ export interface AgentIdentityRegistryInterface extends Interface {
       | "owner"
       | "ownerOf"
       | "registerAgent"
+      | "registerAgentFor"
       | "renounceOwnership"
       | "revokeAgent"
       | "safeTransferFrom(address,address,uint256)"
@@ -102,6 +103,10 @@ export interface AgentIdentityRegistryInterface extends Interface {
   encodeFunctionData(
     functionFragment: "registerAgent",
     values: [string]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "registerAgentFor",
+    values: [AddressLike, string]
   ): string;
   encodeFunctionData(
     functionFragment: "renounceOwnership",
@@ -176,6 +181,10 @@ export interface AgentIdentityRegistryInterface extends Interface {
   decodeFunctionResult(functionFragment: "ownerOf", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "registerAgent",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "registerAgentFor",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -465,6 +474,12 @@ export interface AgentIdentityRegistry extends BaseContract {
     "nonpayable"
   >;
 
+  registerAgentFor: TypedContractMethod<
+    [operator: AddressLike, metadataURI: string],
+    [bigint],
+    "nonpayable"
+  >;
+
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
   revokeAgent: TypedContractMethod<
@@ -575,6 +590,13 @@ export interface AgentIdentityRegistry extends BaseContract {
   getFunction(
     nameOrSignature: "registerAgent"
   ): TypedContractMethod<[metadataURI: string], [bigint], "nonpayable">;
+  getFunction(
+    nameOrSignature: "registerAgentFor"
+  ): TypedContractMethod<
+    [operator: AddressLike, metadataURI: string],
+    [bigint],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
