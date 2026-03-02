@@ -66,8 +66,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 2. Extract cast data
     const payload = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    console.log("[CastPayment] Payload keys:", Object.keys(payload));
+    console.log("[CastPayment] Payload type:", payload.type);
+
     const cast = payload.data;
     if (!cast) {
+      console.warn("[CastPayment] No cast data in payload. Full payload:", JSON.stringify(payload).slice(0, 500));
       return res.status(200).json({ ok: true, skipped: "no cast data" });
     }
 
