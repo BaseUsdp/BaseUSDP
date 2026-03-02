@@ -8,7 +8,8 @@
     "api/zk/auto-split-and-exchange.ts": { "maxDuration": 120 },
     "api/zk/withdraw.ts": { "maxDuration": 300 },
     "api/zk/transfer.ts": { "maxDuration": 120 },
-    "api/farcaster/cast-payment.ts": { "maxDuration": 120 }
+    "api/farcaster/cast-payment.ts": { "maxDuration": 120 },
+    "api/farcaster/bot-cron.ts": { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/.well-known/farcaster.json", "destination": "/farcaster.json" },
@@ -22,6 +23,10 @@
     {
       "path": "/api/x402/process-deposits",
       "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/farcaster/bot-cron",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

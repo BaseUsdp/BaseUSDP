@@ -15,6 +15,7 @@ import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 import { verifySIWFCredential } from "../lib/farcaster-auth.js";
 import { resolveFidToWallet } from "../lib/farcaster-neynar.js";
+import { recordBotCast, wasCastToday } from "../lib/bot-cast-helpers.js";
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey =
@@ -96,6 +97,29 @@ export default async function handler(
         username: username || `fc_${fid}`,
         chain: "base",
       });
+
+      // Fire-and-forget welcome cast (dedup by username)
+      const displayName = username || `fc_${fid}`;
+      supabase
+        .from("bot_casts")
+        .select("id")
+        .eq("cast_type", "welcome")
+        .eq("status", "published")
+        .contains("metadata", { username: displayName })
+        .limit(1)
+        .then(({ data }: any) => {
+          if (!data || data.length === 0) {
+            recordBotCast(
+              supabase,
+              "welcome",
+              `Welcome @${displayName} to ORB402! Send private payments by casting @orb402 send [amount] USDC to @friend`,
+              { username: displayName }
+            );
+          }
+        })
+        .catch((err: any) =>
+          console.warn("[Farcaster Auth] Welcome cast failed:", err.message)
+        );
     }
 
     // 4. Create session token (same as SIWE flow)

@@ -264,6 +264,24 @@ async function checkAndCompleteBridge(
       }
 
       console.log(`[x402] Deposit ${deposit.deposit_id} COMPLETED! Credited $${amountToCredit.toFixed(2)}`);
+
+      // Fire-and-forget deposit confirmation cast (max 1 per 30 min)
+      import("../lib/bot-cast-helpers.js")
+        .then(({ recordBotCast, wasCastRecently }) =>
+          wasCastRecently(supabase, "deposit_confirm", 30).then((recent) => {
+            if (!recent) {
+              recordBotCast(
+                supabase,
+                "deposit_confirm",
+                "A new user just funded their ORB402 wallet. Privacy is the default."
+              );
+            }
+          })
+        )
+        .catch((err: any) =>
+          console.warn("[x402] Deposit confirmation cast failed:", err.message)
+        );
+
       return { completed: true, result: { depositId: deposit.deposit_id, status: 'completed', amountReceived: amountToCredit } };
       
     } else if (statusData.status === 'failed' || statusData.status === 'refunded') {
