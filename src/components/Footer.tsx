@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import void402Logo from "@/assets/void402-logo.png";
+import AltisLogo from "@/components/AltisLogo";
 
 const Footer = () => {
   const footerLinks = {
@@ -58,23 +58,9 @@ const Footer = () => {
   };
 
   return (
-    <footer className="relative bg-[#020202] border-t border-white/10">
-      {/* Diagonal Stripes Background */}
-      <div 
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: `repeating-linear-gradient(
-            -45deg,
-            transparent,
-            transparent 40px,
-            rgba(255, 255, 255, 0.01) 40px,
-            rgba(255, 255, 255, 0.01) 41px
-          )`,
-        }}
-      />
-
+    <footer className="relative bg-white border-t border-black/10">
       {/* Social Links Bar */}
-      <div className="relative border-b border-white/10">
+      <div className="relative border-b border-black/10">
         <div className="container mx-auto px-6 py-6">
           <div className="flex items-center justify-center gap-8">
             {socialLinks.map((social) => (
@@ -83,7 +69,7 @@ const Footer = () => {
                 href={social.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-white/50 hover:text-primary transition-colors"
+                className="flex items-center gap-2 text-black/40 hover:text-black transition-colors"
               >
                 {social.icon}
                 <span className="text-sm font-medium">{social.name}</span>
@@ -98,14 +84,14 @@ const Footer = () => {
         <div className="grid grid-cols-2 md:grid-cols-2 gap-8 lg:gap-16 mb-16">
           {Object.entries(footerLinks).map(([category, links]) => (
             <div key={category}>
-              <h4 className="text-white/40 font-medium text-xs uppercase tracking-wider mb-6">{category}</h4>
+              <h4 className="text-black/30 font-medium text-xs uppercase tracking-wider mb-6">{category}</h4>
               <ul className="space-y-4">
                 {links.map((link) => (
                   <li key={link.name}>
                     {'isRoute' in link && link.isRoute ? (
                       <Link 
                         to={link.href} 
-                        className="text-sm text-white/70 transition-colors hover:text-white"
+                        className="text-sm text-black/60 transition-colors hover:text-black"
                       >
                         {link.name}
                       </Link>
@@ -113,7 +99,7 @@ const Footer = () => {
                       <a 
                         href={link.href}
                         onClick={(e) => handleNavClick(e, link.href)}
-                        className="text-sm text-white/70 transition-colors hover:text-white"
+                        className="text-sm text-black/60 transition-colors hover:text-black"
                       >
                         {link.name}
                       </a>
@@ -126,16 +112,13 @@ const Footer = () => {
         </div>
 
         {/* Bottom Section */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 pt-8 border-t border-white/10">
-          {/* Logo & Description */}
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 pt-8 border-t border-black/10">
           <div className="max-w-md">
             <Link to="/" className="flex items-center gap-3 mb-4">
-              <div className="flex h-8 w-8 items-center justify-center">
-                <img src={void402Logo} alt="ORB402" className="h-8 w-8 object-contain" />
-              </div>
-              <span className="text-xl font-bold text-white tracking-tight">ORB<span className="text-primary">402</span>.</span>
+              <AltisLogo size={28} className="text-black" />
+              <span className="text-xl font-bold text-black tracking-tight">ALTIS FINANCE.</span>
             </Link>
-            <p className="text-white/40 text-sm leading-relaxed">
+            <p className="text-black/40 text-sm leading-relaxed">
               The Confidential Payment Layer for the Agentic Economy. 
               Privacy-first transactions powered by ZK Proofs and x402.
             </p>
@@ -143,8 +126,8 @@ const Footer = () => {
         </div>
 
         {/* Copyright */}
-        <div className="mt-8 pt-8 border-t border-white/10">
-          <p className="text-xs text-white/30">© 2026 ORB402 Protocol. All rights reserved.</p>
+        <div className="mt-8 pt-8 border-t border-black/10">
+          <p className="text-xs text-black/30">© 2026 ALTIS Finance. All rights reserved.</p>
         </div>
       </div>
     </footer>

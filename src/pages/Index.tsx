@@ -15,7 +15,6 @@ import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
 
 const Index = () => {
-  // Show disconnect toast if redirected from dashboard due to wallet switch (1:1 with VigilFi)
   useEffect(() => {
     const disconnectMessage = sessionStorage.getItem("void402_disconnect_message");
     if (disconnectMessage) {
@@ -28,7 +27,7 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-white">
       <Navbar />
       <main>
         <HeroSection />
