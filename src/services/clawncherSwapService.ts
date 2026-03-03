@@ -269,7 +269,7 @@ export class ClawnchSwapper {
     if (isNativeToken(token)) {
       return this.publicClient.getBalance({ address: owner });
     }
-    return this.publicClient.readContract({
+    return (this.publicClient as any).readContract({
       address: token,
       abi: erc20Abi,
       functionName: "balanceOf",
