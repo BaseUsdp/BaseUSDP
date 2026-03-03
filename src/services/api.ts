@@ -408,7 +408,7 @@ export interface TransactionHistoryResponse {
     signature: string;
     timestamp: number;
     type: "transfer" | "payment" | "deposit" | "withdraw" | "unknown";
-    status: "success" | "failed";
+    status: "success" | "failed" | "pending";
     from?: string;
     to?: string;
     amount?: number;
