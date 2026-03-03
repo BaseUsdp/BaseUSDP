@@ -1,135 +1,142 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Icon } from "@iconify/react";
-import AnimatedCounter from "@/components/ui/AnimatedCounter";
 
 const ProblemSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
-  const riskCards = [
+  const risks = [
     {
-      icon: "ph:chart-line-up-fill",
+      num: "01",
       title: "Competitive Risk",
       description: "Exposing financial strategies and trading patterns to competitors",
+      year: "Ongoing",
     },
     {
-      icon: "ph:eye-fill",
+      num: "02",
       title: "Privacy Breach",
       description: "Client data transparency visible to competitors and public",
+      year: "Critical",
     },
     {
-      icon: "ph:buildings-fill",
+      num: "03",
       title: "Institutional Adoption",
       description: "Blocked by transparency requirements of public blockchains",
+      year: "Barrier",
     },
   ];
 
+  const riskMetrics = [
+    { label: "Tx Visibility", value: 100 },
+    { label: "Data Exposure", value: 87 },
+    { label: "Pattern Leakage", value: 94 },
+    { label: "Competitive Risk", value: 85 },
+    { label: "Privacy Breach", value: 92 },
+    { label: "Institutional Adoption", value: 78 },
+  ];
+
   return (
-    <section ref={ref} id="problem" className="border-b border-black/5 bg-white py-32 relative overflow-hidden">
-      <div className="max-w-[1400px] mx-auto px-6 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
-          {/* Left Column */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8 }}
-          >
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 border border-black/20 rounded-full bg-black/5">
-              <Icon icon="ph:warning-fill" className="w-4 h-4 text-black" />
-              <span className="text-[10px] font-mono text-black/60 uppercase tracking-widest">Critical Issue</span>
-            </div>
-            <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-black mb-6 leading-[1.05]">
-              The Blockchain
-              <span className="block text-black/40">Confidentiality Crisis</span>
-            </h2>
-            <p className="text-black/50 leading-relaxed mb-8">
-              Public blockchains expose everything by default. This transparency is a critical dealbreaker for institutional banking.
-            </p>
+    <section ref={ref} id="problem" className="max-w-[1400px] mx-auto px-8 py-28 border-t border-border">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.6 }}
+        className="mb-12"
+      >
+        <span className="tag-pill">Critical Issue</span>
+      </motion.div>
 
-            <div className="space-y-4">
-              {riskCards.map((card, i) => (
-                <motion.div
-                  key={card.title}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={isInView ? { opacity: 1, x: 0 } : {}}
-                  transition={{ duration: 0.5, delay: 0.2 + i * 0.1 }}
-                  className="p-4 border border-black/10 rounded-xl group transition-colors hover:border-black/30 bg-black/[0.01]"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-black/5">
-                      <Icon icon={card.icon} className="w-5 h-5 text-black" />
-                    </div>
-                    <div>
-                      <h4 className="text-black font-medium mb-1">{card.title}</h4>
-                      <p className="text-sm text-black/40">{card.description}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Right Column - Risk Dashboard */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative"
-          >
-            <div className="glass-card rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <div className="text-sm font-medium text-black">Risk Dashboard</div>
-                  <div className="text-[10px] font-mono text-black/40">Real-time exposure analysis</div>
-                </div>
-                <span className="px-2 py-1 bg-black/5 border border-black/10 rounded text-[9px] font-mono text-black/60">critical</span>
-              </div>
-
-              <div className="space-y-4 mb-6">
-                {[
-                  { label: "Tx Visibility", value: 100 },
-                  { label: "Data Exposure", value: 87 },
-                  { label: "Pattern Leakage", value: 94 },
-                  { label: "Competitive Risk", value: 85 },
-                  { label: "Privacy Breach", value: 92 },
-                  { label: "Institutional Adoption", value: 78 },
-                ].map((item, i) => (
-                  <div key={item.label}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-black/50">{item.label}</span>
-                      <span className="text-xs font-mono text-black">{item.value}%</span>
-                    </div>
-                    <div className="h-1.5 bg-black/5 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={isInView ? { width: `${item.value}%` } : {}}
-                        transition={{ duration: 1, delay: 0.3 + i * 0.1 }}
-                        className="h-full bg-black rounded-full"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="glass-card rounded-2xl p-6 mt-4"
-            >
-              <div className="text-[10px] font-mono text-black/40 uppercase tracking-widest mb-3">
-                Real-World Case Study
-              </div>
-              <h4 className="text-black font-medium mb-3">BlackRock × JP Morgan TCN</h4>
-              <p className="text-sm text-black/50 leading-relaxed">
-                BlackRock used JP Morgan Chase's Tokenized Collateral Network (TCN) to tokenize shares in a money market fund. This transaction used a <span className="text-black underline decoration-dotted underline-offset-2">private blockchain</span>— demonstrating the critical need for confidentiality in institutional finance.
-              </p>
-            </motion.div>
-          </motion.div>
-        </div>
+      <div className="grid md:grid-cols-12 gap-10 mb-16">
+        <motion.div
+          className="md:col-span-6"
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, delay: 0.1 }}
+        >
+          <h2 className="display-section font-serif text-foreground">
+            The Blockchain{" "}
+            <em className="text-muted-foreground">Confidentiality</em> Crisis
+          </h2>
+        </motion.div>
+        <motion.div
+          className="md:col-span-4 md:col-start-9 flex flex-col justify-end"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, delay: 0.3 }}
+        >
+          <p className="text-base text-muted-foreground leading-relaxed">
+            Public blockchains expose everything by default. This transparency is a critical dealbreaker for institutional banking.
+          </p>
+        </motion.div>
       </div>
+
+      {/* Experience-row style risks */}
+      <div className="divide-y divide-border">
+        {risks.map((risk, i) => (
+          <motion.div
+            key={risk.title}
+            initial={{ opacity: 0, x: -20 }}
+            animate={isInView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.5, delay: 0.2 + i * 0.1 }}
+            className="exp-row py-8 flex flex-col md:flex-row md:items-center justify-between gap-4 group"
+          >
+            <div className="flex items-center gap-6 flex-1">
+              <span className="tag-pill shrink-0">{risk.num}</span>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">{risk.title}</h3>
+                <p className="text-sm text-muted-foreground mt-1 leading-relaxed max-w-md">{risk.description}</p>
+              </div>
+            </div>
+            <p className="font-serif text-3xl md:text-5xl tracking-tight text-muted-foreground/30 group-hover:text-foreground transition-colors duration-300 shrink-0" style={{ letterSpacing: "-0.03em" }}>
+              {risk.year}
+            </p>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Risk metrics */}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.8, delay: 0.5 }}
+        className="mt-16 rounded-3xl border border-border p-8"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="text-sm font-medium text-foreground">Risk Dashboard</div>
+            <div className="text-xs text-muted-foreground">Real-time exposure analysis</div>
+          </div>
+          <span className="tag-pill">critical</span>
+        </div>
+        <div className="space-y-4">
+          {riskMetrics.map((item, i) => (
+            <div key={item.label}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-muted-foreground">{item.label}</span>
+                <span className="text-xs font-mono text-foreground">{item.value}%</span>
+              </div>
+              <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={isInView ? { width: `${item.value}%` } : {}}
+                  transition={{ duration: 1, delay: 0.6 + i * 0.1 }}
+                  className="h-full bg-foreground rounded-full"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Case study */}
+        <div className="mt-8 pt-6 border-t border-border">
+          <div className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Real-World Case Study</div>
+          <h4 className="text-foreground font-medium mb-3">BlackRock × JP Morgan TCN</h4>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            BlackRock used JP Morgan Chase's Tokenized Collateral Network (TCN) to tokenize shares in a money market fund. This transaction used a <span className="text-foreground underline decoration-dotted underline-offset-2">private blockchain</span>— demonstrating the critical need for confidentiality in institutional finance.
+          </p>
+        </div>
+      </motion.div>
     </section>
   );
 };

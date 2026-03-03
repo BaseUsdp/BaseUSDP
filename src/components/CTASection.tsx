@@ -1,5 +1,5 @@
 import { motion, useInView } from "framer-motion";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
 
@@ -9,60 +9,63 @@ const CTASection = () => {
   const navigate = useNavigate();
 
   return (
-    <section ref={ref} className="relative py-16 overflow-hidden bg-white">
-      <div className="absolute top-0 left-0 right-0 h-px bg-black/5" />
+    <section ref={ref} className="bg-foreground text-background relative overflow-hidden">
+      {/* Grain overlay */}
+      <div className="absolute inset-0 opacity-[0.04] pointer-events-none"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        }}
+      />
 
-      <div className="container relative mx-auto px-6">
+      <div className="relative z-10 max-w-[1400px] mx-auto px-8 py-32">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="relative w-full"
+          className="mb-8"
         >
-          <div className="absolute inset-0 bg-black/[0.02] rounded-2xl border border-black/10" />
+          <span className="tag-pill" style={{ borderColor: "hsl(0 0% 30%)", color: "hsl(0 0% 45%)" }}>
+            Let's build the future
+          </span>
+        </motion.div>
 
-          <div className="relative z-10 px-8 py-6 lg:px-12 flex flex-col lg:flex-row items-center justify-between gap-6 rounded-2xl">
-            <div className="flex flex-col lg:flex-row items-center gap-4 lg:gap-8 text-center lg:text-left">
-              <motion.h3 
-                className="text-2xl lg:text-3xl font-semibold tracking-tight text-black"
-                initial={{ opacity: 0, x: -20 }}
-                animate={isInView ? { opacity: 1, x: 0 } : {}}
-                transition={{ duration: 0.5, delay: 0.1 }}
-              >
-                Ready to Transform{" "}
-                <span className="italic text-black/30 font-light">Your</span>{" "}
-                <span className="font-bold">Financial Privacy?</span>
-              </motion.h3>
-              
-              <motion.p 
-                className="text-black/40 text-sm lg:text-base max-w-md hidden lg:block"
-                initial={{ opacity: 0 }}
-                animate={isInView ? { opacity: 1 } : {}}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                Connect your wallet and experience the future of confidential finance.
-              </motion.p>
+        <motion.h2
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, delay: 0.1 }}
+          className="font-serif text-background"
+          style={{
+            fontFamily: "'DM Serif Display', serif",
+            fontSize: "clamp(3.5rem, 10vw, 9rem)",
+            lineHeight: 0.9,
+            letterSpacing: "-0.03em",
+          }}
+        >
+          Ready to
+          <br />
+          <em>Transform</em>
+        </motion.h2>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, delay: 0.4 }}
+          className="mt-16 flex flex-col md:flex-row items-start md:items-center justify-between gap-8"
+        >
+          <p className="text-base text-background/40 max-w-sm leading-relaxed">
+            Connect your wallet and experience the future of confidential finance. Privacy-first transactions powered by ZK Proofs.
+          </p>
+          <motion.button
+            onClick={() => navigate("/dashboard")}
+            className="flex items-center gap-3 bg-background text-foreground rounded-full px-7 py-4 text-sm font-semibold hover:bg-background/90 transition-all duration-300 shrink-0 group"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="flex items-center justify-center w-7 h-7 bg-foreground rounded-full group-hover:bg-foreground/80 transition-colors">
+              <Icon icon="ph:arrow-right-bold" className="w-4 h-4 text-background" />
             </div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={isInView ? { opacity: 1, x: 0 } : {}}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="relative flex-shrink-0"
-            >
-              <motion.button
-                className="relative inline-flex items-center gap-3 bg-black text-white rounded-full py-3 px-8 font-semibold text-sm cursor-pointer"
-                onClick={() => navigate("/dashboard")}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 400, damping: 17 }}
-              >
-                <Icon icon="ph:arrow-right-bold" className="w-4 h-4" />
-                Dashboard
-                <Icon icon="ph:arrow-right-bold" className="w-4 h-4" />
-              </motion.button>
-            </motion.div>
-          </div>
+            Launch Dashboard
+          </motion.button>
         </motion.div>
       </div>
     </section>

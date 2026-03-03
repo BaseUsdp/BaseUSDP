@@ -1,136 +1,116 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Icon } from "@iconify/react";
-import Lottie from "lottie-react";
-import eyeAnimation from "@/assets/eye-animation.json";
 
 const AboutSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section 
-      ref={ref}
-      id="about"
-      className="bg-white border-b border-black/5 pt-32 pb-32 relative"
-    >
-      <div className="max-w-[1400px] mx-auto px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
-          {/* Left Column */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8 }}
-          >
-            <div className="text-[10px] font-mono text-black/40 uppercase mb-4 tracking-widest">
-              01 — About ALTIS Finance
-            </div>
-            <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-black mb-8 leading-[1.05]">
-              The Internet Was Built for Information.
-              <span className="block text-black/30 mt-2">We're Building the Protocol for Private Value.</span>
-            </h2>
-            <div className="space-y-6 text-black/50 leading-relaxed">
-              <p>
-                The digital economy runs on public infrastructure, yet value exchange remains fragmented, centralized, and alarmingly transparent.
-              </p>
-              <p>
-                Public blockchains promised a revolution in peer-to-peer finance, but their inherent transparency created a critical barrier to mainstream adoption. For institutions, enterprises, and any entity that values financial privacy, broadcasting every transaction to the world is not just a risk—it's a non-starter.
-              </p>
-              <p>
-                <span className="text-black font-medium">ALTIS Finance was created to solve this fundamental problem — and to power the Web 4.0 economy.</span> Web 4.0 is the era where autonomous agents and machines transact value independently, and privacy is non-negotiable. By integrating cutting-edge Zero-Knowledge Proofs (ZK Proofs) with the internet-native x402 payment standard, we have created the world's first confidential payment layer for this new autonomous internet economy.
-              </p>
-            </div>
-          </motion.div>
-          
-          {/* Right Column */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="space-y-4"
-          >
-            {/* Vision Card */}
-            <div className="glass-card rounded-2xl p-8">
-              <div className="flex items-center gap-3 mb-8">
-                <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center">
-                  <Lottie 
-                    animationData={eyeAnimation} 
-                    loop={true}
-                    style={{ width: 32, height: 32, filter: 'invert(1)' }}
-                  />
-                </div>
-                <div>
-                  <h3 className="text-lg text-black font-medium">Our Vision</h3>
-                  <div className="text-[10px] font-mono text-black/40 uppercase">Core Mission</div>
-                </div>
-              </div>
-              <p className="text-black/60 leading-relaxed mb-8">
-                A world where financial privacy is a fundamental right, not a privilege. Where individuals, institutions, and AI agents can transact freely without sacrificing confidentiality or compliance.
-              </p>
-              <div className="flex items-center gap-4">
-                <div className="flex -space-x-2">
-                  <div className="w-8 h-8 rounded-full bg-black border-2 border-white flex items-center justify-center">
-                    <Icon icon="ph:user-fill" className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-black/70 border-2 border-white flex items-center justify-center">
-                    <Icon icon="ph:buildings-fill" className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-black/50 border-2 border-white flex items-center justify-center">
-                    <Icon icon="ph:robot-fill" className="w-4 h-4 text-white" />
-                  </div>
-                </div>
-                <span className="text-xs text-black/40">+2 Stakeholder Types</span>
-              </div>
-            </div>
+    <section ref={ref} id="about" className="max-w-[1400px] mx-auto px-8 py-28">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.6 }}
+        className="mb-12"
+      >
+        <span className="tag-pill">About ALTIS</span>
+      </motion.div>
 
-            {/* Stats */}
-            <div className="glass-card rounded-2xl p-6">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-semibold text-black mb-1">$2.5T+</div>
-                  <div className="text-[10px] text-black/40 uppercase font-mono">Market Opportunity</div>
-                </div>
-                <div className="text-center border-x border-black/10">
-                  <div className="text-2xl font-semibold text-black mb-1">100%</div>
-                  <div className="text-[10px] text-black/40 uppercase font-mono">Encrypted</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-semibold text-black mb-1">Sub-sec</div>
-                  <div className="text-[10px] text-black/40 uppercase font-mono">Finality</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Tech Partners */}
-            <div className="glass-card rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] font-mono text-black/40 uppercase tracking-widest">Web 4.0 Stack</span>
-                <Icon icon="ph:arrow-right" className="w-4 h-4 text-black/30" />
-              </div>
-              <div className="flex items-center gap-4">
-                {[
-                  { icon: "simple-icons:coinbase", label: "Base" },
-                  { icon: "ph:shield-check-fill", label: "ZK Proofs" },
-                  { icon: "ph:currency-dollar-fill", label: "x402" },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-2 px-3 py-2 bg-black/[0.03] rounded-lg border border-black/10">
-                    <Icon icon={item.icon} className="w-4 h-4 text-black" />
-                    <span className="text-xs text-black/70">{item.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <a 
-              href="#features" 
-              className="flex items-center gap-2 text-xs font-mono text-black/40 hover:text-black transition-colors uppercase tracking-widest group pt-2"
-            >
-              Learn More
-              <Icon icon="ph:arrow-right" className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-            </a>
-          </motion.div>
-        </div>
+      <div className="grid md:grid-cols-12 gap-10 items-start mb-20">
+        <motion.div
+          className="md:col-span-7"
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, delay: 0.1 }}
+        >
+          <h2 className="display-section font-serif text-foreground">
+            The Internet Was Built for Information.{" "}
+            <span className="text-muted-foreground italic">We're Building the Protocol for Private Value.</span>
+          </h2>
+        </motion.div>
+        <motion.div
+          className="md:col-span-4 md:col-start-9 pt-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, delay: 0.3 }}
+        >
+          <p className="text-base text-muted-foreground leading-relaxed">
+            The digital economy runs on public infrastructure, yet value exchange remains fragmented, centralized, and alarmingly transparent.
+          </p>
+        </motion.div>
       </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Vision Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="rounded-3xl overflow-hidden bg-secondary/50 p-10 flex flex-col justify-between min-h-[320px] group"
+        >
+          <div>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-foreground rounded-xl flex items-center justify-center">
+                <Icon icon="ph:eye-fill" className="w-6 h-6 text-background" />
+              </div>
+              <div>
+                <h3 className="text-lg text-foreground font-medium">Our Vision</h3>
+                <div className="text-xs text-muted-foreground uppercase tracking-widest">Core Mission</div>
+              </div>
+            </div>
+            <p className="text-muted-foreground leading-relaxed">
+              A world where financial privacy is a fundamental right, not a privilege. Where individuals, institutions, and AI agents can transact freely without sacrificing confidentiality or compliance.
+            </p>
+          </div>
+          <div className="flex items-center gap-4 mt-8">
+            <div className="flex -space-x-2">
+              {["ph:user-fill", "ph:buildings-fill", "ph:robot-fill"].map((icon, i) => (
+                <div key={i} className="w-8 h-8 rounded-full bg-foreground border-2 border-background flex items-center justify-center" style={{ opacity: 1 - i * 0.2 }}>
+                  <Icon icon={icon} className="w-4 h-4 text-background" />
+                </div>
+              ))}
+            </div>
+            <span className="text-xs text-muted-foreground">+2 Stakeholder Types</span>
+          </div>
+        </motion.div>
+
+        {/* Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, delay: 0.35 }}
+          className="flex flex-col justify-center gap-0 pl-6"
+        >
+          <div className="border-b border-border pb-10 mb-10">
+            <p className="display-number font-serif text-foreground">$2.5T+</p>
+            <p className="text-base text-muted-foreground mt-3 leading-relaxed max-w-xs">
+              Market opportunity in privacy-first institutional finance infrastructure.
+            </p>
+          </div>
+          <div>
+            <p className="display-number font-serif text-foreground">100%</p>
+            <p className="text-base text-muted-foreground mt-3 leading-relaxed max-w-xs">
+              Encrypted — zero data leakage across every transaction, every time.
+            </p>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Additional context */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.6, delay: 0.5 }}
+        className="mt-16 max-w-3xl"
+      >
+        <p className="text-muted-foreground leading-relaxed mb-6">
+          Public blockchains promised a revolution in peer-to-peer finance, but their inherent transparency created a critical barrier to mainstream adoption. For institutions, enterprises, and any entity that values financial privacy, broadcasting every transaction to the world is not just a risk—it's a non-starter.
+        </p>
+        <p className="text-foreground font-medium leading-relaxed">
+          ALTIS Finance was created to solve this fundamental problem — and to power the Web 4.0 economy. By integrating cutting-edge Zero-Knowledge Proofs (ZK Proofs) with the internet-native x402 payment standard, we have created the world's first confidential payment layer for this new autonomous internet economy.
+        </p>
+      </motion.div>
     </section>
   );
 };
