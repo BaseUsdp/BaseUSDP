@@ -123,7 +123,7 @@ class ApiClient {
    * Automatically retries 503 Service Unavailable errors (service initializing)
    * with exponential backoff up to 3 times.
    */
-  private async request<T>(
+  async request<T>(
     endpoint: string,
     options: RequestInit = {},
     requireAuth: boolean = false,
