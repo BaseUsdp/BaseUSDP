@@ -634,7 +634,7 @@ const TechStackSection = () => {
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-white/5 border border-white/10">
                   <Icon icon="ph:terminal-bold" className="w-3 h-3 text-white/40" />
-                  <span className="text-xs text-white/40 font-mono">ORB402://protocol/architecture/live</span>
+                  <span className="text-xs text-white/40 font-mono">ALTIS://protocol/architecture/live</span>
                 </div>
               </div>
               <div className="flex items-center gap-4">

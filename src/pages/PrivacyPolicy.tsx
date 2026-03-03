@@ -1,19 +1,17 @@
 import { Link } from "react-router-dom";
 import Footer from "@/components/Footer";
-import void402Logo from "@/assets/void402-logo.png";
+import AltisLogo from "@/components/AltisLogo";
 
 const PrivacyPolicy = () => {
   return (
-    <div className="min-h-screen bg-[#020202] text-white">
+    <div className="min-h-screen bg-white text-black">
       {/* Header */}
-      <header className="border-b border-white/10">
+      <header className="border-b border-black/10">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center">
-              <img src={void402Logo} alt="ORB402" className="h-8 w-8 object-contain" />
-            </div>
-            <span className="text-xl font-bold text-white tracking-tight">
-              VOID<span className="text-primary">402</span>.
+            <AltisLogo size={28} className="text-black" />
+            <span className="text-xl font-bold text-black tracking-tight">
+              ALTIS FINANCE
             </span>
           </Link>
           <Link

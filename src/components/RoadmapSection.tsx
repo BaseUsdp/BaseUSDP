@@ -131,7 +131,7 @@ const RoadmapSection = () => {
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10">
                   <Icon icon="ph:crosshair-bold" className="w-3 h-3 text-white/40" />
-                  <span className="text-xs text-white/40 font-mono">ORB402://roadmap/2026</span>
+                  <span className="text-xs text-white/40 font-mono">ALTIS://roadmap/2026</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
