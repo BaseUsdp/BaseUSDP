@@ -55,7 +55,7 @@ const HeroSection = () => {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="mb-10 flex items-center gap-3"
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+            <span className="w-2 h-2 rounded-full inline-block animate-pulse" style={{ background: "hsl(142 71% 45%)" }} />
             <button
               onClick={() => {
                 navigator.clipboard.writeText(CONTRACT_ADDRESS);
