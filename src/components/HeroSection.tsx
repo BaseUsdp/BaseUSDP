@@ -2,9 +2,12 @@ import { motion, useInView } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/contexts/WalletContext";
 import WalletConnectOverlay from "./WalletConnectOverlay";
+
+const CONTRACT_ADDRESS = "XXXXXXXXXX";
 
 // Keep a single Unicorn Studio scene instance across React StrictMode re-mounts
 declare global {
@@ -125,11 +128,28 @@ const HeroSection = () => {
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.8 }}
             >
+              {/* Contract Address Badge */}
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5 }}
+                onClick={() => {
+                  navigator.clipboard.writeText(CONTRACT_ADDRESS);
+                  toast.success("Contract address copied to clipboard");
+                }}
+                className="flex items-center gap-2 px-4 py-2 mb-3 border border-violet-500/30 rounded-full bg-violet-900/30 backdrop-blur-xl cursor-pointer hover:bg-violet-900/50 hover:border-violet-500/50 transition-all group"
+              >
+                <Icon icon="ph:copy-simple" className="w-3.5 h-3.5 text-violet-400 group-hover:text-violet-300 transition-colors" />
+                <span className="text-[10px] font-mono text-violet-300 uppercase tracking-widest">
+                  CA: {CONTRACT_ADDRESS}
+                </span>
+              </motion.button>
+
               {/* Badge */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
                 className="inline-flex items-center gap-2 px-4 py-2 mb-8 border border-violet-500/20 rounded-full bg-violet-900/20 backdrop-blur-xl"
               >
                 <Icon icon="ph:lightning-fill" className="w-4 h-4 text-violet-400" />
