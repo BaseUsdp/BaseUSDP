@@ -124,7 +124,7 @@ const TechStackSection = () => {
         <div className="relative w-full h-full min-h-[250px] rounded-xl overflow-hidden border border-white/10">
           <img 
             src={dashboardPreview} 
-            alt="ORB402 Dashboard" 
+            alt="ALTIS Dashboard" 
             className="w-full h-full object-cover object-top opacity-90"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent" />
