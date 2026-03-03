@@ -16,7 +16,7 @@ import {
 } from "@/services/twitterApi";
 
 const TwitterPaymentSettings = () => {
-  const { address } = useWallet();
+  const { fullWalletAddress } = useWallet();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -47,11 +47,11 @@ const TwitterPaymentSettings = () => {
   }
 
   async function handleLinkAccount() {
-    if (!inputUsername.trim() || !address) return;
+    if (!inputUsername.trim() || !fullWalletAddress) return;
     setSaving(true);
     try {
       await updateTweetPaymentSettings({
-        wallet: address,
+        wallet: fullWalletAddress,
         x_username: inputUsername.replace(/^@/, ""),
       });
       toast({ title: "X account linked", description: `@${inputUsername.replace(/^@/, "")} linked successfully.` });
@@ -65,11 +65,11 @@ const TwitterPaymentSettings = () => {
   }
 
   async function handleSave() {
-    if (!address) return;
+    if (!fullWalletAddress) return;
     setSaving(true);
     try {
       await updateTweetPaymentSettings({
-        wallet: address,
+        wallet: fullWalletAddress,
         enabled,
         daily_limit: dailyLimit,
       });
