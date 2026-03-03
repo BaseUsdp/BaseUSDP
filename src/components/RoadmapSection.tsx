@@ -36,7 +36,7 @@ const RoadmapSection = () => {
       progress: 0,
       color: "from-blue-500 to-cyan-600",
       glowColor: "blue",
-      description: "Launch of the ORB402 Neobank with P2P payments, confidential savings, and virtual card management.",
+      description: "Launch of the ALTIS Neobank with P2P payments, confidential savings, and virtual card management.",
       milestones: [
         { name: "Neobank App Launch", done: false },
         { name: "Partner Integrations", done: false },
