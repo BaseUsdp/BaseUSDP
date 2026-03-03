@@ -84,18 +84,18 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => !["swap", "messages", "terminal"].includes(item.id) && setActiveTab(item.id)}
-              disabled={["swap", "messages", "terminal"].includes(item.id)}
+              onClick={() => !["messages", "terminal"].includes(item.id) && setActiveTab(item.id)}
+              disabled={["messages", "terminal"].includes(item.id)}
               className={cn(
                 "w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors",
-                (["swap", "messages", "terminal"].includes(item.id))
+                (["messages", "terminal"].includes(item.id))
                   ? "cursor-not-allowed opacity-50"
                   : activeTab === item.id
                   ? "bg-sky-500/20 text-sky-400"
                   : ""
               )}
               style={
-                (["swap", "messages", "terminal"].includes(item.id))
+                (["messages", "terminal"].includes(item.id))
                   ? { color: 'var(--dash-text-faint)' }
                   : activeTab === item.id
                   ? undefined
@@ -104,7 +104,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
             >
               <item.icon className="w-4 h-4" />
               {item.label}
-              {(["swap", "messages", "terminal"].includes(item.id)) && (
+              {(["messages", "terminal"].includes(item.id)) && (
                 <span
                   className="ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded-full"
                   style={{ background: 'var(--dash-surface)', color: 'var(--dash-text-faint)' }}
