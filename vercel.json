@@ -12,7 +12,8 @@
     "api/farcaster/bot-cron.ts": { "maxDuration": 60 },
     "api/ai/chat.ts": { "maxDuration": 30 },
     "api/agents/agentkit-transfer.ts": { "maxDuration": 120 },
-    "api/agents/agentkit-wallet.ts": { "maxDuration": 30 }
+    "api/agents/agentkit-wallet.ts": { "maxDuration": 30 },
+    "api/twitter/tweet-payment-cron.ts": { "maxDuration": 120 }
   },
   "rewrites": [
     { "source": "/.well-known/farcaster.json", "destination": "/farcaster.json" },
@@ -30,6 +31,10 @@
     {
       "path": "/api/farcaster/bot-cron",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/twitter/tweet-payment-cron",
+      "schedule": "* * * * *"
     }
   ]
 }

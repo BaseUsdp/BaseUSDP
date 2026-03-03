@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import TwitterPaymentSettings from "./TwitterPaymentSettings";
 
 const SETTINGS_STORAGE_KEY = "void402_settings";
 
@@ -206,6 +207,9 @@ const SettingsSection = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* X/Twitter Payment Settings */}
+      <TwitterPaymentSettings />
 
       {/* Save Button */}
       <Button
