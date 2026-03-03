@@ -164,12 +164,8 @@ const FAQSection = () => {
         >
           <p className="text-white/40 text-sm">
             Still have questions?{" "}
-            <a href="https://t.me/orb402" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-              Join our Telegram
-            </a>{" "}
-            or{" "}
             <a href="https://orb402.gitbook.io/orb402" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-              read our docs
+              Read our docs
             </a>
           </p>
         </motion.div>

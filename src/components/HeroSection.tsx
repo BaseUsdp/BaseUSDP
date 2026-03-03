@@ -140,7 +140,7 @@ const HeroSection = () => {
                 className="flex items-center gap-2 px-4 py-2 mb-3 border border-violet-500/30 rounded-full bg-violet-900/30 backdrop-blur-xl cursor-pointer hover:bg-violet-900/50 hover:border-violet-500/50 transition-all group"
               >
                 <Icon icon="ph:copy-simple" className="w-3.5 h-3.5 text-violet-400 group-hover:text-violet-300 transition-colors" />
-                <span className="text-[10px] font-mono text-violet-300 uppercase tracking-widest">
+                <span className="text-[10px] font-mono text-white uppercase tracking-widest">
                   CA: {CONTRACT_ADDRESS}
                 </span>
               </motion.button>
