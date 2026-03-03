@@ -1021,7 +1021,7 @@ const DepositModal = ({ open, onOpenChange, initialAmount, initialToken }: Depos
 
               {/* Info - changes based on privacy level */}
               <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
-                {privacyLevel === "full" ? (
+                {(privacyLevel === "full" && token !== "USDT") ? (
                   <>
                     <p className="text-sm text-muted-foreground">
                       Your deposit will be processed through full privacy layers:
@@ -1036,7 +1036,7 @@ const DepositModal = ({ open, onOpenChange, initialAmount, initialToken }: Depos
                       Minimum deposit: $3.00. Processing may take 5-15 minutes.
                     </p>
                   </>
-                ) : privacyLevel === "partial" ? (
+                ) : (privacyLevel === "partial" || (token === "USDT" && privacyLevel === "full")) ? (
                   <>
                     <p className="text-sm text-muted-foreground">
                       Your deposit will be processed with partial privacy:
