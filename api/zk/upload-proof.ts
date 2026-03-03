@@ -21,7 +21,7 @@ import {
   VOID402_PROGRAM_ID,
 } from '../lib/void402-solana.js';
 import { isBaseChain } from '../lib/chain-config.js';
-import { isValidBaseAddress, getPrivacyPoolContract, getUsdcAddress, parseUsdc } from '../lib/void402-base.js';
+import { isValidBaseAddress, getPrivacyPoolContract, getUsdcAddress, getTokenAddress, parseUsdc } from '../lib/void402-base.js';
 import { generatePrivacyNonce, getProofId, generateMockProof } from '../lib/privacy-utils-base.js';
 import { getPrivacyUsdWalletPool } from '../lib/intermediate-wallet-pool.js';
 import { extractBearerToken, verifyBearerToken } from '../lib/bearer-auth.js';
@@ -185,7 +185,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // ========== BASE CHAIN: Upload proof to smart contract ==========
     if (isBaseChain()) {
-      const usdcAddress = getUsdcAddress();
+      const tokenAddress = getTokenAddress(token);
       const amountInUnits = parseUsdc(amount.toString());
       const nonceBigInt = BigInt(nonceNumber);
 
@@ -208,7 +208,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const allWallets = basePool.getAllWallets();
       for (const candidate of allWallets) {
         try {
-          const [available] = await readonlyPool.getUserBalance(candidate.address, usdcAddress);
+          const [available] = await readonlyPool.getUserBalance(candidate.address, tokenAddress);
           console.log(`[Base UploadProof] Intermediate ${candidate.address.slice(0,10)}... pool balance: ${available.toString()}`);
           if (available >= amountInUnits) {
             intWalletData = candidate;
@@ -265,7 +265,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const tx = await poolContract.uploadProof(
         nonceBigInt,
         amountInUnits,
-        usdcAddress,
+        tokenAddress,
         proofBytes,
         commitmentBytes,
         blindingFactorBytes

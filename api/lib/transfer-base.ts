@@ -10,7 +10,7 @@ import { ethers as ethersLib } from "ethers";
 import {
   isValidBaseAddress,
   getPrivacyPoolContract,
-  getUsdcAddress,
+  getTokenAddress,
   parseUsdc,
   getBaseProvider,
 } from "./void402-base.js";
@@ -68,7 +68,7 @@ export async function executeBaseTransfer(
   }
 
   try {
-    const usdcAddress = getUsdcAddress();
+    const tokenAddress = getTokenAddress(token || 'USDC');
     const provider = getBaseProvider();
     const amountInUnits = parseUsdc(amount.toString());
 
@@ -83,7 +83,7 @@ export async function executeBaseTransfer(
       try {
         const [available] = await readonlyPool.getUserBalance(
           candidate.address,
-          usdcAddress
+          tokenAddress
         );
         console.log(
           `[BaseTransfer] Intermediate ${candidate.address.slice(0, 10)}... pool balance: ${available.toString()}`
@@ -165,7 +165,7 @@ export async function executeBaseTransfer(
     const uploadTx = await privacyPoolContract.uploadProof(
       privacyNonce,
       amountInUnits,
-      usdcAddress,
+      tokenAddress,
       proofBytes,
       commitmentBytes,
       blindingFactorBytes

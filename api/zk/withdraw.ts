@@ -36,7 +36,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getUSDPHolderTier, calculateFeePercentage } from '../lib/tier-service.js';
 import bs58 from 'bs58';
 import { isBaseChain } from '../lib/chain-config.js';
-import { isValidBaseAddress, getPrivacyPoolContract, getUsdcAddress, parseUsdc } from '../lib/void402-base.js';
+import { isValidBaseAddress, getPrivacyPoolContract, getUsdcAddress, getTokenAddress, parseUsdc } from '../lib/void402-base.js';
 import { generatePrivacyNonce, getProofId, generateMockProof } from '../lib/privacy-utils-base.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -196,7 +196,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid recipient Base address' });
       }
 
-      const usdcAddress = getUsdcAddress();
+      const tokenAddress = getTokenAddress(token);
 
       // Check ALL intermediate wallets in the pool for sufficient on-chain balance
       const { getBaseIntermediateWalletPool } = await import('../lib/intermediate-wallet-pool-base.js');
@@ -213,7 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const allWallets = basePool.getAllWallets();
       for (const candidate of allWallets) {
         try {
-          const [available] = await readonlyPool.getUserBalance(candidate.address, usdcAddress);
+          const [available] = await readonlyPool.getUserBalance(candidate.address, tokenAddress);
           console.log(`[Base Withdraw] Intermediate ${candidate.address.slice(0,10)}... pool balance: ${available.toString()}`);
           if (available >= amountInUnits) {
             intWalletData = candidate;
@@ -287,7 +287,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const uploadTx = await privacyPoolContract.uploadProof(
         privacyNonce,
         amountInUnits,
-        usdcAddress,
+        tokenAddress,
         proofBytes,
         commitmentBytes,
         blindingFactorBytes,
