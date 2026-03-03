@@ -624,6 +624,7 @@ export interface ZKTransferResponse {
   proof_pda?: string;
   nonce?: number;
   error?: string;
+  step?: string;
 }
 
 /**

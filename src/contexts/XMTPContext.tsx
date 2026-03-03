@@ -172,7 +172,7 @@ export const XMTPProvider = ({ children }: { children: ReactNode }) => {
           consentOverridesRef.current.get(conv.id) || "unknown";
         if (!consentOverridesRef.current.has(conv.id)) {
           try {
-            const state = conv.consentState();
+            const state = await conv.consentState();
             if (state === ConsentState.Allowed) consentState = "allowed";
             else if (state === ConsentState.Denied) consentState = "denied";
           } catch {

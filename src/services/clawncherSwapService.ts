@@ -230,7 +230,7 @@ export class ClawnchSwapper {
     this.publicClient = createPublicClient({
       chain: base,
       transport: http(),
-    });
+    }) as any;
   }
 
   async getTakerAddress(): Promise<Address> {
