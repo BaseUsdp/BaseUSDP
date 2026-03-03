@@ -68,7 +68,7 @@ export function useMiniAppContext(): MiniAppContextData {
           locationType = "notification";
         } else if (location?.type === "launcher") {
           locationType = "launcher";
-        } else if (location?.type === "direct_cast") {
+        } else if ((location?.type as string) === "direct_cast") {
           locationType = "direct_cast";
         }
 

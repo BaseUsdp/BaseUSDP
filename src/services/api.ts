@@ -123,7 +123,7 @@ class ApiClient {
    * Automatically retries 503 Service Unavailable errors (service initializing)
    * with exponential backoff up to 3 times.
    */
-  private async request<T>(
+  async request<T>(
     endpoint: string,
     options: RequestInit = {},
     requireAuth: boolean = false,
@@ -408,7 +408,7 @@ export interface TransactionHistoryResponse {
     signature: string;
     timestamp: number;
     type: "transfer" | "payment" | "deposit" | "withdraw" | "unknown";
-    status: "success" | "failed";
+    status: "success" | "failed" | "pending";
     from?: string;
     to?: string;
     amount?: number;
@@ -624,6 +624,7 @@ export interface ZKTransferResponse {
   proof_pda?: string;
   nonce?: number;
   error?: string;
+  step?: string;
 }
 
 /**

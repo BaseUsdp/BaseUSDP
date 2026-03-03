@@ -393,6 +393,5 @@ export async function signEVMMessage(message: string): Promise<string> {
   return signature;
 }
 
-// Export types for use in components
-export type { WalletAdapter };
+// Types are already exported at declaration above
 

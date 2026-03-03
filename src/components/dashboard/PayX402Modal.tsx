@@ -57,7 +57,7 @@ const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
           amount: "0.00", // Amount would come from the payment metadata
           payee: "Recipient",
           description: "x402 Payment",
-          status: result.payment.status,
+          status: result.payment.status === "settled" ? "paid" : result.payment.status === "failed" ? "expired" : result.payment.status as "expired" | "paid" | "pending",
         });
         setStep("review");
       } else {

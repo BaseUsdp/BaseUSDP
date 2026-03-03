@@ -230,7 +230,7 @@ export class ClawnchSwapper {
     this.publicClient = createPublicClient({
       chain: base,
       transport: http(),
-    });
+    }) as any;
   }
 
   async getTakerAddress(): Promise<Address> {
@@ -269,7 +269,7 @@ export class ClawnchSwapper {
     if (isNativeToken(token)) {
       return this.publicClient.getBalance({ address: owner });
     }
-    return this.publicClient.readContract({
+    return (this.publicClient as any).readContract({
       address: token,
       abi: erc20Abi,
       functionName: "balanceOf",
@@ -314,7 +314,7 @@ export class ClawnchSwapper {
 
     // 1. For ERC-20 sells, ensure Permit2 has ERC20 approval
     if (!isNativeToken(params.sellToken)) {
-      const erc20Allowance = await this.publicClient.readContract({
+      const erc20Allowance = await (this.publicClient as any).readContract({
         address: params.sellToken,
         abi: erc20Abi,
         functionName: "allowance",
