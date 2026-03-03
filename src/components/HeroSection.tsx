@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useWallet } from "@/contexts/WalletContext";
 import WalletConnectOverlay from "./WalletConnectOverlay";
 
-const CONTRACT_ADDRESS = "XXXXXXXXXX";
+const CONTRACT_ADDRESS = "0xb05460ae4555ed1797292138a27221eda7727b07";
 
 // Keep a single Unicorn Studio scene instance across React StrictMode re-mounts
 declare global {
