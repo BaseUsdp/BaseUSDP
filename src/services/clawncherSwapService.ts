@@ -314,7 +314,7 @@ export class ClawnchSwapper {
 
     // 1. For ERC-20 sells, ensure Permit2 has ERC20 approval
     if (!isNativeToken(params.sellToken)) {
-      const erc20Allowance = await this.publicClient.readContract({
+      const erc20Allowance = await (this.publicClient as any).readContract({
         address: params.sellToken,
         abi: erc20Abi,
         functionName: "allowance",
