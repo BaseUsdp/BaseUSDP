@@ -13,6 +13,7 @@ const UseCasesSection = () => {
       title: "Agent-to-Agent Commerce",
       description: "AI agents autonomously negotiate, pay, and settle transactions with built-in privacy — no human intervention required.",
       features: ["Autonomous Payments", "Agent Identity Verification", "Private Negotiations", "Machine-Speed Settlement"],
+      accent: "from-neutral-900 to-neutral-700",
     },
     {
       icon: "ph:buildings-fill",
@@ -20,6 +21,7 @@ const UseCasesSection = () => {
       title: "Machine-to-Machine Finance",
       description: "Infrastructure for autonomous systems to transact at scale — encrypted APIs, private supply chains, and confidential M2M payments.",
       features: ["Encrypted API Monetization", "Private Supply Chain Payments", "Confidential Treasury Ops", "Compliance-Ready Automation"],
+      accent: "from-neutral-800 to-neutral-600",
     },
     {
       icon: "ph:user-fill",
@@ -27,63 +29,75 @@ const UseCasesSection = () => {
       title: "Privacy-First for Humans",
       description: "Humans in the Web 4.0 economy deserve the same privacy as machines. Transact, earn, and manage assets without surveillance.",
       features: ["Anonymous Payments", "Hidden Balances", "Zero Data Leaks", "Agent-Compatible Wallets"],
+      accent: "from-neutral-700 to-neutral-500",
     },
   ];
 
   return (
-    <section ref={ref} id="use-cases" className="border-b border-black/5 bg-white py-32 relative overflow-hidden">
-      <div className="max-w-[1400px] mx-auto px-6 relative z-10">
+    <section ref={ref} id="use-cases" className="max-w-[1400px] mx-auto px-8 py-28 border-t border-border">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.6 }}
+        className="mb-12"
+      >
+        <span className="tag-pill">Use Cases</span>
+      </motion.div>
+
+      <div className="grid md:grid-cols-12 gap-10 mb-16">
         <motion.div
+          className="md:col-span-6"
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, delay: 0.1 }}
+        >
+          <h2 className="display-section font-serif text-foreground">
+            Built for the{" "}
+            <em className="text-muted-foreground">Web 4.0</em> Economy
+          </h2>
+        </motion.div>
+        <motion.div
+          className="md:col-span-4 md:col-start-9 flex items-end"
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          transition={{ duration: 0.8, delay: 0.3 }}
         >
-          <div className="text-[10px] font-mono text-black/40 uppercase mb-4 tracking-widest">
-            Use Cases
-          </div>
-          <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-black mb-6 leading-[1.05]">
-            Built for the <span className="font-bold">Web 4.0</span> Economy
-          </h2>
-          <p className="text-black/40 text-lg max-w-2xl mx-auto">
+          <p className="text-base text-muted-foreground leading-relaxed">
             From autonomous agents to human participants, confidential payments for every actor in the Web 4.0 economy.
           </p>
         </motion.div>
+      </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {useCases.map((useCase, index) => (
-            <motion.div
-              key={useCase.title}
-              initial={{ opacity: 0, y: 40 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
-              className="group relative border border-black/10 rounded-2xl overflow-hidden bg-white transition-all hover:border-black/30 hover:shadow-md"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-black" />
-              
-              <div className="p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-black">
-                    <Icon icon={useCase.icon} className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-mono uppercase text-black/40">{useCase.tag}</div>
-                    <h3 className="text-black font-medium">{useCase.title}</h3>
-                  </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {useCases.map((uc, i) => (
+          <motion.div
+            key={uc.title}
+            initial={{ opacity: 0, y: 40 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.2 + i * 0.15 }}
+            className="group rounded-3xl overflow-hidden bg-foreground text-background p-8 flex flex-col justify-between min-h-[400px] hover-lift"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-8">
+                <div className="w-12 h-12 rounded-2xl bg-background/10 flex items-center justify-center">
+                  <Icon icon={uc.icon} className="w-6 h-6 text-background" />
                 </div>
-                <p className="text-sm text-black/40 mb-6">{useCase.description}</p>
-                <div className="space-y-3">
-                  {useCase.features.map((feature, i) => (
-                    <div key={i} className="flex items-center gap-2 text-sm text-black/60">
-                      <Icon icon="ph:check-circle-fill" className="w-4 h-4 text-black" />
-                      {feature}
-                    </div>
-                  ))}
-                </div>
+                <span className="text-[10px] uppercase tracking-widest text-background/40">{uc.tag}</span>
               </div>
-            </motion.div>
-          ))}
-        </div>
+              <h3 className="text-xl font-semibold text-background mb-4">{uc.title}</h3>
+              <p className="text-sm text-background/50 leading-relaxed">{uc.description}</p>
+            </div>
+
+            <div className="mt-8 space-y-2">
+              {uc.features.map((feature, fi) => (
+                <div key={fi} className="flex items-center gap-2 text-sm text-background/60">
+                  <Icon icon="ph:check-circle-fill" className="w-4 h-4 text-background/40" />
+                  {feature}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        ))}
       </div>
     </section>
   );
