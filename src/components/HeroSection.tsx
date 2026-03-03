@@ -22,7 +22,7 @@ const wordRevealVariants = {
     transition: {
       duration: 0.8,
       delay: 0.3 + i * 0.12,
-      ease: [0.16, 1, 0.3, 1],
+      ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
     },
   }),
 };
