@@ -70,7 +70,7 @@ const RoadmapSection = () => {
       progress: 0,
       color: "from-orange-500 to-amber-600",
       glowColor: "orange",
-      description: "Deep AI integrations establishing ORB402 as the default privacy layer for Web 4.0 — the autonomous, agent-driven internet economy.",
+      description: "Deep AI integrations establishing ALTIS as the default privacy layer for Web 4.0 — the autonomous, agent-driven internet economy.",
       milestones: [
         { name: "AI Agent SDK", done: false },
         { name: "Institutional Vaults", done: false },
