@@ -85,6 +85,15 @@ export async function updateTweetPaymentSettings(params: {
   });
 }
 
+export async function unlinkTweetPaymentAccount(params: {
+  wallet: string;
+}): Promise<{ success: boolean }> {
+  return request("/api/twitter/tweet-payment-settings", {
+    method: "DELETE",
+    body: JSON.stringify(params),
+  });
+}
+
 export async function getTweetMentions(
   limit: number = 20
 ): Promise<TweetMentionsResponse> {

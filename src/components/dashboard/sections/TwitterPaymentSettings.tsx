@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   getTweetPaymentSettings,
   updateTweetPaymentSettings,
+  unlinkTweetPaymentAccount,
 } from "@/services/twitterApi";
 
 const TwitterPaymentSettings = () => {
@@ -57,6 +58,22 @@ const TwitterPaymentSettings = () => {
       toast({ title: "X account linked", description: `@${inputUsername.replace(/^@/, "")} linked successfully.` });
       await loadSettings();
       setInputUsername("");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleUnlink() {
+    if (!fullWalletAddress) return;
+    setSaving(true);
+    try {
+      await unlinkTweetPaymentAccount({ wallet: fullWalletAddress });
+      toast({ title: "Account disconnected", description: "X account unlinked." });
+      setLinked(false);
+      setXUsername("");
+      setEnabled(false);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -156,7 +173,13 @@ const TwitterPaymentSettings = () => {
               <Icon icon="ri:twitter-x-fill" className="w-4 h-4 text-muted-foreground" />
               <span className="font-medium">@{xUsername}</span>
             </div>
-            <span className="text-xs text-green-500 font-medium">Linked</span>
+            <button
+              onClick={handleUnlink}
+              disabled={saving}
+              className="text-xs text-red-400 hover:text-red-300 font-medium transition-colors"
+            >
+              Disconnect
+            </button>
           </div>
 
           {/* Enable/disable toggle */}

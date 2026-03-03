@@ -36,7 +36,7 @@ function getAllowedOrigin(origin: string | undefined): string {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const origin = getAllowedOrigin(req.headers.origin as string | undefined);
   res.setHeader("Access-Control-Allow-Origin", origin);
-  res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "POST, GET, DELETE, OPTIONS");
   res.setHeader(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization"
@@ -82,6 +82,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       enabled: user?.tweet_payments_enabled || false,
       daily_limit: parseFloat(user?.tweet_payment_daily_limit || "100"),
     });
+  }
+
+  // DELETE — unlink X account
+  if (req.method === "DELETE") {
+    const { wallet } = req.body;
+    if (!wallet) {
+      return res.status(400).json({ error: "wallet is required" });
+    }
+
+    const tokenVerification = await verifyBearerToken(bearerToken, wallet);
+    if (!tokenVerification.valid) {
+      return res.status(403).json({ error: "Invalid authentication" });
+    }
+
+    const { error: deleteError } = await supabase
+      .from("x_users")
+      .delete()
+      .eq("wallet_address", wallet.toLowerCase());
+
+    if (deleteError) {
+      console.error("[TweetPaymentSettings] Delete error:", deleteError.message);
+      return res.status(500).json({ error: "Failed to unlink account" });
+    }
+
+    console.log(`[TweetPaymentSettings] Unlinked X account for ${wallet.slice(0, 8)}...`);
+    return res.status(200).json({ success: true });
   }
 
   if (req.method !== "POST") {
