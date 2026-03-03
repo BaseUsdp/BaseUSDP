@@ -9,7 +9,6 @@ import WalletConnectOverlay from "./WalletConnectOverlay";
 
 const CONTRACT_ADDRESS = "0xb05460ae4555ed1797292138a27221eda7727b07";
 
-// Keep a single Unicorn Studio scene instance across React StrictMode re-mounts
 declare global {
   interface Window {
     __unicornScene?: any;
@@ -18,75 +17,10 @@ declare global {
 
 const HeroSection = () => {
   const ref = useRef(null);
-  const unicornRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const [showWalletOverlay, setShowWalletOverlay] = useState(false);
   const { isConnected } = useWallet();
   const navigate = useNavigate();
-
-  // Initialize Unicorn Studio inside hero only
-  useEffect(() => {
-    let cancelled = false;
-
-    const initScene = async () => {
-      const UnicornStudio = (window as any).UnicornStudio;
-      if (!UnicornStudio || !unicornRef.current) return false;
-
-      try {
-        if (window.__unicornScene) {
-          try {
-            window.__unicornScene.destroy();
-          } catch {
-            // ignore
-          }
-          window.__unicornScene = undefined;
-        }
-
-        const scene = await UnicornStudio.addScene({
-          elementId: "unicorn-hero-bg",
-          projectId: "ILgOO23w4wEyPQOKyLO4",
-          scale: 1,
-          dpi: 1.5,
-          fps: 60,
-          lazyLoad: false,
-          production: true,
-        });
-
-        if (!cancelled) {
-          window.__unicornScene = scene;
-        } else {
-          try {
-            scene.destroy();
-          } catch {
-            // ignore
-          }
-        }
-        return true;
-      } catch (err) {
-        console.error("Unicorn Studio error:", err);
-        return false;
-      }
-    };
-
-    const tryInit = async () => {
-      const success = await initScene();
-      if (!success && !cancelled) {
-        const delays = [200, 500, 1000, 2000];
-        for (const delay of delays) {
-          await new Promise((r) => setTimeout(r, delay));
-          if (cancelled) break;
-          const result = await initScene();
-          if (result) break;
-        }
-      }
-    };
-
-    tryInit();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const handleLaunchApp = () => {
     navigate("/dashboard");
@@ -96,33 +30,14 @@ const HeroSection = () => {
     <>
       <section 
         ref={ref}
-        className="relative min-h-screen flex items-center justify-center overflow-hidden bg-transparent pt-32"
+        className="relative min-h-screen flex items-center justify-center overflow-hidden bg-white pt-32"
       >
-        {/* Unicorn Studio Background - Hero Only */}
-        <div
-          ref={unicornRef}
-          id="unicorn-hero-bg"
-          className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden"
-          style={{
-            zIndex: 0,
-            opacity: 0.9,
-            filter: "contrast(1.1) brightness(1.2) hue-rotate(-30deg)",
-          }}
-        />
-
-        {/* Technical Grid Background */}
-        <div className="absolute inset-0 pointer-events-none z-[1] technical-grid opacity-30" />
-
-        {/* Vertical Structure Lines */}
-        <div className="absolute inset-0 pointer-events-none z-[1] max-w-[1400px] mx-auto border-x border-violet-500/[0.04]">
-          <div className="absolute left-1/4 h-full w-px bg-violet-500/[0.03]" />
-          <div className="absolute left-2/4 h-full w-px bg-violet-500/[0.03]" />
-          <div className="absolute left-3/4 h-full w-px bg-violet-500/[0.03]" />
-        </div>
+        {/* Subtle Grid Background */}
+        <div className="absolute inset-0 pointer-events-none z-[1] technical-grid opacity-40" />
 
         <div className="max-w-[1400px] relative mx-auto px-6 py-16 z-[2]">
           <div className="grid lg:grid-cols-2 gap-20 items-center">
-            {/* Left Column - Text Content */}
+            {/* Left Column */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -137,10 +52,10 @@ const HeroSection = () => {
                   navigator.clipboard.writeText(CONTRACT_ADDRESS);
                   toast.success("Contract address copied to clipboard");
                 }}
-                className="flex items-center gap-2 px-4 py-2 mb-3 border border-violet-500/30 rounded-full bg-violet-900/30 backdrop-blur-xl cursor-pointer hover:bg-violet-900/50 hover:border-violet-500/50 transition-all group"
+                className="flex items-center gap-2 px-4 py-2 mb-3 border border-black/20 rounded-full bg-white cursor-pointer hover:bg-black/5 transition-all group"
               >
-                <Icon icon="ph:copy-simple" className="w-3.5 h-3.5 text-violet-400 group-hover:text-violet-300 transition-colors" />
-                <span className="text-[10px] font-mono text-white uppercase tracking-widest">
+                <Icon icon="ph:copy-simple" className="w-3.5 h-3.5 text-black/50 group-hover:text-black transition-colors" />
+                <span className="text-[10px] font-mono text-black uppercase tracking-widest">
                   CA: {CONTRACT_ADDRESS}
                 </span>
               </motion.button>
@@ -150,22 +65,22 @@ const HeroSection = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6, delay: 0.1 }}
-                className="inline-flex items-center gap-2 px-4 py-2 mb-8 border border-violet-500/20 rounded-full bg-violet-900/20 backdrop-blur-xl"
+                className="inline-flex items-center gap-2 px-4 py-2 mb-8 border border-black/15 rounded-full bg-black/5"
               >
-                <Icon icon="ph:lightning-fill" className="w-4 h-4 text-violet-400" />
-                <span className="text-[10px] font-mono text-violet-300 uppercase tracking-widest">
+                <Icon icon="ph:lightning-fill" className="w-4 h-4 text-black" />
+                <span className="text-[10px] font-mono text-black/70 uppercase tracking-widest">
                   Web 4.0 Infrastructure · x402 Protocol
                 </span>
               </motion.div>
 
               {/* Main Headline */}
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-medium tracking-tight text-white mb-6 leading-[1.05]">
-                The <span className="gradient-text-violet">Confidential</span> Payment Layer
-                <span className="block text-neutral-600">for the Web 4.0 Economy</span>
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-medium tracking-tight text-black mb-6 leading-[1.05]">
+                The <span className="font-bold">Confidential</span> Payment Layer
+                <span className="block text-black/30">for the Web 4.0 Economy</span>
               </h1>
 
               {/* Sub-headline */}
-              <p className="text-neutral-400 text-lg leading-relaxed max-w-xl mb-10">
+              <p className="text-black/50 text-lg leading-relaxed max-w-xl mb-10">
                 Built for Web 4.0 — where autonomous agents, institutions, and developers transact
                 on-chain with complete privacy. ZK Proof-powered infrastructure for the next era of
                 secure, autonomous commerce.
@@ -185,7 +100,7 @@ const HeroSection = () => {
                 
                 <a 
                   href="#about" 
-                  className="group text-xs font-mono text-neutral-500 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-2"
+                  className="group text-xs font-mono text-black/40 hover:text-black uppercase tracking-widest transition-colors flex items-center gap-2"
                 >
                   Learn More
                   <Icon icon="ph:arrow-right" className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -200,61 +115,58 @@ const HeroSection = () => {
               transition={{ duration: 1, delay: 0.2 }}
               className="relative"
             >
-              {/* Glow Behind Card */}
-              <div className="absolute -inset-4 bg-gradient-to-r from-violet-600/20 via-purple-600/20 to-indigo-600/20 rounded-3xl blur-2xl" />
-              
               {/* Card */}
-              <div className="relative glass-card rounded-2xl p-6 border-violet-500/20">
+              <div className="relative glass-card rounded-2xl p-6 border-black/10">
                 {/* Card Header */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-2">
-                    <div className="text-[10px] font-mono text-neutral-500">ORB402://protocol/status</div>
+                    <div className="text-[10px] font-mono text-black/40">ALTIS://protocol/status</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-1 bg-violet-500/20 border border-violet-500/30 rounded text-[9px] font-mono text-violet-300">Encrypted</span>
-                    <span className="text-[10px] font-mono text-neutral-500">Latency: 14ms</span>
+                    <span className="px-2 py-1 bg-black/5 border border-black/10 rounded text-[9px] font-mono text-black/60">Encrypted</span>
+                    <span className="text-[10px] font-mono text-black/40">Latency: 14ms</span>
                   </div>
                 </div>
                 
                 {/* Protocol Status */}
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-black/40 rounded-xl border border-white/5">
+                  <div className="flex items-center justify-between p-4 bg-black/[0.02] rounded-xl border border-black/5">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-violet-500/20 rounded-lg flex items-center justify-center">
-                        <Icon icon="ph:shield-check-fill" className="w-5 h-5 text-violet-400" />
+                      <div className="w-10 h-10 bg-black/5 rounded-lg flex items-center justify-center">
+                        <Icon icon="ph:shield-check-fill" className="w-5 h-5 text-black" />
                       </div>
                       <div>
-                        <div className="text-sm text-white font-medium">Confidential Transactions</div>
-                        <div className="text-[10px] text-neutral-500 font-mono">ZK Proof-Powered Encryption</div>
+                        <div className="text-sm text-black font-medium">Confidential Transactions</div>
+                        <div className="text-[10px] text-black/40 font-mono">ZK Proof-Powered Encryption</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs text-violet-400 font-mono">256-bit</div>
-                      <div className="text-[10px] text-neutral-600">AES</div>
+                      <div className="text-xs text-black font-mono">256-bit</div>
+                      <div className="text-[10px] text-black/30">AES</div>
                     </div>
                   </div>
                   
                   {/* Stats Grid */}
                   <div className="grid grid-cols-3 gap-3">
-                    <div className="p-3 bg-black/40 rounded-lg border border-white/5 text-center">
-                      <div className="text-lg text-white font-mono font-semibold">99.9%</div>
-                      <div className="text-[9px] text-neutral-500 uppercase">Uptime</div>
+                    <div className="p-3 bg-black/[0.02] rounded-lg border border-black/5 text-center">
+                      <div className="text-lg text-black font-mono font-semibold">99.9%</div>
+                      <div className="text-[9px] text-black/40 uppercase">Uptime</div>
                     </div>
-                    <div className="p-3 bg-black/40 rounded-lg border border-white/5 text-center">
-                      <div className="text-lg text-white font-mono font-semibold">&lt;2s</div>
-                      <div className="text-[9px] text-neutral-500 uppercase">Latency</div>
+                    <div className="p-3 bg-black/[0.02] rounded-lg border border-black/5 text-center">
+                      <div className="text-lg text-black font-mono font-semibold">&lt;2s</div>
+                      <div className="text-[9px] text-black/40 uppercase">Latency</div>
                     </div>
-                    <div className="p-3 bg-black/40 rounded-lg border border-violet-500/20 text-center">
-                      <div className="text-lg text-violet-400 font-mono font-semibold">x402</div>
-                      <div className="text-[9px] text-neutral-500 uppercase">Enabled</div>
+                    <div className="p-3 bg-black/[0.02] rounded-lg border border-black/10 text-center">
+                      <div className="text-lg text-black font-mono font-semibold">x402</div>
+                      <div className="text-[9px] text-black/40 uppercase">Enabled</div>
                     </div>
                   </div>
 
                   {/* Protocol Features */}
-                  <div className="p-4 bg-gradient-to-r from-violet-900/30 to-purple-900/30 rounded-xl border border-violet-500/20">
+                  <div className="p-4 bg-black/[0.02] rounded-xl border border-black/10">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs text-neutral-400">Protocol Features</span>
-                      <span className="text-[9px] text-violet-400 font-mono">ACTIVE</span>
+                      <span className="text-xs text-black/50">Protocol Features</span>
+                      <span className="text-[9px] text-black font-mono">ACTIVE</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       {[
@@ -263,8 +175,8 @@ const HeroSection = () => {
                         "Smart Payment Routing",
                         "Agent Compatible"
                       ].map((feature, i) => (
-                        <div key={i} className="flex items-center gap-2 text-[11px] text-neutral-300">
-                          <Icon icon="ph:check-circle-fill" className="w-3 h-3 text-violet-500" />
+                        <div key={i} className="flex items-center gap-2 text-[11px] text-black/70">
+                          <Icon icon="ph:check-circle-fill" className="w-3 h-3 text-black" />
                           {feature}
                         </div>
                       ))}
@@ -277,10 +189,9 @@ const HeroSection = () => {
         </div>
 
         {/* Bottom Gradient Fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black to-transparent pointer-events-none z-[3]" />
+        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-white to-transparent pointer-events-none z-[3]" />
       </section>
 
-      {/* Wallet Connect Overlay */}
       <WalletConnectOverlay 
         isOpen={showWalletOverlay} 
         onClose={() => setShowWalletOverlay(false)} 
