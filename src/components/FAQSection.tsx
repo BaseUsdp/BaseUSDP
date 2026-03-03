@@ -1,5 +1,5 @@
 import { motion, useInView } from "framer-motion";
-import { useRef, useState, MouseEvent } from "react";
+import { useRef, useState } from "react";
 import { Icon } from "@iconify/react";
 
 const FAQSection = () => {
@@ -41,92 +41,76 @@ const FAQSection = () => {
   ];
 
   return (
-    <section ref={ref} id="faq" className="relative py-32 overflow-hidden bg-white">
-      <div className="absolute top-0 left-0 right-0 h-px bg-black/5" />
-
-      <div className="container relative mx-auto px-6">
+    <section ref={ref} id="faq" className="bg-secondary/30 border-t border-border">
+      <div className="max-w-[1400px] mx-auto px-8 py-28">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="mb-16 max-w-3xl"
+          className="mb-12"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-black/10 bg-black/[0.02] mb-8">
-            <Icon icon="ph:sparkle-bold" className="h-3 w-3 text-black" />
-            <span className="text-xs font-medium text-black tracking-wide">FAQ</span>
-          </div>
-          
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-black mb-4">
-            Frequently <span className="font-bold">Asked</span>
-          </h2>
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-black/30 mb-6">
-            Questions
-          </h2>
-          <p className="text-black/40 text-base md:text-lg">
-            Everything you need to know about ALTIS Finance and privacy-first payments.
-          </p>
+          <span className="tag-pill">FAQ</span>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-12 gap-10 mb-16">
+          <motion.div
+            className="md:col-span-7"
+            initial={{ opacity: 0, y: 30 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8, delay: 0.1 }}
+          >
+            <h2 className="display-section font-serif text-foreground">
+              Everything you need{" "}
+              <em className="text-muted-foreground">to know</em>
+            </h2>
+          </motion.div>
+        </div>
+
+        <div className="divide-y divide-border">
           {faqs.map((faq, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, y: 20 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: 0.1 + index * 0.1 }}
+              transition={{ duration: 0.5, delay: 0.1 + index * 0.08 }}
             >
-              <div
-                className={`relative rounded-2xl border overflow-hidden transition-all duration-300 ${
-                  openIndex === index 
-                    ? 'bg-black/[0.02] border-black/20' 
-                    : 'bg-white border-black/10 hover:border-black/20'
-                }`}
+              <button
+                onClick={() => setOpenIndex(openIndex === index ? null : index)}
+                className="w-full py-8 flex items-start gap-6 text-left group exp-row"
               >
-                <button
-                  onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                  className="w-full p-6 text-left"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl transition-colors ${
-                      openIndex === index ? 'bg-black text-white' : 'bg-black/5 text-black/40'
-                    }`}>
-                      <Icon icon={faq.icon} className="w-5 h-5" />
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <h3 className={`font-semibold transition-colors ${
-                        openIndex === index ? 'text-black' : 'text-black/70'
-                      }`}>
-                        {faq.question}
-                      </h3>
-                    </div>
-                    
-                    <motion.div
-                      animate={{ rotate: openIndex === index ? 180 : 0 }}
-                      transition={{ duration: 0.3 }}
-                      className={`flex-shrink-0 ${openIndex === index ? 'text-black' : 'text-black/30'}`}
-                    >
-                      <Icon icon="ph:caret-down-bold" className="w-5 h-5" />
-                    </motion.div>
-                  </div>
-                </button>
-                
-                <motion.div
-                  initial={false}
-                  animate={{
-                    height: openIndex === index ? "auto" : 0,
-                    opacity: openIndex === index ? 1 : 0,
-                  }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="overflow-hidden"
-                >
-                  <div className="px-6 pb-6 pl-20">
-                    <p className="text-black/40 text-sm leading-relaxed">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors duration-300 ${
+                  openIndex === index ? "bg-foreground text-background" : "bg-secondary text-muted-foreground"
+                }`}>
+                  <Icon icon={faq.icon} className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <h3 className={`text-lg font-semibold transition-colors ${
+                    openIndex === index ? "text-foreground" : "text-muted-foreground"
+                  }`}>
+                    {faq.question}
+                  </h3>
+                  <motion.div
+                    initial={false}
+                    animate={{
+                      height: openIndex === index ? "auto" : 0,
+                      opacity: openIndex === index ? 1 : 0,
+                    }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <p className="text-muted-foreground text-sm leading-relaxed mt-4 max-w-2xl">
                       {faq.answer}
                     </p>
-                  </div>
+                  </motion.div>
+                </div>
+                <motion.div
+                  animate={{ rotate: openIndex === index ? 180 : 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex-shrink-0 mt-1"
+                >
+                  <Icon icon="ph:caret-down-bold" className={`w-5 h-5 transition-colors ${openIndex === index ? "text-foreground" : "text-muted-foreground/30"}`} />
                 </motion.div>
-              </div>
+              </button>
             </motion.div>
           ))}
         </div>
@@ -135,18 +119,16 @@ const FAQSection = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.8 }}
-          className="mt-12 text-center"
+          className="mt-12"
         >
-          <p className="text-black/30 text-sm">
+          <p className="text-muted-foreground/60 text-sm">
             Still have questions?{" "}
-            <a href="https://orb402.gitbook.io/orb402" target="_blank" rel="noopener noreferrer" className="text-black hover:underline">
+            <a href="https://orb402.gitbook.io/orb402" target="_blank" rel="noopener noreferrer" className="text-foreground hover:underline">
               Read our docs
             </a>
           </p>
         </motion.div>
       </div>
-
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-black/5" />
     </section>
   );
 };

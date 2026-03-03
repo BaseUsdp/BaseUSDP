@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import AltisLogo from "@/components/AltisLogo";
+import { Icon } from "@iconify/react";
 
 const Footer = () => {
   const footerLinks = {
@@ -17,118 +18,80 @@ const Footer = () => {
   };
 
   const socialLinks = [
-    {
-      name: "Twitter",
-      href: "https://x.com/orb402",
-      icon: (
-        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-        </svg>
-      )
-    },
-    {
-      name: "GitHub",
-      href: "https://github.com/ORB402/ORB402",
-      icon: (
-        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
-        </svg>
-      )
-    },
-    {
-      name: "Gitbook",
-      href: "https://orb402.gitbook.io/orb402",
-      icon: (
-        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M10.802 17.77a.703.703 0 1 1-.002 1.406.703.703 0 0 1 .002-1.406m11.024-4.347a.703.703 0 1 1 .001-1.406.703.703 0 0 1-.001 1.406m0-2.876a2.176 2.176 0 0 0-2.174 2.174c0 .233.039.465.115.691l-7.181 3.823a2.165 2.165 0 0 0-1.784-.937c-.829 0-1.584.475-1.95 1.216l-6.451-3.402c-.682-.358-1.192-1.48-1.138-2.502.028-.533.212-.947.493-1.107.178-.1.392-.092.62.027l.042.023c1.71.9 7.304 3.847 7.54 3.956.363.168.565.237 1.185-.057l11.564-6.014c.17-.064.368-.227.368-.474 0-.342-.354-.477-.355-.477-.658-.315-1.669-.788-2.655-1.25-2.108-.987-4.497-2.105-5.546-2.655-.906-.474-1.635-.074-1.765.006l-.252.125C7.78 6.048 1.46 9.178 1.1 9.397.457 9.789.058 10.57.006 11.539c-.08 1.537.703 3.14 1.824 3.727l6.822 3.518a2.175 2.175 0 0 0 2.15 1.862 2.177 2.177 0 0 0 2.173-2.14l7.514-4.073c.38.298.853.461 1.337.461A2.176 2.176 0 0 0 24 12.72a2.176 2.176 0 0 0-2.174-2.174"/>
-        </svg>
-      )
-    },
+    { name: "Twitter", href: "https://x.com/orb402", icon: "simple-icons:twitter" },
+    { name: "GitHub", href: "https://github.com/ORB402/ORB402", icon: "simple-icons:github" },
+    { name: "Gitbook", href: "https://orb402.gitbook.io/orb402", icon: "ph:book-open-fill" },
   ];
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     if (href.startsWith('#')) {
       e.preventDefault();
-      const targetId = href.replace('#', '');
-      const element = document.getElementById(targetId);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-      }
+      const element = document.getElementById(href.replace('#', ''));
+      if (element) element.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
   return (
-    <footer className="relative bg-white border-t border-black/10">
-      {/* Social Links Bar */}
-      <div className="relative border-b border-black/10">
-        <div className="container mx-auto px-6 py-6">
-          <div className="flex items-center justify-center gap-8">
+    <footer className="bg-foreground text-background border-t border-background/10">
+      <div className="max-w-[1400px] mx-auto px-8 py-16 grid grid-cols-2 md:grid-cols-4 gap-10">
+        {/* Brand */}
+        <div className="col-span-2">
+          <Link to="/" className="flex items-center gap-2 text-sm font-semibold tracking-tighter text-background mb-4">
+            <AltisLogo size={18} className="text-background" />
+            <span>ALTIS FINANCE</span>
+          </Link>
+          <p className="text-sm text-background/40 leading-relaxed max-w-xs">
+            The Confidential Payment Layer for the Agentic Economy.
+            Privacy-first transactions powered by ZK Proofs and x402.
+          </p>
+          <div className="flex items-center gap-3 mt-6">
             {socialLinks.map((social) => (
-              <a 
+              <a
                 key={social.name}
                 href={social.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-black/40 hover:text-black transition-colors"
+                className="w-9 h-9 rounded-full bg-background/10 flex items-center justify-center hover:bg-background/20 transition-colors"
               >
-                {social.icon}
-                <span className="text-sm font-medium">{social.name}</span>
+                <Icon icon={social.icon} className="w-4 h-4 text-background" />
               </a>
             ))}
           </div>
         </div>
+
+        {/* Links */}
+        {Object.entries(footerLinks).map(([category, links]) => (
+          <div key={category}>
+            <p className="text-xs font-semibold text-background/30 uppercase tracking-wider mb-5">{category}</p>
+            <ul className="space-y-3">
+              {links.map((link) => (
+                <li key={link.name}>
+                  {'isRoute' in link && link.isRoute ? (
+                    <Link
+                      to={link.href}
+                      className="text-sm text-background/50 hover:text-background transition-colors"
+                    >
+                      {link.name}
+                    </Link>
+                  ) : (
+                    <a
+                      href={link.href}
+                      onClick={(e) => handleNavClick(e, link.href)}
+                      className="text-sm text-background/50 hover:text-background transition-colors"
+                    >
+                      {link.name}
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
 
-      {/* Links Grid */}
-      <div className="container relative mx-auto px-6 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-2 gap-8 lg:gap-16 mb-16">
-          {Object.entries(footerLinks).map(([category, links]) => (
-            <div key={category}>
-              <h4 className="text-black/30 font-medium text-xs uppercase tracking-wider mb-6">{category}</h4>
-              <ul className="space-y-4">
-                {links.map((link) => (
-                  <li key={link.name}>
-                    {'isRoute' in link && link.isRoute ? (
-                      <Link 
-                        to={link.href} 
-                        className="text-sm text-black/60 transition-colors hover:text-black"
-                      >
-                        {link.name}
-                      </Link>
-                    ) : (
-                      <a 
-                        href={link.href}
-                        onClick={(e) => handleNavClick(e, link.href)}
-                        className="text-sm text-black/60 transition-colors hover:text-black"
-                      >
-                        {link.name}
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        {/* Bottom Section */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 pt-8 border-t border-black/10">
-          <div className="max-w-md">
-            <Link to="/" className="flex items-center gap-3 mb-4">
-              <AltisLogo size={28} className="text-black" />
-              <span className="text-xl font-bold text-black tracking-tight">ALTIS FINANCE.</span>
-            </Link>
-            <p className="text-black/40 text-sm leading-relaxed">
-              The Confidential Payment Layer for the Agentic Economy. 
-              Privacy-first transactions powered by ZK Proofs and x402.
-            </p>
-          </div>
-        </div>
-
-        {/* Copyright */}
-        <div className="mt-8 pt-8 border-t border-black/10">
-          <p className="text-xs text-black/30">© 2026 ALTIS Finance. All rights reserved.</p>
-        </div>
+      <div className="max-w-[1400px] mx-auto px-8 pb-8 border-t border-background/10 pt-7 flex items-center justify-between">
+        <p className="text-xs text-background/30">© 2026 ALTIS Finance. All rights reserved.</p>
+        <p className="text-xs text-background/30">Designed with intent.</p>
       </div>
     </footer>
   );
