@@ -148,7 +148,8 @@ const RoadmapSection = () => {
                   {phase.status === "IN PROGRESS" ? (
                     <div className="flex items-center gap-2">
                       <motion.span
-                        className="w-2 h-2 rounded-full bg-green-400"
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: "hsl(var(--beam-green))" }}
                         animate={{ opacity: [1, 0.3, 1] }}
                         transition={{ duration: 1.5, repeat: Infinity }}
                       />

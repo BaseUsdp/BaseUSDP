@@ -41,7 +41,7 @@ const LogoStrip = () => {
               letterSpacing: "-0.02em",
             }}
           >
-            The USDP Ecosystem: Engineered for Web4
+            The USDP Ecosystem: Engineered for <span style={{ color: "hsl(var(--beam-indigo))" }}>Web4</span>
           </h2>
           <p className="max-w-md text-center text-sm text-muted-foreground">
             USDP is built upon a foundation of elite, battle-tested protocols, creating a robust and secure environment for the Web4 agentic economy.
