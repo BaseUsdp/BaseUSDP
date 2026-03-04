@@ -63,7 +63,7 @@ const TechStackSection = () => {
           transition={{ duration: 0.6 }}
           className="mb-12"
         >
-          <span className="tag-pill">Infrastructure</span>
+          <span className="tag-pill">Core Architecture</span>
         </motion.div>
 
         <div className="grid md:grid-cols-12 gap-10 mb-20">
