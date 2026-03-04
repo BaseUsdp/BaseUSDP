@@ -33,7 +33,7 @@ const ReceivePaymentModal = ({ open, onOpenChange }: ReceivePaymentModalProps) =
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "My ORB402 Address",
+          title: "My USDP Address",
           text: `Send encrypted payments to: ${fullAddress}`,
         });
       } catch (error) {
