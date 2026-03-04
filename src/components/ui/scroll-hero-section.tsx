@@ -218,6 +218,7 @@ export function ScrollHeroSection({
           font-family: 'DM Serif Display', serif;
           text-align: center;
           letter-spacing: -0.03em;
+          overflow: visible;
         }
 
         /* Each word: gradient text with fixed highlight band */
