@@ -196,8 +196,8 @@ export default function ScrollMorphHero() {
     };
   }, [virtualScroll, animationDone]);
 
-  const maxScrollForViewport = getMaxScroll(isMobileViewport);
-  const morphEnd = isMobileViewport ? 260 : 600;
+  const maxScrollForViewport = MAX_SCROLL;
+  const morphEnd = 600;
   const morphProgress = useTransform(virtualScroll, [0, morphEnd], [0, 1]);
   const smoothMorph = useSpring(morphProgress, { stiffness: 40, damping: 20 });
 
