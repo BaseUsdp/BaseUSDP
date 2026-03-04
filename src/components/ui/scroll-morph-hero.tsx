@@ -255,7 +255,7 @@ export default function ScrollMorphHero() {
       <div
         ref={containerRef}
         className="relative w-full h-full flex items-center justify-center"
-        style={{ touchAction: "none" }}
+        style={{ touchAction: animationDone ? "auto" : "none" }}
       >
 
         {/* Intro Text — shows during circle phase, changes to "Institutional Privacy" */}
