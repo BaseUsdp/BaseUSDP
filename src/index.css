@@ -78,11 +78,6 @@
     letter-spacing: -0.01em;
   }
 
-  /* Hide cursor on desktop for custom cursor */
-  @media (min-width: 1024px) {
-    body { cursor: none; }
-    a, button { cursor: none; }
-  }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Inter', system-ui, sans-serif;
