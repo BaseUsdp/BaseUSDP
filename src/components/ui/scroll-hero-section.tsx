@@ -68,7 +68,7 @@ export function ScrollHeroSection({
               style={{
                 fontFamily: "'DM Serif Display', serif",
                 fontSize: 'clamp(2.5rem, 8vw, 6rem)',
-                lineHeight: 0.95,
+                lineHeight: 1.2,
                 letterSpacing: '-0.03em',
                 color: 'hsl(0 0% 0%)',
               }}
