@@ -165,16 +165,22 @@ export default function ScrollMorphHero() {
     const container = containerRef.current;
     if (!container) return;
 
+    const finishIfNeeded = (nextScroll: number, maxScroll: number, isMobile: boolean) => {
+      const completionPoint = isMobile ? maxScroll * MOBILE_COMPLETE_PROGRESS : maxScroll;
+      if (nextScroll >= completionPoint) {
+        scrollRef.current = maxScroll;
+        virtualScroll.set(maxScroll);
+        setAnimationDone(true);
+      }
+    };
+
     const handleWheel = (e: WheelEvent) => {
       const isMobile = isMobileInputMode();
       const maxScroll = getMaxScroll(isMobile);
 
-      // If animation is done and user scrolls down, let the page scroll naturally
-      if (animationDone && e.deltaY > 0) return;
-      // If at top and scrolling up while animation is done, re-enter animation
-      // Only re-enter if the page is scrolled near the top
-      if (animationDone && e.deltaY < 0) {
-        if (window.scrollY > 10) return; // page is scrolled down, let normal scroll handle it
+      if (animationDone) {
+        if (e.deltaY > 0) return;
+        if (isMobile || window.scrollY > 10) return;
         setAnimationDone(false);
         scrollRef.current = maxScroll;
         virtualScroll.set(maxScroll);
@@ -184,36 +190,39 @@ export default function ScrollMorphHero() {
       const newScroll = Math.min(Math.max(scrollRef.current + e.deltaY, 0), maxScroll);
       scrollRef.current = newScroll;
       virtualScroll.set(newScroll);
-
-      // When virtual scroll hits the end, release to normal page scroll
-      if (newScroll >= maxScroll) {
-        setAnimationDone(true);
-      }
+      finishIfNeeded(newScroll, maxScroll, isMobile);
     };
 
     let touchStartY = 0;
     const handleTouchStart = (e: TouchEvent) => {
       touchStartY = e.touches[0].clientY;
     };
+
     const handleTouchMove = (e: TouchEvent) => {
       const isMobile = isMobileInputMode();
       const maxScroll = getMaxScroll(isMobile);
       const touchY = e.touches[0].clientY;
-      const deltaY = touchStartY - touchY;
+      const rawDeltaY = touchStartY - touchY;
       touchStartY = touchY;
 
-      const rawDeltaY = deltaY * (isMobile ? MOBILE_TOUCH_SCROLL_MULTIPLIER : 1);
-      let adjustedDeltaY = isMobile
-        ? Math.sign(rawDeltaY) * Math.max(Math.abs(rawDeltaY), MOBILE_MIN_TOUCH_DELTA)
-        : rawDeltaY;
+      if (isMobile && Math.abs(rawDeltaY) < MOBILE_TOUCH_DEADZONE) return;
 
-      if (isMobile && Math.abs(rawDeltaY) > MOBILE_FLICK_BOOST_THRESHOLD) {
-        adjustedDeltaY *= 1.6;
+      let adjustedDeltaY = rawDeltaY * (isMobile ? MOBILE_TOUCH_SCROLL_MULTIPLIER : 1);
+
+      if (isMobile) {
+        if (adjustedDeltaY > 0) {
+          adjustedDeltaY = Math.max(adjustedDeltaY, MOBILE_MIN_FORWARD_DELTA);
+          if (Math.abs(rawDeltaY) > MOBILE_FLICK_BOOST_THRESHOLD) {
+            adjustedDeltaY *= 1.35;
+          }
+        } else {
+          adjustedDeltaY *= MOBILE_REVERSE_DAMPING;
+        }
       }
 
-      if (animationDone && adjustedDeltaY > 0) return;
-      if (animationDone && adjustedDeltaY < 0) {
-        if (window.scrollY > 10) return;
+      if (animationDone) {
+        if (adjustedDeltaY > 0) return;
+        if (isMobile || window.scrollY > 10) return;
         setAnimationDone(false);
         scrollRef.current = maxScroll;
         virtualScroll.set(maxScroll);
@@ -223,10 +232,7 @@ export default function ScrollMorphHero() {
       const newScroll = Math.min(Math.max(scrollRef.current + adjustedDeltaY, 0), maxScroll);
       scrollRef.current = newScroll;
       virtualScroll.set(newScroll);
-
-      if (newScroll >= maxScroll) {
-        setAnimationDone(true);
-      }
+      finishIfNeeded(newScroll, maxScroll, isMobile);
     };
 
     container.addEventListener("wheel", handleWheel, { passive: false });
