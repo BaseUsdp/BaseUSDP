@@ -48,6 +48,14 @@ export function ScrollHeroSection({
       {/* Dark card section */}
       <div className="word-hero-main">
         <div className="word-hero-main-inner">
+          <video
+            className="word-hero-video-bg"
+            src="/videos/hero-bg.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+          />
           <div className="word-hero-content">
             <span
               className="inline-block text-xs font-semibold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-8"
@@ -236,11 +244,31 @@ export function ScrollHeroSection({
         }
 
         .word-hero-main-inner {
-          background: hsl(0 0% 5%);
+          position: relative;
+          overflow: hidden;
           border-radius: 1.5rem 1.5rem 0 0;
         }
 
+        .word-hero-main-inner::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: hsl(0 0% 0% / 0.55);
+          z-index: 1;
+        }
+
+        .word-hero-video-bg {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          z-index: 0;
+        }
+
         .word-hero-content {
+          position: relative;
+          z-index: 2;
           display: flex;
           flex-direction: column;
           align-items: center;
