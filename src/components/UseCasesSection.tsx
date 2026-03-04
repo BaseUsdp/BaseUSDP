@@ -41,7 +41,7 @@ const UseCasesSection = () => {
         transition={{ duration: 0.6 }}
         className="mb-12"
       >
-        <span className="tag-pill">Use Cases</span>
+        <span className="tag-pill">Applications</span>
       </motion.div>
 
       <div className="grid md:grid-cols-12 gap-10 mb-16">
