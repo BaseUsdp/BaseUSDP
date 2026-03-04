@@ -1,6 +1,7 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Icon } from "@iconify/react";
+import { WarpBackground } from "@/components/ui/warp-background";
 
 const AboutSection = () => {
   const ref = useRef(null);
@@ -46,32 +47,42 @@ const AboutSection = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="rounded-3xl overflow-hidden bg-secondary/50 p-10 flex flex-col justify-between min-h-[320px] group"
         >
-          <div>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-foreground rounded-xl flex items-center justify-center">
-                <Icon icon="ph:eye-fill" className="w-6 h-6 text-background" />
-              </div>
+          <WarpBackground
+            beamsPerSide={4}
+            beamSize={6}
+            beamDelayMax={4}
+            beamDuration={4}
+            perspective={150}
+            className="bg-secondary/50 min-h-[320px]"
+          >
+            <div className="p-10 flex flex-col justify-between min-h-[320px]">
               <div>
-                <h3 className="text-lg text-foreground font-medium">Our Vision</h3>
-                <div className="text-xs text-muted-foreground uppercase tracking-widest">Core Mission</div>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 bg-foreground rounded-xl flex items-center justify-center">
+                    <Icon icon="ph:eye-fill" className="w-6 h-6 text-background" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg text-foreground font-medium">Our Vision</h3>
+                    <div className="text-xs text-muted-foreground uppercase tracking-widest">Core Mission</div>
+                  </div>
+                </div>
+                <p className="text-muted-foreground leading-relaxed">
+                  A world where financial privacy is a fundamental right, not a privilege. Where individuals, institutions, and AI agents can transact freely without sacrificing confidentiality or compliance.
+                </p>
+              </div>
+              <div className="flex items-center gap-4 mt-8">
+                <div className="flex -space-x-2">
+                  {["ph:user-fill", "ph:buildings-fill", "ph:robot-fill"].map((icon, i) => (
+                    <div key={i} className="w-8 h-8 rounded-full bg-foreground border-2 border-background flex items-center justify-center" style={{ opacity: 1 - i * 0.2 }}>
+                      <Icon icon={icon} className="w-4 h-4 text-background" />
+                    </div>
+                  ))}
+                </div>
+                <span className="text-xs text-muted-foreground">+2 Stakeholder Types</span>
               </div>
             </div>
-            <p className="text-muted-foreground leading-relaxed">
-              A world where financial privacy is a fundamental right, not a privilege. Where individuals, institutions, and AI agents can transact freely without sacrificing confidentiality or compliance.
-            </p>
-          </div>
-          <div className="flex items-center gap-4 mt-8">
-            <div className="flex -space-x-2">
-              {["ph:user-fill", "ph:buildings-fill", "ph:robot-fill"].map((icon, i) => (
-                <div key={i} className="w-8 h-8 rounded-full bg-foreground border-2 border-background flex items-center justify-center" style={{ opacity: 1 - i * 0.2 }}>
-                  <Icon icon={icon} className="w-4 h-4 text-background" />
-                </div>
-              ))}
-            </div>
-            <span className="text-xs text-muted-foreground">+2 Stakeholder Types</span>
-          </div>
+          </WarpBackground>
         </motion.div>
 
         <motion.div
