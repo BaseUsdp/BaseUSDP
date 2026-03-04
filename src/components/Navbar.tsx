@@ -50,7 +50,7 @@ const Navbar = () => {
         scrolled ? "bg-background/80 backdrop-blur-md border-b border-border" : "bg-background/0"
       }`}
     >
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-8 h-14 sm:h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <AltisLogo size={18} className="text-foreground" />
           <span className="text-sm font-semibold tracking-tighter text-foreground">BASEUSDP</span>
@@ -86,7 +86,7 @@ const Navbar = () => {
         </div>
 
         <button
-          className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background/80 backdrop-blur -mr-1"
+          className="md:hidden p-2 -mr-2"
           onClick={() => setIsOpen(!isOpen)}
           aria-label="Toggle menu"
         >
@@ -102,53 +102,42 @@ const Navbar = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm md:hidden z-40"
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 top-14 bg-background/60 backdrop-blur-sm md:hidden z-40"
               onClick={() => setIsOpen(false)}
             />
-            {/* Slide-in sidebar */}
+            {/* Mobile menu panel */}
             <motion.div
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="fixed inset-y-0 left-0 w-72 md:hidden bg-background border-r border-border shadow-2xl z-50 flex flex-col"
+              className="fixed inset-x-0 top-14 md:hidden bg-background border-b border-border z-50 max-h-[calc(100vh-3.5rem)] overflow-y-auto"
             >
-              <div className="flex items-center justify-between px-5 h-16 border-b border-border">
-                <Link to="/" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
-                  <AltisLogo size={18} className="text-foreground" />
-                  <span className="text-sm font-semibold tracking-tighter text-foreground">BASEUSDP</span>
-                </Link>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label="Close menu"
-                >
-                  <Icon icon="ph:x-bold" className="w-4 h-4" />
-                </button>
-              </div>
-
-              <nav className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-1">
-                {navLinks.map((link) => (
-                  <a
+              <div className="px-6 py-6 flex flex-col gap-1">
+                {navLinks.map((link, i) => (
+                  <motion.a
                     key={link.name}
                     href={link.href}
                     onClick={(e) => handleNavClick(e, link.href)}
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 py-3 px-3 rounded-lg transition-colors"
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.04 * i, duration: 0.3 }}
+                    className="text-base text-muted-foreground hover:text-foreground transition-colors py-3 flex items-center justify-between group"
                   >
-                    {link.name}
-                  </a>
+                    <span>{link.name}</span>
+                    <Icon icon="ph:arrow-right" className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-muted-foreground" />
+                  </motion.a>
                 ))}
-              </nav>
-
-              <div className="px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3 border-t border-border flex flex-col gap-3">
-                <WalletConnectButton variant="navbar" />
-                <button
-                  onClick={() => { setIsOpen(false); navigate("/dashboard"); }}
-                  className="w-full text-sm border border-foreground bg-foreground text-background rounded-full px-5 py-3 font-medium active:scale-[0.98] transition-transform"
-                >
-                  Launch Dashboard
-                </button>
+                <div className="pt-5 mt-3 border-t border-border flex flex-col gap-3">
+                  <WalletConnectButton variant="navbar" />
+                  <button
+                    onClick={() => { setIsOpen(false); navigate("/dashboard"); }}
+                    className="w-full text-sm border border-foreground bg-foreground text-background rounded-full px-5 py-3 font-medium active:scale-[0.98] transition-transform"
+                  >
+                    Launch Dashboard
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>
