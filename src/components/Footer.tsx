@@ -46,18 +46,37 @@ const Footer = () => {
             The Private Agentic Wallet for Web4.
             Autonomous by design. Invisible by default.
           </p>
-          <div className="flex items-center gap-3 mt-6">
-            {socialLinks.map((social) => (
-              <a
-                key={social.name}
-                href={social.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full bg-background/10 flex items-center justify-center hover:bg-background/20 transition-colors"
-              >
-                <Icon icon={social.icon} className="w-4 h-4 text-background" />
-              </a>
-            ))}
+           <div className="flex items-center gap-3 mt-6">
+             {socialLinks.map((social) => (
+               <div key={social.name} className="relative">
+                 {social.comingSoon ? (
+                   <button
+                     onClick={() => {
+                       setShowComingSoon(true);
+                       setTimeout(() => setShowComingSoon(false), 2000);
+                     }}
+                     className="w-9 h-9 rounded-full bg-background/10 flex items-center justify-center hover:bg-background/20 transition-colors"
+                   >
+                     <Icon icon={social.icon} className="w-4 h-4 text-background" />
+                     {showComingSoon && (
+                       <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-background text-foreground text-[10px] font-semibold whitespace-nowrap shadow-lg animate-fade-in">
+                         Coming Soon
+                       </span>
+                     )}
+                   </button>
+                 ) : (
+                   <a
+                     href={social.href}
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     className="w-9 h-9 rounded-full bg-background/10 flex items-center justify-center hover:bg-background/20 transition-colors"
+                   >
+                     <Icon icon={social.icon} className="w-4 h-4 text-background" />
+                   </a>
+                 )}
+               </div>
+             ))}
+           </div>
           </div>
         </div>
 
