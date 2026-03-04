@@ -102,7 +102,7 @@ const PrivacyPolicy = () => {
               </li>
               <li>
                 <strong className="text-foreground/90">Protection of Rights:</strong> To protect the rights,
-                property, or safety of ORB402, our users, or the public
+                property, or safety of BASEUSDP, our users, or the public
               </li>
               <li>
                 <strong className="text-foreground/90">Business Transfers:</strong> In connection with a
