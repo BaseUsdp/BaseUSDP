@@ -86,10 +86,13 @@ function FlipCard({ src, index, total, phase, target }: FlipCardProps) {
 // --- Main Hero Component ---
 const TOTAL_IMAGES = 20;
 const DESKTOP_MAX_SCROLL = 3000;
-const MOBILE_MAX_SCROLL = 650;
-const MOBILE_TOUCH_SCROLL_MULTIPLIER = 9;
-const MOBILE_MIN_TOUCH_DELTA = 32;
-const MOBILE_FLICK_BOOST_THRESHOLD = 26;
+const MOBILE_MAX_SCROLL = 520;
+const MOBILE_TOUCH_SCROLL_MULTIPLIER = 10;
+const MOBILE_TOUCH_DEADZONE = 2;
+const MOBILE_MIN_FORWARD_DELTA = 18;
+const MOBILE_REVERSE_DAMPING = 0.2;
+const MOBILE_FLICK_BOOST_THRESHOLD = 18;
+const MOBILE_COMPLETE_PROGRESS = 0.9;
 
 const IMAGES = [
   "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&q=80",  // glass skyscraper
