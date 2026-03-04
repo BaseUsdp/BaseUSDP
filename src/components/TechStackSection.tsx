@@ -5,6 +5,7 @@ import { Icon } from "@iconify/react";
 const TechStackSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const [hoveredLayer, setHoveredLayer] = useState<number | null>(null);
 
   const layers = [
     {
