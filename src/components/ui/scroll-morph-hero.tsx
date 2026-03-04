@@ -130,33 +130,29 @@ export default function ScrollMorphHero() {
 
     const SCROLL_TOP_THRESHOLD = 4;
 
-    const finishIfNeeded = (nextScroll: number, maxScroll: number, isMobile: boolean) => {
-      const completionPoint = isMobile ? maxScroll * MOBILE_COMPLETE_PROGRESS : maxScroll;
-      if (nextScroll >= completionPoint) {
-        scrollRef.current = maxScroll;
-        virtualScroll.set(maxScroll);
+    const finishIfNeeded = (nextScroll: number) => {
+      if (nextScroll >= MAX_SCROLL) {
+        scrollRef.current = MAX_SCROLL;
+        virtualScroll.set(MAX_SCROLL);
         setAnimationDone(true);
       }
     };
 
     const handleWheel = (e: WheelEvent) => {
-      const isMobile = isMobileInputMode();
-      const maxScroll = getMaxScroll(isMobile);
-
       if (animationDone) {
         if (e.deltaY > 0) return;
         if (window.scrollY > SCROLL_TOP_THRESHOLD) return;
 
         setAnimationDone(false);
-        scrollRef.current = maxScroll;
-        virtualScroll.set(maxScroll);
+        scrollRef.current = MAX_SCROLL;
+        virtualScroll.set(MAX_SCROLL);
       }
 
       e.preventDefault();
-      const newScroll = Math.min(Math.max(scrollRef.current + e.deltaY, 0), maxScroll);
-      scrollRef.current = newScroll;
-      virtualScroll.set(newScroll);
-      finishIfNeeded(newScroll, maxScroll, isMobile);
+      const nextScroll = Math.min(Math.max(scrollRef.current + e.deltaY, 0), MAX_SCROLL);
+      scrollRef.current = nextScroll;
+      virtualScroll.set(nextScroll);
+      finishIfNeeded(nextScroll);
     };
 
     let touchStartY = 0;
@@ -165,41 +161,28 @@ export default function ScrollMorphHero() {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      const isMobile = isMobileInputMode();
-      const maxScroll = getMaxScroll(isMobile);
       const touchY = e.touches[0].clientY;
       const rawDeltaY = touchStartY - touchY;
       touchStartY = touchY;
 
-      if (isMobile && Math.abs(rawDeltaY) < MOBILE_TOUCH_DEADZONE) return;
+      if (Math.abs(rawDeltaY) < TOUCH_DEADZONE) return;
 
-      let adjustedDeltaY = rawDeltaY * (isMobile ? MOBILE_TOUCH_SCROLL_MULTIPLIER : 1);
-
-      if (isMobile) {
-        if (adjustedDeltaY > 0) {
-          adjustedDeltaY = Math.max(adjustedDeltaY, MOBILE_MIN_FORWARD_DELTA);
-          if (Math.abs(rawDeltaY) > MOBILE_FLICK_BOOST_THRESHOLD) {
-            adjustedDeltaY *= 1.35;
-          }
-        } else {
-          adjustedDeltaY *= MOBILE_REVERSE_DAMPING;
-        }
-      }
+      const adjustedDeltaY = rawDeltaY * TOUCH_SCROLL_MULTIPLIER;
 
       if (animationDone) {
         if (adjustedDeltaY > 0) return;
         if (window.scrollY > SCROLL_TOP_THRESHOLD) return;
 
         setAnimationDone(false);
-        scrollRef.current = maxScroll;
-        virtualScroll.set(maxScroll);
+        scrollRef.current = MAX_SCROLL;
+        virtualScroll.set(MAX_SCROLL);
       }
 
       e.preventDefault();
-      const newScroll = Math.min(Math.max(scrollRef.current + adjustedDeltaY, 0), maxScroll);
-      scrollRef.current = newScroll;
-      virtualScroll.set(newScroll);
-      finishIfNeeded(newScroll, maxScroll, isMobile);
+      const nextScroll = Math.min(Math.max(scrollRef.current + adjustedDeltaY, 0), MAX_SCROLL);
+      scrollRef.current = nextScroll;
+      virtualScroll.set(nextScroll);
+      finishIfNeeded(nextScroll);
     };
 
     container.addEventListener("wheel", handleWheel, { passive: false });
