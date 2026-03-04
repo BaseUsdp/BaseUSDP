@@ -237,11 +237,12 @@ export default function ScrollMorphHero() {
     };
   }, [virtualScroll, animationDone]);
 
-  const maxScrollForViewport = containerSize.width < 768 ? MOBILE_MAX_SCROLL : DESKTOP_MAX_SCROLL;
-  const morphProgress = useTransform(virtualScroll, [0, 600], [0, 1]);
+  const maxScrollForViewport = getMaxScroll(isMobileViewport);
+  const morphEnd = isMobileViewport ? 260 : 600;
+  const morphProgress = useTransform(virtualScroll, [0, morphEnd], [0, 1]);
   const smoothMorph = useSpring(morphProgress, { stiffness: 40, damping: 20 });
 
-  const scrollRotate = useTransform(virtualScroll, [600, maxScrollForViewport], [0, 360]);
+  const scrollRotate = useTransform(virtualScroll, [morphEnd, maxScrollForViewport], [0, 360]);
   const smoothScrollRotate = useSpring(scrollRotate, { stiffness: 40, damping: 20 });
 
   const mouseX = useMotionValue(0);
