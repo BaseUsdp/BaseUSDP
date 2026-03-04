@@ -21,7 +21,7 @@ const Footer = () => {
     ],
   };
 
-  const socialLinks = [
+  const socialLinks: { name: string; href: string; icon: string; comingSoon?: boolean }[] = [
      { name: "Twitter", href: "https://x.com/BaseUSDP", icon: "simple-icons:twitter" },
      { name: "GitHub", href: "#", icon: "simple-icons:github", comingSoon: true },
   ];
