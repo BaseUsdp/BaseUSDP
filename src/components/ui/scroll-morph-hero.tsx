@@ -8,7 +8,7 @@ import usdpLogo from "@/assets/usdp-logo.png";
 export type AnimationPhase = "scatter" | "line" | "circle" | "bottom-strip";
 
 interface FlipCardProps {
-  src: string;
+  gradientIndex: number;
   index: number;
   total: number;
   phase: AnimationPhase;
@@ -19,7 +19,9 @@ interface FlipCardProps {
 const IMG_WIDTH = 60;
 const IMG_HEIGHT = 85;
 
-function FlipCard({ src, index, total, phase, target }: FlipCardProps) {
+function FlipCard({ gradientIndex, index, total, phase, target }: FlipCardProps) {
+  const angle = (gradientIndex / total) * 360;
+  const gradient = `linear-gradient(${angle}deg, hsl(270 80% 65%), hsl(320 80% 60%), hsl(30 90% 60%), hsl(50 95% 55%), hsl(80 90% 55%))`;
   return (
     <motion.div
       className="absolute"
@@ -55,16 +57,11 @@ function FlipCard({ src, index, total, phase, target }: FlipCardProps) {
       >
         <div
           className="absolute inset-0 rounded-lg overflow-hidden shadow-lg"
-          style={{ backfaceVisibility: "hidden" }}
-        >
-          <img
-            src={src}
-            alt={`Card ${index}`}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-        </div>
+          style={{
+            backfaceVisibility: "hidden",
+            background: gradient,
+          }}
+        />
         <div
           className="absolute inset-0 rounded-lg overflow-hidden shadow-lg flex items-center justify-center"
           style={{
@@ -94,28 +91,7 @@ const MOBILE_REVERSE_DAMPING = 0.2;
 const MOBILE_FLICK_BOOST_THRESHOLD = 18;
 const MOBILE_COMPLETE_PROGRESS = 0.9;
 
-const IMAGES = [
-  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&q=80",  // glass skyscraper
-  "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=300&q=80",  // earth from space data
-  "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=300&q=80",  // server room
-  "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=300&q=80",  // blockchain abstract
-  "https://images.unsplash.com/photo-1563986768609-322da13575f2?w=300&q=80",  // circuit board
-  "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=300&q=80",  // cybersecurity lock
-  "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=300&q=80",  // neural network viz
-  "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=300&q=80",  // matrix code
-  "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=300&q=80",  // laptop code
-  "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=300&q=80",  // code on screen
-  "https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&q=80",  // modern office
-  "https://images.unsplash.com/photo-1560732488-6b0df240254a?w=300&q=80",  // ethereum coin
-  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=300&q=80",  // data dashboard
-  "https://images.unsplash.com/photo-1518770660439-4636190af475?w=300&q=80",  // motherboard macro
-  "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=300&q=80",  // network cables
-  "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=300&q=80",  // woman at screen
-  "https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=300&q=80",  // dark server
-  "https://images.unsplash.com/photo-1488229297570-58520851e868?w=300&q=80",  // data stream
-  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&q=80",  // handshake tech
-  "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=300&q=80",  // team laptops
-];
+const CARD_COLORS = Array.from({ length: TOTAL_IMAGES }, (_, i) => i);
 
 const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
 
@@ -272,7 +248,7 @@ export default function ScrollMorphHero() {
   // Start directly in circle phase, no scatter/line intro
 
   const scatterPositions = useMemo(() => {
-    return IMAGES.map(() => ({
+    return CARD_COLORS.map(() => ({
       x: (Math.random() - 0.5) * 1500,
       y: (Math.random() - 0.5) * 1000,
       rotation: (Math.random() - 0.5) * 180,
@@ -371,7 +347,7 @@ export default function ScrollMorphHero() {
 
         {/* Cards Container */}
         <div className="absolute inset-0 flex items-center justify-center">
-          {IMAGES.slice(0, TOTAL_IMAGES).map((src, i) => {
+          {CARD_COLORS.map((colorIndex, i) => {
             let target = { x: 0, y: 0, rotation: 0, scale: 1, opacity: 1 };
 
             if (introPhase === "scatter") {
@@ -424,7 +400,7 @@ export default function ScrollMorphHero() {
             }
 
             return (
-              <FlipCard key={i} src={src} index={i} total={TOTAL_IMAGES} phase={introPhase} target={target} />
+              <FlipCard key={i} gradientIndex={colorIndex} index={i} total={TOTAL_IMAGES} phase={introPhase} target={target} />
             );
           })}
         </div>
