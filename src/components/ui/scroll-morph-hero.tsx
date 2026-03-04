@@ -73,15 +73,8 @@ function FlipCard({ src, gradientIndex, index, total, phase, target, morphProgre
       >
         <div
           className="absolute inset-0 rounded-lg overflow-hidden shadow-lg flex items-center justify-center"
-          style={{ backfaceVisibility: "hidden" }}
+          style={{ backfaceVisibility: "hidden", background: 'hsl(0 0% 100%)' }}
         >
-          {/* Base image */}
-          <img
-            src={src}
-            alt={`Card ${index}`}
-            className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
-          />
           {/* Gradient overlay that fades in */}
           <div
             className="absolute inset-0"
