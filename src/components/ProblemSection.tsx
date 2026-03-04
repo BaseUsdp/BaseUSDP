@@ -71,7 +71,7 @@ const ProblemSection = () => {
             >
               <h2 className="display-section font-serif text-foreground">
                 The Blockchain{" "}
-                <em className="text-muted-foreground">Confidentiality</em> Crisis
+                <em style={{ color: "hsl(var(--beam-orange))" }}>Confidentiality</em> Crisis
               </h2>
             </motion.div>
             <motion.div

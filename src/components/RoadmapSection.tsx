@@ -89,7 +89,7 @@ const RoadmapSection = () => {
           >
           <h2 className="display-section font-serif text-foreground">
               Evolving the{" "}
-              <em className="text-muted-foreground">Web4</em>
+              <em style={{ color: "hsl(var(--beam-violet))" }}>Web4</em>
               <br />
               Privacy Landscape
             </h2>

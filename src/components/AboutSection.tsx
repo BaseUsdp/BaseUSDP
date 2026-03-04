@@ -100,7 +100,7 @@ const AboutSection = () => {
             </p>
           </div>
           <div>
-            <p className="display-number font-serif text-foreground">100%</p>
+            <p className="display-number font-serif" style={{ color: "hsl(var(--beam-green))" }}>100%</p>
             <p className="text-base text-muted-foreground mt-3 leading-relaxed max-w-xs">
               Encrypted — zero data leakage across every transaction, every time.
             </p>
