@@ -154,11 +154,11 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">8. Third-Party Services</h2>
             <p>
-              Our Service may contain links to third-party websites, services, or applications
-              that are not operated by us. We have no control over and assume no responsibility
-                property, or safety of BASEUSDP, our users, or the public
-              encourage you to review the privacy policies of any third-party services you
-              interact with.
+               Our Service may contain links to third-party websites, services, or applications
+               that are not operated by us. We have no control over and assume no responsibility
+               for the content, privacy policies, or practices of any third-party services. We
+               encourage you to review the privacy policies of any third-party services you
+               interact with.
             </p>
           </section>
 
