@@ -142,7 +142,7 @@ const ReceivePaymentModal = ({ open, onOpenChange }: ReceivePaymentModalProps) =
               Direct transfers to this address will bypass the privacy system.
             </p>
             <p className="text-xs text-muted-foreground text-center">
-              If someone sends to this address via ORB402 "Send", funds will go to your intermediate wallet (private).
+              If someone sends to this address via USDP "Send", funds will go to your intermediate wallet (private).
             </p>
           </div>
         </div>

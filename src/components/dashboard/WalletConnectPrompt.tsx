@@ -108,7 +108,7 @@ const WalletConnectPrompt = () => {
                   Select Wallet
                 </h2>
                 <p className="text-sm text-white/40">
-                  Choose a wallet to connect to ORB402
+                  Choose a wallet to connect to USDP
                 </p>
               </div>
 
