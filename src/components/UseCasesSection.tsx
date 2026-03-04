@@ -53,7 +53,7 @@ const UseCasesSection = () => {
         >
           <h2 className="display-section font-serif text-foreground">
             Built for the{" "}
-            <em className="text-muted-foreground">Web 4.0</em> Economy
+            <em className="text-muted-foreground">Web4</em> Economy
           </h2>
         </motion.div>
         <motion.div
