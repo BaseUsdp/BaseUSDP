@@ -32,7 +32,7 @@ interface FlipCardProps {
 const IMG_WIDTH = 60;
 const IMG_HEIGHT = 85;
 
-function FlipCard({ gradientIndex, index, total, phase, target, morphProgress }: FlipCardProps) {
+function FlipCard({ src, gradientIndex, index, total, phase, target, morphProgress }: FlipCardProps) {
   const IconComponent = CARD_ICONS[index % CARD_ICONS.length];
   const iconOpacity = Math.max(0, Math.min(1, (morphProgress - 0.3) / 0.4));
   const gradientOpacity = Math.max(0, Math.min(1, (morphProgress - 0.2) / 0.5));
@@ -73,14 +73,18 @@ function FlipCard({ gradientIndex, index, total, phase, target, morphProgress }:
       >
         <div
           className="absolute inset-0 rounded-lg overflow-hidden shadow-lg flex items-center justify-center"
-          style={{
-            backfaceVisibility: "hidden",
-            background: 'hsl(0 0% 5%)',
-          }}
+          style={{ backfaceVisibility: "hidden" }}
         >
+          {/* Base image */}
+          <img
+            src={src}
+            alt={`Card ${index}`}
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="lazy"
+          />
           {/* Gradient overlay that fades in */}
           <div
-            className="absolute inset-0 rounded-lg"
+            className="absolute inset-0"
             style={{
               background: gradient,
               opacity: gradientOpacity,
