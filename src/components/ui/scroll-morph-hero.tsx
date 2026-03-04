@@ -124,6 +124,7 @@ const MOBILE_MIN_FORWARD_DELTA = 18;
 const MOBILE_REVERSE_DAMPING = 0.2;
 const MOBILE_FLICK_BOOST_THRESHOLD = 18;
 const MOBILE_COMPLETE_PROGRESS = 0.9;
+const MOBILE_REENTER_INTENT_THRESHOLD = 16;
 
 const CARD_COLORS = Array.from({ length: TOTAL_IMAGES }, (_, i) => i);
 
@@ -261,6 +262,7 @@ export default function ScrollMorphHero() {
 
       if (animationDone) {
         if (adjustedDeltaY > 0) return;
+        if (Math.abs(adjustedDeltaY) < MOBILE_REENTER_INTENT_THRESHOLD) return;
         if (!canReenterAnimation()) return;
         setAnimationDone(false);
         scrollRef.current = maxScroll;
