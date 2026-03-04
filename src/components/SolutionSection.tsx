@@ -52,7 +52,7 @@ const SolutionSection = () => {
         transition={{ duration: 0.6 }}
         className="mb-12"
       >
-        <span className="tag-pill">The Solution</span>
+        <span className="tag-pill">Our Solution</span>
       </motion.div>
 
       <div className="grid md:grid-cols-12 gap-10 mb-16">
