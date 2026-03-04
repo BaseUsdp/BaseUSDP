@@ -4,16 +4,18 @@ import { Icon } from "@iconify/react";
 
 const Footer = () => {
   const footerLinks = {
-    Product: [
+    Platform: [
       { name: "Dashboard", href: "/dashboard", isRoute: true },
       { name: "Technology", href: "#features" },
-      { name: "Use Cases", href: "#use-cases" },
-      { name: "Roadmap", href: "#roadmap" },
-      { name: "About", href: "#about" },
+      { name: "Applications", href: "#use-cases" },
+      { name: "Future Path", href: "#roadmap" },
+    ],
+    Company: [
+      { name: "About USDP", href: "#about" },
     ],
     Legal: [
       { name: "Privacy Policy", href: "/privacy-policy", isRoute: true },
-      { name: "Terms and Conditions", href: "/terms-and-conditions", isRoute: true },
+      { name: "Terms of Service", href: "/terms-and-conditions", isRoute: true },
     ],
   };
 
