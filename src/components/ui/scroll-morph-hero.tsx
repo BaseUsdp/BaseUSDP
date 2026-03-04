@@ -345,7 +345,6 @@ export default function ScrollMorphHero() {
       container.removeEventListener("wheel", handleWheel);
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
-      container.removeEventListener("touchend", handleTouchEnd);
       stopMobileAutoAnimate();
     };
   }, [virtualScroll, animationDone]);
