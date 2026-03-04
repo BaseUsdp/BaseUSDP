@@ -159,17 +159,22 @@ export default function ScrollMorphHero() {
     const container = containerRef.current;
     if (!container) return;
 
+    const isMobile = isMobileViewport;
+    const maxScroll = isMobile ? MOBILE_MAX_SCROLL : DESKTOP_MAX_SCROLL;
+    const completionPoint = isMobile ? maxScroll * MOBILE_COMPLETE_PROGRESS : maxScroll;
+    const touchMultiplier = isMobile ? MOBILE_TOUCH_SCROLL_MULTIPLIER : DESKTOP_TOUCH_SCROLL_MULTIPLIER;
+
     const finishIfNeeded = (nextScroll: number) => {
-      if (nextScroll >= MAX_SCROLL) {
-        scrollRef.current = MAX_SCROLL;
-        virtualScroll.set(MAX_SCROLL);
+      if (nextScroll >= completionPoint) {
+        scrollRef.current = maxScroll;
+        virtualScroll.set(maxScroll);
         setAnimationDone(true);
       }
     };
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const nextScroll = Math.min(Math.max(scrollRef.current + e.deltaY, 0), MAX_SCROLL);
+      const nextScroll = Math.min(Math.max(scrollRef.current + e.deltaY, 0), maxScroll);
       scrollRef.current = nextScroll;
       virtualScroll.set(nextScroll);
       finishIfNeeded(nextScroll);
@@ -187,10 +192,10 @@ export default function ScrollMorphHero() {
 
       if (Math.abs(rawDeltaY) < TOUCH_DEADZONE) return;
 
-      const adjustedDeltaY = rawDeltaY * TOUCH_SCROLL_MULTIPLIER;
+      const adjustedDeltaY = rawDeltaY * touchMultiplier;
 
       e.preventDefault();
-      const nextScroll = Math.min(Math.max(scrollRef.current + adjustedDeltaY, 0), MAX_SCROLL);
+      const nextScroll = Math.min(Math.max(scrollRef.current + adjustedDeltaY, 0), maxScroll);
       scrollRef.current = nextScroll;
       virtualScroll.set(nextScroll);
       finishIfNeeded(nextScroll);
@@ -205,7 +210,7 @@ export default function ScrollMorphHero() {
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
     };
-  }, [virtualScroll, animationDone]);
+  }, [virtualScroll, animationDone, isMobileViewport]);
 
   // Re-entry: when done and user scrolls back to very top, re-activate animation
   useEffect(() => {
