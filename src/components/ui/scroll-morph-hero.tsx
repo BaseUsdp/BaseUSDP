@@ -121,7 +121,8 @@ const MOBILE_MAX_SCROLL = 520;
 const MOBILE_TOUCH_SCROLL_MULTIPLIER = 10;
 const MOBILE_TOUCH_DEADZONE = 2;
 const MOBILE_MIN_FORWARD_DELTA = 18;
-const MOBILE_REVERSE_DAMPING = 0.2;
+const MOBILE_REVERSE_DEADZONE = 8;
+const MOBILE_REVERSE_DAMPING = 0.1;
 const MOBILE_FLICK_BOOST_THRESHOLD = 18;
 const MOBILE_COMPLETE_PROGRESS = 0.9;
 const MOBILE_REENTER_INTENT_THRESHOLD = 16;
@@ -246,6 +247,9 @@ export default function ScrollMorphHero() {
       touchStartY = touchY;
 
       if (isMobile && Math.abs(rawDeltaY) < MOBILE_TOUCH_DEADZONE) return;
+
+      // On mobile, ignore small backward (downward finger) movements — they're usually jitter
+      if (isMobile && rawDeltaY < 0 && Math.abs(rawDeltaY) < MOBILE_REVERSE_DEADZONE) return;
 
       let adjustedDeltaY = rawDeltaY * (isMobile ? MOBILE_TOUCH_SCROLL_MULTIPLIER : 1);
 
