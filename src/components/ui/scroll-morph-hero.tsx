@@ -254,22 +254,12 @@ export default function ScrollMorphHero() {
   const introTextOpacity = useTransform(smoothMorph, [0, 0.25], [1, 0]);
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-background">
+    <div className="relative w-screen h-screen overflow-hidden bg-background" style={{ marginLeft: 'calc(-50vw + 50%)', marginRight: 'calc(-50vw + 50%)' }}>
       <div
         ref={containerRef}
         className="relative w-full h-full flex items-center justify-center"
         style={{ touchAction: "none" }}
       >
-        {/* BASEUSDP Logo — visible at start, fades out as morph begins */}
-        <motion.div
-          className="absolute inset-0 flex flex-col items-center justify-center z-30 pointer-events-none"
-          style={{ opacity: logoOpacity, scale: logoScale }}
-        >
-          <AltisLogo size={72} className="text-foreground" />
-          <span className="mt-4 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-            BASEUSDP
-          </span>
-        </motion.div>
 
         {/* Intro Text — shows during circle phase before morph */}
         <motion.div
