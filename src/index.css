@@ -53,6 +53,8 @@
     --beam-magenta: 325 70% 55%;
     --beam-indigo: 230 70% 58%;
 
+    --gradient-beam: linear-gradient(135deg, hsl(270 80% 65%), hsl(320 80% 60%), hsl(30 90% 60%), hsl(50 95% 55%), hsl(80 90% 55%));
+
     --glass-bg: 0 0% 98% / 0.8;
     --glass-border: 0 0% 0% / 0.08;
     --glass-highlight: 0 0% 100% / 0.5;
