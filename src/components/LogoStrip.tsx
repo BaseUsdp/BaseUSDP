@@ -1,4 +1,5 @@
 import { Icon } from "@iconify/react";
+import { DotPattern } from "@/components/ui/dot-pattern";
 
 const ICONS_ROW1 = [
   { icon: "simple-icons:coinbase", name: "Base" },
