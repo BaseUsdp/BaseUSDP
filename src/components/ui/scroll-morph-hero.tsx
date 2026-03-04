@@ -252,7 +252,7 @@ export default function ScrollMorphHero() {
   const introTextOpacity = useTransform(smoothMorph, [0, 0.25], [1, 0]);
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-background" style={{ marginLeft: 'calc(-50vw + 50%)', marginRight: 'calc(-50vw + 50%)' }}>
+    <div className="relative w-full h-screen overflow-hidden bg-background">
       <div
         ref={containerRef}
         className="relative w-full h-full flex items-center justify-center"
