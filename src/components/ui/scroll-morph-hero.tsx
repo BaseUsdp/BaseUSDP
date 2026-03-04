@@ -245,9 +245,8 @@ export default function ScrollMorphHero() {
     return () => { u1(); u2(); u3(); };
   }, [smoothMorph, smoothScrollRotate, smoothMouseX]);
 
-  // Content fades in as arc forms, logo fades out
-  const logoOpacity = useTransform(smoothMorph, [0, 0.4], [1, 0]);
-  const logoScale = useTransform(smoothMorph, [0, 0.4], [1, 0.8]);
+  // Content fades in as arc forms
+  const contentOpacity = useTransform(smoothMorph, [0.7, 1], [0, 1]);
   const contentOpacity = useTransform(smoothMorph, [0.7, 1], [0, 1]);
   const contentY = useTransform(smoothMorph, [0.7, 1], [30, 0]);
   // Intro text fades out as morph starts
