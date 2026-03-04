@@ -44,6 +44,15 @@
     --text-secondary: 0 0% 40%;
     --text-tertiary: 0 0% 60%;
 
+    /* Beam accent colors */
+    --beam-cyan: 185 80% 50%;
+    --beam-violet: 265 70% 58%;
+    --beam-green: 145 65% 48%;
+    --beam-orange: 25 95% 55%;
+    --beam-amber: 42 85% 52%;
+    --beam-magenta: 325 70% 55%;
+    --beam-indigo: 230 70% 58%;
+
     --glass-bg: 0 0% 98% / 0.8;
     --glass-border: 0 0% 0% / 0.08;
     --glass-highlight: 0 0% 100% / 0.5;
