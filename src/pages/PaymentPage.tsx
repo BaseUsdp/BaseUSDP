@@ -237,7 +237,7 @@ const PaymentPage = () => {
           </Link>
           <div className="flex items-center gap-2 text-primary">
             <Shield className="w-4 h-4" />
-            <span className="text-sm font-medium">ORB402</span>
+            <span className="text-sm font-medium">USDP</span>
           </div>
         </div>
 
