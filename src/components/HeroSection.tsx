@@ -1,108 +1,27 @@
+import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
-import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
-import { useWallet } from "@/contexts/WalletContext";
-import WalletConnectOverlay from "./WalletConnectOverlay";
-
-declare global {
-  interface Window {
-    __unicornScene?: any;
-  }
-}
-
-const wordRevealVariants = {
-  hidden: { y: "110%", opacity: 0 },
-  visible: (i: number) => ({
-    y: "0%",
-    opacity: 1,
-    transition: {
-      duration: 0.8,
-      delay: 0.3 + i * 0.12,
-      ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
-    },
-  }),
-};
+import ScrollMorphHero from "@/components/ui/scroll-morph-hero";
 
 const HeroSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
-  const [showWalletOverlay, setShowWalletOverlay] = useState(false);
-  const { isConnected } = useWallet();
   const navigate = useNavigate();
 
   return (
-    <>
-      <section
-        ref={ref}
-        className="min-h-screen flex flex-col justify-end relative overflow-hidden bg-background pt-16"
-      >
-        {/* Subtle grain overlay */}
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-0"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-          }}
-        />
+    <section ref={ref} className="relative overflow-hidden bg-background">
+      {/* Scroll Morph Hero — full viewport */}
+      <ScrollMorphHero />
 
-        <div className="relative z-10 max-w-[1400px] mx-auto px-8 pb-16 w-full">
-          {/* Main headline with word reveal */}
-          <div className="display-hero text-foreground mb-12">
-            <div className="line-mask">
-              <motion.span
-                className="inline-block font-serif"
-                variants={wordRevealVariants}
-                initial="hidden"
-                animate={isInView ? "visible" : "hidden"}
-                custom={0}
-              >
-                The
-              </motion.span>{" "}
-              <motion.span
-                className="inline-block font-serif italic"
-                variants={wordRevealVariants}
-                initial="hidden"
-                animate={isInView ? "visible" : "hidden"}
-                custom={1}
-              >
-                Confidential
-              </motion.span>
-            </div>
-            <div className="line-mask flex items-end gap-6 flex-wrap">
-              <motion.span
-                className="inline-block font-serif"
-                variants={wordRevealVariants}
-                initial="hidden"
-                animate={isInView ? "visible" : "hidden"}
-                custom={2}
-              >
-                Layer
-              </motion.span>
-              <motion.span
-                className="inline-block max-w-[280px]"
-                variants={wordRevealVariants}
-                initial="hidden"
-                animate={isInView ? "visible" : "hidden"}
-                custom={3}
-                style={{
-                  fontSize: "clamp(0.9rem, 2vw, 1.5rem)",
-                  fontWeight: 300,
-                  color: "hsl(var(--muted-foreground))",
-                  marginBottom: "clamp(0.5rem, 1vw, 1rem)",
-                  lineHeight: 1.4,
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                Privacy-first payments for the Web 4.0 autonomous economy
-              </motion.span>
-            </div>
-          </div>
-
-          {/* Bottom row */}
+      {/* Bottom overlay bar with stats + CTA — pinned at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-background via-background/90 to-transparent pt-16 pb-8">
+        <div className="max-w-[1400px] mx-auto px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8, delay: 1 }}
-            className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pt-10 border-t border-border"
+            className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pt-6 border-t border-border/30"
           >
             <div className="flex items-center gap-8">
               {[
@@ -111,7 +30,7 @@ const HeroSection = () => {
                 { label: "Network", value: "Base L2" },
               ].map((stat, i) => (
                 <div key={stat.label} className="flex items-center gap-8">
-                  {i > 0 && <div className="w-px h-8 bg-border" />}
+                  {i > 0 && <div className="w-px h-8 bg-border/30" />}
                   <div>
                     <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">{stat.label}</p>
                     <p className="text-sm font-medium text-foreground">{stat.value}</p>
@@ -144,13 +63,8 @@ const HeroSection = () => {
             </div>
           </motion.div>
         </div>
-      </section>
-
-      <WalletConnectOverlay
-        isOpen={showWalletOverlay}
-        onClose={() => setShowWalletOverlay(false)}
-      />
-    </>
+      </div>
+    </section>
   );
 };
 
