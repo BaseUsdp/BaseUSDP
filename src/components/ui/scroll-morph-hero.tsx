@@ -88,26 +88,26 @@ const TOTAL_IMAGES = 20;
 const MAX_SCROLL = 3000;
 
 const IMAGES = [
-  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&q=80",
-  "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=300&q=80",
-  "https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&q=80",
-  "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=300&q=80",
-  "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=300&q=80",
-  "https://images.unsplash.com/photo-1506765515384-028b60a970df?w=300&q=80",
-  "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=300&q=80",
-  "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=300&q=80",
-  "https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?w=300&q=80",
-  "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=300&q=80",
-  "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=300&q=80",
-  "https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?w=300&q=80",
-  "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=300&q=80",
-  "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?w=300&q=80",
-  "https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=300&q=80",
-  "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?w=300&q=80",
-  "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?w=300&q=80",
-  "https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?w=300&q=80",
-  "https://images.unsplash.com/photo-1523961131990-5ea7c61b2107?w=300&q=80",
-  "https://images.unsplash.com/photo-1496568816309-51d7c20e3b21?w=300&q=80",
+  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&q=80",  // glass skyscraper
+  "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=300&q=80",  // earth from space data
+  "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=300&q=80",  // server room
+  "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=300&q=80",  // blockchain abstract
+  "https://images.unsplash.com/photo-1563986768609-322da13575f2?w=300&q=80",  // circuit board
+  "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=300&q=80",  // cybersecurity lock
+  "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=300&q=80",  // neural network viz
+  "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=300&q=80",  // matrix code
+  "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=300&q=80",  // laptop code
+  "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=300&q=80",  // code on screen
+  "https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&q=80",  // modern office
+  "https://images.unsplash.com/photo-1560732488-6b0df240254a?w=300&q=80",  // ethereum coin
+  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=300&q=80",  // data dashboard
+  "https://images.unsplash.com/photo-1518770660439-4636190af475?w=300&q=80",  // motherboard macro
+  "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=300&q=80",  // network cables
+  "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=300&q=80",  // woman at screen
+  "https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=300&q=80",  // dark server
+  "https://images.unsplash.com/photo-1488229297570-58520851e868?w=300&q=80",  // data stream
+  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&q=80",  // handshake tech
+  "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=300&q=80",  // team laptops
 ];
 
 const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
@@ -262,17 +262,30 @@ export default function ScrollMorphHero() {
         style={{ touchAction: "none" }}
       >
 
-        {/* Intro Text — shows during circle phase before morph */}
+        {/* Intro Text — shows during circle phase, changes to "Institutional Privacy" */}
         <motion.div
-          className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none"
+          className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none gap-3"
           animate={{ opacity: introPhase === "circle" ? 1 : 0 }}
           transition={{ duration: 0.8 }}
         >
-          <motion.p
-            className="text-muted-foreground text-sm uppercase tracking-widest"
-            style={{ opacity: introTextOpacity }}
+          <motion.h1
+            className="font-serif text-center"
+            style={{
+              fontFamily: "'DM Serif Display', serif",
+              fontSize: 'clamp(3rem, 10vw, 8rem)',
+              lineHeight: 0.9,
+              letterSpacing: '-0.04em',
+              color: 'hsl(var(--foreground))',
+              opacity: introTextOpacity as any,
+            }}
           >
-            Scroll to explore
+            WEB 4
+          </motion.h1>
+          <motion.p
+            className="text-muted-foreground text-xs uppercase tracking-[0.3em]"
+            style={{ opacity: introTextOpacity as any }}
+          >
+            Scroll to enter
           </motion.p>
         </motion.div>
 
@@ -297,9 +310,9 @@ export default function ScrollMorphHero() {
               color: 'hsl(var(--foreground))',
             }}
           >
-            The Confidential
+            Institutional
             <br />
-            <em className="text-muted-foreground">Payment Layer</em>
+            <em className="text-muted-foreground">Privacy</em>
           </h2>
           <p className="mt-6 text-sm leading-relaxed max-w-md text-center text-muted-foreground">
             Privacy-first payments for the Web 4.0 autonomous economy.
