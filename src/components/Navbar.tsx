@@ -110,7 +110,7 @@ const Navbar = () => {
                   onClick={() => { setIsOpen(false); navigate("/dashboard"); }}
                   className="w-full text-sm border border-foreground bg-foreground text-background rounded-full px-5 py-2.5 font-normal"
                 >
-                  Dashboard
+                  Launch Dashboard
                 </button>
               </div>
             </div>

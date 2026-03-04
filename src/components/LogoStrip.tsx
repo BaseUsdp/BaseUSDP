@@ -2,22 +2,20 @@ import { Icon } from "@iconify/react";
 import { DotPattern } from "@/components/ui/dot-pattern";
 
 const ICONS_ROW1 = [
-  { icon: "simple-icons:coinbase", name: "Base" },
+  { icon: "simple-icons:coinbase", name: "Base L2" },
   { icon: "ph:shield-check-fill", name: "ZK Proofs" },
-  { icon: "ph:currency-dollar-fill", name: "x402" },
+  { icon: "ph:currency-dollar-fill", name: "x402 Standard" },
   { icon: "simple-icons:solidity", name: "Solidity" },
-  { icon: "simple-icons:typescript", name: "TypeScript" },
-  { icon: "simple-icons:react", name: "React" },
+  { icon: "ph:robot-fill", name: "AI Agent Compatible" },
   { icon: "ph:lock-fill", name: "ERC-20" },
 ];
 
 const ICONS_ROW2 = [
-  { icon: "ph:robot-fill", name: "AI Agents" },
   { icon: "simple-icons:ethereum", name: "Ethereum" },
   { icon: "ph:wallet-fill", name: "Wallets" },
   { icon: "ph:code-fill", name: "Smart Contracts" },
-  { icon: "ph:globe-fill", name: "Web3" },
-  { icon: "ph:database-fill", name: "On-Chain" },
+  { icon: "simple-icons:typescript", name: "TypeScript" },
+  { icon: "simple-icons:react", name: "React" },
   { icon: "ph:lightning-fill", name: "Fast Settlement" },
 ];
 

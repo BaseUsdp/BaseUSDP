@@ -59,9 +59,9 @@ const FAQSection = () => {
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.1 }}
           >
-            <h2 className="display-section font-serif text-foreground">
-              Everything you need{" "}
-              <em className="text-muted-foreground">to know</em>
+          <h2 className="display-section font-serif text-foreground">
+              Deep Dive into{" "}
+              <em className="text-muted-foreground">USDP</em>
             </h2>
           </motion.div>
         </div>

@@ -27,7 +27,7 @@ const UseCasesSection = () => {
       icon: "ph:user-fill",
       tag: "Human Participants",
       title: "Privacy-First for Humans",
-      description: "Humans in the Web 4.0 economy deserve the same privacy as machines. Transact, earn, and manage assets without surveillance.",
+      description: "Humans in the Web4 economy deserve the same privacy as machines. Transact, earn, and manage assets without surveillance.",
       features: ["Anonymous Payments", "Hidden Balances", "Zero Data Leaks", "Agent-Compatible Wallets"],
       accent: "from-neutral-700 to-neutral-500",
     },

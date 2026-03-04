@@ -57,7 +57,7 @@ const RoadmapSection = () => {
       quarter: "Q4 2026",
       icon: "ph:brain-bold",
       progress: 0,
-      description: "Deep AI integrations establishing BASEUSDP as the default privacy layer for Web 4.0 — the autonomous, agent-driven internet economy.",
+      description: "Deep AI integrations establishing USDP as the default privacy layer for Web4 — the autonomous, agent-driven internet economy.",
       milestones: [
         { name: "AI Agent SDK", done: false },
         { name: "Institutional Vaults", done: false },

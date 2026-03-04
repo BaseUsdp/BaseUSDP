@@ -298,7 +298,7 @@ export default function ScrollMorphHero() {
             className="inline-block text-xs font-semibold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-6"
             style={{ border: '1px solid hsl(0 0% 30%)', color: 'hsl(0 0% 50%)' }}
           >
-            Privacy-First Protocol
+            The Core Protocol
           </span>
           <h2
             className="font-serif text-center"
@@ -310,13 +310,12 @@ export default function ScrollMorphHero() {
               color: 'hsl(var(--foreground))',
             }}
           >
-            Institutional
+            Confidentiality
             <br />
-            <em className="text-muted-foreground">Privacy</em>
+            <em className="text-muted-foreground">by Design</em>
           </h2>
           <p className="mt-6 text-sm leading-relaxed max-w-md text-center text-muted-foreground">
-            Privacy-first payments for the Web 4.0 autonomous economy.
-            Powered by ZK Proofs and the x402 protocol on Base L2.
+            At the heart of USDP is a protocol engineered for the new internet. We combine Zero-Knowledge cryptography with the x402 payment standard to deliver a truly confidential transaction layer for the autonomous economy on Base.
           </p>
         </motion.div>
 

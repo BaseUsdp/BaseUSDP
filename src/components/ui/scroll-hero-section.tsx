@@ -77,9 +77,9 @@ export function ScrollHeroSection({
             <div className="w-full max-w-3xl mt-16 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pt-8" style={{ borderTop: '1px solid hsl(0 0% 20%)' }}>
               <div className="flex items-center gap-8">
                 {[
-                  { label: 'Protocol', value: 'x402' },
-                  { label: 'Privacy', value: 'ZK Proofs' },
-                  { label: 'Network', value: 'Base L2' },
+                  { label: 'x402 Payments', value: 'Autonomous Exchange' },
+                  { label: 'ZK Privacy', value: 'Guaranteed' },
+                  { label: 'Base L2', value: 'High-Speed Settlement' },
                 ].map((stat, i) => (
                   <div key={stat.label} className="flex items-center gap-8">
                     {i > 0 && <div className="w-px h-8" style={{ background: 'hsl(0 0% 20%)' }} />}

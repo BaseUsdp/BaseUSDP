@@ -115,10 +115,10 @@ const AboutSection = () => {
         className="mt-16 max-w-3xl"
       >
         <p className="text-muted-foreground leading-relaxed mb-6">
-          Public blockchains promised a revolution in peer-to-peer finance, but their inherent transparency created a critical barrier to mainstream adoption. For institutions, enterprises, and any entity that values financial privacy, broadcasting every transaction to the world is not just a risk—it's a non-starter.
+          Public blockchains promised a revolution in peer-to-peer finance, but their inherent transparency created a critical barrier to mainstream adoption. For institutions, enterprises, and any entity that values financial privacy, broadcasting every transaction to the world is not just a risk — it's a non-starter.
         </p>
         <p className="text-foreground font-medium leading-relaxed">
-          BASEUSDP was created to solve this fundamental problem — and to power the Web 4.0 economy. By integrating cutting-edge Zero-Knowledge Proofs (ZK Proofs) with the internet-native x402 payment standard, we have created the world's first confidential payment layer for this new autonomous internet economy.
+          USDP was created to solve this fundamental problem — and to power the Web4 economy. By integrating cutting-edge Zero-Knowledge Proofs (ZKPs) with the internet-native x402 payment standard, we have created the world's first confidential payment layer for the autonomous internet economy. Autonomous by design. Invisible by default.
         </p>
       </motion.div>
     </section>

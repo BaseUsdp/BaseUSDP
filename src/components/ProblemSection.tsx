@@ -81,7 +81,7 @@ const ProblemSection = () => {
               transition={{ duration: 0.8, delay: 0.3 }}
             >
               <p className="text-base text-muted-foreground leading-relaxed">
-                Public blockchains expose everything by default. This transparency is a critical dealbreaker for institutional banking.
+                Public blockchains expose everything by default. In the Web4 era, this transparency is a critical dealbreaker for institutions, AI agents, and any entity that values strategic privacy.
               </p>
             </motion.div>
           </div>

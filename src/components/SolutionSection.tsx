@@ -74,7 +74,7 @@ const SolutionSection = () => {
           transition={{ duration: 0.8, delay: 0.3 }}
         >
           <p className="text-base text-muted-foreground leading-relaxed">
-            Three revolutionary technologies combined to create the future of confidential finance.
+            Three revolutionary technologies combined to power the Web4 agentic economy with unparalleled privacy.
           </p>
         </motion.div>
       </div>

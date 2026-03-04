@@ -69,6 +69,14 @@ const CTASection = () => {
                 </div>
                 Launch Dashboard
               </motion.button>
+              <a
+                href="#about"
+                onClick={(e) => { e.preventDefault(); document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' }); }}
+                className="text-sm text-background/40 hover:text-background/70 transition-colors underline underline-offset-4"
+              >
+                Learn More About USDP
+              </a>
+              </motion.button>
             </motion.div>
           </div>
         </div>
