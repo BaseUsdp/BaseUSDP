@@ -12,12 +12,19 @@ import {
 // --- Types ---
 export type AnimationPhase = "scatter" | "line" | "circle" | "bottom-strip";
 
+const CARD_ICONS = [
+  Shield, Lock, Fingerprint, Eye, KeyRound, FileKey,
+  Cpu, Blocks, Wallet, CreditCard, Globe, Network,
+  Zap, Code, Database, Server, Binary, Layers, ShieldCheck, Bot
+];
+
 interface FlipCardProps {
   gradientIndex: number;
   index: number;
   total: number;
   phase: AnimationPhase;
   target: { x: number; y: number; rotation: number; scale: number; opacity: number };
+  morphProgress: number;
 }
 
 // --- FlipCard Component ---
