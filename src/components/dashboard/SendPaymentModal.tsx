@@ -312,7 +312,7 @@ const SendPaymentModal = ({ open, onOpenChange, initialRecipient, initialAmount,
       // Create message to sign
       const effectiveRecipient = getEffectiveRecipient();
       const displayRecipient = recipientType === "username" ? `@${usernameInput}` : effectiveRecipient;
-      const message = `Authorize ORB402 transfer:\nAmount: ${amount} ${selectedToken}\nTo: ${displayRecipient}\nTimestamp: ${Date.now()}`;
+      const message = `Authorize USDP transfer:\nAmount: ${amount} ${selectedToken}\nTo: ${displayRecipient}\nTimestamp: ${Date.now()}`;
       
       // Sign message with wallet (chain-aware)
       let walletSignature: string;

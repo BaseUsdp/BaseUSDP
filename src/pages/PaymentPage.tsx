@@ -98,7 +98,7 @@ const PaymentPage = () => {
       // The recipient is the creator of the payment request
       // In production, this would come from the API/database
       const recipientWallet = request.recipientWallet || fullWalletAddress; // Fallback for demo
-      const message = `Pay ORB402 Request:\nAmount: ${request.amount} USDC\nTo: ${recipientWallet}\nRequest ID: ${request.id}\nTimestamp: ${Date.now()}`;
+      const message = `Pay USDP Request:\nAmount: ${request.amount} USDC\nTo: ${recipientWallet}\nRequest ID: ${request.id}\nTimestamp: ${Date.now()}`;
       
       let walletSignature: string;
       try {
@@ -237,7 +237,7 @@ const PaymentPage = () => {
           </Link>
           <div className="flex items-center gap-2 text-primary">
             <Shield className="w-4 h-4" />
-            <span className="text-sm font-medium">ORB402</span>
+            <span className="text-sm font-medium">USDP</span>
           </div>
         </div>
 
@@ -403,7 +403,7 @@ const PaymentPage = () => {
 
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground mt-6">
-          Secured by ORB402 • ZK Encrypted Payments
+          Secured by USDP • ZK Encrypted Payments
         </p>
       </motion.div>
     </div>

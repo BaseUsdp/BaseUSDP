@@ -197,7 +197,7 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
                 Welcome to ORB Terminal
               </h3>
               <p className="text-xs mb-6 max-w-xs" style={{ color: "var(--dash-text-faint)" }}>
-                Your AI-powered assistant for managing payments, checking balances, and navigating ORB402.
+                Your AI-powered assistant for managing payments, checking balances, and navigating USDP.
               </p>
               <div className="flex flex-wrap gap-2 justify-center max-w-md">
                 {SUGGESTED_COMMANDS.map((cmd) => (

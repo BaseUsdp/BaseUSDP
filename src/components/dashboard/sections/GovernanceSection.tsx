@@ -29,7 +29,7 @@ const GovernanceSection = ({ showBalance }: GovernanceSectionProps) => {
     {
       id: 2,
       title: "VIP-002: Add Support for New Token",
-      description: "Integrate a new token into the ORB402 ecosystem, enabling encrypted transfers and yield generation.",
+      description: "Integrate a new token into the USDP ecosystem, enabling encrypted transfers and yield generation.",
       status: "active",
       endTime: "4 days left",
       votesFor: 78,

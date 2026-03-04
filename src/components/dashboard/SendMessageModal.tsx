@@ -156,7 +156,7 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
         <DialogHeader>
           <DialogTitle className="text-white">Send Message</DialogTitle>
           <DialogDescription className="text-white/50">
-            Send an encrypted message to another ORB402 user
+            Send an encrypted message to another USDP user
           </DialogDescription>
         </DialogHeader>
 

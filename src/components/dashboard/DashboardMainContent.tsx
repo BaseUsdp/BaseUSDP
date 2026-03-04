@@ -236,7 +236,7 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `orb402_transactions_${new Date().toISOString().split("T")[0]}.csv`;
+      a.download = `usdp_transactions_${new Date().toISOString().split("T")[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
