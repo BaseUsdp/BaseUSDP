@@ -395,6 +395,7 @@ export default function ScrollMorphHero() {
                  WebkitTextFillColor: 'transparent',
                  backgroundClip: 'text',
                  paddingBottom: '0.15em',
+                 paddingRight: '0.08em',
                  lineHeight: 1.3,
                }}
              >by Design</em>
