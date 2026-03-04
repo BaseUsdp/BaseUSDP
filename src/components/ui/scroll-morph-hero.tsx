@@ -248,6 +248,9 @@ export default function ScrollMorphHero() {
 
       if (isMobile && Math.abs(rawDeltaY) < MOBILE_TOUCH_DEADZONE) return;
 
+      // On mobile, ignore small backward (downward finger) movements — they're usually jitter
+      if (isMobile && rawDeltaY < 0 && Math.abs(rawDeltaY) < MOBILE_REVERSE_DEADZONE) return;
+
       let adjustedDeltaY = rawDeltaY * (isMobile ? MOBILE_TOUCH_SCROLL_MULTIPLIER : 1);
 
       if (isMobile) {
