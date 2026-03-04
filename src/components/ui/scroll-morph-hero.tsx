@@ -57,16 +57,11 @@ function FlipCard({ gradientIndex, index, total, phase, target }: FlipCardProps)
       >
         <div
           className="absolute inset-0 rounded-lg overflow-hidden shadow-lg"
-          style={{ backfaceVisibility: "hidden" }}
-        >
-          <img
-            src={src}
-            alt={`Card ${index}`}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-        </div>
+          style={{
+            backfaceVisibility: "hidden",
+            background: gradient,
+          }}
+        />
         <div
           className="absolute inset-0 rounded-lg overflow-hidden shadow-lg flex items-center justify-center"
           style={{
