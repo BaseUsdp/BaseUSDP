@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '@iconify/react';
+import AltisLogo from '@/components/AltisLogo';
 
 interface ScrollHeroProps {
   items?: string[];
@@ -24,11 +25,19 @@ export function ScrollHeroSection({
       {/* Grid background */}
       <div className="word-hero-grid" />
 
+      {/* Centered logo that fades on scroll */}
+      <div className="word-hero-logo">
+        <AltisLogo size={64} className="text-foreground" />
+        <span className="mt-3 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+          BASEUSDP
+        </span>
+      </div>
+
       <header
         className="word-hero-header"
         style={{ '--count': items.length, '--wh-start': `${startVh}vh`, '--wh-space': `${spaceVh}vh` } as React.CSSProperties}
       >
-        {/* Sticky prefix — "you can " stays fixed at viewport center */}
+        {/* Sticky prefix */}
         <div className="word-hero-prefix">
           <h1 className="word-hero-title">
             <span className="sr-only">{prefix}{items[items.length - 1]}</span>
@@ -36,7 +45,7 @@ export function ScrollHeroSection({
           </h1>
         </div>
 
-        {/* Scrolling word list — each word passes through the accent band */}
+        {/* Scrolling word list */}
         <ul className="word-hero-list" aria-hidden="true">
           {items.map((word, i) => (
             <li key={i} className="word-hero-word">{word}</li>
@@ -44,39 +53,37 @@ export function ScrollHeroSection({
         </ul>
       </header>
 
-      {/* Dark card section that enters with rounded corners */}
+      {/* Dark card section */}
       <div className="word-hero-main">
         <div className="word-hero-main-inner">
-          <div className="max-w-[1400px] mx-auto px-8 py-20 w-full">
-            <div className="flex flex-col items-center text-center mb-16">
-              <span
-                className="inline-block text-xs font-semibold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-8"
-                style={{ border: '1px solid hsl(0 0% 30%)', color: 'hsl(0 0% 60%)' }}
-              >
-                Privacy-First Protocol
-              </span>
-              <h2
-                className="font-serif"
-                style={{
-                  fontFamily: "'DM Serif Display', serif",
-                  fontSize: 'clamp(2.5rem, 8vw, 6rem)',
-                  lineHeight: 0.95,
-                  letterSpacing: '-0.03em',
-                  color: 'hsl(0 0% 100%)',
-                }}
-              >
-                The Confidential
-                <br />
-                <em style={{ color: 'hsl(0 0% 50%)' }}>Payment Layer</em>
-              </h2>
-              <p className="mt-8 text-base leading-relaxed max-w-lg" style={{ color: 'hsl(0 0% 50%)' }}>
-                Privacy-first payments for the Web 4.0 autonomous economy.
-                Powered by ZK Proofs and the x402 protocol on Base L2.
-              </p>
-            </div>
+          <div className="word-hero-content">
+            <span
+              className="inline-block text-xs font-semibold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-8"
+              style={{ border: '1px solid hsl(0 0% 30%)', color: 'hsl(0 0% 60%)' }}
+            >
+              Privacy-First Protocol
+            </span>
+            <h2
+              className="font-serif"
+              style={{
+                fontFamily: "'DM Serif Display', serif",
+                fontSize: 'clamp(2.5rem, 8vw, 6rem)',
+                lineHeight: 0.95,
+                letterSpacing: '-0.03em',
+                color: 'hsl(0 0% 100%)',
+              }}
+            >
+              The Confidential
+              <br />
+              <em style={{ color: 'hsl(0 0% 50%)' }}>Payment Layer</em>
+            </h2>
+            <p className="mt-8 text-base leading-relaxed max-w-lg" style={{ color: 'hsl(0 0% 50%)' }}>
+              Privacy-first payments for the Web 4.0 autonomous economy.
+              Powered by ZK Proofs and the x402 protocol on Base L2.
+            </p>
 
             {/* Stats + CTA bar */}
-            <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pt-8" style={{ borderTop: '1px solid hsl(0 0% 20%)' }}>
+            <div className="w-full max-w-3xl mt-16 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pt-8" style={{ borderTop: '1px solid hsl(0 0% 20%)' }}>
               <div className="flex items-center gap-8">
                 {[
                   { label: 'Protocol', value: 'x402' },
@@ -144,6 +151,40 @@ export function ScrollHeroSection({
           mask: linear-gradient(-20deg, transparent 50%, white);
         }
 
+        /* Logo — centered, fades out on scroll */
+        .word-hero-logo {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 100vh;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          z-index: 0;
+          pointer-events: none;
+          animation: logo-fade-out both linear;
+          animation-timeline: scroll();
+          animation-range: 0px 300px;
+        }
+
+        @keyframes logo-fade-out {
+          from { opacity: 1; scale: 1; filter: blur(0px); }
+          to   { opacity: 0; scale: 0.85; filter: blur(8px); }
+        }
+
+        /* Fallback for browsers without scroll-timeline */
+        @supports not (animation-timeline: scroll()) {
+          .word-hero-logo {
+            animation: logo-fade-out-fallback 0.01s both;
+            animation-delay: 0s;
+          }
+          @keyframes logo-fade-out-fallback {
+            to { opacity: 0; }
+          }
+        }
+
         /* Header: sticky with negative offset to create scrollable word area */
         .word-hero-header {
           font-size: clamp(2.5rem, 8vw, 6rem);
@@ -202,10 +243,9 @@ export function ScrollHeroSection({
           background-clip: text;
         }
 
-        /* Dark card section */
+        /* Dark card section — NOT min-height:100vh so page scrolls past */
         .word-hero-main {
           width: 100%;
-          min-height: 100vh;
           position: relative;
           z-index: 2;
         }
@@ -213,10 +253,16 @@ export function ScrollHeroSection({
         .word-hero-main-inner {
           background: hsl(0 0% 5%);
           border-radius: 1.5rem 1.5rem 0 0;
-          min-height: 100vh;
+        }
+
+        .word-hero-content {
           display: flex;
+          flex-direction: column;
           align-items: center;
-          justify-content: center;
+          text-align: center;
+          max-width: 1400px;
+          margin: 0 auto;
+          padding: 6rem 2rem;
         }
 
         /* Progressive enhancement: view-timeline entry animation */
