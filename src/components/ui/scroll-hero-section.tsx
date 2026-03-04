@@ -90,10 +90,10 @@ export function ScrollHeroSection({
                   { label: 'Base L2', value: 'High-Speed Settlement' },
                 ].map((stat, i) => (
                   <div key={stat.label} className="flex items-center gap-8">
-                    {i > 0 && <div className="w-px h-8" style={{ background: 'hsl(0 0% 20%)' }} />}
-                    <div>
-                      <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'hsl(0 0% 45%)' }}>{stat.label}</p>
-                      <p className="text-sm font-medium" style={{ color: 'hsl(0 0% 90%)' }}>{stat.value}</p>
+                     {i > 0 && <div className="w-px h-8" style={{ background: 'hsl(0 0% 70%)' }} />}
+                     <div>
+                       <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'hsl(0 0% 30%)' }}>{stat.label}</p>
+                       <p className="text-sm font-medium" style={{ color: 'hsl(0 0% 0%)' }}>{stat.value}</p>
                     </div>
                   </div>
                 ))}
