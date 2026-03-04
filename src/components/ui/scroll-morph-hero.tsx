@@ -308,23 +308,23 @@ export default function ScrollMorphHero() {
 
         {/* Intro Text — shows during circle phase, changes to "Institutional Privacy" */}
         <motion.div
-          className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none gap-3"
+          className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none gap-1 sm:gap-3"
           animate={{ opacity: introPhase === "circle" ? 1 : 0 }}
           transition={{ duration: 0.8 }}
         >
           <motion.img
             src={usdpLogo}
             alt="USDP"
-            className="pointer-events-none"
+            className="pointer-events-none max-w-[30%] sm:max-w-[clamp(120px,30vw,320px)]"
             style={{
-              width: 'clamp(120px, 30vw, 320px)',
+              width: 'clamp(60px, 18vw, 320px)',
               height: 'auto',
               objectFit: 'contain',
               opacity: introTextOpacity as any,
             }}
           />
           <motion.p
-            className="text-muted-foreground text-xs uppercase tracking-[0.3em]"
+            className="text-muted-foreground text-[10px] sm:text-xs uppercase tracking-[0.2em] sm:tracking-[0.3em]"
             style={{ opacity: introTextOpacity as any }}
           >
             Scroll to enter
