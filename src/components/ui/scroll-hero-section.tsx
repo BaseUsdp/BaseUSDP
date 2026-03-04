@@ -53,7 +53,7 @@ export function ScrollHeroSection({
               className="inline-block text-xs font-semibold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-8"
               style={{ border: '1px solid hsl(0 0% 30%)', color: 'hsl(0 0% 60%)' }}
             >
-              Privacy-First Protocol
+              Web4 Ready · Agentic Economy Optimized
             </span>
             <h2
               className="font-serif"
@@ -65,13 +65,12 @@ export function ScrollHeroSection({
                 color: 'hsl(0 0% 100%)',
               }}
             >
-              The Confidential
+              The Private Agentic
               <br />
-              <em style={{ color: 'hsl(0 0% 50%)' }}>Payment Layer</em>
+              <em style={{ color: 'hsl(0 0% 50%)' }}>Wallet for Web4</em>
             </h2>
             <p className="mt-8 text-base leading-relaxed max-w-lg" style={{ color: 'hsl(0 0% 50%)' }}>
-              Privacy-first payments for the Web 4.0 autonomous economy.
-              Powered by ZK Proofs and the x402 protocol on Base L2.
+              USDP pioneers the confidential infrastructure for the Web4 agentic economy. Our ZK-powered platform empowers institutions, developers, and AI agents to transact on Base with unparalleled privacy, ushering in an era of secure, autonomous commerce.
             </p>
 
             {/* Stats + CTA bar */}
