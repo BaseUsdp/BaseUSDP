@@ -262,17 +262,30 @@ export default function ScrollMorphHero() {
         style={{ touchAction: "none" }}
       >
 
-        {/* Intro Text — shows during circle phase before morph */}
+        {/* Intro Text — shows during circle phase, changes to "Institutional Privacy" */}
         <motion.div
-          className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none"
+          className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none gap-3"
           animate={{ opacity: introPhase === "circle" ? 1 : 0 }}
           transition={{ duration: 0.8 }}
         >
-          <motion.p
-            className="text-muted-foreground text-sm uppercase tracking-widest"
-            style={{ opacity: introTextOpacity }}
+          <motion.h1
+            className="font-serif text-center"
+            style={{
+              fontFamily: "'DM Serif Display', serif",
+              fontSize: 'clamp(3rem, 10vw, 8rem)',
+              lineHeight: 0.9,
+              letterSpacing: '-0.04em',
+              color: 'hsl(var(--foreground))',
+              opacity: introTextOpacity as any,
+            }}
           >
-            Scroll to explore
+            WEB 4
+          </motion.h1>
+          <motion.p
+            className="text-muted-foreground text-xs uppercase tracking-[0.3em]"
+            style={{ opacity: introTextOpacity as any }}
+          >
+            Scroll to enter
           </motion.p>
         </motion.div>
 
@@ -297,9 +310,9 @@ export default function ScrollMorphHero() {
               color: 'hsl(var(--foreground))',
             }}
           >
-            The Confidential
+            Institutional
             <br />
-            <em className="text-muted-foreground">Payment Layer</em>
+            <em className="text-muted-foreground">Privacy</em>
           </h2>
           <p className="mt-6 text-sm leading-relaxed max-w-md text-center text-muted-foreground">
             Privacy-first payments for the Web 4.0 autonomous economy.
