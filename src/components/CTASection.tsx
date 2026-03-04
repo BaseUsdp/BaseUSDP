@@ -44,9 +44,9 @@ const CTASection = () => {
                 letterSpacing: "-0.03em",
               }}
             >
-              Ready to
+              Launch Your
               <br />
-              <em>Transform</em>
+              <em>Private Wallet</em>
             </motion.h2>
 
             <motion.div
