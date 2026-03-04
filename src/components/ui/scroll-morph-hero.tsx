@@ -85,46 +85,34 @@ function FlipCard({ src, index, total, phase, target }: FlipCardProps) {
 
 // --- Main Hero Component ---
 const TOTAL_IMAGES = 20;
-const DESKTOP_MAX_SCROLL = 3000;
-const MOBILE_MAX_SCROLL = 520;
-const MOBILE_TOUCH_SCROLL_MULTIPLIER = 10;
-const MOBILE_TOUCH_DEADZONE = 2;
-const MOBILE_MIN_FORWARD_DELTA = 18;
-const MOBILE_REVERSE_DAMPING = 0.2;
-const MOBILE_FLICK_BOOST_THRESHOLD = 18;
-const MOBILE_COMPLETE_PROGRESS = 0.9;
+const MAX_SCROLL = 3000;
+const TOUCH_SCROLL_MULTIPLIER = 8;
+const TOUCH_DEADZONE = 2;
 
 const IMAGES = [
-  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&q=80",  // glass skyscraper
-  "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=300&q=80",  // earth from space data
-  "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=300&q=80",  // server room
-  "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=300&q=80",  // blockchain abstract
-  "https://images.unsplash.com/photo-1563986768609-322da13575f2?w=300&q=80",  // circuit board
-  "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=300&q=80",  // cybersecurity lock
-  "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=300&q=80",  // neural network viz
-  "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=300&q=80",  // matrix code
-  "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=300&q=80",  // laptop code
-  "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=300&q=80",  // code on screen
-  "https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&q=80",  // modern office
-  "https://images.unsplash.com/photo-1560732488-6b0df240254a?w=300&q=80",  // ethereum coin
-  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=300&q=80",  // data dashboard
-  "https://images.unsplash.com/photo-1518770660439-4636190af475?w=300&q=80",  // motherboard macro
-  "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=300&q=80",  // network cables
-  "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=300&q=80",  // woman at screen
-  "https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=300&q=80",  // dark server
-  "https://images.unsplash.com/photo-1488229297570-58520851e868?w=300&q=80",  // data stream
-  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&q=80",  // handshake tech
-  "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=300&q=80",  // team laptops
+  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&q=80",
+  "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=300&q=80",
+  "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=300&q=80",
+  "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=300&q=80",
+  "https://images.unsplash.com/photo-1563986768609-322da13575f2?w=300&q=80",
+  "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=300&q=80",
+  "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=300&q=80",
+  "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=300&q=80",
+  "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=300&q=80",
+  "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=300&q=80",
+  "https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&q=80",
+  "https://images.unsplash.com/photo-1560732488-6b0df240254a?w=300&q=80",
+  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=300&q=80",
+  "https://images.unsplash.com/photo-1518770660439-4636190af475?w=300&q=80",
+  "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=300&q=80",
+  "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=300&q=80",
+  "https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=300&q=80",
+  "https://images.unsplash.com/photo-1488229297570-58520851e868?w=300&q=80",
+  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&q=80",
+  "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=300&q=80",
 ];
 
 const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
-
-const isMobileInputMode = () =>
-  window.innerWidth < 768 ||
-  window.matchMedia("(pointer: coarse)").matches ||
-  navigator.maxTouchPoints > 0;
-
-const getMaxScroll = (isMobile: boolean) => (isMobile ? MOBILE_MAX_SCROLL : DESKTOP_MAX_SCROLL);
 
 export default function ScrollMorphHero() {
   const [introPhase, setIntroPhase] = useState<AnimationPhase>("circle");
@@ -148,7 +136,7 @@ export default function ScrollMorphHero() {
 
   useEffect(() => {
     const updateDeviceMode = () => {
-      setIsMobileViewport(isMobileInputMode());
+      setIsMobileViewport(window.innerWidth < 768);
     };
 
     updateDeviceMode();
@@ -167,33 +155,29 @@ export default function ScrollMorphHero() {
 
     const SCROLL_TOP_THRESHOLD = 4;
 
-    const finishIfNeeded = (nextScroll: number, maxScroll: number, isMobile: boolean) => {
-      const completionPoint = isMobile ? maxScroll * MOBILE_COMPLETE_PROGRESS : maxScroll;
-      if (nextScroll >= completionPoint) {
-        scrollRef.current = maxScroll;
-        virtualScroll.set(maxScroll);
+    const finishIfNeeded = (nextScroll: number) => {
+      if (nextScroll >= MAX_SCROLL) {
+        scrollRef.current = MAX_SCROLL;
+        virtualScroll.set(MAX_SCROLL);
         setAnimationDone(true);
       }
     };
 
     const handleWheel = (e: WheelEvent) => {
-      const isMobile = isMobileInputMode();
-      const maxScroll = getMaxScroll(isMobile);
-
       if (animationDone) {
         if (e.deltaY > 0) return;
         if (window.scrollY > SCROLL_TOP_THRESHOLD) return;
 
         setAnimationDone(false);
-        scrollRef.current = maxScroll;
-        virtualScroll.set(maxScroll);
+        scrollRef.current = MAX_SCROLL;
+        virtualScroll.set(MAX_SCROLL);
       }
 
       e.preventDefault();
-      const newScroll = Math.min(Math.max(scrollRef.current + e.deltaY, 0), maxScroll);
-      scrollRef.current = newScroll;
-      virtualScroll.set(newScroll);
-      finishIfNeeded(newScroll, maxScroll, isMobile);
+      const nextScroll = Math.min(Math.max(scrollRef.current + e.deltaY, 0), MAX_SCROLL);
+      scrollRef.current = nextScroll;
+      virtualScroll.set(nextScroll);
+      finishIfNeeded(nextScroll);
     };
 
     let touchStartY = 0;
@@ -202,41 +186,28 @@ export default function ScrollMorphHero() {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      const isMobile = isMobileInputMode();
-      const maxScroll = getMaxScroll(isMobile);
       const touchY = e.touches[0].clientY;
       const rawDeltaY = touchStartY - touchY;
       touchStartY = touchY;
 
-      if (isMobile && Math.abs(rawDeltaY) < MOBILE_TOUCH_DEADZONE) return;
+      if (Math.abs(rawDeltaY) < TOUCH_DEADZONE) return;
 
-      let adjustedDeltaY = rawDeltaY * (isMobile ? MOBILE_TOUCH_SCROLL_MULTIPLIER : 1);
-
-      if (isMobile) {
-        if (adjustedDeltaY > 0) {
-          adjustedDeltaY = Math.max(adjustedDeltaY, MOBILE_MIN_FORWARD_DELTA);
-          if (Math.abs(rawDeltaY) > MOBILE_FLICK_BOOST_THRESHOLD) {
-            adjustedDeltaY *= 1.35;
-          }
-        } else {
-          adjustedDeltaY *= MOBILE_REVERSE_DAMPING;
-        }
-      }
+      const adjustedDeltaY = rawDeltaY * TOUCH_SCROLL_MULTIPLIER;
 
       if (animationDone) {
         if (adjustedDeltaY > 0) return;
         if (window.scrollY > SCROLL_TOP_THRESHOLD) return;
 
         setAnimationDone(false);
-        scrollRef.current = maxScroll;
-        virtualScroll.set(maxScroll);
+        scrollRef.current = MAX_SCROLL;
+        virtualScroll.set(MAX_SCROLL);
       }
 
       e.preventDefault();
-      const newScroll = Math.min(Math.max(scrollRef.current + adjustedDeltaY, 0), maxScroll);
-      scrollRef.current = newScroll;
-      virtualScroll.set(newScroll);
-      finishIfNeeded(newScroll, maxScroll, isMobile);
+      const nextScroll = Math.min(Math.max(scrollRef.current + adjustedDeltaY, 0), MAX_SCROLL);
+      scrollRef.current = nextScroll;
+      virtualScroll.set(nextScroll);
+      finishIfNeeded(nextScroll);
     };
 
     container.addEventListener("wheel", handleWheel, { passive: false });
@@ -250,8 +221,8 @@ export default function ScrollMorphHero() {
     };
   }, [virtualScroll, animationDone]);
 
-  const maxScrollForViewport = getMaxScroll(isMobileViewport);
-  const morphEnd = isMobileViewport ? 260 : 600;
+  const maxScrollForViewport = MAX_SCROLL;
+  const morphEnd = 600;
   const morphProgress = useTransform(virtualScroll, [0, morphEnd], [0, 1]);
   const smoothMorph = useSpring(morphProgress, { stiffness: 40, damping: 20 });
 
