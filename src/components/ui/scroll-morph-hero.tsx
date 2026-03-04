@@ -86,9 +86,10 @@ function FlipCard({ src, index, total, phase, target }: FlipCardProps) {
 // --- Main Hero Component ---
 const TOTAL_IMAGES = 20;
 const DESKTOP_MAX_SCROLL = 3000;
-const MOBILE_MAX_SCROLL = 1200;
-const MOBILE_TOUCH_SCROLL_MULTIPLIER = 5;
-const MOBILE_MIN_TOUCH_DELTA = 18;
+const MOBILE_MAX_SCROLL = 650;
+const MOBILE_TOUCH_SCROLL_MULTIPLIER = 9;
+const MOBILE_MIN_TOUCH_DELTA = 32;
+const MOBILE_FLICK_BOOST_THRESHOLD = 26;
 
 const IMAGES = [
   "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&q=80",  // glass skyscraper
@@ -114,12 +115,19 @@ const IMAGES = [
 ];
 
 const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
+
+const isMobileInputMode = () =>
+  window.innerWidth < 768 ||
+  window.matchMedia("(pointer: coarse)").matches ||
+  navigator.maxTouchPoints > 0;
+
 const getMaxScroll = (isMobile: boolean) => (isMobile ? MOBILE_MAX_SCROLL : DESKTOP_MAX_SCROLL);
 
 export default function ScrollMorphHero() {
   const [introPhase, setIntroPhase] = useState<AnimationPhase>("circle");
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [animationDone, setAnimationDone] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -135,6 +143,17 @@ export default function ScrollMorphHero() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const updateDeviceMode = () => {
+      setIsMobileViewport(isMobileInputMode());
+    };
+
+    updateDeviceMode();
+    window.addEventListener("resize", updateDeviceMode);
+
+    return () => window.removeEventListener("resize", updateDeviceMode);
+  }, []);
+
   // --- Virtual Scroll Logic ---
   const virtualScroll = useMotionValue(0);
   const scrollRef = useRef(0);
@@ -144,7 +163,7 @@ export default function ScrollMorphHero() {
     if (!container) return;
 
     const handleWheel = (e: WheelEvent) => {
-      const isMobile = window.innerWidth < 768;
+      const isMobile = isMobileInputMode();
       const maxScroll = getMaxScroll(isMobile);
 
       // If animation is done and user scrolls down, let the page scroll naturally
@@ -174,16 +193,20 @@ export default function ScrollMorphHero() {
       touchStartY = e.touches[0].clientY;
     };
     const handleTouchMove = (e: TouchEvent) => {
-      const isMobile = window.innerWidth < 768;
+      const isMobile = isMobileInputMode();
       const maxScroll = getMaxScroll(isMobile);
       const touchY = e.touches[0].clientY;
       const deltaY = touchStartY - touchY;
       touchStartY = touchY;
 
       const rawDeltaY = deltaY * (isMobile ? MOBILE_TOUCH_SCROLL_MULTIPLIER : 1);
-      const adjustedDeltaY = isMobile
+      let adjustedDeltaY = isMobile
         ? Math.sign(rawDeltaY) * Math.max(Math.abs(rawDeltaY), MOBILE_MIN_TOUCH_DELTA)
         : rawDeltaY;
+
+      if (isMobile && Math.abs(rawDeltaY) > MOBILE_FLICK_BOOST_THRESHOLD) {
+        adjustedDeltaY *= 1.6;
+      }
 
       if (animationDone && adjustedDeltaY > 0) return;
       if (animationDone && adjustedDeltaY < 0) {
@@ -214,11 +237,12 @@ export default function ScrollMorphHero() {
     };
   }, [virtualScroll, animationDone]);
 
-  const maxScrollForViewport = containerSize.width < 768 ? MOBILE_MAX_SCROLL : DESKTOP_MAX_SCROLL;
-  const morphProgress = useTransform(virtualScroll, [0, 600], [0, 1]);
+  const maxScrollForViewport = getMaxScroll(isMobileViewport);
+  const morphEnd = isMobileViewport ? 260 : 600;
+  const morphProgress = useTransform(virtualScroll, [0, morphEnd], [0, 1]);
   const smoothMorph = useSpring(morphProgress, { stiffness: 40, damping: 20 });
 
-  const scrollRotate = useTransform(virtualScroll, [600, maxScrollForViewport], [0, 360]);
+  const scrollRotate = useTransform(virtualScroll, [morphEnd, maxScrollForViewport], [0, 360]);
   const smoothScrollRotate = useSpring(scrollRotate, { stiffness: 40, damping: 20 });
 
   const mouseX = useMotionValue(0);
@@ -351,7 +375,7 @@ export default function ScrollMorphHero() {
               const lineX = i * lineSpacing - lineTotalWidth / 2;
               target = { x: lineX, y: 0, rotation: 0, scale: 1, opacity: 1 };
             } else {
-              const isMobile = containerSize.width < 768;
+              const isMobile = isMobileViewport;
               const minDimension = Math.min(containerSize.width, containerSize.height);
               const circleRadius = Math.min(minDimension * 0.35, 350);
               const circleAngle = (i / TOTAL_IMAGES) * 360;
