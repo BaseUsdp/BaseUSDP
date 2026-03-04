@@ -2,8 +2,6 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon } from '@iconify/react';
-import AltisLogo from '@/components/AltisLogo';
 
 interface ScrollHeroProps {
   items?: string[];
