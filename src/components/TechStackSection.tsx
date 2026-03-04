@@ -113,7 +113,8 @@ const TechStackSection = () => {
                   {/* Left: number node */}
                   <div className="hidden md:flex flex-col items-center pt-10">
                     <motion.div
-                      className="w-[18px] h-[18px] rounded-full border-2 border-foreground bg-background z-10 group-hover:bg-foreground transition-colors duration-300"
+                      className="w-[18px] h-[18px] rounded-full border-2 z-10 transition-colors duration-300"
+                      style={{ borderColor: `hsl(${layer.color})`, backgroundColor: hoveredLayer === i ? `hsl(${layer.color})` : 'hsl(var(--background))' }}
                       whileHover={{ scale: 1.3 }}
                     />
                   </div>

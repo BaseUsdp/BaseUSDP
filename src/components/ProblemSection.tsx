@@ -138,9 +138,11 @@ const ProblemSection = () => {
                       transition={{ duration: 1, delay: 0.6 + i * 0.1 }}
                       className="h-full rounded-full"
                       style={{
-                        background: item.value > 90
-                          ? 'hsl(0 0% 0%)'
-                          : 'hsl(0 0% 25%)',
+                        background: i % 3 === 0
+                          ? 'hsl(var(--beam-orange))'
+                          : i % 3 === 1
+                          ? 'hsl(var(--beam-magenta))'
+                          : 'hsl(var(--beam-violet))',
                       }}
                     />
                   </div>
