@@ -98,7 +98,7 @@ const PaymentPage = () => {
       // The recipient is the creator of the payment request
       // In production, this would come from the API/database
       const recipientWallet = request.recipientWallet || fullWalletAddress; // Fallback for demo
-      const message = `Pay ORB402 Request:\nAmount: ${request.amount} USDC\nTo: ${recipientWallet}\nRequest ID: ${request.id}\nTimestamp: ${Date.now()}`;
+      const message = `Pay USDP Request:\nAmount: ${request.amount} USDC\nTo: ${recipientWallet}\nRequest ID: ${request.id}\nTimestamp: ${Date.now()}`;
       
       let walletSignature: string;
       try {
