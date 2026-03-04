@@ -4,19 +4,19 @@ import AltisLogo from "@/components/AltisLogo";
 
 const PrivacyPolicy = () => {
   return (
-    <div className="min-h-screen bg-white text-black">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="border-b border-black/10">
+      <header className="border-b border-border">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <AltisLogo size={28} className="text-black" />
-            <span className="text-xl font-bold text-black tracking-tight">
+            <AltisLogo size={28} className="text-foreground" />
+            <span className="text-xl font-bold text-foreground tracking-tight">
               BASEUSDP
             </span>
           </Link>
           <Link
             to="/"
-            className="text-sm text-white/60 hover:text-white transition-colors"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             ← Back to Home
           </Link>
@@ -25,17 +25,16 @@ const PrivacyPolicy = () => {
 
       {/* Content */}
       <main className="container mx-auto px-6 py-16 max-w-4xl">
-        <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight">
+        <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight text-foreground">
           Privacy Policy
         </h1>
-        <p className="text-white/40 text-sm mb-12">
+        <p className="text-muted-foreground text-sm mb-12">
           Last updated: February 11, 2026
         </p>
 
-        <div className="space-y-10 text-white/70 leading-relaxed">
-          {/* Introduction */}
+        <div className="space-y-10 text-muted-foreground leading-relaxed">
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">1. Introduction</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">1. Introduction</h2>
             <p>
               Welcome to ORB402 ("we," "our," or "us"). We are committed to protecting your
               privacy and ensuring the security of your personal information. This Privacy Policy
@@ -48,10 +47,9 @@ const PrivacyPolicy = () => {
             </p>
           </section>
 
-          {/* Information We Collect */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">2. Information We Collect</h2>
-            <h3 className="text-lg font-medium text-white/90 mb-2">2.1 Information You Provide</h3>
+            <h2 className="text-xl font-semibold text-foreground mb-4">2. Information We Collect</h2>
+            <h3 className="text-lg font-medium text-foreground/90 mb-2">2.1 Information You Provide</h3>
             <ul className="list-disc list-inside space-y-2 ml-2">
               <li>Wallet addresses when connecting to the platform</li>
               <li>Email address if you subscribe to our newsletter or contact us</li>
@@ -59,7 +57,7 @@ const PrivacyPolicy = () => {
               <li>Any additional information you voluntarily provide through support requests</li>
             </ul>
 
-            <h3 className="text-lg font-medium text-white/90 mb-2 mt-6">2.2 Information Collected Automatically</h3>
+            <h3 className="text-lg font-medium text-foreground/90 mb-2 mt-6">2.2 Information Collected Automatically</h3>
             <ul className="list-disc list-inside space-y-2 ml-2">
               <li>Device information (browser type, operating system)</li>
               <li>IP address and approximate geographic location</li>
@@ -67,7 +65,7 @@ const PrivacyPolicy = () => {
               <li>Cookies and similar tracking technologies</li>
             </ul>
 
-            <h3 className="text-lg font-medium text-white/90 mb-2 mt-6">2.3 Blockchain Data</h3>
+            <h3 className="text-lg font-medium text-foreground/90 mb-2 mt-6">2.3 Blockchain Data</h3>
             <p>
               Please note that blockchain transactions are inherently public. While our platform
               utilizes zero-knowledge proof technology to enhance transaction privacy, certain
@@ -75,9 +73,8 @@ const PrivacyPolicy = () => {
             </p>
           </section>
 
-          {/* How We Use Information */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">3. How We Use Your Information</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">3. How We Use Your Information</h2>
             <p>We use the information we collect to:</p>
             <ul className="list-disc list-inside space-y-2 ml-2 mt-3">
               <li>Provide, operate, and maintain the Service</li>
@@ -91,33 +88,31 @@ const PrivacyPolicy = () => {
             </ul>
           </section>
 
-          {/* Data Sharing */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">4. How We Share Your Information</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">4. How We Share Your Information</h2>
             <p>We do not sell your personal information. We may share your information in the following circumstances:</p>
             <ul className="list-disc list-inside space-y-2 ml-2 mt-3">
               <li>
-                <strong className="text-white/90">Service Providers:</strong> With third-party vendors
+                <strong className="text-foreground/90">Service Providers:</strong> With third-party vendors
                 who perform services on our behalf (analytics, hosting, infrastructure)
               </li>
               <li>
-                <strong className="text-white/90">Legal Requirements:</strong> When required by law,
+                <strong className="text-foreground/90">Legal Requirements:</strong> When required by law,
                 regulation, legal process, or governmental request
               </li>
               <li>
-                <strong className="text-white/90">Protection of Rights:</strong> To protect the rights,
+                <strong className="text-foreground/90">Protection of Rights:</strong> To protect the rights,
                 property, or safety of ORB402, our users, or the public
               </li>
               <li>
-                <strong className="text-white/90">Business Transfers:</strong> In connection with a
+                <strong className="text-foreground/90">Business Transfers:</strong> In connection with a
                 merger, acquisition, or sale of assets
               </li>
             </ul>
           </section>
 
-          {/* Data Security */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">5. Data Security</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">5. Data Security</h2>
             <p>
               We implement appropriate technical and organizational measures to protect your
               personal information against unauthorized access, alteration, disclosure, or
@@ -127,9 +122,8 @@ const PrivacyPolicy = () => {
             </p>
           </section>
 
-          {/* Data Retention */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">6. Data Retention</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">6. Data Retention</h2>
             <p>
               We retain your personal information only for as long as necessary to fulfill the
               purposes outlined in this Privacy Policy, unless a longer retention period is
@@ -138,9 +132,8 @@ const PrivacyPolicy = () => {
             </p>
           </section>
 
-          {/* Your Rights */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">7. Your Rights</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">7. Your Rights</h2>
             <p>Depending on your jurisdiction, you may have the following rights:</p>
             <ul className="list-disc list-inside space-y-2 ml-2 mt-3">
               <li>Access the personal information we hold about you</li>
@@ -152,15 +145,14 @@ const PrivacyPolicy = () => {
             </ul>
             <p className="mt-3">
               To exercise any of these rights, please contact us at{" "}
-              <a href="mailto:xvoidx402@gmail.com" className="text-primary hover:underline">
+              <a href="mailto:xvoidx402@gmail.com" className="text-foreground underline hover:no-underline">
                 xvoidx402@gmail.com
               </a>.
             </p>
           </section>
 
-          {/* Third-Party Services */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">8. Third-Party Services</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">8. Third-Party Services</h2>
             <p>
               Our Service may contain links to third-party websites, services, or applications
               that are not operated by us. We have no control over and assume no responsibility
@@ -170,24 +162,22 @@ const PrivacyPolicy = () => {
             </p>
           </section>
 
-          {/* Children's Privacy */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">9. Children's Privacy</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">9. Children's Privacy</h2>
             <p>
               Our Service is not intended for individuals under the age of 18. We do not
               knowingly collect personal information from children. If you are a parent or
               guardian and believe your child has provided us with personal information, please
               contact us at{" "}
-              <a href="mailto:xvoidx402@gmail.com" className="text-primary hover:underline">
+              <a href="mailto:xvoidx402@gmail.com" className="text-foreground underline hover:no-underline">
                 xvoidx402@gmail.com
               </a>{" "}
               and we will take steps to delete such information.
             </p>
           </section>
 
-          {/* Changes to Policy */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">10. Changes to This Privacy Policy</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">10. Changes to This Privacy Policy</h2>
             <p>
               We may update this Privacy Policy from time to time. We will notify you of any
               material changes by posting the new Privacy Policy on this page and updating the
@@ -196,18 +186,17 @@ const PrivacyPolicy = () => {
             </p>
           </section>
 
-          {/* Contact */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">11. Contact Us</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">11. Contact Us</h2>
             <p>
               If you have any questions, concerns, or requests regarding this Privacy Policy
               or our data practices, please contact us at:
             </p>
-            <div className="mt-4 p-6 bg-white/5 border border-white/10 rounded-lg">
-              <p className="font-medium text-white">ORB402</p>
+            <div className="mt-4 p-6 bg-secondary border border-border rounded-lg">
+              <p className="font-medium text-foreground">ORB402</p>
               <p className="mt-2">
                 Email:{" "}
-                <a href="mailto:xvoidx402@gmail.com" className="text-primary hover:underline">
+                <a href="mailto:xvoidx402@gmail.com" className="text-foreground underline hover:no-underline">
                   xvoidx402@gmail.com
                 </a>
               </p>
