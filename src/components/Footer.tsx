@@ -77,7 +77,6 @@ const Footer = () => {
                </div>
              ))}
            </div>
-          </div>
         </div>
 
         {Object.entries(footerLinks).map(([category, links]) => (
