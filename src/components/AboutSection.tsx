@@ -15,7 +15,7 @@ const AboutSection = () => {
         transition={{ duration: 0.6 }}
         className="mb-12"
       >
-        <span className="tag-pill">About BASEUSDP</span>
+        <span className="tag-pill">About USDP</span>
       </motion.div>
 
       <div className="grid md:grid-cols-12 gap-10 items-start mb-20">
