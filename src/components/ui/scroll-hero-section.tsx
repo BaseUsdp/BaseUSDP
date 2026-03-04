@@ -104,8 +104,8 @@ export function ScrollHeroSection({
                   onClick={() => navigate('/dashboard')}
                   className="flex items-center gap-2 rounded-full px-6 py-3 text-xs font-semibold uppercase tracking-[0.15em] transition-all duration-300 hover:scale-[1.02]"
                   style={{
-                    background: 'hsl(0 0% 100%)',
-                    color: 'hsl(0 0% 0%)',
+                     background: 'hsl(0 0% 0%)',
+                     color: 'hsl(0 0% 100%)',
                   }}
                 >
                   <Icon icon="ph:arrow-right-bold" className="w-4 h-4" />
