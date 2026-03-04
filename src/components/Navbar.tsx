@@ -16,6 +16,16 @@ const Navbar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
+
   const navLinks = [
     { name: "About USDP", href: "#about" },
     { name: "The Challenge", href: "#problem" },
@@ -40,7 +50,7 @@ const Navbar = () => {
         scrolled ? "bg-background/80 backdrop-blur-md border-b border-border" : "bg-background/0"
       }`}
     >
-      <div className="max-w-[1400px] mx-auto px-8 h-16 flex items-center justify-between">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-8 h-14 sm:h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <AltisLogo size={18} className="text-foreground" />
           <span className="text-sm font-semibold tracking-tighter text-foreground">BASEUSDP</span>
@@ -76,7 +86,7 @@ const Navbar = () => {
         </div>
 
         <button
-          className="md:hidden p-2"
+          className="md:hidden p-2 -mr-2"
           onClick={() => setIsOpen(!isOpen)}
           aria-label="Toggle menu"
         >
@@ -86,35 +96,51 @@ const Navbar = () => {
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className="md:hidden bg-background border-b border-border"
-          >
-            <div className="px-8 py-6 flex flex-col gap-4">
-              {navLinks.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.href}
-                  onClick={(e) => handleNavClick(e, link.href)}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
-                >
-                  {link.name}
-                </a>
-              ))}
-              <div className="pt-4 border-t border-border flex flex-col gap-3">
-                <WalletConnectButton variant="navbar" />
-                <button
-                  onClick={() => { setIsOpen(false); navigate("/dashboard"); }}
-                  className="w-full text-sm border border-foreground bg-foreground text-background rounded-full px-5 py-2.5 font-normal"
-                >
-                  Launch Dashboard
-                </button>
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 top-14 bg-background/60 backdrop-blur-sm md:hidden z-40"
+              onClick={() => setIsOpen(false)}
+            />
+            {/* Mobile menu panel */}
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className="fixed inset-x-0 top-14 md:hidden bg-background border-b border-border z-50 max-h-[calc(100vh-3.5rem)] overflow-y-auto"
+            >
+              <div className="px-6 py-6 flex flex-col gap-1">
+                {navLinks.map((link, i) => (
+                  <motion.a
+                    key={link.name}
+                    href={link.href}
+                    onClick={(e) => handleNavClick(e, link.href)}
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.04 * i, duration: 0.3 }}
+                    className="text-base text-muted-foreground hover:text-foreground transition-colors py-3 flex items-center justify-between group"
+                  >
+                    <span>{link.name}</span>
+                    <Icon icon="ph:arrow-right" className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-muted-foreground" />
+                  </motion.a>
+                ))}
+                <div className="pt-5 mt-3 border-t border-border flex flex-col gap-3">
+                  <WalletConnectButton variant="navbar" />
+                  <button
+                    onClick={() => { setIsOpen(false); navigate("/dashboard"); }}
+                    className="w-full text-sm border border-foreground bg-foreground text-background rounded-full px-5 py-3 font-medium active:scale-[0.98] transition-transform"
+                  >
+                    Launch Dashboard
+                  </button>
+                </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </motion.nav>
