@@ -165,6 +165,8 @@ export default function ScrollMorphHero() {
     const container = containerRef.current;
     if (!container) return;
 
+    const SCROLL_TOP_THRESHOLD = 4;
+
     const finishIfNeeded = (nextScroll: number, maxScroll: number, isMobile: boolean) => {
       const completionPoint = isMobile ? maxScroll * MOBILE_COMPLETE_PROGRESS : maxScroll;
       if (nextScroll >= completionPoint) {
@@ -180,7 +182,8 @@ export default function ScrollMorphHero() {
 
       if (animationDone) {
         if (e.deltaY > 0) return;
-        if (isMobile || window.scrollY > 10) return;
+        if (window.scrollY > SCROLL_TOP_THRESHOLD) return;
+
         setAnimationDone(false);
         scrollRef.current = maxScroll;
         virtualScroll.set(maxScroll);
@@ -222,7 +225,8 @@ export default function ScrollMorphHero() {
 
       if (animationDone) {
         if (adjustedDeltaY > 0) return;
-        if (isMobile || window.scrollY > 10) return;
+        if (window.scrollY > SCROLL_TOP_THRESHOLD) return;
+
         setAnimationDone(false);
         scrollRef.current = maxScroll;
         virtualScroll.set(maxScroll);
@@ -299,7 +303,7 @@ export default function ScrollMorphHero() {
   const introTextOpacity = useTransform(smoothMorph, [0, 0.25], [1, 0]);
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-background" style={{ zIndex: 1 }}>
+    <div className="relative w-full h-screen overflow-hidden overscroll-y-none bg-background" style={{ zIndex: 1 }}>
       <div
         ref={containerRef}
         className="relative w-full h-full flex items-center justify-center"

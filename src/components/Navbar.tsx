@@ -50,7 +50,7 @@ const Navbar = () => {
         scrolled ? "bg-background/80 backdrop-blur-md border-b border-border" : "bg-background/0"
       }`}
     >
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-8 h-14 sm:h-16 flex items-center justify-between">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <AltisLogo size={18} className="text-foreground" />
           <span className="text-sm font-semibold tracking-tighter text-foreground">BASEUSDP</span>
@@ -86,7 +86,7 @@ const Navbar = () => {
         </div>
 
         <button
-          className="md:hidden p-2 -mr-2"
+          className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background/80 backdrop-blur -mr-1"
           onClick={() => setIsOpen(!isOpen)}
           aria-label="Toggle menu"
         >
@@ -103,7 +103,7 @@ const Navbar = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 top-14 bg-background/60 backdrop-blur-sm md:hidden z-40"
+              className="fixed inset-0 top-16 bg-background/65 backdrop-blur-sm md:hidden z-40"
               onClick={() => setIsOpen(false)}
             />
             {/* Mobile menu panel */}
@@ -112,9 +112,20 @@ const Navbar = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="fixed inset-x-0 top-14 md:hidden bg-background border-b border-border z-50 max-h-[calc(100vh-3.5rem)] overflow-y-auto"
+              className="fixed inset-x-0 top-16 md:hidden bg-background/95 backdrop-blur-xl border-b border-border rounded-b-3xl shadow-2xl z-50 max-h-[calc(100vh-4rem)] overflow-y-auto"
             >
-              <div className="px-6 py-6 flex flex-col gap-1">
+              <div className="px-5 pt-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] flex flex-col gap-2">
+                <div className="flex items-center justify-between px-1 pb-1">
+                  <span className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Menu</span>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Close menu"
+                  >
+                    <Icon icon="ph:x-bold" className="w-4 h-4" />
+                  </button>
+                </div>
+
                 {navLinks.map((link, i) => (
                   <motion.a
                     key={link.name}
@@ -123,17 +134,18 @@ const Navbar = () => {
                     initial={{ opacity: 0, x: -12 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.04 * i, duration: 0.3 }}
-                    className="text-base text-muted-foreground hover:text-foreground transition-colors py-3 flex items-center justify-between group"
+                    className="text-lg font-medium text-foreground py-3.5 px-1 flex items-center justify-between group border-b border-border/70"
                   >
                     <span>{link.name}</span>
-                    <Icon icon="ph:arrow-right" className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-muted-foreground" />
+                    <Icon icon="ph:arrow-right" className="w-4 h-4 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-muted-foreground" />
                   </motion.a>
                 ))}
-                <div className="pt-5 mt-3 border-t border-border flex flex-col gap-3">
+
+                <div className="pt-5 mt-2 border-t border-border flex flex-col gap-3">
                   <WalletConnectButton variant="navbar" />
                   <button
                     onClick={() => { setIsOpen(false); navigate("/dashboard"); }}
-                    className="w-full text-sm border border-foreground bg-foreground text-background rounded-full px-5 py-3 font-medium active:scale-[0.98] transition-transform"
+                    className="w-full text-sm border border-foreground bg-foreground text-background rounded-full px-5 py-3.5 font-medium active:scale-[0.98] transition-transform"
                   >
                     Launch Dashboard
                   </button>
