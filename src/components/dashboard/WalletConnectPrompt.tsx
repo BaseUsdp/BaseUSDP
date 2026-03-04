@@ -60,7 +60,7 @@ const WalletConnectPrompt = () => {
                   Connect Your Wallet
                 </h2>
                 <p className="text-white/50 mb-8 leading-relaxed">
-                  Connect your wallet to access the ORB402 Terminal. 
+                  Connect your wallet to access the USDP Terminal. 
                   Experience encrypted balances, confidential payments, and privacy-first 
                   financial tools.
                 </p>
