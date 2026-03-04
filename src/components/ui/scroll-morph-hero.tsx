@@ -255,7 +255,7 @@ export default function ScrollMorphHero() {
 
       if (animationDone) {
         if (adjustedDeltaY > 0) return;
-        if (isMobile || window.scrollY > 10) return;
+        if (window.scrollY > 10) return;
         setAnimationDone(false);
         scrollRef.current = maxScroll;
         virtualScroll.set(maxScroll);

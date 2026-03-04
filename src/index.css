@@ -136,6 +136,7 @@
     display: inline;
     padding-top: 0.1em;
     padding-bottom: 0.2em;
+    padding-right: 0.08em;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     line-height: 1.35;
@@ -145,6 +146,7 @@
     display: inline;
     padding-top: 0.1em;
     padding-bottom: 0.2em;
+    padding-right: 0.08em;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     line-height: 1.35;
