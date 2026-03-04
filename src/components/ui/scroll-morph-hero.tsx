@@ -400,7 +400,7 @@ export default function ScrollMorphHero() {
             }
 
             return (
-              <FlipCard key={i} src={src} index={i} total={TOTAL_IMAGES} phase={introPhase} target={target} />
+              <FlipCard key={i} gradientIndex={colorIndex} index={i} total={TOTAL_IMAGES} phase={introPhase} target={target} />
             );
           })}
         </div>
