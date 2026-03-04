@@ -63,7 +63,7 @@ const TechStackSection = () => {
           transition={{ duration: 0.6 }}
           className="mb-12"
         >
-          <span className="tag-pill">Infrastructure</span>
+          <span className="tag-pill">Core Architecture</span>
         </motion.div>
 
         <div className="grid md:grid-cols-12 gap-10 mb-20">
@@ -74,7 +74,7 @@ const TechStackSection = () => {
             transition={{ duration: 0.8, delay: 0.1 }}
           >
             <h2 className="display-section font-serif text-foreground">
-              Privacy{" "}
+              Web4 Privacy{" "}
               <em className="text-muted-foreground">Infrastructure</em>
             </h2>
           </motion.div>
@@ -85,7 +85,7 @@ const TechStackSection = () => {
             transition={{ duration: 0.8, delay: 0.3 }}
           >
             <p className="text-base text-muted-foreground leading-relaxed">
-              Five architectural layers working in concert to deliver end-to-end encrypted transactions at scale.
+              Five architectural layers engineered for the Web4 agentic economy — delivering end-to-end encrypted, autonomous transactions at scale.
             </p>
           </motion.div>
         </div>
