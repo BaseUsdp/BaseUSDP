@@ -82,7 +82,7 @@ export function ScrollHeroSection({
             </p>
 
             {/* Stats + CTA bar */}
-            <div className="w-full max-w-3xl mt-16 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pt-8" style={{ borderTop: '1px solid hsl(0 0% 20%)' }}>
+            <div className="w-full max-w-3xl mt-16 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pt-8" style={{ borderTop: '1px solid hsl(0 0% 70%)' }}>
               <div className="flex items-center gap-8">
                 {[
                   { label: 'x402 Payments', value: 'Autonomous Exchange' },
