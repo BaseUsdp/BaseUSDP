@@ -74,7 +74,7 @@ const TechStackSection = () => {
             transition={{ duration: 0.8, delay: 0.1 }}
           >
             <h2 className="display-section font-serif text-foreground">
-              Privacy{" "}
+              Web4 Privacy{" "}
               <em className="text-muted-foreground">Infrastructure</em>
             </h2>
           </motion.div>
