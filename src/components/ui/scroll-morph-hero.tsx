@@ -213,7 +213,7 @@ export default function ScrollMorphHero() {
 
       if (animationDone) {
         if (e.deltaY > 0) return;
-        if (isMobile || window.scrollY > 10) return;
+        if (window.scrollY > 10) return;
         setAnimationDone(false);
         scrollRef.current = maxScroll;
         virtualScroll.set(maxScroll);
@@ -255,7 +255,7 @@ export default function ScrollMorphHero() {
 
       if (animationDone) {
         if (adjustedDeltaY > 0) return;
-        if (isMobile || window.scrollY > 10) return;
+        if (window.scrollY > 10) return;
         setAnimationDone(false);
         scrollRef.current = maxScroll;
         virtualScroll.set(maxScroll);
@@ -395,6 +395,7 @@ export default function ScrollMorphHero() {
                  WebkitTextFillColor: 'transparent',
                  backgroundClip: 'text',
                  paddingBottom: '0.15em',
+                 paddingRight: '0.08em',
                  lineHeight: 1.3,
                }}
              >by Design</em>
