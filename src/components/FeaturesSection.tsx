@@ -225,7 +225,7 @@ const FeaturesSection = () => {
           transition={{ duration: 0.8, delay: 0.1 }}
         >
           <h2 className="display-section font-serif text-foreground">
-            Your <em style={{ color: "hsl(var(--beam-magenta))" }}>Privacy</em> Dashboard
+            Your <em style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Privacy</em> Dashboard
           </h2>
         </motion.div>
         <motion.div

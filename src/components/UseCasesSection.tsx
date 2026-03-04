@@ -53,7 +53,7 @@ const UseCasesSection = () => {
         >
           <h2 className="display-section font-serif text-foreground">
             Built for the{" "}
-            <em style={{ color: "hsl(var(--beam-amber))" }}>Web4</em> Economy
+            <em style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Web4</em> Economy
           </h2>
         </motion.div>
         <motion.div
