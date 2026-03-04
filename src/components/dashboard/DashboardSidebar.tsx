@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { cn } from "@/lib/utils";
+import usdpLogo from "@/assets/usdp-logo.png";
 
 interface DashboardSidebarProps {
   activeTab: string;
