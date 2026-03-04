@@ -81,7 +81,7 @@ const TechStackSection = () => {
           >
             <h2 className="display-section font-serif text-foreground">
               Web4 Privacy{" "}
-              <em style={{ color: "hsl(var(--beam-green))" }}>Infrastructure</em>
+              <em style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Infrastructure</em>
             </h2>
           </motion.div>
           <motion.div
