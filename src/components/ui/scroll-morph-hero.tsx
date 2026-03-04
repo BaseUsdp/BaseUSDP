@@ -149,11 +149,12 @@ export default function ScrollMorphHero() {
   const virtualScroll = useMotionValue(0);
   const scrollRef = useRef(0);
 
+  // Attach scroll-hijack listeners ONLY while animation is active
   useEffect(() => {
+    if (animationDone) return;
+
     const container = containerRef.current;
     if (!container) return;
-
-    const SCROLL_TOP_THRESHOLD = 4;
 
     const finishIfNeeded = (nextScroll: number) => {
       if (nextScroll >= MAX_SCROLL) {
@@ -164,15 +165,6 @@ export default function ScrollMorphHero() {
     };
 
     const handleWheel = (e: WheelEvent) => {
-      if (animationDone) {
-        if (e.deltaY > 0) return;
-        if (window.scrollY > SCROLL_TOP_THRESHOLD) return;
-
-        setAnimationDone(false);
-        scrollRef.current = MAX_SCROLL;
-        virtualScroll.set(MAX_SCROLL);
-      }
-
       e.preventDefault();
       const nextScroll = Math.min(Math.max(scrollRef.current + e.deltaY, 0), MAX_SCROLL);
       scrollRef.current = nextScroll;
@@ -194,15 +186,6 @@ export default function ScrollMorphHero() {
 
       const adjustedDeltaY = rawDeltaY * TOUCH_SCROLL_MULTIPLIER;
 
-      if (animationDone) {
-        if (adjustedDeltaY > 0) return;
-        if (window.scrollY > SCROLL_TOP_THRESHOLD) return;
-
-        setAnimationDone(false);
-        scrollRef.current = MAX_SCROLL;
-        virtualScroll.set(MAX_SCROLL);
-      }
-
       e.preventDefault();
       const nextScroll = Math.min(Math.max(scrollRef.current + adjustedDeltaY, 0), MAX_SCROLL);
       scrollRef.current = nextScroll;
@@ -220,6 +203,59 @@ export default function ScrollMorphHero() {
       container.removeEventListener("touchmove", handleTouchMove);
     };
   }, [virtualScroll, animationDone]);
+
+  // Re-entry: when done and user scrolls back to very top, re-activate animation
+  useEffect(() => {
+    if (!animationDone) return;
+
+    const SCROLL_TOP_THRESHOLD = 4;
+
+    const handleScroll = () => {
+      if (window.scrollY <= SCROLL_TOP_THRESHOLD) {
+        // User is at the very top — next upward scroll/swipe should re-enter
+        // We listen for a wheel or touch to trigger re-entry
+      }
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY < 0 && window.scrollY <= SCROLL_TOP_THRESHOLD) {
+        e.preventDefault();
+        setAnimationDone(false);
+        scrollRef.current = MAX_SCROLL;
+        virtualScroll.set(MAX_SCROLL);
+      }
+    };
+
+    const handleTouchReentry = (() => {
+      let startY = 0;
+      return {
+        start: (e: TouchEvent) => { startY = e.touches[0].clientY; },
+        move: (e: TouchEvent) => {
+          const deltaY = startY - e.touches[0].clientY;
+          startY = e.touches[0].clientY;
+          // Swiping up (negative delta = pulling down = scroll up)
+          if (deltaY < -5 && window.scrollY <= SCROLL_TOP_THRESHOLD) {
+            e.preventDefault();
+            setAnimationDone(false);
+            scrollRef.current = MAX_SCROLL;
+            virtualScroll.set(MAX_SCROLL);
+          }
+        },
+      };
+    })();
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    window.addEventListener("touchstart", handleTouchReentry.start, { passive: true });
+    window.addEventListener("touchmove", handleTouchReentry.move, { passive: false });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("touchstart", handleTouchReentry.start);
+      window.removeEventListener("touchmove", handleTouchReentry.move);
+    };
+  }, [animationDone, virtualScroll]);
 
   const maxScrollForViewport = MAX_SCROLL;
   const morphEnd = 600;
