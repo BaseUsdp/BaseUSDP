@@ -143,6 +143,17 @@ export default function ScrollMorphHero() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const updateDeviceMode = () => {
+      setIsMobileViewport(isMobileInputMode());
+    };
+
+    updateDeviceMode();
+    window.addEventListener("resize", updateDeviceMode);
+
+    return () => window.removeEventListener("resize", updateDeviceMode);
+  }, []);
+
   // --- Virtual Scroll Logic ---
   const virtualScroll = useMotionValue(0);
   const scrollRef = useRef(0);
