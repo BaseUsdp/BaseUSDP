@@ -156,7 +156,7 @@ const PrivacyPolicy = () => {
             <p>
               Our Service may contain links to third-party websites, services, or applications
               that are not operated by us. We have no control over and assume no responsibility
-              for the content, privacy policies, or practices of any third-party services. We
+                property, or safety of BASEUSDP, our users, or the public
               encourage you to review the privacy policies of any third-party services you
               interact with.
             </p>
