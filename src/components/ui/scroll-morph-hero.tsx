@@ -3,9 +3,20 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion, useTransform, useSpring, useMotionValue } from "framer-motion";
 import usdpLogo from "@/assets/usdp-logo.png";
+import {
+  Shield, Lock, Fingerprint, Eye, KeyRound, FileKey,
+  Cpu, Blocks, Wallet, CreditCard, Globe, Network,
+  Zap, Code, Database, Server, Binary, Layers, ShieldCheck, Bot
+} from "lucide-react";
 
 // --- Types ---
 export type AnimationPhase = "scatter" | "line" | "circle" | "bottom-strip";
+
+const CARD_ICONS = [
+  Shield, Lock, Fingerprint, Eye, KeyRound, FileKey,
+  Cpu, Blocks, Wallet, CreditCard, Globe, Network,
+  Zap, Code, Database, Server, Binary, Layers, ShieldCheck, Bot
+];
 
 interface FlipCardProps {
   gradientIndex: number;
@@ -13,13 +24,16 @@ interface FlipCardProps {
   total: number;
   phase: AnimationPhase;
   target: { x: number; y: number; rotation: number; scale: number; opacity: number };
+  morphProgress: number;
 }
 
 // --- FlipCard Component ---
 const IMG_WIDTH = 60;
 const IMG_HEIGHT = 85;
 
-function FlipCard({ gradientIndex, index, total, phase, target }: FlipCardProps) {
+function FlipCard({ gradientIndex, index, total, phase, target, morphProgress }: FlipCardProps) {
+  const IconComponent = CARD_ICONS[index % CARD_ICONS.length];
+  const iconOpacity = Math.max(0, Math.min(1, (morphProgress - 0.3) / 0.4));
   const angle = (gradientIndex / total) * 360;
   const gradient = `linear-gradient(${angle}deg, hsl(270 80% 65%), hsl(320 80% 60%), hsl(30 90% 60%), hsl(50 95% 55%), hsl(80 90% 55%))`;
   return (
@@ -56,12 +70,23 @@ function FlipCard({ gradientIndex, index, total, phase, target }: FlipCardProps)
         transition={{ duration: 0.6 }}
       >
         <div
-          className="absolute inset-0 rounded-lg overflow-hidden shadow-lg"
+          className="absolute inset-0 rounded-lg overflow-hidden shadow-lg flex items-center justify-center"
           style={{
             backfaceVisibility: "hidden",
             background: gradient,
           }}
-        />
+        >
+          <IconComponent
+            size={24}
+            strokeWidth={1.5}
+            style={{
+              color: 'white',
+              opacity: iconOpacity,
+              transition: 'opacity 0.4s ease',
+              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
+            }}
+          />
+        </div>
         <div
           className="absolute inset-0 rounded-lg overflow-hidden shadow-lg flex items-center justify-center"
           style={{
@@ -400,7 +425,7 @@ export default function ScrollMorphHero() {
             }
 
             return (
-              <FlipCard key={i} gradientIndex={colorIndex} index={i} total={TOTAL_IMAGES} phase={introPhase} target={target} />
+              <FlipCard key={i} gradientIndex={colorIndex} index={i} total={TOTAL_IMAGES} phase={introPhase} target={target} morphProgress={morphValue} />
             );
           })}
         </div>
