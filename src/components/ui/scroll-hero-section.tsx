@@ -112,7 +112,7 @@ export function ScrollHeroSection({
                     document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
                   }}
                 >
-                  <span>Explore</span>
+                  <span>Explore USDP</span>
                   <Icon icon="ph:arrow-down" className="w-4 h-4" />
                 </a>
               </div>
