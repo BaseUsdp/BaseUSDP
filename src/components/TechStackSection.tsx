@@ -85,7 +85,7 @@ const TechStackSection = () => {
             transition={{ duration: 0.8, delay: 0.3 }}
           >
             <p className="text-base text-muted-foreground leading-relaxed">
-              Five architectural layers working in concert to deliver end-to-end encrypted transactions at scale.
+              Five architectural layers engineered for the Web4 agentic economy — delivering end-to-end encrypted, autonomous transactions at scale.
             </p>
           </motion.div>
         </div>
