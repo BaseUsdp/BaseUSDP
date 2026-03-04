@@ -17,11 +17,11 @@ const Navbar = () => {
   }, []);
 
   const navLinks = [
-    { name: "About", href: "#about" },
-    { name: "Problem", href: "#problem" },
-    { name: "Solution", href: "#features" },
-    { name: "Use Cases", href: "#use-cases" },
-    { name: "Roadmap", href: "#roadmap" },
+    { name: "About USDP", href: "#about" },
+    { name: "The Challenge", href: "#problem" },
+    { name: "Our Solution", href: "#features" },
+    { name: "Applications", href: "#use-cases" },
+    { name: "Future Path", href: "#roadmap" },
   ];
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
