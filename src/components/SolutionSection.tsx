@@ -63,8 +63,8 @@ const SolutionSection = () => {
           transition={{ duration: 0.8, delay: 0.1 }}
         >
           <h2 className="display-section font-serif text-foreground">
-            What we bring{" "}
-            <em className="text-muted-foreground">to the table</em>
+            How USDP delivers{" "}
+            <em className="text-muted-foreground">unparalleled confidentiality</em>
           </h2>
         </motion.div>
         <motion.div
