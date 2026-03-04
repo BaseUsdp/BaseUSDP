@@ -40,8 +40,8 @@ const Footer = () => {
             <span>USDP</span>
           </Link>
           <p className="text-sm text-background/40 leading-relaxed max-w-xs">
-            The Confidential Payment Layer for the Agentic Economy.
-            Privacy-first transactions powered by ZK Proofs and x402.
+            The Private Agentic Wallet for Web4.
+            Autonomous by design. Invisible by default.
           </p>
           <div className="flex items-center gap-3 mt-6">
             {socialLinks.map((social) => (
