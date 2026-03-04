@@ -20,9 +20,8 @@ const Footer = () => {
   };
 
   const socialLinks = [
-    { name: "Twitter", href: "https://x.com/orb402", icon: "simple-icons:twitter" },
-    { name: "GitHub", href: "https://github.com/ORB402/ORB402", icon: "simple-icons:github" },
-    { name: "Gitbook", href: "https://orb402.gitbook.io/orb402", icon: "ph:book-open-fill" },
+     { name: "Twitter", href: "https://x.com/BaseUSDP", icon: "simple-icons:twitter" },
+     { name: "GitHub", href: "https://github.com/ORB402/ORB402", icon: "simple-icons:github" },
   ];
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {

@@ -121,12 +121,12 @@ const FAQSection = () => {
           transition={{ duration: 0.6, delay: 0.8 }}
           className="mt-12"
         >
-          <p className="text-muted-foreground/60 text-sm">
-            Still have questions?{" "}
-            <a href="https://orb402.gitbook.io/orb402" target="_blank" rel="noopener noreferrer" className="text-foreground hover:underline">
-              Read our docs
-            </a>
-          </p>
+           <p className="text-muted-foreground/60 text-sm">
+             Still have questions? Reach out to us on{" "}
+             <a href="https://x.com/BaseUSDP" target="_blank" rel="noopener noreferrer" className="text-foreground hover:underline">
+               Twitter
+             </a>
+           </p>
         </motion.div>
       </div>
     </section>
