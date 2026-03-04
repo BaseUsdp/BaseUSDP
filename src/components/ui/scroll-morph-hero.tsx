@@ -34,6 +34,7 @@ const IMG_HEIGHT = 85;
 function FlipCard({ gradientIndex, index, total, phase, target, morphProgress }: FlipCardProps) {
   const IconComponent = CARD_ICONS[index % CARD_ICONS.length];
   const iconOpacity = Math.max(0, Math.min(1, (morphProgress - 0.3) / 0.4));
+  const gradientOpacity = Math.max(0, Math.min(1, (morphProgress - 0.2) / 0.5));
   const angle = (gradientIndex / total) * 360;
   const gradient = `linear-gradient(${angle}deg, hsl(270 80% 65%), hsl(320 80% 60%), hsl(30 90% 60%), hsl(50 95% 55%), hsl(80 90% 55%))`;
   return (
@@ -73,12 +74,22 @@ function FlipCard({ gradientIndex, index, total, phase, target, morphProgress }:
           className="absolute inset-0 rounded-lg overflow-hidden shadow-lg flex items-center justify-center"
           style={{
             backfaceVisibility: "hidden",
-            background: gradient,
+            background: 'hsl(0 0% 5%)',
           }}
         >
+          {/* Gradient overlay that fades in */}
+          <div
+            className="absolute inset-0 rounded-lg"
+            style={{
+              background: gradient,
+              opacity: gradientOpacity,
+              transition: 'opacity 0.5s ease',
+            }}
+          />
           <IconComponent
             size={24}
             strokeWidth={1.5}
+            className="relative z-10"
             style={{
               color: 'white',
               opacity: iconOpacity,
