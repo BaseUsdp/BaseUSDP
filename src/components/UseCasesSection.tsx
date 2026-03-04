@@ -79,8 +79,8 @@ const UseCasesSection = () => {
           >
             <div>
               <div className="flex items-center justify-between mb-8">
-                <div className="w-12 h-12 rounded-2xl bg-background/10 flex items-center justify-center">
-                  <Icon icon={uc.icon} className="w-6 h-6 text-background" />
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `hsl(${uc.accentColor} / 0.2)` }}>
+                  <Icon icon={uc.icon} className="w-6 h-6" style={{ color: `hsl(${uc.accentColor})` }} />
                 </div>
                 <span className="text-[10px] uppercase tracking-widest text-background/40">{uc.tag}</span>
               </div>
