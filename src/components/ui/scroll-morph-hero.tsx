@@ -111,7 +111,7 @@ export default function ScrollMorphHero() {
 
   useEffect(() => {
     const updateDeviceMode = () => {
-      setIsMobileViewport(isMobileInputMode());
+      setIsMobileViewport(window.innerWidth < 768);
     };
 
     updateDeviceMode();
