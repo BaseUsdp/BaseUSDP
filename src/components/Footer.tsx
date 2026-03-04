@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import AltisLogo from "@/components/AltisLogo";
+import usdpLogoWhite from "@/assets/usdp-logo-white.png";
 import { Icon } from "@iconify/react";
 
 const Footer = () => {
