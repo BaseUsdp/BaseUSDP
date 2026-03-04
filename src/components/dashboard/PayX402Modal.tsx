@@ -124,7 +124,7 @@ const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
       }
 
       // Create message to sign
-      const message = `Authorize ORB402 x402 payment:\nPayment ID: ${paymentDetails.id}\nAmount: ${paymentDetails.amount} USDC\nTimestamp: ${Date.now()}`;
+      const message = `Authorize USDP x402 payment:\nPayment ID: ${paymentDetails.id}\nAmount: ${paymentDetails.amount} USDC\nTimestamp: ${Date.now()}`;
       
       // Sign message with wallet (EVM signing for Base chain)
       let walletSignature: string;

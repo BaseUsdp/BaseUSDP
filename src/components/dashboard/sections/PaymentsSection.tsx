@@ -143,7 +143,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
       const displayRecipient = recipientType === "username"
         ? `@${usernameInput.startsWith("@") ? usernameInput.substring(1) : usernameInput}`
         : recipient;
-      const message = `Authorize ORB402 transfer:\nAmount: ${amount} USDC\nTo: ${displayRecipient}\nTimestamp: ${Date.now()}`;
+      const message = `Authorize USDP transfer:\nAmount: ${amount} USDC\nTo: ${displayRecipient}\nTimestamp: ${Date.now()}`;
 
       let walletSignature: string;
       try {
