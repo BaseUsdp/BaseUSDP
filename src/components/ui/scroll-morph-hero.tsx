@@ -247,7 +247,6 @@ export default function ScrollMorphHero() {
 
   // Content fades in as arc forms
   const contentOpacity = useTransform(smoothMorph, [0.7, 1], [0, 1]);
-  const contentOpacity = useTransform(smoothMorph, [0.7, 1], [0, 1]);
   const contentY = useTransform(smoothMorph, [0.7, 1], [30, 0]);
   // Intro text fades out as morph starts
   const introTextOpacity = useTransform(smoothMorph, [0, 0.25], [1, 0]);
