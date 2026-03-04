@@ -85,9 +85,12 @@ function FlipCard({ src, index, total, phase, target }: FlipCardProps) {
 
 // --- Main Hero Component ---
 const TOTAL_IMAGES = 20;
-const MAX_SCROLL = 3000;
-const TOUCH_SCROLL_MULTIPLIER = 8;
+const DESKTOP_MAX_SCROLL = 3000;
+const MOBILE_MAX_SCROLL = 520;
+const DESKTOP_TOUCH_SCROLL_MULTIPLIER = 8;
+const MOBILE_TOUCH_SCROLL_MULTIPLIER = 10;
 const TOUCH_DEADZONE = 2;
+const MOBILE_COMPLETE_PROGRESS = 0.9;
 
 const IMAGES = [
   "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&q=80",
@@ -156,17 +159,22 @@ export default function ScrollMorphHero() {
     const container = containerRef.current;
     if (!container) return;
 
+    const isMobile = isMobileViewport;
+    const maxScroll = isMobile ? MOBILE_MAX_SCROLL : DESKTOP_MAX_SCROLL;
+    const completionPoint = isMobile ? maxScroll * MOBILE_COMPLETE_PROGRESS : maxScroll;
+    const touchMultiplier = isMobile ? MOBILE_TOUCH_SCROLL_MULTIPLIER : DESKTOP_TOUCH_SCROLL_MULTIPLIER;
+
     const finishIfNeeded = (nextScroll: number) => {
-      if (nextScroll >= MAX_SCROLL) {
-        scrollRef.current = MAX_SCROLL;
-        virtualScroll.set(MAX_SCROLL);
+      if (nextScroll >= completionPoint) {
+        scrollRef.current = maxScroll;
+        virtualScroll.set(maxScroll);
         setAnimationDone(true);
       }
     };
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const nextScroll = Math.min(Math.max(scrollRef.current + e.deltaY, 0), MAX_SCROLL);
+      const nextScroll = Math.min(Math.max(scrollRef.current + e.deltaY, 0), maxScroll);
       scrollRef.current = nextScroll;
       virtualScroll.set(nextScroll);
       finishIfNeeded(nextScroll);
@@ -184,10 +192,10 @@ export default function ScrollMorphHero() {
 
       if (Math.abs(rawDeltaY) < TOUCH_DEADZONE) return;
 
-      const adjustedDeltaY = rawDeltaY * TOUCH_SCROLL_MULTIPLIER;
+      const adjustedDeltaY = rawDeltaY * touchMultiplier;
 
       e.preventDefault();
-      const nextScroll = Math.min(Math.max(scrollRef.current + adjustedDeltaY, 0), MAX_SCROLL);
+      const nextScroll = Math.min(Math.max(scrollRef.current + adjustedDeltaY, 0), maxScroll);
       scrollRef.current = nextScroll;
       virtualScroll.set(nextScroll);
       finishIfNeeded(nextScroll);
@@ -202,27 +210,21 @@ export default function ScrollMorphHero() {
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
     };
-  }, [virtualScroll, animationDone]);
+  }, [virtualScroll, animationDone, isMobileViewport]);
 
   // Re-entry: when done and user scrolls back to very top, re-activate animation
   useEffect(() => {
     if (!animationDone) return;
 
     const SCROLL_TOP_THRESHOLD = 4;
-
-    const handleScroll = () => {
-      if (window.scrollY <= SCROLL_TOP_THRESHOLD) {
-        // User is at the very top — next upward scroll/swipe should re-enter
-        // We listen for a wheel or touch to trigger re-entry
-      }
-    };
+    const maxScroll = isMobileViewport ? MOBILE_MAX_SCROLL : DESKTOP_MAX_SCROLL;
 
     const handleWheel = (e: WheelEvent) => {
       if (e.deltaY < 0 && window.scrollY <= SCROLL_TOP_THRESHOLD) {
         e.preventDefault();
         setAnimationDone(false);
-        scrollRef.current = MAX_SCROLL;
-        virtualScroll.set(MAX_SCROLL);
+        scrollRef.current = maxScroll;
+        virtualScroll.set(maxScroll);
       }
     };
 
@@ -233,32 +235,29 @@ export default function ScrollMorphHero() {
         move: (e: TouchEvent) => {
           const deltaY = startY - e.touches[0].clientY;
           startY = e.touches[0].clientY;
-          // Swiping up (negative delta = pulling down = scroll up)
           if (deltaY < -5 && window.scrollY <= SCROLL_TOP_THRESHOLD) {
             e.preventDefault();
             setAnimationDone(false);
-            scrollRef.current = MAX_SCROLL;
-            virtualScroll.set(MAX_SCROLL);
+            scrollRef.current = maxScroll;
+            virtualScroll.set(maxScroll);
           }
         },
       };
     })();
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("wheel", handleWheel, { passive: false });
     window.addEventListener("touchstart", handleTouchReentry.start, { passive: true });
     window.addEventListener("touchmove", handleTouchReentry.move, { passive: false });
 
     return () => {
-      window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("wheel", handleWheel);
       window.removeEventListener("touchstart", handleTouchReentry.start);
       window.removeEventListener("touchmove", handleTouchReentry.move);
     };
-  }, [animationDone, virtualScroll]);
+  }, [animationDone, virtualScroll, isMobileViewport]);
 
-  const maxScrollForViewport = MAX_SCROLL;
-  const morphEnd = 600;
+  const maxScrollForViewport = isMobileViewport ? MOBILE_MAX_SCROLL : DESKTOP_MAX_SCROLL;
+  const morphEnd = isMobileViewport ? 260 : 600;
   const morphProgress = useTransform(virtualScroll, [0, morphEnd], [0, 1]);
   const smoothMorph = useSpring(morphProgress, { stiffness: 40, damping: 20 });
 
