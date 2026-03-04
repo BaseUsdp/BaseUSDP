@@ -143,12 +143,9 @@ const PrivacyPolicy = () => {
               <li>Data portability — receive your data in a structured, machine-readable format</li>
               <li>Withdraw consent at any time where processing is based on consent</li>
             </ul>
-            <p className="mt-3">
-              To exercise any of these rights, please contact us at{" "}
-              <a href="mailto:xvoidx402@gmail.com" className="text-foreground underline hover:no-underline">
-                xvoidx402@gmail.com
-              </a>.
-            </p>
+             <p className="mt-3">
+               To exercise any of these rights, please reach out to us on our social channels.
+             </p>
           </section>
 
           <section>
