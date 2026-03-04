@@ -28,7 +28,7 @@ const CTASection = () => {
               className="mb-8"
             >
               <span className="tag-pill" style={{ borderColor: "hsl(0 0% 30%)", color: "hsl(0 0% 45%)" }}>
-                Let's build the future
+                Join the Invisible Economy
               </span>
             </motion.div>
 
