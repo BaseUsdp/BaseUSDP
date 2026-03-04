@@ -133,8 +133,8 @@ export function ScrollHeroSection({
           inset: 0;
           z-index: -1;
           pointer-events: none;
-          background-image: radial-gradient(circle, hsl(0 0% 0% / 0.06) 1px, transparent 1px);
-          background-size: 22px 22px;
+          background-image: radial-gradient(circle, hsl(0 0% 0% / 0.10) 1.2px, transparent 1.2px);
+          background-size: 20px 20px;
         }
 
         /* Logo — centered, fades out on scroll */
