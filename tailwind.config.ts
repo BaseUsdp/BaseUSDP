@@ -90,6 +90,9 @@ export default {
           from: { transform: "translateX(0)" },
           to: { transform: "translateX(calc(-100% - 2rem))" },
         },
+        "border-beam": {
+          "100%": { "offset-distance": "100%" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
