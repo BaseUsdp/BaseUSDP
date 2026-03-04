@@ -61,7 +61,7 @@ const FAQSection = () => {
           >
           <h2 className="display-section font-serif text-foreground">
               Deep Dive into{" "}
-              <em style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>USDP</em>
+              <em className="gradient-text" style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>USDP</em>
             </h2>
           </motion.div>
         </div>

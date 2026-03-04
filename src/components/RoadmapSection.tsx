@@ -89,7 +89,7 @@ const RoadmapSection = () => {
           >
           <h2 className="display-section font-serif text-foreground">
               Evolving the{" "}
-              <em style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Web4</em>
+              <em className="gradient-text" style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Web4</em>
               <br />
               Privacy Landscape
             </h2>
