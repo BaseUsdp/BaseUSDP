@@ -396,7 +396,7 @@
     border: 1px solid rgba(0,0,0,1);
     outline: none;
     transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-    cursor: none;
+    cursor: pointer;
   }
   .shiny-cta:hover {
     transform: scale(1.02);
