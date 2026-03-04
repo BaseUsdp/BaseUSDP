@@ -293,7 +293,7 @@ const X402Deposit = () => {
             href={`void402://x402-sent?depositId=${depositId}&txHash=${txHash}`}
             className="block w-full py-3.5 rounded-xl text-[15px] font-semibold text-zinc-100 mt-3 text-center border border-white/10 hover:bg-white/5 transition-all"
           >
-            Return to ORB402
+            Return to USDP
           </a>
         )}
       </div>

@@ -403,7 +403,7 @@ const PaymentPage = () => {
 
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground mt-6">
-          Secured by ORB402 • ZK Encrypted Payments
+          Secured by USDP • ZK Encrypted Payments
         </p>
       </motion.div>
     </div>
