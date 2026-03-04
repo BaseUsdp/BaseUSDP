@@ -86,6 +86,7 @@ function FlipCard({ src, index, total, phase, target }: FlipCardProps) {
 // --- Main Hero Component ---
 const TOTAL_IMAGES = 20;
 const MAX_SCROLL = 3000;
+const MOBILE_TOUCH_SCROLL_MULTIPLIER = 2.4;
 
 const IMAGES = [
   "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&q=80",  // glass skyscraper
@@ -171,8 +172,10 @@ export default function ScrollMorphHero() {
       const deltaY = touchStartY - touchY;
       touchStartY = touchY;
 
-      if (animationDone && deltaY > 0) return;
-      if (animationDone && deltaY < 0) {
+      const adjustedDeltaY = deltaY * (window.innerWidth < 768 ? MOBILE_TOUCH_SCROLL_MULTIPLIER : 1);
+
+      if (animationDone && adjustedDeltaY > 0) return;
+      if (animationDone && adjustedDeltaY < 0) {
         if (window.scrollY > 10) return;
         setAnimationDone(false);
         scrollRef.current = MAX_SCROLL;
@@ -180,7 +183,7 @@ export default function ScrollMorphHero() {
       }
 
       e.preventDefault();
-      const newScroll = Math.min(Math.max(scrollRef.current + deltaY, 0), MAX_SCROLL);
+      const newScroll = Math.min(Math.max(scrollRef.current + adjustedDeltaY, 0), MAX_SCROLL);
       scrollRef.current = newScroll;
       virtualScroll.set(newScroll);
 
