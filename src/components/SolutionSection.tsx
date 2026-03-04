@@ -52,7 +52,7 @@ const SolutionSection = () => {
         transition={{ duration: 0.6 }}
         className="mb-12"
       >
-        <span className="tag-pill">The Solution</span>
+        <span className="tag-pill">Our Solution</span>
       </motion.div>
 
       <div className="grid md:grid-cols-12 gap-10 mb-16">
@@ -63,8 +63,8 @@ const SolutionSection = () => {
           transition={{ duration: 0.8, delay: 0.1 }}
         >
           <h2 className="display-section font-serif text-foreground">
-            What we bring{" "}
-            <em className="text-muted-foreground">to the table</em>
+            How USDP delivers{" "}
+            <em className="text-muted-foreground">unparalleled confidentiality</em>
           </h2>
         </motion.div>
         <motion.div
@@ -74,7 +74,7 @@ const SolutionSection = () => {
           transition={{ duration: 0.8, delay: 0.3 }}
         >
           <p className="text-base text-muted-foreground leading-relaxed">
-            Three revolutionary technologies combined to create the future of confidential finance.
+            Three revolutionary technologies combined to power the Web4 agentic economy with unparalleled privacy.
           </p>
         </motion.div>
       </div>

@@ -4,16 +4,18 @@ import { Icon } from "@iconify/react";
 
 const Footer = () => {
   const footerLinks = {
-    Product: [
+    Platform: [
       { name: "Dashboard", href: "/dashboard", isRoute: true },
       { name: "Technology", href: "#features" },
-      { name: "Use Cases", href: "#use-cases" },
-      { name: "Roadmap", href: "#roadmap" },
-      { name: "About", href: "#about" },
+      { name: "Applications", href: "#use-cases" },
+      { name: "Future Path", href: "#roadmap" },
+    ],
+    Company: [
+      { name: "About USDP", href: "#about" },
     ],
     Legal: [
       { name: "Privacy Policy", href: "/privacy-policy", isRoute: true },
-      { name: "Terms and Conditions", href: "/terms-and-conditions", isRoute: true },
+      { name: "Terms of Service", href: "/terms-and-conditions", isRoute: true },
     ],
   };
 
@@ -37,11 +39,11 @@ const Footer = () => {
         <div className="col-span-2">
           <Link to="/" className="flex items-center gap-2 text-sm font-semibold tracking-tighter text-background mb-4">
             <AltisLogo size={18} className="text-background" />
-            <span>BASEUSDP</span>
+            <span>USDP</span>
           </Link>
           <p className="text-sm text-background/40 leading-relaxed max-w-xs">
-            The Confidential Payment Layer for the Agentic Economy.
-            Privacy-first transactions powered by ZK Proofs and x402.
+            The Private Agentic Wallet for Web4.
+            Autonomous by design. Invisible by default.
           </p>
           <div className="flex items-center gap-3 mt-6">
             {socialLinks.map((social) => (
@@ -88,7 +90,7 @@ const Footer = () => {
       </div>
 
       <div className="max-w-[1400px] mx-auto px-8 pb-8 border-t border-background/10 pt-7 flex items-center justify-between">
-        <p className="text-xs text-background/30">© 2026 BASEUSDP. All rights reserved.</p>
+        <p className="text-xs text-background/30">© 2026 USDP. All rights reserved.</p>
         <p className="text-xs text-background/30">Designed with intent.</p>
       </div>
     </footer>

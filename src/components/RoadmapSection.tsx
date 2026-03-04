@@ -15,7 +15,7 @@ const RoadmapSection = () => {
       quarter: "Q1 2026",
       icon: "ph:rocket-launch-bold",
       progress: 65,
-      description: "Launch of the BASEUSDP protocol on Base L2 with ZK Proof-powered smart contracts and developer SDKs.",
+      description: "Launch of the USDP protocol on Base L2 with ZK Proof-powered smart contracts and developer SDKs.",
       milestones: [
         { name: "Mainnet Deployment", done: true },
         { name: "Developer SDK Release", done: true },
@@ -29,7 +29,7 @@ const RoadmapSection = () => {
       quarter: "Q2 2026",
       icon: "ph:users-three-bold",
       progress: 0,
-      description: "Launch of the BASEUSDP Neobank with P2P payments, confidential savings, and virtual card management.",
+      description: "Launch of the USDP Neobank with P2P payments, confidential savings, and virtual card management.",
       milestones: [
         { name: "Neobank App Launch", done: false },
         { name: "Partner Integrations", done: false },
@@ -57,7 +57,7 @@ const RoadmapSection = () => {
       quarter: "Q4 2026",
       icon: "ph:brain-bold",
       progress: 0,
-      description: "Deep AI integrations establishing BASEUSDP as the default privacy layer for Web 4.0 — the autonomous, agent-driven internet economy.",
+      description: "Deep AI integrations establishing USDP as the default privacy layer for Web4 — the autonomous, agent-driven internet economy.",
       milestones: [
         { name: "AI Agent SDK", done: false },
         { name: "Institutional Vaults", done: false },
@@ -77,7 +77,7 @@ const RoadmapSection = () => {
           transition={{ duration: 0.6 }}
           className="mb-12"
         >
-          <span className="tag-pill">Roadmap</span>
+          <span className="tag-pill">Future Path</span>
         </motion.div>
 
         <div className="grid md:grid-cols-12 gap-10 mb-20">
@@ -87,11 +87,11 @@ const RoadmapSection = () => {
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.1 }}
           >
-            <h2 className="display-section font-serif text-foreground">
-              Building the{" "}
-              <em className="text-muted-foreground">Future</em>
+          <h2 className="display-section font-serif text-foreground">
+              Evolving the{" "}
+              <em className="text-muted-foreground">Web4</em>
               <br />
-              of Private Finance
+              Privacy Landscape
             </h2>
           </motion.div>
           <motion.div
@@ -101,7 +101,7 @@ const RoadmapSection = () => {
             transition={{ duration: 0.8, delay: 0.3 }}
           >
             <p className="text-base text-muted-foreground leading-relaxed">
-              A clear path to revolutionizing confidential transactions and privacy-first financial infrastructure.
+              Our roadmap for evolving the Web4 privacy landscape — from protocol launch to a fully autonomous agentic economy.
             </p>
           </motion.div>
         </div>

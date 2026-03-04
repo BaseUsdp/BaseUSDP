@@ -17,11 +17,11 @@ const Navbar = () => {
   }, []);
 
   const navLinks = [
-    { name: "About", href: "#about" },
-    { name: "Problem", href: "#problem" },
-    { name: "Solution", href: "#features" },
-    { name: "Use Cases", href: "#use-cases" },
-    { name: "Roadmap", href: "#roadmap" },
+    { name: "About USDP", href: "#about" },
+    { name: "The Challenge", href: "#problem" },
+    { name: "Our Solution", href: "#features" },
+    { name: "Applications", href: "#use-cases" },
+    { name: "Future Path", href: "#roadmap" },
   ];
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
@@ -71,7 +71,7 @@ const Navbar = () => {
             onClick={() => navigate("/dashboard")}
             className="text-sm border border-border rounded-full px-5 py-2 text-muted-foreground hover:bg-foreground hover:text-background hover:border-foreground transition-all duration-300 font-normal"
           >
-            Dashboard
+            Launch Dashboard
           </motion.button>
         </div>
 
@@ -110,7 +110,7 @@ const Navbar = () => {
                   onClick={() => { setIsOpen(false); navigate("/dashboard"); }}
                   className="w-full text-sm border border-foreground bg-foreground text-background rounded-full px-5 py-2.5 font-normal"
                 >
-                  Dashboard
+                  Launch Dashboard
                 </button>
               </div>
             </div>

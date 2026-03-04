@@ -28,7 +28,7 @@ const CTASection = () => {
               className="mb-8"
             >
               <span className="tag-pill" style={{ borderColor: "hsl(0 0% 30%)", color: "hsl(0 0% 45%)" }}>
-                Let's build the future
+                Join the Invisible Economy
               </span>
             </motion.div>
 
@@ -44,9 +44,9 @@ const CTASection = () => {
                 letterSpacing: "-0.03em",
               }}
             >
-              Ready to
+              Launch Your
               <br />
-              <em>Transform</em>
+              <em>Private Wallet</em>
             </motion.h2>
 
             <motion.div
@@ -56,19 +56,28 @@ const CTASection = () => {
               className="mt-16 flex flex-col md:flex-row items-start md:items-center justify-between gap-8"
             >
               <p className="text-base text-background/40 max-w-sm leading-relaxed">
-                Connect your wallet and experience the future of confidential finance. Privacy-first transactions powered by ZK Proofs.
+                The future of autonomous commerce is here, and it demands privacy. USDP empowers you and your AI agents to transact with complete confidentiality on Base. Step into the Web4 era with the ultimate private agentic wallet.
               </p>
-              <motion.button
-                onClick={() => navigate("/dashboard")}
-                className="flex items-center gap-3 bg-background text-foreground rounded-full px-7 py-4 text-sm font-semibold hover:bg-background/90 transition-all duration-300 shrink-0 group"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <div className="flex items-center justify-center w-7 h-7 bg-foreground rounded-full group-hover:bg-foreground/80 transition-colors">
-                  <Icon icon="ph:arrow-right-bold" className="w-4 h-4 text-background" />
-                </div>
-                Launch Dashboard
-              </motion.button>
+              <div className="flex items-center gap-6 shrink-0">
+                <motion.button
+                  onClick={() => navigate("/dashboard")}
+                  className="flex items-center gap-3 bg-background text-foreground rounded-full px-7 py-4 text-sm font-semibold hover:bg-background/90 transition-all duration-300 group"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <div className="flex items-center justify-center w-7 h-7 bg-foreground rounded-full group-hover:bg-foreground/80 transition-colors">
+                    <Icon icon="ph:arrow-right-bold" className="w-4 h-4 text-background" />
+                  </div>
+                  Launch Dashboard
+                </motion.button>
+                <a
+                  href="#about"
+                  onClick={(e) => { e.preventDefault(); document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' }); }}
+                  className="text-sm text-background/40 hover:text-background/70 transition-colors underline underline-offset-4"
+                >
+                  Learn More About USDP
+                </a>
+              </div>
             </motion.div>
           </div>
         </div>

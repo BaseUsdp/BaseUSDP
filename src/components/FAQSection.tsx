@@ -10,33 +10,33 @@ const FAQSection = () => {
   const faqs = [
     {
       icon: "ph:globe-bold",
-      question: "What is Web 4.0?",
-      answer: "Web 4.0 represents the next evolution of the internet — an autonomous, agent-driven economy where AI agents, machines, and humans transact value seamlessly. Unlike Web3 which focused on decentralization, Web 4.0 adds intelligence and autonomy: AI agents independently negotiate, pay, and settle transactions. BASEUSDP provides the confidential payment infrastructure that makes this possible, ensuring privacy for both human and machine participants.",
+      question: "The Web4 Revolution: Autonomous. Agentic. Invisible.",
+      answer: "Web4 is not just an upgrade; it's a paradigm shift. It's the era of the autonomous internet, where AI agents, not just humans, are primary economic actors. This new digital frontier demands a new standard of privacy and security. USDP is built for this future, enabling confidential commerce where AI agents transact with strategic discretion.",
     },
     {
       icon: "ph:shield-check-bold",
-      question: "What are Zero-Knowledge Proofs (ZK Proofs)?",
-      answer: "ZK Proofs are cryptographic methods that allow one party to prove to another that a statement is true without revealing any additional information. This means your transaction amounts, balances, and financial data remain private while still being verifiable on the blockchain. BASEUSDP uses ZK Proofs to enable truly confidential transactions.",
+      question: "Zero-Knowledge: The Engine of Confidentiality",
+      answer: "At the core of USDP's privacy infrastructure lies Zero-Knowledge Proofs (ZKPs). This advanced cryptographic technology allows us to verify transactions and identities without revealing any underlying data. For the Web4 agentic economy, ZKPs are not just about privacy; they're about enabling trustless, verifiable, and completely confidential interactions between autonomous entities.",
     },
     {
       icon: "ph:lightning-bold",
-      question: "What is the x402 protocol?",
-      answer: "x402 is an internet-native payment standard that implements HTTP 402 (Payment Required). It enables seamless machine-to-machine payments, micropayments, and API monetization. Any website, app, or AI agent can request and process payments instantly using this open standard.",
+      question: "x402 Protocol: The Native Standard for Autonomous Commerce",
+      answer: "The x402 protocol is more than just a payment standard; it's the internet-native language for the Web4 economy. By implementing HTTP 402 ('Payment Required'), x402 enables seamless, machine-to-machine value exchange. USDP integrates x402 to ensure that your AI agents can autonomously and confidentially interact with services and other agents, making payments a frictionless part of the autonomous web.",
     },
     {
       icon: "ph:lock-bold",
-      question: "How does BASEUSDP protect my privacy?",
-      answer: "BASEUSDP encrypts your transaction amounts and balances using ZK Proof technology. Unlike traditional blockchains where all data is public, only you can see your true balances. Third parties, including validators and observers, cannot view your financial activity.",
+      question: "Your Privacy, Our Protocol: How USDP Secures Your Data",
+      answer: "USDP is engineered from the ground up to be the most secure and private agentic wallet on Base. We leverage advanced Zero-Knowledge Proofs (ZKPs) and Fully Homomorphic Encryption (FHE) to encrypt your transaction amounts, balances, and even the links to your main wallet. This means your financial activity remains completely confidential, even from us. Your data, your control, always invisible.",
     },
     {
       icon: "ph:robot-bold",
-      question: "Can AI agents use BASEUSDP?",
-      answer: "Yes! BASEUSDP is built for the agentic economy. AI agents can autonomously make and receive payments using the x402 protocol without exposing sensitive financial data. Our SDK enables developers to integrate confidential payments into any AI application.",
+      question: "AI Agents: Autonomy Meets Confidentiality",
+      answer: "Absolutely. USDP is purpose-built for the burgeoning agentic economy. Our platform empowers AI agents to operate with full autonomy, making and receiving payments, interacting with protocols, and executing complex strategies — all while maintaining complete financial confidentiality. With USDP, your AI agents gain the strategic advantage of privacy, ensuring their operations remain secure and untraceable on Base.",
     },
     {
       icon: "ph:question-bold",
-      question: "Which blockchains does BASEUSDP support?",
-      answer: "BASEUSDP operates on Base (Ethereum L2) with ZK Proof capabilities for privacy. Transactions benefit from low fees and fast finality on Base network.",
+      question: "Built on Base: The Secure Foundation for Web4 Finance",
+      answer: "USDP proudly operates on Base, Ethereum's leading Layer 2. This strategic choice provides our users and AI agents with unparalleled transaction speed, minimal fees, and the robust security of the Ethereum network. By leveraging Base, USDP ensures that confidential payments for the Web4 economy are not only private but also efficient, scalable, and future-proof.",
     },
   ];
 
@@ -59,9 +59,9 @@ const FAQSection = () => {
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.1 }}
           >
-            <h2 className="display-section font-serif text-foreground">
-              Everything you need{" "}
-              <em className="text-muted-foreground">to know</em>
+          <h2 className="display-section font-serif text-foreground">
+              Deep Dive into{" "}
+              <em className="text-muted-foreground">USDP</em>
             </h2>
           </motion.div>
         </div>

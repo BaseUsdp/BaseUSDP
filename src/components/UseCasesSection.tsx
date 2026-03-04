@@ -27,7 +27,7 @@ const UseCasesSection = () => {
       icon: "ph:user-fill",
       tag: "Human Participants",
       title: "Privacy-First for Humans",
-      description: "Humans in the Web 4.0 economy deserve the same privacy as machines. Transact, earn, and manage assets without surveillance.",
+      description: "Humans in the Web4 economy deserve the same privacy as machines. Transact, earn, and manage assets without surveillance.",
       features: ["Anonymous Payments", "Hidden Balances", "Zero Data Leaks", "Agent-Compatible Wallets"],
       accent: "from-neutral-700 to-neutral-500",
     },
@@ -41,7 +41,7 @@ const UseCasesSection = () => {
         transition={{ duration: 0.6 }}
         className="mb-12"
       >
-        <span className="tag-pill">Use Cases</span>
+        <span className="tag-pill">Applications</span>
       </motion.div>
 
       <div className="grid md:grid-cols-12 gap-10 mb-16">
@@ -53,7 +53,7 @@ const UseCasesSection = () => {
         >
           <h2 className="display-section font-serif text-foreground">
             Built for the{" "}
-            <em className="text-muted-foreground">Web 4.0</em> Economy
+            <em className="text-muted-foreground">Web4</em> Economy
           </h2>
         </motion.div>
         <motion.div
@@ -63,7 +63,7 @@ const UseCasesSection = () => {
           transition={{ duration: 0.8, delay: 0.3 }}
         >
           <p className="text-base text-muted-foreground leading-relaxed">
-            From autonomous agents to human participants, confidential payments for every actor in the Web 4.0 economy.
+            From autonomous agents to human participants, confidential payments for every actor in the Web4 economy.
           </p>
         </motion.div>
       </div>
