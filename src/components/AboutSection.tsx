@@ -27,7 +27,7 @@ const AboutSection = () => {
         >
           <h2 className="display-section font-serif text-foreground">
             The Internet Was Built for Information.{" "}
-            <span className="text-muted-foreground italic">We're Building the Protocol for Private Value.</span>
+            <span className="italic" style={{ color: "hsl(var(--beam-cyan))" }}>We're Building the Protocol for Private Value.</span>
           </h2>
         </motion.div>
         <motion.div
