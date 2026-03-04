@@ -86,6 +86,7 @@ function FlipCard({ src, index, total, phase, target }: FlipCardProps) {
 // --- Main Hero Component ---
 const TOTAL_IMAGES = 20;
 const MAX_SCROLL = 3000;
+const MOBILE_TOUCH_SCROLL_MULTIPLIER = 2.4;
 
 const IMAGES = [
   "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&q=80",  // glass skyscraper
