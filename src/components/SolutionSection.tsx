@@ -1,48 +1,44 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Icon } from "@iconify/react";
+import PaymentFlowSVG from "@/components/svg-animations/PaymentFlowSVG";
+import ZKShieldSVG from "@/components/svg-animations/ZKShieldSVG";
+import PrivateWalletSVG from "@/components/svg-animations/PrivateWalletSVG";
+import TechStackSVG from "@/components/svg-animations/TechStackSVG";
+
+const solutions = [
+  {
+    icon: "ph:lightning-fill",
+    title: "Internet-Native Payments",
+    tag: "x402 Standard",
+    description: "An open, neutral standard that activates HTTP 402. Any website, app, or API can request payment instantly.",
+    features: ["Agent-to-agent transactions", "Micropayments (sub-cent)", "Usage-based billing"],
+    featured: false,
+    illustration: "payment",
+  },
+  {
+    icon: "ph:shield-check-fill",
+    title: "Prove Without Revealing",
+    tag: "ZK Proof Technology",
+    description: "Zero-Knowledge Proofs allow verification of transactions without revealing sensitive data.",
+    features: ["Confidential balances", "Private transactions", "Anonymous payments"],
+    featured: true,
+    illustration: "zk",
+  },
+  {
+    icon: "ph:credit-card-fill",
+    title: "Privacy-First Banking",
+    tag: "Neobank Features",
+    description: "Virtual cards, instant transfers, yield generation—all with privacy built-in.",
+    features: ["Virtual Cards", "4-8% APY", "Real-time analytics"],
+    featured: false,
+    illustration: "wallet",
+  },
+];
 
 const SolutionSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
-
-  const solutions = [
-    {
-      icon: "ph:lightning-fill",
-      title: "Internet-Native Payments",
-      tag: "x402 Standard",
-      description: "An open, neutral standard that activates HTTP 402. Any website, app, or API can request payment instantly.",
-      features: ["Agent-to-agent transactions", "Micropayments (sub-cent)", "Usage-based billing", "P2P payments"],
-      featured: false,
-    },
-    {
-      icon: "ph:shield-check-fill",
-      title: "Prove Without Revealing",
-      tag: "ZK Proof Technology",
-      description: "Zero-Knowledge Proofs allow verification of transactions without revealing sensitive data.",
-      features: ["Confidential balances", "Private transactions", "Anonymous payments", "Fraud detection"],
-      featured: true,
-    },
-    {
-      icon: "ph:credit-card-fill",
-      title: "Privacy-First Banking",
-      tag: "Neobank Features",
-      description: "Virtual cards, instant transfers, yield generation—all with privacy built-in.",
-      features: ["Virtual Cards", "4-8% APY", "Real-time analytics", "Multi-factor auth"],
-      featured: false,
-    },
-  ];
-
-  const techStack = [
-    { name: "Base", type: "Blockchain Layer", icon: "simple-icons:ethereum" },
-    { name: "ZK Proofs", type: "Privacy Layer", icon: "ph:shield-check-fill" },
-    { name: "x402", type: "Payment Standard", icon: "ph:currency-dollar-fill" },
-    { name: "Solidity", type: "Smart Contracts", icon: "ph:code-fill" },
-    { name: "TypeScript", type: "Backend", icon: "simple-icons:typescript" },
-    { name: "React + Vite", type: "Frontend", icon: "simple-icons:react" },
-    { name: "ERC-20", type: "Token Standard", icon: "ph:lock-fill" },
-    { name: "AI Agents", type: "Autonomous", icon: "ph:robot-fill" },
-  ];
 
   return (
     <section ref={ref} id="features" className="max-w-[1400px] mx-auto px-8 py-28 border-t border-border">
@@ -79,78 +75,90 @@ const SolutionSection = () => {
         </motion.div>
       </div>
 
-      {/* Service cards grid — 2x2 with one dark featured */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border rounded-3xl overflow-hidden">
+      {/* Bento grid — 3 cards top, 1 wide bottom */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {solutions.map((solution, i) => (
           <motion.div
             key={solution.title}
             initial={{ opacity: 0, y: 20 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.5, delay: 0.2 + i * 0.1 }}
-            className={`p-10 flex flex-col justify-between min-h-[280px] group transition-all duration-300 ${
+            className={`rounded-3xl overflow-hidden group transition-all duration-300 ${
               solution.featured
                 ? "bg-foreground text-background"
-                : "service-card bg-background"
+                : "bg-secondary/40 border border-border"
             }`}
           >
-            <div className="flex items-start justify-between">
-              <div>
-                <div className={`text-xs uppercase tracking-widest mb-2 ${solution.featured ? "text-background/50" : "text-muted-foreground"}`}>
-                  {solution.tag}
-                </div>
-                <h3 className={`text-xl font-semibold ${solution.featured ? "text-background" : "text-foreground"}`}>
-                  {solution.title}
-                </h3>
-              </div>
-              <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 ${
-                solution.featured
-                  ? "bg-background/10 group-hover:bg-background group-hover:text-foreground"
-                  : "bg-secondary group-hover:bg-foreground group-hover:text-background"
-              }`}>
-                <Icon icon="ph:arrow-right" className="w-4 h-4" />
-              </div>
+            {/* SVG Illustration area */}
+            <div className={`px-4 pt-6 ${solution.featured ? "opacity-90" : ""}`}>
+              {solution.illustration === "payment" && <PaymentFlowSVG />}
+              {solution.illustration === "zk" && <ZKShieldSVG inverted={solution.featured} />}
+              {solution.illustration === "wallet" && <PrivateWalletSVG />}
             </div>
-            <p className={`text-sm mt-6 leading-relaxed max-w-sm ${solution.featured ? "text-background/60" : "text-muted-foreground"}`}>
-              {solution.description}
-            </p>
-            <div className="flex flex-wrap gap-2 mt-6">
-              {solution.features.slice(0, 3).map((f, fi) => (
-                <span
-                  key={fi}
-                  className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-full border ${
-                    solution.featured
-                      ? "border-background/20 text-background/60"
-                      : "border-border text-muted-foreground"
-                  }`}
-                >
-                  {f}
-                </span>
-              ))}
+
+            {/* Text content */}
+            <div className="p-8 pt-4">
+              <div className={`text-xs uppercase tracking-widest mb-2 ${solution.featured ? "text-background/50" : "text-muted-foreground"}`}>
+                {solution.tag}
+              </div>
+              <h3 className={`text-xl font-semibold mb-3 ${solution.featured ? "text-background" : "text-foreground"}`}>
+                {solution.title}
+              </h3>
+              <p className={`text-sm leading-relaxed mb-6 ${solution.featured ? "text-background/60" : "text-muted-foreground"}`}>
+                {solution.description}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {solution.features.map((f, fi) => (
+                  <span
+                    key={fi}
+                    className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+                      solution.featured
+                        ? "border-background/20 text-background/60"
+                        : "border-border text-muted-foreground"
+                    }`}
+                  >
+                    {f}
+                  </span>
+                ))}
+              </div>
             </div>
           </motion.div>
         ))}
+      </div>
 
-        {/* Tech stack card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          className="service-card bg-background p-10 flex flex-col justify-between min-h-[280px]"
-        >
-          <div>
-            <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Infrastructure</div>
-            <h3 className="text-xl font-semibold text-foreground">Full Stack</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-3 mt-6">
-            {techStack.slice(0, 6).map((tech) => (
+      {/* Wide tech stack card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.5, delay: 0.5 }}
+        className="mt-4 rounded-3xl bg-secondary/40 border border-border overflow-hidden grid md:grid-cols-2 gap-0"
+      >
+        <div className="p-8 flex flex-col justify-center">
+          <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Infrastructure</div>
+          <h3 className="text-xl font-semibold text-foreground mb-3">Full Stack Architecture</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+            Five architectural layers working in concert to deliver end-to-end encrypted transactions at scale.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { icon: "simple-icons:coinbase", name: "Base L2" },
+              { icon: "ph:shield-check-fill", name: "ZK Proofs" },
+              { icon: "ph:currency-dollar-fill", name: "x402" },
+              { icon: "simple-icons:solidity", name: "Solidity" },
+              { icon: "ph:robot-fill", name: "AI Agents" },
+              { icon: "ph:lock-fill", name: "ERC-20" },
+            ].map((tech) => (
               <div key={tech.name} className="flex items-center gap-2 text-sm">
                 <Icon icon={tech.icon} className="w-4 h-4 text-foreground" />
                 <span className="text-muted-foreground">{tech.name}</span>
               </div>
             ))}
           </div>
-        </motion.div>
-      </div>
+        </div>
+        <div className="flex items-center justify-center p-4">
+          <TechStackSVG />
+        </div>
+      </motion.div>
     </section>
   );
 };
