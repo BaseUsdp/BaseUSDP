@@ -70,12 +70,23 @@ function FlipCard({ gradientIndex, index, total, phase, target, morphProgress }:
         transition={{ duration: 0.6 }}
       >
         <div
-          className="absolute inset-0 rounded-lg overflow-hidden shadow-lg"
+          className="absolute inset-0 rounded-lg overflow-hidden shadow-lg flex items-center justify-center"
           style={{
             backfaceVisibility: "hidden",
             background: gradient,
           }}
-        />
+        >
+          <IconComponent
+            size={24}
+            strokeWidth={1.5}
+            style={{
+              color: 'white',
+              opacity: iconOpacity,
+              transition: 'opacity 0.4s ease',
+              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
+            }}
+          />
+        </div>
         <div
           className="absolute inset-0 rounded-lg overflow-hidden shadow-lg flex items-center justify-center"
           style={{
