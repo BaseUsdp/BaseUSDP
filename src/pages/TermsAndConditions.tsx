@@ -140,7 +140,7 @@ const TermsAndConditions = () => {
             <h2 className="text-xl font-semibold text-foreground mb-4">7. Intellectual Property</h2>
             <p>
               The Service and its original content, features, and functionality are owned by
-              ORB402 and are protected by international copyright, trademark, patent, trade
+              BASEUSDP and are protected by international copyright, trademark, patent, trade
               secret, and other intellectual property laws. You may not reproduce, distribute,
               modify, create derivative works of, publicly display, or otherwise exploit any
               content from the Service without our prior written consent.
