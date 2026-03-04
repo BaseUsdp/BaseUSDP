@@ -195,6 +195,46 @@ export default function ScrollMorphHero() {
   // --- Virtual Scroll Logic ---
   const virtualScroll = useMotionValue(0);
   const scrollRef = useRef(0);
+  const mobileAutoAnimating = useRef(false);
+  const mobileAnimFrame = useRef<number | null>(null);
+
+  // Mobile tap-to-animate: smoothly drives virtualScroll from current to max
+  const startMobileAutoAnimate = () => {
+    if (mobileAutoAnimating.current || animationDone) return;
+    mobileAutoAnimating.current = true;
+    const maxScroll = getMaxScroll(true);
+    const duration = 1200; // ms
+    const startVal = scrollRef.current;
+    const startTime = performance.now();
+
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - t, 3);
+      const val = startVal + (maxScroll - startVal) * eased;
+      scrollRef.current = val;
+      virtualScroll.set(val);
+
+      if (t < 1) {
+        mobileAnimFrame.current = requestAnimationFrame(tick);
+      } else {
+        scrollRef.current = maxScroll;
+        virtualScroll.set(maxScroll);
+        setAnimationDone(true);
+        mobileAutoAnimating.current = false;
+      }
+    };
+    mobileAnimFrame.current = requestAnimationFrame(tick);
+  };
+
+  const stopMobileAutoAnimate = () => {
+    if (mobileAnimFrame.current) {
+      cancelAnimationFrame(mobileAnimFrame.current);
+      mobileAnimFrame.current = null;
+    }
+    mobileAutoAnimating.current = false;
+  };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -234,13 +274,25 @@ export default function ScrollMorphHero() {
       finishIfNeeded(newScroll, maxScroll, isMobile);
     };
 
+    // Mobile: tap to auto-animate forward, scroll to reverse
     let touchStartY = 0;
+    let touchMoved = false;
+
     const handleTouchStart = (e: TouchEvent) => {
       touchStartY = e.touches[0].clientY;
+      touchMoved = false;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
+      touchMoved = true;
       const isMobile = isMobileInputMode();
+
+      // If auto-animating forward on mobile, ignore forward swipes
+      if (isMobile && mobileAutoAnimating.current) {
+        e.preventDefault();
+        return;
+      }
+
       const maxScroll = getMaxScroll(isMobile);
       const touchY = e.touches[0].clientY;
       const rawDeltaY = touchStartY - touchY;
@@ -248,26 +300,24 @@ export default function ScrollMorphHero() {
 
       if (isMobile && Math.abs(rawDeltaY) < MOBILE_TOUCH_DEADZONE) return;
 
-      // On mobile, ignore small backward (downward finger) movements — they're usually jitter
       if (isMobile && rawDeltaY < 0 && Math.abs(rawDeltaY) < MOBILE_REVERSE_DEADZONE) return;
 
       let adjustedDeltaY = rawDeltaY * (isMobile ? MOBILE_TOUCH_SCROLL_MULTIPLIER : 1);
 
       if (isMobile) {
+        // On mobile, only allow reverse (scroll down = finger down = negative delta)
         if (adjustedDeltaY > 0) {
-          adjustedDeltaY = Math.max(adjustedDeltaY, MOBILE_MIN_FORWARD_DELTA);
-          if (Math.abs(rawDeltaY) > MOBILE_FLICK_BOOST_THRESHOLD) {
-            adjustedDeltaY *= 1.35;
-          }
-        } else {
-          adjustedDeltaY *= MOBILE_REVERSE_DAMPING;
+          e.preventDefault();
+          return; // Forward is handled by tap, not swipe
         }
+        adjustedDeltaY *= MOBILE_REVERSE_DAMPING;
       }
 
       if (animationDone) {
         if (adjustedDeltaY > 0) return;
-        if (Math.abs(adjustedDeltaY) < MOBILE_REENTER_INTENT_THRESHOLD) return;
+        if (isMobile && Math.abs(adjustedDeltaY) < MOBILE_REENTER_INTENT_THRESHOLD) return;
         if (!canReenterAnimation()) return;
+        stopMobileAutoAnimate();
         setAnimationDone(false);
         scrollRef.current = maxScroll;
         virtualScroll.set(maxScroll);
@@ -280,14 +330,25 @@ export default function ScrollMorphHero() {
       finishIfNeeded(newScroll, maxScroll, isMobile);
     };
 
+    const handleTouchEnd = () => {
+      const isMobile = isMobileInputMode();
+      // If it was a tap (no significant movement) on mobile, auto-animate forward
+      if (isMobile && !touchMoved && !animationDone) {
+        startMobileAutoAnimate();
+      }
+    };
+
     container.addEventListener("wheel", handleWheel, { passive: false });
     container.addEventListener("touchstart", handleTouchStart, { passive: false });
     container.addEventListener("touchmove", handleTouchMove, { passive: false });
+    container.addEventListener("touchend", handleTouchEnd);
 
     return () => {
       container.removeEventListener("wheel", handleWheel);
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+      stopMobileAutoAnimate();
     };
   }, [virtualScroll, animationDone]);
 
