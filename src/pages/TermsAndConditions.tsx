@@ -36,7 +36,7 @@ const TermsAndConditions = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">1. Agreement to Terms</h2>
             <p>
-              By accessing or using the ORB402 platform, website, and related services
+              By accessing or using the BASEUSDP platform, website, and related services
               (collectively, the "Service"), you agree to be bound by these Terms and Conditions
               ("Terms"). If you do not agree to these Terms, you must not access or use the
               Service.
