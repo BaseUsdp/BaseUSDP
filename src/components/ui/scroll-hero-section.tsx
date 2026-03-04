@@ -181,12 +181,13 @@ export function ScrollHeroSection({
         /* Header: sticky with negative offset to create scrollable word area */
         .word-hero-header {
           font-size: clamp(2.5rem, 8vw, 6rem);
-          line-height: 1.2;
+          line-height: 1.15;
           position: sticky;
           top: calc((var(--count, 7) - 1) * -1lh);
           width: 100%;
           margin-bottom: var(--wh-space, 50vh);
           z-index: 1;
+          overflow: visible;
         }
 
         /* Prefix "you can " — stays sticky at viewport center */
