@@ -387,7 +387,7 @@ export default function ScrollMorphHero() {
             style={{
               fontFamily: "'DM Serif Display', serif",
               fontSize: 'clamp(2rem, 6vw, 4.5rem)',
-              lineHeight: 1,
+              lineHeight: 1.2,
               letterSpacing: '-0.03em',
               color: 'hsl(var(--foreground))',
             }}
