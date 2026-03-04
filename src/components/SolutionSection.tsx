@@ -60,7 +60,7 @@ const SolutionSection = () => {
         >
           <h2 className="display-section font-serif text-foreground">
             How USDP delivers{" "}
-            <em style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>unparalleled confidentiality</em>
+            <em className="gradient-text" style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>unparalleled confidentiality</em>
           </h2>
         </motion.div>
         <motion.div

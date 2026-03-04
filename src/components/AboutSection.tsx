@@ -27,8 +27,8 @@ const AboutSection = () => {
         >
           <h2 className="display-section font-serif text-foreground">
             The Internet Was Built for Information. We're{" "}
-            <span className="italic" style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Building</span>{" "}the Protocol for{" "}
-            <span className="italic" style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Private Value.</span>
+             <span className="italic gradient-text" style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Building</span>{" "}the Protocol for{" "}
+             <span className="italic gradient-text" style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Private Value.</span>
           </h2>
         </motion.div>
         <motion.div
