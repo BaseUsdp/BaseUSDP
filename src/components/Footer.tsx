@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import usdpLogoWhite from "@/assets/usdp-logo-white.png";
 import { Icon } from "@iconify/react";
 
 const Footer = () => {
+  const [showComingSoon, setShowComingSoon] = useState(false);
   const footerLinks = {
     Platform: [
       { name: "Dashboard", href: "/dashboard", isRoute: true },
@@ -19,9 +21,9 @@ const Footer = () => {
     ],
   };
 
-  const socialLinks = [
+  const socialLinks: { name: string; href: string; icon: string; comingSoon?: boolean }[] = [
      { name: "Twitter", href: "https://x.com/BaseUSDP", icon: "simple-icons:twitter" },
-     { name: "GitHub", href: "https://github.com/ORB402/ORB402", icon: "simple-icons:github" },
+     { name: "GitHub", href: "#", icon: "simple-icons:github", comingSoon: true },
   ];
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
@@ -44,19 +46,37 @@ const Footer = () => {
             The Private Agentic Wallet for Web4.
             Autonomous by design. Invisible by default.
           </p>
-          <div className="flex items-center gap-3 mt-6">
-            {socialLinks.map((social) => (
-              <a
-                key={social.name}
-                href={social.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full bg-background/10 flex items-center justify-center hover:bg-background/20 transition-colors"
-              >
-                <Icon icon={social.icon} className="w-4 h-4 text-background" />
-              </a>
-            ))}
-          </div>
+           <div className="flex items-center gap-3 mt-6">
+             {socialLinks.map((social) => (
+               <div key={social.name} className="relative">
+                 {social.comingSoon ? (
+                   <button
+                     onClick={() => {
+                       setShowComingSoon(true);
+                       setTimeout(() => setShowComingSoon(false), 2000);
+                     }}
+                     className="w-9 h-9 rounded-full bg-background/10 flex items-center justify-center hover:bg-background/20 transition-colors"
+                   >
+                     <Icon icon={social.icon} className="w-4 h-4 text-background" />
+                     {showComingSoon && (
+                       <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-background text-foreground text-[10px] font-semibold whitespace-nowrap shadow-lg animate-fade-in">
+                         Coming Soon
+                       </span>
+                     )}
+                   </button>
+                 ) : (
+                   <a
+                     href={social.href}
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     className="w-9 h-9 rounded-full bg-background/10 flex items-center justify-center hover:bg-background/20 transition-colors"
+                   >
+                     <Icon icon={social.icon} className="w-4 h-4 text-background" />
+                   </a>
+                 )}
+               </div>
+             ))}
+           </div>
         </div>
 
         {Object.entries(footerLinks).map(([category, links]) => (
