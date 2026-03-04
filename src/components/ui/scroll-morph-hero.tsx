@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion, useTransform, useSpring, useMotionValue } from "framer-motion";
-import AltisLogo from "@/components/AltisLogo";
+
 
 // --- Types ---
 export type AnimationPhase = "scatter" | "line" | "circle" | "bottom-strip";
@@ -245,31 +245,19 @@ export default function ScrollMorphHero() {
     return () => { u1(); u2(); u3(); };
   }, [smoothMorph, smoothScrollRotate, smoothMouseX]);
 
-  // Content fades in as arc forms, logo fades out
-  const logoOpacity = useTransform(smoothMorph, [0, 0.4], [1, 0]);
-  const logoScale = useTransform(smoothMorph, [0, 0.4], [1, 0.8]);
+  // Content fades in as arc forms
   const contentOpacity = useTransform(smoothMorph, [0.7, 1], [0, 1]);
   const contentY = useTransform(smoothMorph, [0.7, 1], [30, 0]);
   // Intro text fades out as morph starts
   const introTextOpacity = useTransform(smoothMorph, [0, 0.25], [1, 0]);
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-background">
+    <div className="relative w-screen h-screen overflow-hidden bg-background" style={{ marginLeft: 'calc(-50vw + 50%)', marginRight: 'calc(-50vw + 50%)' }}>
       <div
         ref={containerRef}
         className="relative w-full h-full flex items-center justify-center"
         style={{ touchAction: "none" }}
       >
-        {/* BASEUSDP Logo — visible at start, fades out as morph begins */}
-        <motion.div
-          className="absolute inset-0 flex flex-col items-center justify-center z-30 pointer-events-none"
-          style={{ opacity: logoOpacity, scale: logoScale }}
-        >
-          <AltisLogo size={72} className="text-foreground" />
-          <span className="mt-4 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-            BASEUSDP
-          </span>
-        </motion.div>
 
         {/* Intro Text — shows during circle phase before morph */}
         <motion.div

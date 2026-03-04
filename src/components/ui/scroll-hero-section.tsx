@@ -3,7 +3,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '@iconify/react';
-import AltisLogo from '@/components/AltisLogo';
 
 interface ScrollHeroProps {
   items?: string[];
@@ -25,13 +24,6 @@ export function ScrollHeroSection({
       {/* Grid background */}
       <div className="word-hero-grid" />
 
-      {/* Centered logo that fades on scroll */}
-      <div className="word-hero-logo">
-        <AltisLogo size={64} className="text-foreground" />
-        <span className="mt-3 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-          BASEUSDP
-        </span>
-      </div>
 
       <header
         className="word-hero-header"
