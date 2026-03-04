@@ -19,6 +19,7 @@ const CARD_ICONS = [
 ];
 
 interface FlipCardProps {
+  src: string;
   gradientIndex: number;
   index: number;
   total: number;
@@ -31,7 +32,7 @@ interface FlipCardProps {
 const IMG_WIDTH = 60;
 const IMG_HEIGHT = 85;
 
-function FlipCard({ gradientIndex, index, total, phase, target, morphProgress }: FlipCardProps) {
+function FlipCard({ src, gradientIndex, index, total, phase, target, morphProgress }: FlipCardProps) {
   const IconComponent = CARD_ICONS[index % CARD_ICONS.length];
   const iconOpacity = Math.max(0, Math.min(1, (morphProgress - 0.3) / 0.4));
   const gradientOpacity = Math.max(0, Math.min(1, (morphProgress - 0.2) / 0.5));
@@ -72,14 +73,18 @@ function FlipCard({ gradientIndex, index, total, phase, target, morphProgress }:
       >
         <div
           className="absolute inset-0 rounded-lg overflow-hidden shadow-lg flex items-center justify-center"
-          style={{
-            backfaceVisibility: "hidden",
-            background: 'hsl(0 0% 5%)',
-          }}
+          style={{ backfaceVisibility: "hidden" }}
         >
+          {/* Base image */}
+          <img
+            src={src}
+            alt={`Card ${index}`}
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="lazy"
+          />
           {/* Gradient overlay that fades in */}
           <div
-            className="absolute inset-0 rounded-lg"
+            className="absolute inset-0"
             style={{
               background: gradient,
               opacity: gradientOpacity,
@@ -128,6 +133,29 @@ const MOBILE_FLICK_BOOST_THRESHOLD = 18;
 const MOBILE_COMPLETE_PROGRESS = 0.9;
 
 const CARD_COLORS = Array.from({ length: TOTAL_IMAGES }, (_, i) => i);
+
+const IMAGES = [
+  "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&q=80",
+  "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=300&q=80",
+  "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=300&q=80",
+  "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=300&q=80",
+  "https://images.unsplash.com/photo-1563986768609-322da13575f2?w=300&q=80",
+  "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=300&q=80",
+  "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=300&q=80",
+  "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=300&q=80",
+  "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=300&q=80",
+  "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=300&q=80",
+  "https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&q=80",
+  "https://images.unsplash.com/photo-1560732488-6b0df240254a?w=300&q=80",
+  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=300&q=80",
+  "https://images.unsplash.com/photo-1518770660439-4636190af475?w=300&q=80",
+  "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=300&q=80",
+  "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=300&q=80",
+  "https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=300&q=80",
+  "https://images.unsplash.com/photo-1488229297570-58520851e868?w=300&q=80",
+  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&q=80",
+  "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=300&q=80",
+];
 
 const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
 
@@ -436,7 +464,7 @@ export default function ScrollMorphHero() {
             }
 
             return (
-              <FlipCard key={i} gradientIndex={colorIndex} index={i} total={TOTAL_IMAGES} phase={introPhase} target={target} morphProgress={morphValue} />
+              <FlipCard key={i} src={IMAGES[i]} gradientIndex={colorIndex} index={i} total={TOTAL_IMAGES} phase={introPhase} target={target} morphProgress={morphValue} />
             );
           })}
         </div>
