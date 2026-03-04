@@ -127,19 +127,14 @@ export function ScrollHeroSection({
           position: relative;
         }
 
-        /* Subtle grid background */
+        /* Subtle dot background */
         .word-hero-grid {
-          --size: 45px;
-          --line: hsl(0 0% 0% / 0.05);
           position: fixed;
           inset: 0;
           z-index: 0;
           pointer-events: none;
-          background:
-            linear-gradient(90deg, var(--line) 1px, transparent 1px var(--size))
-              calc(var(--size) * 0.36) 50% / var(--size) var(--size),
-            linear-gradient(var(--line) 1px, transparent 1px var(--size))
-              0% calc(var(--size) * 0.32) / var(--size) var(--size);
+          background-image: radial-gradient(circle, hsl(0 0% 0% / 0.07) 1px, transparent 1px);
+          background-size: 20px 20px;
           mask: linear-gradient(-20deg, transparent 50%, white);
         }
 

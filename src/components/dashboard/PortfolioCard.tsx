@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Lock, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { DotPattern } from "@/components/ui/dot-pattern";
 
 interface PortfolioCardProps {
   showBalance: boolean;
@@ -22,14 +23,7 @@ const PortfolioCard = ({ showBalance }: PortfolioCardProps) => {
       transition={{ delay: 0.1 }}
       className="relative rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-accent p-8 min-h-[280px] flex flex-col overflow-hidden"
     >
-      {/* Background pattern */}
-      <div 
-        className="absolute inset-0 opacity-10"
-        style={{
-          backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`,
-          backgroundSize: '32px 32px'
-        }}
-      />
+      <DotPattern width={32} height={32} cr={1} className="fill-white/10" />
 
       {/* Header */}
       <div className="relative flex items-center gap-2 mb-auto">
