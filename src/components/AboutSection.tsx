@@ -47,16 +47,18 @@ const AboutSection = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.2 }}
+          className="h-full"
         >
           <WarpBackground
             beamsPerSide={4}
-            beamSize={6}
-            beamDelayMax={4}
-            beamDuration={4}
-            perspective={150}
-            className="bg-secondary/50 min-h-[320px]"
+            beamSize={5}
+            beamDelayMax={3}
+            beamDuration={3}
+            beamDelayMin={0}
+            perspective={100}
+            className="bg-secondary/50 h-full"
           >
-            <div className="p-10 flex flex-col justify-between min-h-[320px]">
+            <div className="p-10 flex flex-col justify-between h-full min-h-[320px]">
               <div>
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-12 h-12 bg-foreground rounded-xl flex items-center justify-center">
