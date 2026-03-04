@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Lock, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { DotPattern } from "@/components/ui/dot-pattern";
 
 interface PortfolioCardProps {
   showBalance: boolean;

@@ -2,6 +2,7 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Icon } from "@iconify/react";
 import { ScrollHeroSection } from "@/components/ui/scroll-hero-section";
+import { DotPattern } from "@/components/ui/dot-pattern";
 
 const ProblemSection = () => {
   const ref = useRef(null);
