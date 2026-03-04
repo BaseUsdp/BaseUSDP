@@ -50,7 +50,7 @@ const ProblemSection = () => {
 
       {/* Problem content continues below the scroll animation */}
       <div ref={ref} className="relative border-t border-border overflow-hidden">
-        <DotPattern width={24} height={24} cr={1} className="fill-foreground/[0.06] [mask-image:linear-gradient(to_bottom,transparent_5%,black_40%,black_60%,transparent_95%)]" />
+        
 
         <div className="relative max-w-[1400px] mx-auto px-8 py-28">
           <motion.div

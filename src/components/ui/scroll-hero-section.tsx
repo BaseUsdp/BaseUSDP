@@ -127,15 +127,14 @@ export function ScrollHeroSection({
           position: relative;
         }
 
-        /* Subtle dot background */
+        /* Global dot background - fixed across entire site */
         .word-hero-grid {
           position: fixed;
           inset: 0;
           z-index: 0;
           pointer-events: none;
-          background-image: radial-gradient(circle, hsl(0 0% 0% / 0.07) 1px, transparent 1px);
-          background-size: 20px 20px;
-          mask: linear-gradient(-20deg, transparent 50%, white);
+          background-image: radial-gradient(circle, hsl(0 0% 0% / 0.15) 1px, transparent 1px);
+          background-size: 18px 18px;
         }
 
         /* Logo — centered, fades out on scroll */
