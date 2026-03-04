@@ -86,9 +86,10 @@ function FlipCard({ src, index, total, phase, target }: FlipCardProps) {
 // --- Main Hero Component ---
 const TOTAL_IMAGES = 20;
 const DESKTOP_MAX_SCROLL = 3000;
-const MOBILE_MAX_SCROLL = 1200;
-const MOBILE_TOUCH_SCROLL_MULTIPLIER = 5;
-const MOBILE_MIN_TOUCH_DELTA = 18;
+const MOBILE_MAX_SCROLL = 650;
+const MOBILE_TOUCH_SCROLL_MULTIPLIER = 9;
+const MOBILE_MIN_TOUCH_DELTA = 32;
+const MOBILE_FLICK_BOOST_THRESHOLD = 26;
 
 const IMAGES = [
   "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&q=80",  // glass skyscraper
@@ -114,12 +115,19 @@ const IMAGES = [
 ];
 
 const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
+
+const isMobileInputMode = () =>
+  window.innerWidth < 768 ||
+  window.matchMedia("(pointer: coarse)").matches ||
+  navigator.maxTouchPoints > 0;
+
 const getMaxScroll = (isMobile: boolean) => (isMobile ? MOBILE_MAX_SCROLL : DESKTOP_MAX_SCROLL);
 
 export default function ScrollMorphHero() {
   const [introPhase, setIntroPhase] = useState<AnimationPhase>("circle");
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [animationDone, setAnimationDone] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
