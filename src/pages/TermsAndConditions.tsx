@@ -229,15 +229,15 @@ const TermsAndConditions = () => {
               If you have any questions or concerns about these Terms and Conditions, please
               contact us at:
             </p>
-            <div className="mt-4 p-6 bg-secondary border border-border rounded-lg">
-              <p className="font-medium text-foreground">BASEUSDP</p>
-              <p className="mt-2">
-                Email:{" "}
-                <a href="mailto:xvoidx402@gmail.com" className="text-foreground underline hover:no-underline">
-                  xvoidx402@gmail.com
-                </a>
-              </p>
-            </div>
+             <div className="mt-4 p-6 bg-secondary border border-border rounded-lg">
+               <p className="font-medium text-foreground">BASEUSDP</p>
+               <p className="mt-2">
+                 Twitter:{" "}
+                 <a href="https://x.com/BaseUSDP" target="_blank" rel="noopener noreferrer" className="text-foreground underline hover:no-underline">
+                   @BaseUSDP
+                 </a>
+               </p>
+             </div>
           </section>
         </div>
       </main>

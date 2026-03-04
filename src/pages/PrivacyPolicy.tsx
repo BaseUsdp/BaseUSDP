@@ -143,12 +143,9 @@ const PrivacyPolicy = () => {
               <li>Data portability — receive your data in a structured, machine-readable format</li>
               <li>Withdraw consent at any time where processing is based on consent</li>
             </ul>
-            <p className="mt-3">
-              To exercise any of these rights, please contact us at{" "}
-              <a href="mailto:xvoidx402@gmail.com" className="text-foreground underline hover:no-underline">
-                xvoidx402@gmail.com
-              </a>.
-            </p>
+             <p className="mt-3">
+               To exercise any of these rights, please reach out to us on our social channels.
+             </p>
           </section>
 
           <section>
@@ -167,12 +164,9 @@ const PrivacyPolicy = () => {
             <p>
               Our Service is not intended for individuals under the age of 18. We do not
               knowingly collect personal information from children. If you are a parent or
-              guardian and believe your child has provided us with personal information, please
-              contact us at{" "}
-              <a href="mailto:xvoidx402@gmail.com" className="text-foreground underline hover:no-underline">
-                xvoidx402@gmail.com
-              </a>{" "}
-              and we will take steps to delete such information.
+               guardian and believe your child has provided us with personal information, please
+               reach out to us on our social channels
+               and we will take steps to delete such information.
             </p>
           </section>
 
@@ -192,15 +186,15 @@ const PrivacyPolicy = () => {
               If you have any questions, concerns, or requests regarding this Privacy Policy
               or our data practices, please contact us at:
             </p>
-            <div className="mt-4 p-6 bg-secondary border border-border rounded-lg">
-              <p className="font-medium text-foreground">BASEUSDP</p>
-              <p className="mt-2">
-                Email:{" "}
-                <a href="mailto:xvoidx402@gmail.com" className="text-foreground underline hover:no-underline">
-                  xvoidx402@gmail.com
-                </a>
-              </p>
-            </div>
+             <div className="mt-4 p-6 bg-secondary border border-border rounded-lg">
+               <p className="font-medium text-foreground">BASEUSDP</p>
+               <p className="mt-2">
+                 Twitter:{" "}
+                 <a href="https://x.com/BaseUSDP" target="_blank" rel="noopener noreferrer" className="text-foreground underline hover:no-underline">
+                   @BaseUSDP
+                 </a>
+               </p>
+             </div>
           </section>
         </div>
       </main>
