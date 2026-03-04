@@ -19,7 +19,9 @@ interface FlipCardProps {
 const IMG_WIDTH = 60;
 const IMG_HEIGHT = 85;
 
-function FlipCard({ src, index, total, phase, target }: FlipCardProps) {
+function FlipCard({ gradientIndex, index, total, phase, target }: FlipCardProps) {
+  const angle = (gradientIndex / total) * 360;
+  const gradient = `linear-gradient(${angle}deg, hsl(270 80% 65%), hsl(320 80% 60%), hsl(30 90% 60%), hsl(50 95% 55%), hsl(80 90% 55%))`;
   return (
     <motion.div
       className="absolute"
