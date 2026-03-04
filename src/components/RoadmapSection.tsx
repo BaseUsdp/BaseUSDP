@@ -89,7 +89,7 @@ const RoadmapSection = () => {
           >
           <h2 className="display-section font-serif text-foreground">
               Evolving the{" "}
-              <em className="text-muted-foreground">Web4</em>
+              <em style={{ color: "hsl(var(--beam-violet))" }}>Web4</em>
               <br />
               Privacy Landscape
             </h2>
@@ -148,7 +148,8 @@ const RoadmapSection = () => {
                   {phase.status === "IN PROGRESS" ? (
                     <div className="flex items-center gap-2">
                       <motion.span
-                        className="w-2 h-2 rounded-full bg-green-400"
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: "hsl(var(--beam-green))" }}
                         animate={{ opacity: [1, 0.3, 1] }}
                         transition={{ duration: 1.5, repeat: Infinity }}
                       />

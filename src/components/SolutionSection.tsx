@@ -60,7 +60,7 @@ const SolutionSection = () => {
         >
           <h2 className="display-section font-serif text-foreground">
             How USDP delivers{" "}
-            <em className="text-muted-foreground">unparalleled confidentiality</em>
+            <em style={{ color: "hsl(var(--beam-indigo))" }}>unparalleled confidentiality</em>
           </h2>
         </motion.div>
         <motion.div

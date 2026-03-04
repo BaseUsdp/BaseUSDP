@@ -61,7 +61,7 @@ const FAQSection = () => {
           >
           <h2 className="display-section font-serif text-foreground">
               Deep Dive into{" "}
-              <em className="text-muted-foreground">USDP</em>
+              <em style={{ color: "hsl(var(--beam-cyan))" }}>USDP</em>
             </h2>
           </motion.div>
         </div>

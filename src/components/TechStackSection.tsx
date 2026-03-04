@@ -1,10 +1,11 @@
 import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Icon } from "@iconify/react";
 
 const TechStackSection = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const [hoveredLayer, setHoveredLayer] = useState<number | null>(null);
 
   const layers = [
     {
@@ -13,6 +14,7 @@ const TechStackSection = () => {
       name: "Agent Layer",
       description: "Initiates tasks & determines constraints",
       metrics: ["2.4K/s requests", "12ms latency", "99.99% uptime"],
+      color: "var(--beam-cyan)",
     },
     {
       icon: "ph:graph-bold",
@@ -20,6 +22,7 @@ const TechStackSection = () => {
       name: "Coordination Layer",
       description: "Service discovery & context management",
       metrics: ["847 nodes", "12.4K connections", "100% sync"],
+      color: "var(--beam-violet)",
     },
     {
       icon: "ph:path-bold",
@@ -27,6 +30,7 @@ const TechStackSection = () => {
       name: "Facilitation Layer",
       description: "Routing, verification & execution",
       metrics: ["156K txns", "100% verified", "24 pending"],
+      color: "var(--beam-indigo)",
     },
     {
       icon: "ph:currency-circle-dollar-bold",
@@ -34,6 +38,7 @@ const TechStackSection = () => {
       name: "Currency Layer",
       description: "Stablecoin transfers (USDC)",
       metrics: ["$2.4B volume", "12 pairs", "98% liquidity"],
+      color: "var(--beam-amber)",
     },
     {
       icon: "ph:cube-bold",
@@ -41,6 +46,7 @@ const TechStackSection = () => {
       name: "Blockchain Layer",
       description: "Cryptographic settlement on Base",
       metrics: ["12.4M blocks", "2s finality", "100 validators"],
+      color: "var(--beam-green)",
     },
   ];
 
@@ -75,7 +81,7 @@ const TechStackSection = () => {
           >
             <h2 className="display-section font-serif text-foreground">
               Web4 Privacy{" "}
-              <em className="text-muted-foreground">Infrastructure</em>
+              <em style={{ color: "hsl(var(--beam-green))" }}>Infrastructure</em>
             </h2>
           </motion.div>
           <motion.div
@@ -103,12 +109,15 @@ const TechStackSection = () => {
                 animate={isInView ? { opacity: 1, x: 0 } : {}}
                 transition={{ duration: 0.6, delay: 0.15 * i, ease: [0.16, 1, 0.3, 1] }}
                 className="group relative"
+                onMouseEnter={() => setHoveredLayer(i)}
+                onMouseLeave={() => setHoveredLayer(null)}
               >
                 <div className="grid md:grid-cols-[80px_1fr] gap-0">
                   {/* Left: number node */}
                   <div className="hidden md:flex flex-col items-center pt-10">
                     <motion.div
-                      className="w-[18px] h-[18px] rounded-full border-2 border-foreground bg-background z-10 group-hover:bg-foreground transition-colors duration-300"
+                      className="w-[18px] h-[18px] rounded-full border-2 z-10 transition-colors duration-300"
+                      style={{ borderColor: `hsl(${layer.color})`, backgroundColor: hoveredLayer === i ? `hsl(${layer.color})` : 'hsl(var(--background))' }}
                       whileHover={{ scale: 1.3 }}
                     />
                   </div>

@@ -225,7 +225,7 @@ const FeaturesSection = () => {
           transition={{ duration: 0.8, delay: 0.1 }}
         >
           <h2 className="display-section font-serif text-foreground">
-            Your <em className="text-muted-foreground">Privacy</em> Dashboard
+            Your <em style={{ color: "hsl(var(--beam-magenta))" }}>Privacy</em> Dashboard
           </h2>
         </motion.div>
         <motion.div
@@ -268,7 +268,7 @@ const FeaturesSection = () => {
           className="mt-8"
         >
           <div className="grid lg:grid-cols-2 gap-0 rounded-2xl border border-border overflow-hidden bg-card relative">
-            <BorderBeam size={250} duration={12} delay={0} colorFrom="hsl(var(--foreground))" colorTo="hsl(var(--muted-foreground))" />
+            <BorderBeam size={250} duration={12} delay={0} colorFrom="hsl(var(--beam-cyan))" colorTo="hsl(var(--beam-violet))" />
 
             {/* Left: Feature info */}
             <div className="p-8 md:p-10 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-border">
