@@ -13,6 +13,7 @@ const TechStackSection = () => {
       name: "Agent Layer",
       description: "Initiates tasks & determines constraints",
       metrics: ["2.4K/s requests", "12ms latency", "99.99% uptime"],
+      color: "var(--beam-cyan)",
     },
     {
       icon: "ph:graph-bold",
@@ -20,6 +21,7 @@ const TechStackSection = () => {
       name: "Coordination Layer",
       description: "Service discovery & context management",
       metrics: ["847 nodes", "12.4K connections", "100% sync"],
+      color: "var(--beam-violet)",
     },
     {
       icon: "ph:path-bold",
@@ -27,6 +29,7 @@ const TechStackSection = () => {
       name: "Facilitation Layer",
       description: "Routing, verification & execution",
       metrics: ["156K txns", "100% verified", "24 pending"],
+      color: "var(--beam-indigo)",
     },
     {
       icon: "ph:currency-circle-dollar-bold",
@@ -34,6 +37,7 @@ const TechStackSection = () => {
       name: "Currency Layer",
       description: "Stablecoin transfers (USDC)",
       metrics: ["$2.4B volume", "12 pairs", "98% liquidity"],
+      color: "var(--beam-amber)",
     },
     {
       icon: "ph:cube-bold",
@@ -41,6 +45,7 @@ const TechStackSection = () => {
       name: "Blockchain Layer",
       description: "Cryptographic settlement on Base",
       metrics: ["12.4M blocks", "2s finality", "100 validators"],
+      color: "var(--beam-green)",
     },
   ];
 
