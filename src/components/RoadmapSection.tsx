@@ -77,7 +77,7 @@ const RoadmapSection = () => {
           transition={{ duration: 0.6 }}
           className="mb-12"
         >
-          <span className="tag-pill">Roadmap</span>
+          <span className="tag-pill">Future Path</span>
         </motion.div>
 
         <div className="grid md:grid-cols-12 gap-10 mb-20">
