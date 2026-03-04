@@ -34,7 +34,7 @@ const IMG_HEIGHT = 85;
 
 function FlipCard({ src, gradientIndex, index, total, phase, target, morphProgress }: FlipCardProps) {
   const IconComponent = CARD_ICONS[index % CARD_ICONS.length];
-  const iconOpacity = Math.max(0, Math.min(1, (morphProgress - 0.3) / 0.4));
+  const iconOpacity = Math.max(0.4, Math.min(1, 0.4 + (morphProgress * 0.6)));
   const gradientOpacity = Math.max(0, Math.min(1, (morphProgress - 0.2) / 0.5));
   const angle = (gradientIndex / total) * 360;
   const gradient = `linear-gradient(${angle}deg, hsl(270 80% 65%), hsl(320 80% 60%), hsl(30 90% 60%), hsl(50 95% 55%), hsl(80 90% 55%))`;
@@ -89,10 +89,10 @@ function FlipCard({ src, gradientIndex, index, total, phase, target, morphProgre
             strokeWidth={1.5}
             className="relative z-10"
             style={{
-              color: 'white',
+              color: gradientOpacity > 0.5 ? 'white' : 'hsl(0 0% 20%)',
               opacity: iconOpacity,
-              transition: 'opacity 0.4s ease',
-              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
+              transition: 'opacity 0.4s ease, color 0.5s ease',
+              filter: gradientOpacity > 0.5 ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' : 'none',
             }}
           />
         </div>
