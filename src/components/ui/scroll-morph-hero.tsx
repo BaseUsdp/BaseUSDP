@@ -8,7 +8,7 @@ import usdpLogo from "@/assets/usdp-logo.png";
 export type AnimationPhase = "scatter" | "line" | "circle" | "bottom-strip";
 
 interface FlipCardProps {
-  src: string;
+  gradientIndex: number;
   index: number;
   total: number;
   phase: AnimationPhase;
