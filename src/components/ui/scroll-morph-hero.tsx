@@ -375,7 +375,7 @@ export default function ScrollMorphHero() {
               const lineX = i * lineSpacing - lineTotalWidth / 2;
               target = { x: lineX, y: 0, rotation: 0, scale: 1, opacity: 1 };
             } else {
-              const isMobile = containerSize.width < 768;
+              const isMobile = isMobileViewport;
               const minDimension = Math.min(containerSize.width, containerSize.height);
               const circleRadius = Math.min(minDimension * 0.35, 350);
               const circleAngle = (i / TOTAL_IMAGES) * 360;
