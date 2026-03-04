@@ -101,7 +101,7 @@ export function ScrollHeroSection({
                   }}
                 >
                   <Icon icon="ph:arrow-right-bold" className="w-4 h-4" />
-                  Dashboard
+                  Launch Dashboard
                 </button>
                 <a
                   href="#about"
