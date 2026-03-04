@@ -36,7 +36,7 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">1. Introduction</h2>
             <p>
-              Welcome to ORB402 ("we," "our," or "us"). We are committed to protecting your
+              Welcome to BASEUSDP ("we," "our," or "us"). We are committed to protecting your
               privacy and ensuring the security of your personal information. This Privacy Policy
               explains how we collect, use, disclose, and safeguard your information when you
               use our platform, website, and related services (collectively, the "Service").
