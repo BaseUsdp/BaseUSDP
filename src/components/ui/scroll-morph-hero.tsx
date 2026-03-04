@@ -207,13 +207,19 @@ export default function ScrollMorphHero() {
       }
     };
 
+    const canReenterAnimation = () => {
+      const pageNearTop = window.scrollY <= 10;
+      const heroNearTop = Math.abs(container.getBoundingClientRect().top) <= 64;
+      return pageNearTop || heroNearTop;
+    };
+
     const handleWheel = (e: WheelEvent) => {
       const isMobile = isMobileInputMode();
       const maxScroll = getMaxScroll(isMobile);
 
       if (animationDone) {
         if (e.deltaY > 0) return;
-        if (window.scrollY > 10) return;
+        if (!canReenterAnimation()) return;
         setAnimationDone(false);
         scrollRef.current = maxScroll;
         virtualScroll.set(maxScroll);
@@ -255,7 +261,7 @@ export default function ScrollMorphHero() {
 
       if (animationDone) {
         if (adjustedDeltaY > 0) return;
-        if (window.scrollY > 10) return;
+        if (!canReenterAnimation()) return;
         setAnimationDone(false);
         scrollRef.current = maxScroll;
         virtualScroll.set(maxScroll);
