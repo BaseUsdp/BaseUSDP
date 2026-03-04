@@ -49,16 +49,7 @@ const ProblemSection = () => {
 
       {/* Problem content continues below the scroll animation */}
       <div ref={ref} className="relative border-t border-border overflow-hidden">
-        {/* Grid background overlay */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            backgroundImage:
-              `linear-gradient(90deg, hsl(0 0% 0% / 0.04) 1px, transparent 1px 60px) 0 0 / 60px 60px,
-               linear-gradient(hsl(0 0% 0% / 0.04) 1px, transparent 1px 60px) 0 0 / 60px 60px`,
-            mask: 'linear-gradient(to bottom, transparent 5%, hsl(0 0% 0% / 0.5) 40%, hsl(0 0% 0% / 0.5) 60%, transparent 95%)',
-          }}
-        />
+        <DotPattern width={24} height={24} cr={1} className="fill-foreground/[0.06] [mask-image:linear-gradient(to_bottom,transparent_5%,black_40%,black_60%,transparent_95%)]" />
 
         <div className="relative max-w-[1400px] mx-auto px-8 py-28">
           <motion.div

@@ -26,15 +26,7 @@ const repeated = <T,>(arr: T[], times = 4) => Array.from({ length: times }).flat
 const LogoStrip = () => {
   return (
     <section className="relative w-full overflow-hidden bg-background py-20 border-y border-border">
-      {/* Grid bg */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage:
-            "linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
-        }}
-      />
+      <DotPattern width={20} height={20} cr={1} className="fill-foreground/[0.07] [mask-image:radial-gradient(ellipse_at_center,white_30%,transparent_80%)]" />
 
       <div className="relative z-10 flex flex-col items-center gap-10">
         <div className="flex flex-col items-center gap-3 px-4">
