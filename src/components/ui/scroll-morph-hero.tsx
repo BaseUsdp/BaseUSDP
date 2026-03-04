@@ -312,19 +312,17 @@ export default function ScrollMorphHero() {
           animate={{ opacity: introPhase === "circle" ? 1 : 0 }}
           transition={{ duration: 0.8 }}
         >
-          <motion.h1
-            className="font-serif text-center"
+          <motion.img
+            src={usdpLogo}
+            alt="USDP"
+            className="pointer-events-none"
             style={{
-              fontFamily: "'DM Serif Display', serif",
-              fontSize: 'clamp(3rem, 10vw, 8rem)',
-              lineHeight: 0.9,
-              letterSpacing: '-0.04em',
-              color: 'hsl(var(--foreground))',
+              width: 'clamp(120px, 30vw, 320px)',
+              height: 'auto',
+              objectFit: 'contain',
               opacity: introTextOpacity as any,
             }}
-          >
-            WEB 4
-          </motion.h1>
+          />
           <motion.p
             className="text-muted-foreground text-xs uppercase tracking-[0.3em]"
             style={{ opacity: introTextOpacity as any }}
