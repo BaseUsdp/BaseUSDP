@@ -86,18 +86,19 @@ const Navbar = () => {
         </div>
 
         <button
-          className="md:hidden p-2 -mr-2"
+          className="md:hidden p-2 -mr-2 relative w-8 h-8 flex flex-col items-center justify-center gap-[5px]"
           onClick={() => setIsOpen(!isOpen)}
           aria-label="Toggle menu"
         >
-          <Icon icon={isOpen ? "ph:x-bold" : "ph:list-bold"} className="h-5 w-5 text-foreground" />
+          <span className={`block w-5 h-[2px] bg-foreground rounded-full transition-all duration-300 ${isOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
+          <span className={`block w-5 h-[2px] bg-foreground rounded-full transition-all duration-300 ${isOpen ? 'opacity-0' : ''}`} />
+          <span className={`block w-5 h-[2px] bg-foreground rounded-full transition-all duration-300 ${isOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
         </button>
       </div>
 
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -106,30 +107,25 @@ const Navbar = () => {
               className="fixed inset-0 top-14 bg-background/60 backdrop-blur-sm md:hidden z-40"
               onClick={() => setIsOpen(false)}
             />
-            {/* Mobile menu panel */}
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="fixed inset-x-0 top-14 md:hidden bg-background border-b border-border z-50 max-h-[calc(100vh-3.5rem)] overflow-y-auto"
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="fixed inset-x-0 top-14 md:hidden bg-background border-b border-border z-50"
             >
-              <div className="px-6 py-6 flex flex-col gap-1">
-                {navLinks.map((link, i) => (
-                  <motion.a
+              <div className="px-6 py-4 flex flex-col">
+                {navLinks.map((link) => (
+                  <a
                     key={link.name}
                     href={link.href}
                     onClick={(e) => handleNavClick(e, link.href)}
-                    initial={{ opacity: 0, x: -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.04 * i, duration: 0.3 }}
-                    className="text-base text-muted-foreground hover:text-foreground transition-colors py-3 flex items-center justify-between group"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors py-3 border-b border-border/50 last:border-0"
                   >
-                    <span>{link.name}</span>
-                    <Icon icon="ph:arrow-right" className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-muted-foreground" />
-                  </motion.a>
+                    {link.name}
+                  </a>
                 ))}
-                <div className="pt-5 mt-3 border-t border-border flex flex-col gap-3">
+                <div className="pt-4 mt-2 flex flex-col gap-3">
                   <WalletConnectButton variant="navbar" />
                   <button
                     onClick={() => { setIsOpen(false); navigate("/dashboard"); }}
