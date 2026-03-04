@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
-import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import LogoStrip from "@/components/LogoStrip";
 import AboutSection from "@/components/AboutSection";
@@ -28,7 +27,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
       <main>
         <HeroSection />
         <LogoStrip />
