@@ -89,7 +89,7 @@ const TermsAndConditions = () => {
             </ul>
             <p className="mt-3">
               We will never ask for your private keys or seed phrases. If anyone claiming to
-              represent ORB402 requests such information, it is a scam.
+              represent BASEUSDP requests such information, it is a scam.
             </p>
           </section>
 
