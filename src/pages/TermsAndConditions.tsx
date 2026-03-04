@@ -11,7 +11,7 @@ const TermsAndConditions = () => {
           <Link to="/" className="flex items-center gap-3">
             <AltisLogo size={28} className="text-black" />
             <span className="text-xl font-bold text-black tracking-tight">
-              ALTIS FINANCE
+              BASEUSDP
             </span>
           </Link>
           <Link
