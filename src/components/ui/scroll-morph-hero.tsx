@@ -262,6 +262,7 @@ export default function ScrollMorphHero() {
 
       if (animationDone) {
         if (adjustedDeltaY > 0) return;
+        if (Math.abs(adjustedDeltaY) < MOBILE_REENTER_INTENT_THRESHOLD) return;
         if (!canReenterAnimation()) return;
         setAnimationDone(false);
         scrollRef.current = maxScroll;
