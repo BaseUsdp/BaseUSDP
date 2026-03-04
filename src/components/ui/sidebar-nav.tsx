@@ -73,7 +73,7 @@ export const SidebarNavBody = (props: React.ComponentProps<typeof motion.div>) =
   return (
     <>
       <DesktopSidebarNav {...props} />
-      <MobileSidebarNav {...(props as React.ComponentProps<"div">)} />
+      <MobileSidebarNav />
     </>
   );
 };
