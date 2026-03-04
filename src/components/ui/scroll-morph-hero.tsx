@@ -19,6 +19,7 @@ const CARD_ICONS = [
 ];
 
 interface FlipCardProps {
+  src: string;
   gradientIndex: number;
   index: number;
   total: number;
