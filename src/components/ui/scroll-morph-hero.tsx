@@ -113,7 +113,7 @@ const IMAGES = [
 const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
 
 export default function ScrollMorphHero() {
-  const [introPhase, setIntroPhase] = useState<AnimationPhase>("scatter");
+  const [introPhase, setIntroPhase] = useState<AnimationPhase>("circle");
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [animationDone, setAnimationDone] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
