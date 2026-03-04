@@ -51,10 +51,30 @@ const Navbar = () => {
       }`}
     >
       <div className="max-w-[1400px] mx-auto px-4 sm:px-8 h-14 sm:h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <AltisLogo size={18} className="text-foreground" />
-          <span className="text-sm font-semibold tracking-tighter text-foreground">BASEUSDP</span>
-        </Link>
+         <Link to="/" className="flex items-center gap-2 group">
+           <motion.div
+             animate={{
+               rotate: scrolled ? 360 : 0,
+               scale: scrolled ? [1, 1.2, 1] : 1,
+             }}
+             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+             className="relative"
+           >
+             <AltisLogo size={18} className="text-foreground relative z-10" />
+             <motion.div
+               className="absolute inset-0 rounded-full blur-md"
+               animate={{
+                 opacity: scrolled ? [0, 0.6, 0] : 0,
+                 scale: scrolled ? [1, 2, 1.5] : 1,
+               }}
+               transition={{ duration: 1, ease: "easeOut" }}
+               style={{
+                 background: 'linear-gradient(135deg, hsl(270 80% 65%), hsl(320 80% 60%), hsl(50 95% 55%))',
+               }}
+             />
+           </motion.div>
+           <span className="text-sm font-semibold tracking-tighter text-foreground">BASEUSDP</span>
+         </Link>
 
         <div className="hidden md:flex items-center gap-9 text-sm text-muted-foreground font-normal">
           {navLinks.map((link, i) => (
