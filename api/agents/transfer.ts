@@ -28,6 +28,8 @@ const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabase
 const ALLOWED_ORIGINS = [
   "https://void402.com", "https://www.void402.com",
   "https://orb402.com", "https://www.orb402.com",
+  "https://baseusdp.com",
+  "https://www.baseusdp.com",
   "http://localhost:5173", "http://localhost:3000",
 ];
 

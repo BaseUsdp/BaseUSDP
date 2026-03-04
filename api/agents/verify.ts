@@ -16,6 +16,8 @@ const ADMIN_WALLETS = (process.env.ADMIN_WALLETS || '').split(',').map(w => w.tr
 const ALLOWED_ORIGINS = [
   "https://void402.com", "https://www.void402.com",
   "https://orb402.com", "https://www.orb402.com",
+  "https://baseusdp.com",
+  "https://www.baseusdp.com",
   "http://localhost:5173", "http://localhost:3000",
 ];
 
