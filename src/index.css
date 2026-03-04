@@ -132,14 +132,22 @@
   }
 
   .display-section em,
-  .display-section span[style*="backgroundClip"],
-  .display-section span[style*="background"] {
+  .display-section .gradient-text {
     display: inline;
     padding-top: 0.1em;
-    padding-bottom: 0.15em;
+    padding-bottom: 0.2em;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
-    line-height: 1.3;
+    line-height: 1.35;
+  }
+
+  .gradient-text {
+    display: inline;
+    padding-top: 0.1em;
+    padding-bottom: 0.2em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    line-height: 1.35;
   }
 
   .display-number {
