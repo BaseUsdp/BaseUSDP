@@ -71,7 +71,7 @@ const Navbar = () => {
             onClick={() => navigate("/dashboard")}
             className="text-sm border border-border rounded-full px-5 py-2 text-muted-foreground hover:bg-foreground hover:text-background hover:border-foreground transition-all duration-300 font-normal"
           >
-            Dashboard
+            Launch Dashboard
           </motion.button>
         </div>
 
