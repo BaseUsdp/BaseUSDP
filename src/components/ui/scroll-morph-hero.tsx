@@ -163,7 +163,7 @@ export default function ScrollMorphHero() {
     if (!container) return;
 
     const handleWheel = (e: WheelEvent) => {
-      const isMobile = window.innerWidth < 768;
+      const isMobile = isMobileInputMode();
       const maxScroll = getMaxScroll(isMobile);
 
       // If animation is done and user scrolls down, let the page scroll naturally
@@ -193,16 +193,20 @@ export default function ScrollMorphHero() {
       touchStartY = e.touches[0].clientY;
     };
     const handleTouchMove = (e: TouchEvent) => {
-      const isMobile = window.innerWidth < 768;
+      const isMobile = isMobileInputMode();
       const maxScroll = getMaxScroll(isMobile);
       const touchY = e.touches[0].clientY;
       const deltaY = touchStartY - touchY;
       touchStartY = touchY;
 
       const rawDeltaY = deltaY * (isMobile ? MOBILE_TOUCH_SCROLL_MULTIPLIER : 1);
-      const adjustedDeltaY = isMobile
+      let adjustedDeltaY = isMobile
         ? Math.sign(rawDeltaY) * Math.max(Math.abs(rawDeltaY), MOBILE_MIN_TOUCH_DELTA)
         : rawDeltaY;
+
+      if (isMobile && Math.abs(rawDeltaY) > MOBILE_FLICK_BOOST_THRESHOLD) {
+        adjustedDeltaY *= 1.6;
+      }
 
       if (animationDone && adjustedDeltaY > 0) return;
       if (animationDone && adjustedDeltaY < 0) {
