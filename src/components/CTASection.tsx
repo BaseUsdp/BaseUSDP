@@ -56,7 +56,7 @@ const CTASection = () => {
               className="mt-16 flex flex-col md:flex-row items-start md:items-center justify-between gap-8"
             >
               <p className="text-base text-background/40 max-w-sm leading-relaxed">
-                Connect your wallet and experience the future of confidential finance. Privacy-first transactions powered by ZK Proofs.
+                The future of autonomous commerce is here, and it demands privacy. USDP empowers you and your AI agents to transact with complete confidentiality on Base. Step into the Web4 era with the ultimate private agentic wallet.
               </p>
               <motion.button
                 onClick={() => navigate("/dashboard")}
