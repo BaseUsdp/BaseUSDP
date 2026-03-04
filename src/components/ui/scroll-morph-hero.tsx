@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion, useTransform, useSpring, useMotionValue } from "framer-motion";
+import AltisLogo from "@/components/AltisLogo";
 
 // --- Types ---
 export type AnimationPhase = "scatter" | "line" | "circle" | "bottom-strip";
@@ -52,7 +53,6 @@ function FlipCard({ src, index, total, phase, target }: FlipCardProps) {
         whileHover={{ rotateY: 180 }}
         transition={{ duration: 0.6 }}
       >
-        {/* Front Face */}
         <div
           className="absolute inset-0 rounded-lg overflow-hidden shadow-lg"
           style={{ backfaceVisibility: "hidden" }}
@@ -65,8 +65,6 @@ function FlipCard({ src, index, total, phase, target }: FlipCardProps) {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
         </div>
-
-        {/* Back Face */}
         <div
           className="absolute inset-0 rounded-lg overflow-hidden shadow-lg flex items-center justify-center"
           style={{
@@ -76,12 +74,8 @@ function FlipCard({ src, index, total, phase, target }: FlipCardProps) {
           }}
         >
           <div className="text-center p-2">
-            <p className="text-[8px] font-semibold uppercase tracking-widest" style={{ color: "hsl(var(--background))" }}>
-              View
-            </p>
-            <p className="text-[7px] mt-0.5" style={{ color: "hsl(var(--background) / 0.6)" }}>
-              Details
-            </p>
+            <p className="text-[8px] font-semibold uppercase tracking-widest" style={{ color: "hsl(var(--background))" }}>View</p>
+            <p className="text-[7px] mt-0.5" style={{ color: "hsl(var(--background) / 0.6)" }}>Details</p>
           </div>
         </div>
       </motion.div>
@@ -121,29 +115,19 @@ const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * 
 export default function ScrollMorphHero() {
   const [introPhase, setIntroPhase] = useState<AnimationPhase>("scatter");
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [animationDone, setAnimationDone] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // --- Container Size ---
   useEffect(() => {
     if (!containerRef.current) return;
-
     const handleResize = (entries: ResizeObserverEntry[]) => {
       for (const entry of entries) {
-        setContainerSize({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
-        });
+        setContainerSize({ width: entry.contentRect.width, height: entry.contentRect.height });
       }
     };
-
     const observer = new ResizeObserver(handleResize);
     observer.observe(containerRef.current);
-
-    setContainerSize({
-      width: containerRef.current.offsetWidth,
-      height: containerRef.current.offsetHeight,
-    });
-
+    setContainerSize({ width: containerRef.current.offsetWidth, height: containerRef.current.offsetHeight });
     return () => observer.disconnect();
   }, []);
 
@@ -156,10 +140,24 @@ export default function ScrollMorphHero() {
     if (!container) return;
 
     const handleWheel = (e: WheelEvent) => {
+      // If animation is done and user scrolls down, let the page scroll naturally
+      if (animationDone && e.deltaY > 0) return;
+      // If at top and scrolling up while animation is done, re-enter animation
+      if (animationDone && e.deltaY < 0) {
+        setAnimationDone(false);
+        scrollRef.current = MAX_SCROLL;
+        virtualScroll.set(MAX_SCROLL);
+      }
+
       e.preventDefault();
       const newScroll = Math.min(Math.max(scrollRef.current + e.deltaY, 0), MAX_SCROLL);
       scrollRef.current = newScroll;
       virtualScroll.set(newScroll);
+
+      // When virtual scroll hits the end, release to normal page scroll
+      if (newScroll >= MAX_SCROLL) {
+        setAnimationDone(true);
+      }
     };
 
     let touchStartY = 0;
@@ -170,9 +168,22 @@ export default function ScrollMorphHero() {
       const touchY = e.touches[0].clientY;
       const deltaY = touchStartY - touchY;
       touchStartY = touchY;
+
+      if (animationDone && deltaY > 0) return;
+      if (animationDone && deltaY < 0) {
+        setAnimationDone(false);
+        scrollRef.current = MAX_SCROLL;
+        virtualScroll.set(MAX_SCROLL);
+      }
+
+      e.preventDefault();
       const newScroll = Math.min(Math.max(scrollRef.current + deltaY, 0), MAX_SCROLL);
       scrollRef.current = newScroll;
       virtualScroll.set(newScroll);
+
+      if (newScroll >= MAX_SCROLL) {
+        setAnimationDone(true);
+      }
     };
 
     container.addEventListener("wheel", handleWheel, { passive: false });
@@ -184,7 +195,7 @@ export default function ScrollMorphHero() {
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
     };
-  }, [virtualScroll]);
+  }, [virtualScroll, animationDone]);
 
   const morphProgress = useTransform(virtualScroll, [0, 600], [0, 1]);
   const smoothMorph = useSpring(morphProgress, { stiffness: 40, damping: 20 });
@@ -192,35 +203,27 @@ export default function ScrollMorphHero() {
   const scrollRotate = useTransform(virtualScroll, [600, 3000], [0, 360]);
   const smoothScrollRotate = useSpring(scrollRotate, { stiffness: 40, damping: 20 });
 
-  // --- Mouse Parallax ---
   const mouseX = useMotionValue(0);
   const smoothMouseX = useSpring(mouseX, { stiffness: 30, damping: 20 });
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
     const handleMouseMove = (e: MouseEvent) => {
       const rect = container.getBoundingClientRect();
-      const relativeX = e.clientX - rect.left;
-      const normalizedX = (relativeX / rect.width) * 2 - 1;
+      const normalizedX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouseX.set(normalizedX * 100);
     };
     container.addEventListener("mousemove", handleMouseMove);
     return () => container.removeEventListener("mousemove", handleMouseMove);
   }, [mouseX]);
 
-  // --- Intro Sequence ---
   useEffect(() => {
     const timer1 = setTimeout(() => setIntroPhase("line"), 500);
     const timer2 = setTimeout(() => setIntroPhase("circle"), 2500);
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
+    return () => { clearTimeout(timer1); clearTimeout(timer2); };
   }, []);
 
-  // --- Random Scatter Positions ---
   const scatterPositions = useMemo(() => {
     return IMAGES.map(() => ({
       x: (Math.random() - 0.5) * 1500,
@@ -231,25 +234,24 @@ export default function ScrollMorphHero() {
     }));
   }, []);
 
-  // --- Render Loop ---
   const [morphValue, setMorphValue] = useState(0);
   const [rotateValue, setRotateValue] = useState(0);
   const [parallaxValue, setParallaxValue] = useState(0);
 
   useEffect(() => {
-    const unsubscribeMorph = smoothMorph.on("change", setMorphValue);
-    const unsubscribeRotate = smoothScrollRotate.on("change", setRotateValue);
-    const unsubscribeParallax = smoothMouseX.on("change", setParallaxValue);
-    return () => {
-      unsubscribeMorph();
-      unsubscribeRotate();
-      unsubscribeParallax();
-    };
+    const u1 = smoothMorph.on("change", setMorphValue);
+    const u2 = smoothScrollRotate.on("change", setRotateValue);
+    const u3 = smoothMouseX.on("change", setParallaxValue);
+    return () => { u1(); u2(); u3(); };
   }, [smoothMorph, smoothScrollRotate, smoothMouseX]);
 
-  // --- Content Opacity ---
-  const contentOpacity = useTransform(smoothMorph, [0.8, 1], [0, 1]);
-  const contentY = useTransform(smoothMorph, [0.8, 1], [20, 0]);
+  // Content fades in as arc forms, logo fades out
+  const logoOpacity = useTransform(smoothMorph, [0, 0.4], [1, 0]);
+  const logoScale = useTransform(smoothMorph, [0, 0.4], [1, 0.8]);
+  const contentOpacity = useTransform(smoothMorph, [0.7, 1], [0, 1]);
+  const contentY = useTransform(smoothMorph, [0.7, 1], [30, 0]);
+  // Intro text fades out as morph starts
+  const introTextOpacity = useTransform(smoothMorph, [0, 0.25], [1, 0]);
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-background">
@@ -258,40 +260,58 @@ export default function ScrollMorphHero() {
         className="relative w-full h-full flex items-center justify-center"
         style={{ touchAction: "none" }}
       >
-        {/* Intro Text (Fades out as morph progresses) */}
+        {/* BASEUSDP Logo — visible at start, fades out as morph begins */}
+        <motion.div
+          className="absolute inset-0 flex flex-col items-center justify-center z-30 pointer-events-none"
+          style={{ opacity: logoOpacity, scale: logoScale }}
+        >
+          <AltisLogo size={72} className="text-foreground" />
+          <span className="mt-4 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+            BASEUSDP
+          </span>
+        </motion.div>
+
+        {/* Intro Text — shows during circle phase before morph */}
         <motion.div
           className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none"
-          animate={{
-            opacity: introPhase === "circle" ? 1 : 0,
-          }}
+          animate={{ opacity: introPhase === "circle" ? 1 : 0 }}
           transition={{ duration: 0.8 }}
-          style={{ opacity: contentOpacity }}
         >
-          <motion.h1
-            className="display-hero text-foreground text-center font-serif pointer-events-none"
-            style={{ opacity: useTransform(smoothMorph, [0, 0.3], [1, 0]) }}
-          >
-            <span className="block">The <em>Confidential</em></span>
-            <span className="block">Layer</span>
-          </motion.h1>
           <motion.p
-            className="text-muted-foreground text-sm uppercase tracking-widest mt-6"
-            style={{ opacity: useTransform(smoothMorph, [0, 0.2], [1, 0]) }}
+            className="text-muted-foreground text-sm uppercase tracking-widest"
+            style={{ opacity: introTextOpacity }}
           >
             Scroll to explore
           </motion.p>
         </motion.div>
 
-        {/* Arc Active Content (Fades in when arc forms) */}
+        {/* Arc Active Content — centered, fades in when arc forms */}
         <motion.div
-          className="absolute inset-x-0 top-[8%] flex flex-col items-center z-20 pointer-events-none px-8"
+          className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none px-8"
           style={{ opacity: contentOpacity, y: contentY }}
         >
-          <h2 className="display-section font-serif text-foreground text-center mb-4">
-            Privacy-First Payments
+          <span
+            className="inline-block text-xs font-semibold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-6"
+            style={{ border: '1px solid hsl(0 0% 30%)', color: 'hsl(0 0% 50%)' }}
+          >
+            Privacy-First Protocol
+          </span>
+          <h2
+            className="font-serif text-center"
+            style={{
+              fontFamily: "'DM Serif Display', serif",
+              fontSize: 'clamp(2rem, 6vw, 4.5rem)',
+              lineHeight: 1,
+              letterSpacing: '-0.03em',
+              color: 'hsl(var(--foreground))',
+            }}
+          >
+            The Confidential
+            <br />
+            <em className="text-muted-foreground">Payment Layer</em>
           </h2>
-          <p className="text-muted-foreground text-center max-w-lg text-base leading-relaxed">
-            The Confidential Payment Layer for the Web 4.0 autonomous economy.
+          <p className="mt-6 text-sm leading-relaxed max-w-md text-center text-muted-foreground">
+            Privacy-first payments for the Web 4.0 autonomous economy.
             Powered by ZK Proofs and the x402 protocol on Base L2.
           </p>
         </motion.div>
@@ -311,7 +331,6 @@ export default function ScrollMorphHero() {
             } else {
               const isMobile = containerSize.width < 768;
               const minDimension = Math.min(containerSize.width, containerSize.height);
-
               const circleRadius = Math.min(minDimension * 0.35, 350);
               const circleAngle = (i / TOTAL_IMAGES) * 360;
               const circleRad = (circleAngle * Math.PI) / 180;
@@ -325,7 +344,6 @@ export default function ScrollMorphHero() {
               const arcRadius = baseRadius * (isMobile ? 1.4 : 1.1);
               const arcApexY = containerSize.height * (isMobile ? 0.35 : 0.25);
               const arcCenterY = arcApexY + arcRadius;
-
               const spreadAngle = isMobile ? 100 : 130;
               const startAngle = -90 - spreadAngle / 2;
               const step = spreadAngle / (TOTAL_IMAGES - 1);
@@ -333,7 +351,6 @@ export default function ScrollMorphHero() {
               const scrollProgress = Math.min(Math.max(rotateValue / 360, 0), 1);
               const maxRotation = spreadAngle * 0.8;
               const boundedRotation = -scrollProgress * maxRotation;
-
               const currentArcAngle = startAngle + i * step + boundedRotation;
               const arcRad = (currentArcAngle * Math.PI) / 180;
 
@@ -354,14 +371,7 @@ export default function ScrollMorphHero() {
             }
 
             return (
-              <FlipCard
-                key={i}
-                src={src}
-                index={i}
-                total={TOTAL_IMAGES}
-                phase={introPhase}
-                target={target}
-              />
+              <FlipCard key={i} src={src} index={i} total={TOTAL_IMAGES} phase={introPhase} target={target} />
             );
           })}
         </div>
