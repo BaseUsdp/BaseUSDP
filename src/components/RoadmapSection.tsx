@@ -87,11 +87,11 @@ const RoadmapSection = () => {
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.1 }}
           >
-            <h2 className="display-section font-serif text-foreground">
-              Building the{" "}
-              <em className="text-muted-foreground">Future</em>
+          <h2 className="display-section font-serif text-foreground">
+              Evolving the{" "}
+              <em className="text-muted-foreground">Web4</em>
               <br />
-              of Private Finance
+              Privacy Landscape
             </h2>
           </motion.div>
           <motion.div
