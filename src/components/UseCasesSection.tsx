@@ -13,7 +13,7 @@ const UseCasesSection = () => {
       title: "Agent-to-Agent Commerce",
       description: "AI agents autonomously negotiate, pay, and settle transactions with built-in privacy — no human intervention required.",
       features: ["Autonomous Payments", "Agent Identity Verification", "Private Negotiations", "Machine-Speed Settlement"],
-      accent: "from-neutral-900 to-neutral-700",
+      accentColor: "var(--beam-cyan)",
     },
     {
       icon: "ph:buildings-fill",
@@ -21,7 +21,7 @@ const UseCasesSection = () => {
       title: "Machine-to-Machine Finance",
       description: "Infrastructure for autonomous systems to transact at scale — encrypted APIs, private supply chains, and confidential M2M payments.",
       features: ["Encrypted API Monetization", "Private Supply Chain Payments", "Confidential Treasury Ops", "Compliance-Ready Automation"],
-      accent: "from-neutral-800 to-neutral-600",
+      accentColor: "var(--beam-violet)",
     },
     {
       icon: "ph:user-fill",
@@ -29,7 +29,7 @@ const UseCasesSection = () => {
       title: "Privacy-First for Humans",
       description: "Humans in the Web4 economy deserve the same privacy as machines. Transact, earn, and manage assets without surveillance.",
       features: ["Anonymous Payments", "Hidden Balances", "Zero Data Leaks", "Agent-Compatible Wallets"],
-      accent: "from-neutral-700 to-neutral-500",
+      accentColor: "var(--beam-green)",
     },
   ];
 
