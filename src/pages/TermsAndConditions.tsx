@@ -61,7 +61,7 @@ const TermsAndConditions = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">3. Description of Service</h2>
             <p>
-              ORB402 provides a privacy-focused payment layer for the agentic economy.
+              BASEUSDP provides a privacy-focused payment layer for the agentic economy.
               Our platform enables confidential transactions utilizing zero-knowledge proof
               technology and the x402 payment protocol. The Service includes but is not
               limited to:
