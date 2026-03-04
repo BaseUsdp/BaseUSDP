@@ -43,10 +43,10 @@ const LogoStrip = () => {
               letterSpacing: "-0.02em",
             }}
           >
-            Built on proven infrastructure
+            The USDP Ecosystem: Engineered for Web4
           </h2>
           <p className="max-w-md text-center text-sm text-muted-foreground">
-            Powered by industry-leading protocols and tooling across the Base L2 ecosystem.
+            USDP is built upon a foundation of elite, battle-tested protocols, creating a robust and secure environment for the Web4 agentic economy.
           </p>
         </div>
 
