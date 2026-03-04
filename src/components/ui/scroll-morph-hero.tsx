@@ -248,7 +248,7 @@ export default function ScrollMorphHero() {
   // Start directly in circle phase, no scatter/line intro
 
   const scatterPositions = useMemo(() => {
-    return IMAGES.map(() => ({
+    return CARD_COLORS.map(() => ({
       x: (Math.random() - 0.5) * 1500,
       y: (Math.random() - 0.5) * 1000,
       rotation: (Math.random() - 0.5) * 180,
