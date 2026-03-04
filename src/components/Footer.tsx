@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import AltisLogo from "@/components/AltisLogo";
+import usdpLogoWhite from "@/assets/usdp-logo-white.png";
 import { Icon } from "@iconify/react";
 
 const Footer = () => {
@@ -38,7 +38,7 @@ const Footer = () => {
       <div className="max-w-[1400px] mx-auto px-8 py-16 grid grid-cols-2 md:grid-cols-4 gap-10">
         <div className="col-span-2">
           <Link to="/" className="flex items-center gap-2 text-sm font-semibold tracking-tighter text-background mb-4">
-            <AltisLogo size={18} className="text-background" />
+            <img src={usdpLogoWhite} alt="USDP" className="w-5 h-5 object-contain" />
             <span>USDP</span>
           </Link>
           <p className="text-sm text-background/40 leading-relaxed max-w-xs">
