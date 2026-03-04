@@ -15,7 +15,7 @@ const RoadmapSection = () => {
       quarter: "Q1 2026",
       icon: "ph:rocket-launch-bold",
       progress: 65,
-      description: "Launch of the BASEUSDP protocol on Base L2 with ZK Proof-powered smart contracts and developer SDKs.",
+      description: "Launch of the USDP protocol on Base L2 with ZK Proof-powered smart contracts and developer SDKs.",
       milestones: [
         { name: "Mainnet Deployment", done: true },
         { name: "Developer SDK Release", done: true },
