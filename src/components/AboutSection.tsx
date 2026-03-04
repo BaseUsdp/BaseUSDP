@@ -26,8 +26,8 @@ const AboutSection = () => {
           transition={{ duration: 0.8, delay: 0.1 }}
         >
           <h2 className="display-section font-serif text-foreground">
-            The Internet Was Built for Information.{" "}
-            <span className="italic" style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>We're Building the Protocol for Private Value.</span>
+            The Internet Was Built for Information. We're Building the Protocol for{" "}
+            <span className="italic" style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Private Value.</span>
           </h2>
         </motion.div>
         <motion.div
