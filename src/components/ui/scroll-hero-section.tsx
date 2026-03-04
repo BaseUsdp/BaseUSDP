@@ -111,18 +111,6 @@ export function ScrollHeroSection({
                   <Icon icon="ph:arrow-right-bold" className="w-4 h-4" />
                   Launch Dashboard
                 </button>
-                <a
-                  href="#about"
-                  className="flex items-center gap-2 text-sm transition-colors"
-                  style={{ color: 'hsl(0 0% 20%)' }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
-                  <span>Explore USDP</span>
-                  <Icon icon="ph:arrow-down" className="w-4 h-4" />
-                </a>
               </div>
             </div>
           </div>
