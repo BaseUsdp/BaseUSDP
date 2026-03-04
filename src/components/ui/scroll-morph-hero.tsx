@@ -464,7 +464,7 @@ export default function ScrollMorphHero() {
             }
 
             return (
-              <FlipCard key={i} gradientIndex={colorIndex} index={i} total={TOTAL_IMAGES} phase={introPhase} target={target} morphProgress={morphValue} />
+              <FlipCard key={i} src={IMAGES[i]} gradientIndex={colorIndex} index={i} total={TOTAL_IMAGES} phase={introPhase} target={target} morphProgress={morphValue} />
             );
           })}
         </div>
