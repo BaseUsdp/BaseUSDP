@@ -143,7 +143,9 @@ export default function ScrollMorphHero() {
       // If animation is done and user scrolls down, let the page scroll naturally
       if (animationDone && e.deltaY > 0) return;
       // If at top and scrolling up while animation is done, re-enter animation
+      // Only re-enter if the page is scrolled near the top
       if (animationDone && e.deltaY < 0) {
+        if (window.scrollY > 10) return; // page is scrolled down, let normal scroll handle it
         setAnimationDone(false);
         scrollRef.current = MAX_SCROLL;
         virtualScroll.set(MAX_SCROLL);
@@ -171,6 +173,7 @@ export default function ScrollMorphHero() {
 
       if (animationDone && deltaY > 0) return;
       if (animationDone && deltaY < 0) {
+        if (window.scrollY > 10) return;
         setAnimationDone(false);
         scrollRef.current = MAX_SCROLL;
         virtualScroll.set(MAX_SCROLL);
@@ -252,7 +255,7 @@ export default function ScrollMorphHero() {
   const introTextOpacity = useTransform(smoothMorph, [0, 0.25], [1, 0]);
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-background">
+    <div className="relative w-full h-screen overflow-hidden bg-background" style={{ zIndex: 1 }}>
       <div
         ref={containerRef}
         className="relative w-full h-full flex items-center justify-center"
