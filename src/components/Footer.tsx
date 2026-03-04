@@ -37,7 +37,7 @@ const Footer = () => {
         <div className="col-span-2">
           <Link to="/" className="flex items-center gap-2 text-sm font-semibold tracking-tighter text-background mb-4">
             <AltisLogo size={18} className="text-background" />
-            <span>BASEUSDP</span>
+            <span>USDP</span>
           </Link>
           <p className="text-sm text-background/40 leading-relaxed max-w-xs">
             The Confidential Payment Layer for the Agentic Economy.
