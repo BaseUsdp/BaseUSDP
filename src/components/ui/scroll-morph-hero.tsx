@@ -274,50 +274,57 @@ export default function ScrollMorphHero() {
       finishIfNeeded(newScroll, maxScroll, isMobile);
     };
 
-    // Mobile: tap to auto-animate forward, scroll to reverse
+    // Mobile: first upward swipe triggers auto-animate, then page scrolls normally
     let touchStartY = 0;
-    let touchMoved = false;
+    let mobileTriggered = false;
 
     const handleTouchStart = (e: TouchEvent) => {
       touchStartY = e.touches[0].clientY;
-      touchMoved = false;
+      mobileTriggered = false;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      touchMoved = true;
       const isMobile = isMobileInputMode();
 
-      // If auto-animating forward on mobile, ignore forward swipes
+      // If animation is done on mobile, allow normal page scroll
+      if (isMobile && animationDone) return;
+
+      // If auto-animating, block scroll but don't process
       if (isMobile && mobileAutoAnimating.current) {
         e.preventDefault();
         return;
       }
 
-      const maxScroll = getMaxScroll(isMobile);
+      if (isMobile) {
+        const touchY = e.touches[0].clientY;
+        const rawDeltaY = touchStartY - touchY;
+
+        // Upward swipe (finger moves up, positive delta) → trigger auto-animate
+        if (rawDeltaY > 5 && !mobileTriggered && !animationDone) {
+          mobileTriggered = true;
+          e.preventDefault();
+          startMobileAutoAnimate();
+          return;
+        }
+
+        // During animation (not done yet), block normal scroll
+        if (!animationDone) {
+          e.preventDefault();
+        }
+        return;
+      }
+
+      // Desktop: unchanged scroll behavior
+      const maxScroll = getMaxScroll(false);
       const touchY = e.touches[0].clientY;
       const rawDeltaY = touchStartY - touchY;
       touchStartY = touchY;
 
-      if (isMobile && Math.abs(rawDeltaY) < MOBILE_TOUCH_DEADZONE) return;
-
-      if (isMobile && rawDeltaY < 0 && Math.abs(rawDeltaY) < MOBILE_REVERSE_DEADZONE) return;
-
-      let adjustedDeltaY = rawDeltaY * (isMobile ? MOBILE_TOUCH_SCROLL_MULTIPLIER : 1);
-
-      if (isMobile) {
-        // On mobile, only allow reverse (scroll down = finger down = negative delta)
-        if (adjustedDeltaY > 0) {
-          e.preventDefault();
-          return; // Forward is handled by tap, not swipe
-        }
-        adjustedDeltaY *= MOBILE_REVERSE_DAMPING;
-      }
+      let adjustedDeltaY = rawDeltaY;
 
       if (animationDone) {
         if (adjustedDeltaY > 0) return;
-        if (isMobile && Math.abs(adjustedDeltaY) < MOBILE_REENTER_INTENT_THRESHOLD) return;
         if (!canReenterAnimation()) return;
-        stopMobileAutoAnimate();
         setAnimationDone(false);
         scrollRef.current = maxScroll;
         virtualScroll.set(maxScroll);
@@ -327,21 +334,12 @@ export default function ScrollMorphHero() {
       const newScroll = Math.min(Math.max(scrollRef.current + adjustedDeltaY, 0), maxScroll);
       scrollRef.current = newScroll;
       virtualScroll.set(newScroll);
-      finishIfNeeded(newScroll, maxScroll, isMobile);
-    };
-
-    const handleTouchEnd = () => {
-      const isMobile = isMobileInputMode();
-      // If it was a tap (no significant movement) on mobile, auto-animate forward
-      if (isMobile && !touchMoved && !animationDone) {
-        startMobileAutoAnimate();
-      }
+      finishIfNeeded(newScroll, maxScroll, false);
     };
 
     container.addEventListener("wheel", handleWheel, { passive: false });
     container.addEventListener("touchstart", handleTouchStart, { passive: false });
     container.addEventListener("touchmove", handleTouchMove, { passive: false });
-    container.addEventListener("touchend", handleTouchEnd);
 
     return () => {
       container.removeEventListener("wheel", handleWheel);
