@@ -94,13 +94,13 @@ const AboutSection = () => {
           className="flex flex-col justify-center gap-0 pl-6"
         >
           <div className="border-b border-border pb-10 mb-10">
-            <p className="display-number font-serif" style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>$2.5T+</p>
+            <p className="display-number font-serif text-foreground">$2.5T+</p>
             <p className="text-base text-muted-foreground mt-3 leading-relaxed max-w-xs">
               Market opportunity in privacy-first institutional finance infrastructure.
             </p>
           </div>
           <div>
-            <p className="display-number font-serif" style={{ background: 'var(--gradient-beam)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>100%</p>
+            <p className="display-number font-serif text-foreground">100%</p>
             <p className="text-base text-muted-foreground mt-3 leading-relaxed max-w-xs">
               Encrypted — zero data leakage across every transaction, every time.
             </p>
