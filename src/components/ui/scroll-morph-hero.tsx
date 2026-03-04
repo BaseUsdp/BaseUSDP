@@ -347,7 +347,7 @@ export default function ScrollMorphHero() {
 
         {/* Cards Container */}
         <div className="absolute inset-0 flex items-center justify-center">
-          {IMAGES.slice(0, TOTAL_IMAGES).map((src, i) => {
+          {CARD_COLORS.map((colorIndex, i) => {
             let target = { x: 0, y: 0, rotation: 0, scale: 1, opacity: 1 };
 
             if (introPhase === "scatter") {
