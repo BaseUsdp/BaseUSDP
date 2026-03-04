@@ -109,6 +109,8 @@ const TechStackSection = () => {
                 animate={isInView ? { opacity: 1, x: 0 } : {}}
                 transition={{ duration: 0.6, delay: 0.15 * i, ease: [0.16, 1, 0.3, 1] }}
                 className="group relative"
+                onMouseEnter={() => setHoveredLayer(i)}
+                onMouseLeave={() => setHoveredLayer(null)}
               >
                 <div className="grid md:grid-cols-[80px_1fr] gap-0">
                   {/* Left: number node */}
