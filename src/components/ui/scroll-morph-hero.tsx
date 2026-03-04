@@ -113,7 +113,7 @@ const IMAGES = [
 const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
 
 export default function ScrollMorphHero() {
-  const [introPhase, setIntroPhase] = useState<AnimationPhase>("scatter");
+  const [introPhase, setIntroPhase] = useState<AnimationPhase>("circle");
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [animationDone, setAnimationDone] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -221,11 +221,7 @@ export default function ScrollMorphHero() {
     return () => container.removeEventListener("mousemove", handleMouseMove);
   }, [mouseX]);
 
-  useEffect(() => {
-    const timer1 = setTimeout(() => setIntroPhase("line"), 500);
-    const timer2 = setTimeout(() => setIntroPhase("circle"), 2500);
-    return () => { clearTimeout(timer1); clearTimeout(timer2); };
-  }, []);
+  // Start directly in circle phase, no scatter/line intro
 
   const scatterPositions = useMemo(() => {
     return IMAGES.map(() => ({
