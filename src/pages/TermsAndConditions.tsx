@@ -183,7 +183,7 @@ const TermsAndConditions = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">10. Indemnification</h2>
             <p>
-              You agree to indemnify, defend, and hold harmless ORB402 and its officers,
+              You agree to indemnify, defend, and hold harmless BASEUSDP and its officers,
               directors, employees, agents, and affiliates from and against any claims,
               liabilities, damages, losses, costs, and expenses (including reasonable
               attorney's fees) arising out of or in connection with your use of the Service,
