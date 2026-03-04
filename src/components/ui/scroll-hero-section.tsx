@@ -48,6 +48,14 @@ export function ScrollHeroSection({
       {/* Dark card section */}
       <div className="word-hero-main">
         <div className="word-hero-main-inner">
+          <video
+            className="word-hero-video-bg"
+            src="/videos/hero-bg.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+          />
           <div className="word-hero-content">
             <span
               className="inline-block text-xs font-semibold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-8"
