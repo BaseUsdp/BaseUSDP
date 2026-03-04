@@ -75,7 +75,7 @@ export function ScrollHeroSection({
             >
               The Private Agentic
               <br />
-              <em style={{ color: 'hsl(0 0% 50%)' }}>Wallet for Web4</em>
+              <em style={{ color: 'hsl(0 0% 30%)' }}>Wallet for Web4</em>
             </h2>
             <p className="mt-8 text-base leading-relaxed max-w-lg" style={{ color: 'hsl(0 0% 50%)' }}>
               USDP pioneers the confidential infrastructure for the Web4 agentic economy. Our ZK-powered platform empowers institutions, developers, and AI agents to transact on Base with unparalleled privacy, ushering in an era of secure, autonomous commerce.
