@@ -59,7 +59,7 @@ export function ScrollHeroSection({
           <div className="word-hero-content">
             <span
               className="inline-block text-xs font-semibold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-8"
-              style={{ border: '1px solid hsl(0 0% 30%)', color: 'hsl(0 0% 60%)' }}
+              style={{ border: '1px solid hsl(0 0% 70%)', color: 'hsl(0 0% 10%)' }}
             >
               Web4 Ready · Agentic Economy Optimized
             </span>
@@ -70,19 +70,19 @@ export function ScrollHeroSection({
                 fontSize: 'clamp(2.5rem, 8vw, 6rem)',
                 lineHeight: 0.95,
                 letterSpacing: '-0.03em',
-                color: 'hsl(0 0% 100%)',
+                color: 'hsl(0 0% 0%)',
               }}
             >
               The Private Agentic
               <br />
-              <em style={{ color: 'hsl(0 0% 50%)' }}>Wallet for Web4</em>
+              <em style={{ color: 'hsl(0 0% 30%)' }}>Wallet for Web4</em>
             </h2>
-            <p className="mt-8 text-base leading-relaxed max-w-lg" style={{ color: 'hsl(0 0% 50%)' }}>
+            <p className="mt-8 text-base leading-relaxed max-w-lg" style={{ color: 'hsl(0 0% 20%)' }}>
               USDP pioneers the confidential infrastructure for the Web4 agentic economy. Our ZK-powered platform empowers institutions, developers, and AI agents to transact on Base with unparalleled privacy, ushering in an era of secure, autonomous commerce.
             </p>
 
             {/* Stats + CTA bar */}
-            <div className="w-full max-w-3xl mt-16 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pt-8" style={{ borderTop: '1px solid hsl(0 0% 20%)' }}>
+            <div className="w-full max-w-3xl mt-16 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 pt-8" style={{ borderTop: '1px solid hsl(0 0% 70%)' }}>
               <div className="flex items-center gap-8">
                 {[
                   { label: 'x402 Payments', value: 'Autonomous Exchange' },
@@ -90,10 +90,10 @@ export function ScrollHeroSection({
                   { label: 'Base L2', value: 'High-Speed Settlement' },
                 ].map((stat, i) => (
                   <div key={stat.label} className="flex items-center gap-8">
-                    {i > 0 && <div className="w-px h-8" style={{ background: 'hsl(0 0% 20%)' }} />}
-                    <div>
-                      <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'hsl(0 0% 45%)' }}>{stat.label}</p>
-                      <p className="text-sm font-medium" style={{ color: 'hsl(0 0% 90%)' }}>{stat.value}</p>
+                     {i > 0 && <div className="w-px h-8" style={{ background: 'hsl(0 0% 70%)' }} />}
+                     <div>
+                       <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'hsl(0 0% 30%)' }}>{stat.label}</p>
+                       <p className="text-sm font-medium" style={{ color: 'hsl(0 0% 0%)' }}>{stat.value}</p>
                     </div>
                   </div>
                 ))}
@@ -104,8 +104,8 @@ export function ScrollHeroSection({
                   onClick={() => navigate('/dashboard')}
                   className="flex items-center gap-2 rounded-full px-6 py-3 text-xs font-semibold uppercase tracking-[0.15em] transition-all duration-300 hover:scale-[1.02]"
                   style={{
-                    background: 'hsl(0 0% 100%)',
-                    color: 'hsl(0 0% 0%)',
+                     background: 'hsl(0 0% 0%)',
+                     color: 'hsl(0 0% 100%)',
                   }}
                 >
                   <Icon icon="ph:arrow-right-bold" className="w-4 h-4" />
@@ -114,7 +114,7 @@ export function ScrollHeroSection({
                 <a
                   href="#about"
                   className="flex items-center gap-2 text-sm transition-colors"
-                  style={{ color: 'hsl(0 0% 45%)' }}
+                  style={{ color: 'hsl(0 0% 20%)' }}
                   onClick={(e) => {
                     e.preventDefault();
                     document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
@@ -261,7 +261,8 @@ export function ScrollHeroSection({
           content: '';
           position: absolute;
           inset: 0;
-          background: transparent;
+          background: hsl(0 0% 100% / 0.15);
+          backdrop-filter: blur(3px);
           z-index: 1;
         }
 
