@@ -387,22 +387,24 @@ export default function ScrollMorphHero() {
             style={{
               fontFamily: "'DM Serif Display', serif",
               fontSize: 'clamp(2rem, 6vw, 4.5rem)',
-              lineHeight: 1,
+              lineHeight: 1.2,
               letterSpacing: '-0.03em',
               color: 'hsl(var(--foreground))',
             }}
           >
             Confidentiality
             <br />
-            <em
-              className="not-italic"
-              style={{
-                background: 'linear-gradient(135deg, hsl(270 80% 65%), hsl(320 80% 60%), hsl(30 90% 60%), hsl(50 95% 55%), hsl(80 90% 55%))',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >by Design</em>
+             <em
+               className="not-italic"
+               style={{
+                 background: 'linear-gradient(135deg, hsl(270 80% 65%), hsl(320 80% 60%), hsl(30 90% 60%), hsl(50 95% 55%), hsl(80 90% 55%))',
+                 WebkitBackgroundClip: 'text',
+                 WebkitTextFillColor: 'transparent',
+                 backgroundClip: 'text',
+                 paddingBottom: '0.15em',
+                 lineHeight: 1.3,
+               }}
+             >by Design</em>
           </h2>
           <p className="mt-6 text-sm leading-relaxed max-w-md text-center text-muted-foreground">
             At the heart of USDP is a protocol engineered for the new internet. We combine Zero-Knowledge cryptography with the x402 payment standard to deliver a truly confidential transaction layer for the autonomous economy on Base.
