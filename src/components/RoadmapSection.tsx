@@ -101,7 +101,7 @@ const RoadmapSection = () => {
             transition={{ duration: 0.8, delay: 0.3 }}
           >
             <p className="text-base text-muted-foreground leading-relaxed">
-              A clear path to revolutionizing confidential transactions and privacy-first financial infrastructure.
+              Our roadmap for evolving the Web4 privacy landscape — from protocol launch to a fully autonomous agentic economy.
             </p>
           </motion.div>
         </div>
