@@ -1,14 +1,9 @@
-import { ScrollHeroSection } from "@/components/ui/scroll-hero-section";
+import IntroAnimation from "@/components/ui/scroll-morph-hero";
 
 const HeroSection = () => {
   return (
     <section className="relative bg-background">
-      <ScrollHeroSection
-        items={['encrypt.', 'shield.', 'transact.', 'verify.', 'protect.', 'scale.', 'pay.']}
-        prefix="you can "
-        startVh={50}
-        spaceVh={50}
-      />
+      <IntroAnimation />
     </section>
   );
 };
