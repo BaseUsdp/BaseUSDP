@@ -164,12 +164,9 @@ const PrivacyPolicy = () => {
             <p>
               Our Service is not intended for individuals under the age of 18. We do not
               knowingly collect personal information from children. If you are a parent or
-              guardian and believe your child has provided us with personal information, please
-              contact us at{" "}
-              <a href="mailto:xvoidx402@gmail.com" className="text-foreground underline hover:no-underline">
-                xvoidx402@gmail.com
-              </a>{" "}
-              and we will take steps to delete such information.
+               guardian and believe your child has provided us with personal information, please
+               reach out to us on our social channels
+               and we will take steps to delete such information.
             </p>
           </section>
 
