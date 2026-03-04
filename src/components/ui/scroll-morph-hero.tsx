@@ -399,10 +399,21 @@ export default function ScrollMorphHero() {
                }}
              >by Design</em>
           </h2>
-          <p className="mt-6 text-sm leading-relaxed max-w-md text-center text-muted-foreground">
-            At the heart of USDP is a protocol engineered for the new internet. We combine Zero-Knowledge cryptography with the x402 payment standard to deliver a truly confidential transaction layer for the autonomous economy on Base.
-          </p>
-        </motion.div>
+           <p className="mt-6 text-sm leading-relaxed max-w-md text-center text-muted-foreground">
+             At the heart of USDP is a protocol engineered for the new internet. We combine Zero-Knowledge cryptography with the x402 payment standard to deliver a truly confidential transaction layer for the autonomous economy on Base.
+           </p>
+           <a
+             href="/dashboard"
+             className="pointer-events-auto mt-8 inline-flex items-center gap-2 px-7 py-3 rounded-full text-sm font-semibold tracking-wide text-white transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_-5px_hsl(270_80%_65%_/_0.5)]"
+             style={{
+               background: 'linear-gradient(135deg, hsl(270 80% 65%), hsl(320 80% 60%), hsl(30 90% 60%), hsl(50 95% 55%), hsl(80 90% 55%))',
+               boxShadow: '0 0 20px -5px hsl(270 80% 65% / 0.3), inset 0 1px 0 hsl(0 0% 100% / 0.2)',
+             }}
+           >
+             Start Now
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+           </a>
+         </motion.div>
 
         {/* Cards Container */}
         <div className="absolute inset-0 flex items-center justify-center">
