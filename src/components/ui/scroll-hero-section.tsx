@@ -114,7 +114,7 @@ export function ScrollHeroSection({
                 <a
                   href="#about"
                   className="flex items-center gap-2 text-sm transition-colors"
-                  style={{ color: 'hsl(0 0% 45%)' }}
+                  style={{ color: 'hsl(0 0% 20%)' }}
                   onClick={(e) => {
                     e.preventDefault();
                     document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
