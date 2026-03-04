@@ -63,7 +63,7 @@ const UseCasesSection = () => {
           transition={{ duration: 0.8, delay: 0.3 }}
         >
           <p className="text-base text-muted-foreground leading-relaxed">
-            From autonomous agents to human participants, confidential payments for every actor in the Web 4.0 economy.
+            From autonomous agents to human participants, confidential payments for every actor in the Web4 economy.
           </p>
         </motion.div>
       </div>
