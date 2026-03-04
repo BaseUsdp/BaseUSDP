@@ -126,8 +126,16 @@
   .display-section {
     font-family: 'DM Serif Display', serif;
     font-size: clamp(2.5rem, 7vw, 5.5rem);
-    line-height: 1;
+    line-height: 1.1;
     letter-spacing: -0.025em;
+    padding-bottom: 0.05em;
+  }
+
+  .display-section em {
+    display: inline;
+    padding-bottom: 0.05em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
   }
 
   .display-number {
