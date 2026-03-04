@@ -261,8 +261,8 @@ export function ScrollHeroSection({
           content: '';
           position: absolute;
           inset: 0;
-          background: hsl(0 0% 100% / 0.15);
-          backdrop-filter: blur(3px);
+           background: hsl(0 0% 100% / 0.1);
+           backdrop-filter: blur(12px);
           z-index: 1;
         }
 
