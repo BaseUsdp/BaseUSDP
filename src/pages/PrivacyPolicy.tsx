@@ -36,7 +36,7 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">1. Introduction</h2>
             <p>
-              Welcome to ORB402 ("we," "our," or "us"). We are committed to protecting your
+              Welcome to BASEUSDP ("we," "our," or "us"). We are committed to protecting your
               privacy and ensuring the security of your personal information. This Privacy Policy
               explains how we collect, use, disclose, and safeguard your information when you
               use our platform, website, and related services (collectively, the "Service").
@@ -102,7 +102,7 @@ const PrivacyPolicy = () => {
               </li>
               <li>
                 <strong className="text-foreground/90">Protection of Rights:</strong> To protect the rights,
-                property, or safety of ORB402, our users, or the public
+                property, or safety of BASEUSDP, our users, or the public
               </li>
               <li>
                 <strong className="text-foreground/90">Business Transfers:</strong> In connection with a
@@ -154,11 +154,11 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">8. Third-Party Services</h2>
             <p>
-              Our Service may contain links to third-party websites, services, or applications
-              that are not operated by us. We have no control over and assume no responsibility
-              for the content, privacy policies, or practices of any third-party services. We
-              encourage you to review the privacy policies of any third-party services you
-              interact with.
+               Our Service may contain links to third-party websites, services, or applications
+               that are not operated by us. We have no control over and assume no responsibility
+               for the content, privacy policies, or practices of any third-party services. We
+               encourage you to review the privacy policies of any third-party services you
+               interact with.
             </p>
           </section>
 
@@ -193,7 +193,7 @@ const PrivacyPolicy = () => {
               or our data practices, please contact us at:
             </p>
             <div className="mt-4 p-6 bg-secondary border border-border rounded-lg">
-              <p className="font-medium text-foreground">ORB402</p>
+              <p className="font-medium text-foreground">BASEUSDP</p>
               <p className="mt-2">
                 Email:{" "}
                 <a href="mailto:xvoidx402@gmail.com" className="text-foreground underline hover:no-underline">

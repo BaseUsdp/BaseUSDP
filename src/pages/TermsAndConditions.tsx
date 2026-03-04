@@ -36,7 +36,7 @@ const TermsAndConditions = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">1. Agreement to Terms</h2>
             <p>
-              By accessing or using the ORB402 platform, website, and related services
+              By accessing or using the BASEUSDP platform, website, and related services
               (collectively, the "Service"), you agree to be bound by these Terms and Conditions
               ("Terms"). If you do not agree to these Terms, you must not access or use the
               Service.
@@ -61,7 +61,7 @@ const TermsAndConditions = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">3. Description of Service</h2>
             <p>
-              ORB402 provides a privacy-focused payment layer for the agentic economy.
+              BASEUSDP provides a privacy-focused payment layer for the agentic economy.
               Our platform enables confidential transactions utilizing zero-knowledge proof
               technology and the x402 payment protocol. The Service includes but is not
               limited to:
@@ -89,7 +89,7 @@ const TermsAndConditions = () => {
             </ul>
             <p className="mt-3">
               We will never ask for your private keys or seed phrases. If anyone claiming to
-              represent ORB402 requests such information, it is a scam.
+              represent BASEUSDP requests such information, it is a scam.
             </p>
           </section>
 
@@ -140,7 +140,7 @@ const TermsAndConditions = () => {
             <h2 className="text-xl font-semibold text-foreground mb-4">7. Intellectual Property</h2>
             <p>
               The Service and its original content, features, and functionality are owned by
-              ORB402 and are protected by international copyright, trademark, patent, trade
+              BASEUSDP and are protected by international copyright, trademark, patent, trade
               secret, and other intellectual property laws. You may not reproduce, distribute,
               modify, create derivative works of, publicly display, or otherwise exploit any
               content from the Service without our prior written consent.
@@ -166,7 +166,7 @@ const TermsAndConditions = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">9. Limitation of Liability</h2>
             <p>
-              TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, VOID402 AND ITS OFFICERS,
+              TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, BASEUSDP AND ITS OFFICERS,
               DIRECTORS, EMPLOYEES, AGENTS, AND AFFILIATES SHALL NOT BE LIABLE FOR ANY
               INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING
               BUT NOT LIMITED TO:
@@ -183,7 +183,7 @@ const TermsAndConditions = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">10. Indemnification</h2>
             <p>
-              You agree to indemnify, defend, and hold harmless ORB402 and its officers,
+              You agree to indemnify, defend, and hold harmless BASEUSDP and its officers,
               directors, employees, agents, and affiliates from and against any claims,
               liabilities, damages, losses, costs, and expenses (including reasonable
               attorney's fees) arising out of or in connection with your use of the Service,
@@ -230,7 +230,7 @@ const TermsAndConditions = () => {
               contact us at:
             </p>
             <div className="mt-4 p-6 bg-secondary border border-border rounded-lg">
-              <p className="font-medium text-foreground">ORB402</p>
+              <p className="font-medium text-foreground">BASEUSDP</p>
               <p className="mt-2">
                 Email:{" "}
                 <a href="mailto:xvoidx402@gmail.com" className="text-foreground underline hover:no-underline">
