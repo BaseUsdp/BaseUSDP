@@ -11,12 +11,12 @@ const FAQSection = () => {
     {
       icon: "ph:globe-bold",
       question: "What is Web 4.0?",
-      answer: "Web 4.0 represents the next evolution of the internet — an autonomous, agent-driven economy where AI agents, machines, and humans transact value seamlessly. Unlike Web3 which focused on decentralization, Web 4.0 adds intelligence and autonomy: AI agents independently negotiate, pay, and settle transactions. ALTIS Finance provides the confidential payment infrastructure that makes this possible, ensuring privacy for both human and machine participants.",
+      answer: "Web 4.0 represents the next evolution of the internet — an autonomous, agent-driven economy where AI agents, machines, and humans transact value seamlessly. Unlike Web3 which focused on decentralization, Web 4.0 adds intelligence and autonomy: AI agents independently negotiate, pay, and settle transactions. BASEUSDP provides the confidential payment infrastructure that makes this possible, ensuring privacy for both human and machine participants.",
     },
     {
       icon: "ph:shield-check-bold",
       question: "What are Zero-Knowledge Proofs (ZK Proofs)?",
-      answer: "ZK Proofs are cryptographic methods that allow one party to prove to another that a statement is true without revealing any additional information. This means your transaction amounts, balances, and financial data remain private while still being verifiable on the blockchain. ALTIS Finance uses ZK Proofs to enable truly confidential transactions.",
+      answer: "ZK Proofs are cryptographic methods that allow one party to prove to another that a statement is true without revealing any additional information. This means your transaction amounts, balances, and financial data remain private while still being verifiable on the blockchain. BASEUSDP uses ZK Proofs to enable truly confidential transactions.",
     },
     {
       icon: "ph:lightning-bold",
@@ -25,18 +25,18 @@ const FAQSection = () => {
     },
     {
       icon: "ph:lock-bold",
-      question: "How does ALTIS Finance protect my privacy?",
-      answer: "ALTIS Finance encrypts your transaction amounts and balances using ZK Proof technology. Unlike traditional blockchains where all data is public, only you can see your true balances. Third parties, including validators and observers, cannot view your financial activity.",
+      question: "How does BASEUSDP protect my privacy?",
+      answer: "BASEUSDP encrypts your transaction amounts and balances using ZK Proof technology. Unlike traditional blockchains where all data is public, only you can see your true balances. Third parties, including validators and observers, cannot view your financial activity.",
     },
     {
       icon: "ph:robot-bold",
-      question: "Can AI agents use ALTIS Finance?",
-      answer: "Yes! ALTIS Finance is built for the agentic economy. AI agents can autonomously make and receive payments using the x402 protocol without exposing sensitive financial data. Our SDK enables developers to integrate confidential payments into any AI application.",
+      question: "Can AI agents use BASEUSDP?",
+      answer: "Yes! BASEUSDP is built for the agentic economy. AI agents can autonomously make and receive payments using the x402 protocol without exposing sensitive financial data. Our SDK enables developers to integrate confidential payments into any AI application.",
     },
     {
       icon: "ph:question-bold",
-      question: "Which blockchains does ALTIS Finance support?",
-      answer: "ALTIS Finance operates on Base (Ethereum L2) with ZK Proof capabilities for privacy. Transactions benefit from low fees and fast finality on Base network.",
+      question: "Which blockchains does BASEUSDP support?",
+      answer: "BASEUSDP operates on Base (Ethereum L2) with ZK Proof capabilities for privacy. Transactions benefit from low fees and fast finality on Base network.",
     },
   ];
 

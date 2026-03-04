@@ -4,19 +4,19 @@ import AltisLogo from "@/components/AltisLogo";
 
 const TermsAndConditions = () => {
   return (
-    <div className="min-h-screen bg-white text-black">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="border-b border-black/10">
+      <header className="border-b border-border">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <AltisLogo size={28} className="text-black" />
-            <span className="text-xl font-bold text-black tracking-tight">
-              ALTIS FINANCE
+            <AltisLogo size={28} className="text-foreground" />
+            <span className="text-xl font-bold text-foreground tracking-tight">
+              BASEUSDP
             </span>
           </Link>
           <Link
             to="/"
-            className="text-sm text-white/60 hover:text-white transition-colors"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             ← Back to Home
           </Link>
@@ -25,17 +25,16 @@ const TermsAndConditions = () => {
 
       {/* Content */}
       <main className="container mx-auto px-6 py-16 max-w-4xl">
-        <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight">
+        <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight text-foreground">
           Terms and Conditions
         </h1>
-        <p className="text-white/40 text-sm mb-12">
+        <p className="text-muted-foreground text-sm mb-12">
           Last updated: February 11, 2026
         </p>
 
-        <div className="space-y-10 text-white/70 leading-relaxed">
-          {/* Agreement */}
+        <div className="space-y-10 text-muted-foreground leading-relaxed">
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">1. Agreement to Terms</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">1. Agreement to Terms</h2>
             <p>
               By accessing or using the ORB402 platform, website, and related services
               (collectively, the "Service"), you agree to be bound by these Terms and Conditions
@@ -49,9 +48,8 @@ const TermsAndConditions = () => {
             </p>
           </section>
 
-          {/* Eligibility */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">2. Eligibility</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">2. Eligibility</h2>
             <p>
               You must be at least 18 years old to use the Service. By using the Service, you
               represent and warrant that you are of legal age and have the legal capacity to
@@ -60,9 +58,8 @@ const TermsAndConditions = () => {
             </p>
           </section>
 
-          {/* Description of Service */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">3. Description of Service</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">3. Description of Service</h2>
             <p>
               ORB402 provides a privacy-focused payment layer for the agentic economy.
               Our platform enables confidential transactions utilizing zero-knowledge proof
@@ -78,9 +75,8 @@ const TermsAndConditions = () => {
             </ul>
           </section>
 
-          {/* Wallet & Account */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">4. Wallet Connection and Account Security</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">4. Wallet Connection and Account Security</h2>
             <p>
               To use certain features of the Service, you may need to connect a cryptocurrency
               wallet. You are solely responsible for:
@@ -97,38 +93,36 @@ const TermsAndConditions = () => {
             </p>
           </section>
 
-          {/* Transactions */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">5. Transactions and Payments</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">5. Transactions and Payments</h2>
             <p>
               All cryptocurrency transactions processed through the Service are subject to
               the following conditions:
             </p>
             <ul className="list-disc list-inside space-y-2 ml-2 mt-3">
               <li>
-                <strong className="text-white/90">Irreversibility:</strong> Blockchain transactions
+                <strong className="text-foreground/90">Irreversibility:</strong> Blockchain transactions
                 are generally irreversible. Once a transaction is confirmed on the blockchain,
                 it cannot be undone or reversed.
               </li>
               <li>
-                <strong className="text-white/90">Network Fees:</strong> You are responsible for
+                <strong className="text-foreground/90">Network Fees:</strong> You are responsible for
                 any network (gas) fees associated with your transactions.
               </li>
               <li>
-                <strong className="text-white/90">Processing Times:</strong> Transaction processing
+                <strong className="text-foreground/90">Processing Times:</strong> Transaction processing
                 times depend on the underlying blockchain network and are outside our control.
               </li>
               <li>
-                <strong className="text-white/90">Accuracy:</strong> You are responsible for
+                <strong className="text-foreground/90">Accuracy:</strong> You are responsible for
                 ensuring the accuracy of all transaction details, including recipient addresses
                 and amounts.
               </li>
             </ul>
           </section>
 
-          {/* Prohibited Uses */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">6. Prohibited Uses</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">6. Prohibited Uses</h2>
             <p>You agree not to use the Service for any of the following purposes:</p>
             <ul className="list-disc list-inside space-y-2 ml-2 mt-3">
               <li>Money laundering, terrorist financing, or any other illegal activity</li>
@@ -142,9 +136,8 @@ const TermsAndConditions = () => {
             </ul>
           </section>
 
-          {/* Intellectual Property */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">7. Intellectual Property</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">7. Intellectual Property</h2>
             <p>
               The Service and its original content, features, and functionality are owned by
               ORB402 and are protected by international copyright, trademark, patent, trade
@@ -154,9 +147,8 @@ const TermsAndConditions = () => {
             </p>
           </section>
 
-          {/* Disclaimers */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">8. Disclaimers</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">8. Disclaimers</h2>
             <p>
               THE SERVICE IS PROVIDED ON AN "AS IS" AND "AS AVAILABLE" BASIS WITHOUT WARRANTIES
               OF ANY KIND, WHETHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES
@@ -171,9 +163,8 @@ const TermsAndConditions = () => {
             </p>
           </section>
 
-          {/* Limitation of Liability */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">9. Limitation of Liability</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">9. Limitation of Liability</h2>
             <p>
               TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, VOID402 AND ITS OFFICERS,
               DIRECTORS, EMPLOYEES, AGENTS, AND AFFILIATES SHALL NOT BE LIABLE FOR ANY
@@ -189,9 +180,8 @@ const TermsAndConditions = () => {
             </ul>
           </section>
 
-          {/* Indemnification */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">10. Indemnification</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">10. Indemnification</h2>
             <p>
               You agree to indemnify, defend, and hold harmless ORB402 and its officers,
               directors, employees, agents, and affiliates from and against any claims,
@@ -201,9 +191,8 @@ const TermsAndConditions = () => {
             </p>
           </section>
 
-          {/* Termination */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">11. Termination</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">11. Termination</h2>
             <p>
               We reserve the right to suspend or terminate your access to the Service at any
               time, with or without cause and with or without notice. Upon termination, your
@@ -214,9 +203,8 @@ const TermsAndConditions = () => {
             </p>
           </section>
 
-          {/* Governing Law */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">12. Governing Law</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">12. Governing Law</h2>
             <p>
               These Terms shall be governed by and construed in accordance with applicable
               laws, without regard to conflict of law principles. Any disputes arising from
@@ -225,9 +213,8 @@ const TermsAndConditions = () => {
             </p>
           </section>
 
-          {/* Severability */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">13. Severability</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">13. Severability</h2>
             <p>
               If any provision of these Terms is found to be invalid, illegal, or
               unenforceable, the remaining provisions shall continue in full force and effect.
@@ -236,18 +223,17 @@ const TermsAndConditions = () => {
             </p>
           </section>
 
-          {/* Contact */}
           <section>
-            <h2 className="text-xl font-semibold text-white mb-4">14. Contact Us</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">14. Contact Us</h2>
             <p>
               If you have any questions or concerns about these Terms and Conditions, please
               contact us at:
             </p>
-            <div className="mt-4 p-6 bg-white/5 border border-white/10 rounded-lg">
-              <p className="font-medium text-white">ORB402</p>
+            <div className="mt-4 p-6 bg-secondary border border-border rounded-lg">
+              <p className="font-medium text-foreground">ORB402</p>
               <p className="mt-2">
                 Email:{" "}
-                <a href="mailto:xvoidx402@gmail.com" className="text-primary hover:underline">
+                <a href="mailto:xvoidx402@gmail.com" className="text-foreground underline hover:no-underline">
                   xvoidx402@gmail.com
                 </a>
               </p>

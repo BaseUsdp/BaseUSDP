@@ -2,11 +2,8 @@ import { motion, useInView } from "framer-motion";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
-import { toast } from "sonner";
 import { useWallet } from "@/contexts/WalletContext";
 import WalletConnectOverlay from "./WalletConnectOverlay";
-
-const CONTRACT_ADDRESS = "0xb05460ae4555ed1797292138a27221eda7727b07";
 
 declare global {
   interface Window {
@@ -48,26 +45,6 @@ const HeroSection = () => {
         />
 
         <div className="relative z-10 max-w-[1400px] mx-auto px-8 pb-16 w-full">
-          {/* Available badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="mb-10 flex items-center gap-3"
-          >
-            <span className="w-2 h-2 rounded-full inline-block animate-pulse" style={{ background: "hsl(142 71% 45%)" }} />
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(CONTRACT_ADDRESS);
-                toast.success("Contract address copied to clipboard");
-              }}
-              className="tag-pill hover:border-foreground/40 transition-colors"
-              style={{ border: "none", padding: 0 }}
-            >
-              <span className="text-muted-foreground">CA: {CONTRACT_ADDRESS}</span>
-            </button>
-          </motion.div>
-
           {/* Main headline with word reveal */}
           <div className="display-hero text-foreground mb-12">
             <div className="line-mask">

@@ -41,13 +41,11 @@ const Navbar = () => {
       }`}
     >
       <div className="max-w-[1400px] mx-auto px-8 h-16 flex items-center justify-between">
-        {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
           <AltisLogo size={18} className="text-foreground" />
-          <span className="text-sm font-semibold tracking-tighter text-foreground">ALTIS</span>
+          <span className="text-sm font-semibold tracking-tighter text-foreground">BASEUSDP</span>
         </Link>
 
-        {/* Desktop Links */}
         <div className="hidden md:flex items-center gap-9 text-sm text-muted-foreground font-normal">
           {navLinks.map((link, i) => (
             <motion.a
@@ -64,7 +62,6 @@ const Navbar = () => {
           ))}
         </div>
 
-        {/* Desktop CTA */}
         <div className="hidden md:flex items-center gap-4">
           <WalletConnectButton variant="navbar" />
           <motion.button
@@ -78,7 +75,6 @@ const Navbar = () => {
           </motion.button>
         </div>
 
-        {/* Mobile Menu Button */}
         <button
           className="md:hidden p-2"
           onClick={() => setIsOpen(!isOpen)}
@@ -88,7 +84,6 @@ const Navbar = () => {
         </button>
       </div>
 
-      {/* Mobile Menu */}
       <AnimatePresence>
         {isOpen && (
           <motion.div

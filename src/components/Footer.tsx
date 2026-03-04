@@ -34,11 +34,10 @@ const Footer = () => {
   return (
     <footer className="bg-foreground text-background border-t border-background/10">
       <div className="max-w-[1400px] mx-auto px-8 py-16 grid grid-cols-2 md:grid-cols-4 gap-10">
-        {/* Brand */}
         <div className="col-span-2">
           <Link to="/" className="flex items-center gap-2 text-sm font-semibold tracking-tighter text-background mb-4">
             <AltisLogo size={18} className="text-background" />
-            <span>ALTIS FINANCE</span>
+            <span>BASEUSDP</span>
           </Link>
           <p className="text-sm text-background/40 leading-relaxed max-w-xs">
             The Confidential Payment Layer for the Agentic Economy.
@@ -59,7 +58,6 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* Links */}
         {Object.entries(footerLinks).map(([category, links]) => (
           <div key={category}>
             <p className="text-xs font-semibold text-background/30 uppercase tracking-wider mb-5">{category}</p>
@@ -90,7 +88,7 @@ const Footer = () => {
       </div>
 
       <div className="max-w-[1400px] mx-auto px-8 pb-8 border-t border-background/10 pt-7 flex items-center justify-between">
-        <p className="text-xs text-background/30">© 2026 ALTIS Finance. All rights reserved.</p>
+        <p className="text-xs text-background/30">© 2026 BASEUSDP. All rights reserved.</p>
         <p className="text-xs text-background/30">Designed with intent.</p>
       </div>
     </footer>
