@@ -89,10 +89,10 @@ function FlipCard({ src, gradientIndex, index, total, phase, target, morphProgre
             strokeWidth={1.5}
             className="relative z-10"
             style={{
-              color: 'white',
+              color: gradientOpacity > 0.5 ? 'white' : 'hsl(0 0% 20%)',
               opacity: iconOpacity,
-              transition: 'opacity 0.4s ease',
-              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
+              transition: 'opacity 0.4s ease, color 0.5s ease',
+              filter: gradientOpacity > 0.5 ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' : 'none',
             }}
           />
         </div>
