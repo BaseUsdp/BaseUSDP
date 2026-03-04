@@ -50,7 +50,7 @@ export function ScrollHeroSection({
         <div className="word-hero-main-inner">
           <video
             className="word-hero-video-bg"
-            src="/videos/hero-bg.mp4"
+            src="/hero-bg-new.mp4"
             autoPlay
             loop
             muted
