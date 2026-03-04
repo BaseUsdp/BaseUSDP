@@ -23,11 +23,9 @@ const DashboardSidebar = ({ activeTab, setActiveTab }: DashboardSidebarProps) =>
       <div className="p-6 border-b border-border">
         <Link to="/" className="flex items-center gap-3 group">
           <div className="relative">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Icon icon="ph:shield-check-bold" className="w-4 h-4 text-white" />
-            </div>
+            <img src={usdpLogo} alt="USDP" className="w-9 h-9 rounded-lg object-contain" />
           </div>
-          <span className="font-display text-lg font-bold">ORB402</span>
+          <span className="font-display text-lg font-bold">USDP</span>
         </Link>
       </div>
 
