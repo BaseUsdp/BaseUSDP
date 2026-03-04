@@ -3,6 +3,11 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion, useTransform, useSpring, useMotionValue } from "framer-motion";
 import usdpLogo from "@/assets/usdp-logo.png";
+import {
+  Shield, Lock, Fingerprint, Eye, KeyRound, FileKey,
+  Cpu, Blocks, Wallet, CreditCard, Globe, Network,
+  Zap, Code, Database, Server, Binary, Layers, ShieldCheck, Bot
+} from "lucide-react";
 
 // --- Types ---
 export type AnimationPhase = "scatter" | "line" | "circle" | "bottom-strip";
