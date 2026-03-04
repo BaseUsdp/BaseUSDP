@@ -70,7 +70,7 @@ export function ScrollHeroSection({
                 fontSize: 'clamp(2.5rem, 8vw, 6rem)',
                 lineHeight: 0.95,
                 letterSpacing: '-0.03em',
-                color: 'hsl(0 0% 100%)',
+                color: 'hsl(0 0% 0%)',
               }}
             >
               The Private Agentic
