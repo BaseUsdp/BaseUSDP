@@ -42,8 +42,8 @@ const ProblemSection = () => {
     <section id="problem">
       {/* Word-cycling scroll intro for the problem section */}
       <ScrollHeroSection
-        items={['exposed.', 'tracked.', 'leaked.', 'exploited.', 'vulnerable.', 'transparent.', 'broken.']}
-        prefix="your data is "
+        items={['Exposed.', 'Tracked.', 'Leaked.', 'Exploited.', 'Vulnerable.', 'Transparent.', 'Broken.']}
+        prefix="Your Data Is "
         startVh={50}
         spaceVh={50}
       />
