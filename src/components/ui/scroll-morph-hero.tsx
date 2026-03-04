@@ -85,9 +85,12 @@ function FlipCard({ src, index, total, phase, target }: FlipCardProps) {
 
 // --- Main Hero Component ---
 const TOTAL_IMAGES = 20;
-const MAX_SCROLL = 3000;
-const TOUCH_SCROLL_MULTIPLIER = 8;
+const DESKTOP_MAX_SCROLL = 3000;
+const MOBILE_MAX_SCROLL = 520;
+const DESKTOP_TOUCH_SCROLL_MULTIPLIER = 8;
+const MOBILE_TOUCH_SCROLL_MULTIPLIER = 10;
 const TOUCH_DEADZONE = 2;
+const MOBILE_COMPLETE_PROGRESS = 0.9;
 
 const IMAGES = [
   "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&q=80",
