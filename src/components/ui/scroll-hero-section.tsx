@@ -59,7 +59,7 @@ export function ScrollHeroSection({
           <div className="word-hero-content">
             <span
               className="inline-block text-xs font-semibold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-8"
-              style={{ border: '1px solid hsl(0 0% 30%)', color: 'hsl(0 0% 60%)' }}
+              style={{ border: '1px solid hsl(0 0% 70%)', color: 'hsl(0 0% 10%)' }}
             >
               Web4 Ready · Agentic Economy Optimized
             </span>
