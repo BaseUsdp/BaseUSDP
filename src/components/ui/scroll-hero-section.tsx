@@ -224,6 +224,7 @@ export function ScrollHeroSection({
         /* Each word: gradient text with fixed highlight band */
         .word-hero-word {
           --dimmed: hsl(0 0% 82%);
+          padding: 0.05em 0;
           background:
             linear-gradient(
               180deg,
@@ -239,6 +240,8 @@ export function ScrollHeroSection({
           color: transparent;
           -webkit-background-clip: text;
           background-clip: text;
+          -webkit-box-decoration-break: clone;
+          box-decoration-break: clone;
         }
 
         /* Dark card section — NOT min-height:100vh so page scrolls past */
