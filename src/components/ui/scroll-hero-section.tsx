@@ -222,12 +222,15 @@ export function ScrollHeroSection({
         /* Each word: gradient text with fixed highlight band */
         .word-hero-word {
           --dimmed: hsl(0 0% 82%);
-          --accent: hsl(0 0% 0%);
           background:
             linear-gradient(
               180deg,
               var(--dimmed) 0 calc(var(--wh-start, 50vh) - 0.55lh),
-              var(--accent) calc(var(--wh-start, 50vh) - 0.6lh) calc(var(--wh-start, 50vh) + 0.6lh),
+              hsl(270 80% 65%) calc(var(--wh-start, 50vh) - 0.6lh),
+              hsl(320 80% 60%) calc(var(--wh-start, 50vh) - 0.1lh),
+              hsl(30 90% 60%) calc(var(--wh-start, 50vh) + 0.1lh),
+              hsl(50 95% 55%) calc(var(--wh-start, 50vh) + 0.4lh),
+              hsl(80 90% 55%) calc(var(--wh-start, 50vh) + 0.6lh),
               var(--dimmed) calc(var(--wh-start, 50vh) + 0.55lh)
             );
           background-attachment: fixed;
