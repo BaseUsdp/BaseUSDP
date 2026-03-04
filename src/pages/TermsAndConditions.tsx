@@ -166,7 +166,7 @@ const TermsAndConditions = () => {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">9. Limitation of Liability</h2>
             <p>
-              TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, VOID402 AND ITS OFFICERS,
+              TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, BASEUSDP AND ITS OFFICERS,
               DIRECTORS, EMPLOYEES, AGENTS, AND AFFILIATES SHALL NOT BE LIABLE FOR ANY
               INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING
               BUT NOT LIMITED TO:
