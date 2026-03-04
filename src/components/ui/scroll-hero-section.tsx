@@ -269,8 +269,6 @@ export function ScrollHeroSection({
         .word-hero-content {
           position: relative;
           z-index: 2;
-
-        .word-hero-content {
           display: flex;
           flex-direction: column;
           align-items: center;
