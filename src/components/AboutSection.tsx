@@ -1,6 +1,7 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Icon } from "@iconify/react";
+import { WarpBackground } from "@/components/ui/warp-background";
 
 const AboutSection = () => {
   const ref = useRef(null);
