@@ -303,7 +303,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 11. Send push notifications (fire-and-forget)
     sendFarcasterNotification(authorFid, "payment_sent").catch(() => {});
-    sendFarcasterNotification(recipientData.fid, "payment_received").catch(() => {});
+    if (recipientFid) sendFarcasterNotification(recipientFid, "payment_received").catch(() => {});
 
     console.log(
       `[CastPayment] Success: @${authorUsername} -> @${parsed.recipientUsername} | cast ${castHash} | tx ${transferResult.txHash}`
