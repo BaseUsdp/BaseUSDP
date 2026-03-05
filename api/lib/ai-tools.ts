@@ -1,7 +1,7 @@
 /**
  * Claude tool definitions for the AI Terminal
  * These are passed to Claude's tool_use API so the terminal can
- * interact with ORB402 and Base blockchain features.
+ * interact with BASEUSDP and Base blockchain features.
  */
 import type Anthropic from "@anthropic-ai/sdk";
 
@@ -11,7 +11,7 @@ export const BLOCKCHAIN_TOOLS: Tool[] = [
   {
     name: "check_balance",
     description:
-      "Check the user's ORB402 privacy pool balance. Returns USDC and USDT balances.",
+      "Check the user's BASEUSDP privacy pool balance. Returns USDC and USDT balances.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -52,7 +52,7 @@ export const BLOCKCHAIN_TOOLS: Tool[] = [
   {
     name: "deposit",
     description:
-      "Open the deposit form so the user can deposit funds into the ORB402 privacy pool.",
+      "Open the deposit form so the user can deposit funds into the BASEUSDP privacy pool.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -72,7 +72,7 @@ export const BLOCKCHAIN_TOOLS: Tool[] = [
   {
     name: "withdraw",
     description:
-      "Open the withdraw form so the user can withdraw from the ORB402 privacy pool.",
+      "Open the withdraw form so the user can withdraw from the BASEUSDP privacy pool.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -92,7 +92,7 @@ export const BLOCKCHAIN_TOOLS: Tool[] = [
   {
     name: "get_transaction_history",
     description:
-      "Get the user's recent ORB402 transaction history (deposits, withdrawals, transfers).",
+      "Get the user's recent BASEUSDP transaction history (deposits, withdrawals, transfers).",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -138,7 +138,7 @@ export const BLOCKCHAIN_TOOLS: Tool[] = [
   {
     name: "navigate",
     description:
-      "Navigate the user to a specific section of the ORB402 dashboard.",
+      "Navigate the user to a specific section of the BASEUSDP dashboard.",
     input_schema: {
       type: "object" as const,
       properties: {
