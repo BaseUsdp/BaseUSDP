@@ -6,12 +6,12 @@
   },
   "miniapp": {
     "version": "0.0.0",
-    "name": "ORB402 Private Payments",
-    "homeUrl": "https://orb402.com/miniapp",
-    "iconUrl": "https://orb402.com/favicon-ORB.jpg",
-    "splashImageUrl": "https://orb402.com/social-preview.png",
+    "name": "BASEUSDP Private Payments",
+    "homeUrl": "https://www.baseusdp.com/miniapp",
+    "iconUrl": "https://www.baseusdp.com/favicon-ORB.jpg",
+    "splashImageUrl": "https://www.baseusdp.com/social-preview.png",
     "splashBackgroundColor": "#0a0a0a",
-    "webhookUrl": "https://orb402.com/api/farcaster/webhook",
+    "webhookUrl": "https://www.baseusdp.com/api/farcaster/webhook",
     "primaryCategory": "finance",
     "requiredChains": ["eip155:8453"]
   }

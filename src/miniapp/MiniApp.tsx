@@ -53,7 +53,7 @@ class MiniAppErrorBoundary extends React.Component<
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6">
             <span className="text-2xl font-bold">O</span>
           </div>
-          <h1 className="text-xl font-bold mb-2">ORB402 Mini App</h1>
+          <h1 className="text-xl font-bold mb-2">BASEUSDP Mini App</h1>
           <p className="text-sm text-zinc-400 text-center mb-6 max-w-xs">
             This Mini App needs to be opened from inside Warpcast. Tap a cast
             embed or launch it from the Mini Apps section.
@@ -68,10 +68,10 @@ class MiniAppErrorBoundary extends React.Component<
               Open Warpcast
             </a>
             <a
-              href="https://orb402.com/dashboard"
+              href="https://www.baseusdp.com/dashboard"
               className="block w-full py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm font-medium text-zinc-300 text-center transition-colors"
             >
-              Go to ORB402 Dashboard
+              Go to BASEUSDP Dashboard
             </a>
           </div>
           <p className="text-[10px] text-zinc-700 mt-6 font-mono">

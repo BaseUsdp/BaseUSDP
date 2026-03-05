@@ -32,7 +32,7 @@ export function MiniAppLayout({ children }: MiniAppLayoutProps) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-[#0a0a0a] text-white">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
-        <p className="text-sm text-zinc-400">Loading ORB402...</p>
+        <p className="text-sm text-zinc-400">Loading BASEUSDP...</p>
       </div>
     );
   }
@@ -44,7 +44,7 @@ export function MiniAppLayout({ children }: MiniAppLayoutProps) {
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6">
           <span className="text-2xl font-bold">O</span>
         </div>
-        <h1 className="text-xl font-bold mb-2">ORB402 Mini App</h1>
+        <h1 className="text-xl font-bold mb-2">BASEUSDP Mini App</h1>
         <p className="text-sm text-zinc-400 text-center mb-6 max-w-xs">
           Open this Mini App from a cast embed in Warpcast to send and receive private payments.
         </p>
@@ -58,10 +58,10 @@ export function MiniAppLayout({ children }: MiniAppLayoutProps) {
             Open Warpcast
           </a>
           <a
-            href="https://orb402.com/dashboard"
+            href="https://www.baseusdp.com/dashboard"
             className="block w-full py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm font-medium text-zinc-300 text-center transition-colors"
           >
-            Go to ORB402 Dashboard
+            Go to BASEUSDP Dashboard
           </a>
         </div>
         <p className="text-xs text-zinc-600 mt-8">Privacy-First Payments on Base</p>
@@ -74,7 +74,7 @@ export function MiniAppLayout({ children }: MiniAppLayoutProps) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-[#0a0a0a] text-white">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
-        <p className="text-sm text-zinc-400">Connecting to ORB402...</p>
+        <p className="text-sm text-zinc-400">Connecting to BASEUSDP...</p>
       </div>
     );
   }
