@@ -20,8 +20,10 @@ const ALLOWED_ORIGINS = [
 ];
 
 function getAllowedOrigin(origin: string | undefined): string {
+  if (!origin) return "https://www.baseusdp.com";
   if (ALLOWED_ORIGINS.includes(origin)) return origin;
   if (origin.match(/^https:\/\/code-whisperer-33[\w-]*\.vercel\.app/)) return origin;
+  return "https://www.baseusdp.com";
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
