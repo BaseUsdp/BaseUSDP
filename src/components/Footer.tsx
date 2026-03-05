@@ -109,7 +109,7 @@ const Footer = () => {
       </div>
 
       <div className="max-w-[1400px] mx-auto px-8 pb-8 border-t border-background/10 pt-7 flex items-center justify-between">
-        <p className="text-xs text-background/30">© 2026 USDP. All rights reserved.</p>
+        <p className="text-xs text-background/30">© 2026 BASEUSDP. All rights reserved.</p>
         <p className="text-xs text-background/30">Designed with intent.</p>
       </div>
     </footer>
