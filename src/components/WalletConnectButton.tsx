@@ -313,31 +313,22 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
 
   if (!isConnected) {
     return (
-      <div className="relative group">
-        {/* Gradient glow border */}
-        <div
-          className="absolute -inset-[1.5px] rounded-full opacity-80 group-hover:opacity-100 transition-opacity duration-300 blur-[1px]"
-          style={{
-            background: 'linear-gradient(135deg, hsl(270 80% 65%), hsl(320 80% 60%), hsl(30 90% 60%), hsl(50 95% 55%), hsl(80 90% 55%))',
-          }}
-        />
-        <Button
-          onClick={() => setShowWalletSelect(true)}
-          disabled={isConnecting}
-          className={`relative gap-2 rounded-full ${
-            variant === "navbar"
-              ? "bg-background text-foreground hover:bg-background/90 transition-all duration-300 hover:shadow-[0_0_25px_-5px_hsl(270_80%_65%_/_0.5)]"
-              : "bg-background text-foreground hover:bg-background/90 transition-all duration-300 px-8 py-4"
-          }`}
-        >
-          {isConnecting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Wallet className="h-4 w-4" />
-          )}
-          Connect Wallet
-        </Button>
-      </div>
+      <Button
+        onClick={() => setShowWalletSelect(true)}
+        disabled={isConnecting}
+        className={`gap-2 rounded-full border-0 ${
+          variant === "navbar"
+            ? "bg-white text-black font-semibold hover:bg-white/90 transition-all duration-300 shadow-md hover:shadow-lg"
+            : "bg-white text-black font-semibold hover:bg-white/90 transition-all duration-300 shadow-md hover:shadow-lg px-8 py-4"
+        }`}
+      >
+        {isConnecting ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Wallet className="h-4 w-4" />
+        )}
+        Connect Wallet
+      </Button>
     );
   }
 
