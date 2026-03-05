@@ -2,7 +2,7 @@
  * Agent API Key Authentication Utilities
  * Mirrors bearer-auth.ts for AI agent programmatic access
  *
- * Key format: orbk_<64-char-hex>
+ * Key format: usdp_<64-char-hex>
  * Stored as SHA-256 hash only — raw key is shown once on creation
  */
 
@@ -36,9 +36,9 @@ export function hashApiKey(rawKey: string): string {
  */
 export function generateAgentApiKey(): { rawKey: string; keyHash: string; keyPrefix: string } {
   const hex = randomBytes(32).toString('hex');
-  const rawKey = `orbk_${hex}`;
+  const rawKey = `usdp_${hex}`;
   const keyHash = hashApiKey(rawKey);
-  const keyPrefix = `orbk_${hex.slice(0, 8)}...`;
+  const keyPrefix = `usdp_${hex.slice(0, 8)}...`;
   return { rawKey, keyHash, keyPrefix };
 }
 
@@ -73,7 +73,7 @@ export async function verifyAgentKey(rawKey: string): Promise<AgentAuthResult> {
     }
 
     // Validate key format
-    if (!rawKey.startsWith('orbk_') || rawKey.length !== 69) {
+    if (!rawKey.startsWith('usdp_') || rawKey.length !== 69) {
       return { valid: false, error: 'Invalid API key format' };
     }
 
