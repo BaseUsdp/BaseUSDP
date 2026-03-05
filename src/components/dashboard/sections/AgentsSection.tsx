@@ -636,14 +636,14 @@ const AgentsSection = () => {
         icon: "ph:key-bold",
         color: "text-yellow-400",
         title: "Generate an API Key",
-        description: "Go to your agent's Keys tab → click \"Generate New Key\" → copy the key (orbk_...). Save it somewhere — it's shown once only.",
+        description: "Go to your agent's Keys tab → click \"Generate New Key\" → copy the key. Save it somewhere — it's shown once only.",
       },
       {
         num: 2,
         icon: "ph:wallet-bold",
         color: "text-emerald-400",
         title: "Make sure you have pool balance",
-        description: "You need funds deposited in your ORB dashboard. If your balance is 0, deposit some USDC first via the Deposit flow.",
+        description: "You need funds deposited in your dashboard. If your balance is 0, deposit some USDC first via the Deposit flow.",
       },
       {
         num: 3,
@@ -652,7 +652,7 @@ const AgentsSection = () => {
         title: "Test: Check Balance",
         description: "The API key identifies your agent — no agent ID needed in the URL. You should get back your pool balance.",
         code: `curl ${baseUrl}/api/agents/balance \\
-  -H "X-Agent-Key: orbk_your_key_here"`,
+  -H "X-Agent-Key: your_api_key_here"`,
       },
       {
         num: 4,
@@ -661,7 +661,7 @@ const AgentsSection = () => {
         title: "Test: Send a Transfer",
         description: "Start with a small amount (e.g., $1). \"to\" accepts a username or 0x address. If successful, you'll get a tx hash back.",
         code: `curl -X POST ${baseUrl}/api/agents/transfer \\
-  -H "X-Agent-Key: orbk_your_key_here" \\
+  -H "X-Agent-Key: your_api_key_here" \\
   -H "Content-Type: application/json" \\
   -d '{
     "to": "username_or_0xAddress",
@@ -676,7 +676,7 @@ const AgentsSection = () => {
         title: "Test: Policy Enforcement",
         description: "Set your policy to something low (e.g., max per tx = $5, daily limit = $10), then try sending more than allowed. This should get blocked by the spending policy.",
         code: `curl -X POST ${baseUrl}/api/agents/transfer \\
-  -H "X-Agent-Key: orbk_your_key_here" \\
+  -H "X-Agent-Key: your_api_key_here" \\
   -H "Content-Type: application/json" \\
   -d '{
     "to": "0xSomeAddress",
@@ -691,7 +691,7 @@ const AgentsSection = () => {
         title: "Test: Check Spending Logs",
         description: "You should see both the successful and blocked attempts logged.",
         code: `curl ${baseUrl}/api/agents/logs \\
-  -H "X-Agent-Key: orbk_your_key_here"`,
+  -H "X-Agent-Key: your_api_key_here"`,
       },
     ];
 
@@ -739,7 +739,7 @@ const AgentsSection = () => {
           </div>
           <p className="text-sm text-muted-foreground">
             You can run all of these from your terminal (Git Bash, PowerShell, or any CLI).
-            Replace <code className="bg-secondary px-1.5 py-0.5 rounded font-mono text-xs">YOUR_AGENT_ID</code> and <code className="bg-secondary px-1.5 py-0.5 rounded font-mono text-xs">orbk_your_key_here</code> with your actual values.
+            Replace <code className="bg-secondary px-1.5 py-0.5 rounded font-mono text-xs">YOUR_AGENT_ID</code> and <code className="bg-secondary px-1.5 py-0.5 rounded font-mono text-xs">your_api_key_here</code> with your actual values.
           </p>
         </motion.div>
       </motion.div>
