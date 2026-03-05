@@ -629,7 +629,7 @@ const AgentsSection = () => {
 
   // Docs View
   if (view === "docs") {
-    const baseUrl = "https://www.orb402.com";
+    const baseUrl = "https://www.baseusdp.com";
     const steps = [
       {
         num: 1,

@@ -268,7 +268,7 @@ const DashboardRightSidebar = ({ showBalance, onNavigateToPaymentsTab }: Dashboa
             </div>
           ) : castMentions.length === 0 ? (
             <p className="text-[11px] py-2" style={{ color: 'var(--dash-text-muted)' }}>
-              No @orb402 mentions yet
+              No @baseusdp mentions yet
             </p>
           ) : (
             <div className="space-y-1.5">
