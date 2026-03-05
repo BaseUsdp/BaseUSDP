@@ -22,8 +22,6 @@ const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 const ALLOWED_ORIGINS = [
   "https://void402.com",
   "https://www.void402.com",
-  "https://orb402.com",
-  "https://www.orb402.com",
   "https://baseusdp.com",
   "https://www.baseusdp.com",
   "http://localhost:5173",
@@ -31,10 +29,8 @@ const ALLOWED_ORIGINS = [
 ];
 
 function getAllowedOrigin(origin: string | undefined): string {
-  if (!origin) return "https://www.orb402.com";
   if (ALLOWED_ORIGINS.includes(origin)) return origin;
   if (origin.match(/^https:\/\/code-whisperer-33[\w-]*\.vercel\.app/)) return origin;
-  return "https://www.orb402.com";
 }
 
 /**
@@ -113,7 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Construct the signed message
-    const message = `Sign this message to authenticate with ORB402.\n\nNonce: ${nonce}\n\nThis signature will not trigger any blockchain transaction.`;
+    const message = `Sign this message to authenticate with BASEUSDP.\n\nNonce: ${nonce}\n\nThis signature will not trigger any blockchain transaction.`;
 
     // Verify signature based on chain
     let valid = false;

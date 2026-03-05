@@ -53,8 +53,6 @@ const UPLOAD_PROOF_DISCRIMINATOR = Buffer.from([57, 235, 171, 213, 237, 91, 79, 
 const ALLOWED_ORIGINS = [
   "https://void402.com",
   "https://www.void402.com",
-  "https://orb402.com",
-  "https://www.orb402.com",
   "https://baseusdp.com",
   "https://www.baseusdp.com",
   "http://localhost:5173",
@@ -62,10 +60,8 @@ const ALLOWED_ORIGINS = [
 ];
 
 function getAllowedOrigin(origin: string | undefined): string {
-  if (!origin) return "https://www.orb402.com";
   if (ALLOWED_ORIGINS.includes(origin)) return origin;
   if (origin.match(/^https:\/\/code-whisperer-33[\w-]*\.vercel\.app/)) return origin;
-  return "https://www.orb402.com";
 }
 
 function buildInternalTransferInstruction({

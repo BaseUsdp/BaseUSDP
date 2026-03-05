@@ -104,7 +104,7 @@ const WalletConnectOverlay = ({ isOpen, onClose }: WalletConnectOverlayProps) =>
                         Connect Your Wallet
                       </h2>
                       <p className="text-white/50 mb-8 leading-relaxed">
-                        Connect your wallet to access the ORB402 Terminal. 
+                        Connect your wallet to access the BASEUSDP Terminal. 
                         Experience encrypted balances, confidential payments, and privacy-first 
                         financial tools.
                       </p>
@@ -154,7 +154,7 @@ const WalletConnectOverlay = ({ isOpen, onClose }: WalletConnectOverlayProps) =>
                         Select Wallet
                       </h2>
                       <p className="text-sm text-white/40">
-                        Choose a wallet to connect to ORB402
+                        Choose a wallet to connect to BASEUSDP
                       </p>
                     </div>
 
