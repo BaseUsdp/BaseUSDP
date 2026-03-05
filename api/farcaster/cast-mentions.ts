@@ -2,7 +2,7 @@
  * Farcaster Cast Mentions API
  * GET /api/farcaster/cast-mentions
  *
- * Returns recent @orb402 mentions from the cast_payments table.
+ * Returns recent @baseusdp mentions from the cast_payments table.
  * Used by the dashboard to show Farcaster activity.
  */
 

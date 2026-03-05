@@ -71,7 +71,7 @@ export default function MiniAppSettings() {
               Cast Payments
             </h3>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Send payments by mentioning @orb402 in a cast
+              Send payments by mentioning @baseusdp in a cast
             </p>
           </div>
           <button
@@ -111,7 +111,7 @@ export default function MiniAppSettings() {
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
               <p className="text-xs text-amber-300/90">
                 When enabled, anyone can trigger a payment from your account by
-                casting <span className="font-mono">@orb402 send [amount] USDC to @{farcasterUsername || "you"}</span>.
+                casting <span className="font-mono">@baseusdp send [amount] USDC to @{farcasterUsername || "you"}</span>.
                 Payments are private and processed via ZK proofs.
               </p>
             </div>

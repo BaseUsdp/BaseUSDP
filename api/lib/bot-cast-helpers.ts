@@ -1,6 +1,6 @@
 /**
  * Bot Cast Helpers
- * Shared utilities for proactive @orb402 bot casts:
+ * Shared utilities for proactive @baseusdp bot casts:
  * publishing + logging to bot_casts, and dedup/rate-limit checks.
  */
 

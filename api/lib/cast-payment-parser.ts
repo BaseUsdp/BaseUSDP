@@ -3,10 +3,10 @@
  * Pure function that extracts payment commands from Farcaster cast text.
  *
  * Supported formats:
- *   @orb402 send 5 USDC to @alice
- *   @orb402 pay @bob 10
- *   @orb402 tip @charlie 2.50
- *   @orb402 send @alice 5 USDT
+ *   @baseusdp send 5 USDC to @alice
+ *   @baseusdp pay @bob 10
+ *   @baseusdp tip @charlie 2.50
+ *   @baseusdp send @alice 5 USDT
  */
 
 export interface ParsedCastPayment {
@@ -28,17 +28,17 @@ export function parseCastPayment(text: string): ParsedCastPayment | null {
   // Normalize whitespace
   const normalized = text.replace(/\s+/g, " ").trim();
 
-  // Pattern 1: @orb402 send 5 USDC to @alice
-  //            @orb402 pay 10 USDT to @bob
-  //            @orb402 tip 2.50 to @charlie
+  // Pattern 1: @baseusdp send 5 USDC to @alice
+  //            @baseusdp pay 10 USDT to @bob
+  //            @baseusdp tip 2.50 to @charlie
   const patternAmountFirst =
-    /(?:^|\s)@orb402\s+(?:send|pay|tip)\s+(\d+(?:\.\d{1,2})?)\s*(USDC|USDT)?\s+to\s+@(\w+)/i;
+    /(?:^|\s)@baseusdp\s+(?:send|pay|tip)\s+(\d+(?:\.\d{1,2})?)\s*(USDC|USDT)?\s+to\s+@(\w+)/i;
 
-  // Pattern 2: @orb402 pay @bob 10
-  //            @orb402 send @alice 5 USDT
-  //            @orb402 tip @charlie 2.50 USDC
+  // Pattern 2: @baseusdp pay @bob 10
+  //            @baseusdp send @alice 5 USDT
+  //            @baseusdp tip @charlie 2.50 USDC
   const patternRecipientFirst =
-    /(?:^|\s)@orb402\s+(?:send|pay|tip)\s+@(\w+)\s+(\d+(?:\.\d{1,2})?)\s*(USDC|USDT)?/i;
+    /(?:^|\s)@baseusdp\s+(?:send|pay|tip)\s+@(\w+)\s+(\d+(?:\.\d{1,2})?)\s*(USDC|USDT)?/i;
 
   let recipientUsername: string;
   let amountStr: string;

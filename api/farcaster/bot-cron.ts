@@ -1,5 +1,5 @@
 /**
- * Bot Cron — Proactive @orb402 casts
+ * Bot Cron — Proactive @baseusdp casts
  * GET /api/farcaster/bot-cron
  *
  * Runs every 4 hours via Vercel cron. Each handler checks dedup
@@ -24,25 +24,25 @@ const supabaseKey =
 // ── Cast content arrays ──
 
 const PRIVACY_TIPS = [
-  "Privacy tip: ORB402 payments never reveal amounts on-chain. Your financial data stays yours.",
-  "Privacy tip: When you send via @orb402, only sender and receiver know the details. No public ledger trail.",
-  "Privacy tip: Traditional payments expose your balance and history. ORB402 doesn't. That's the point.",
-  "Privacy tip: Every @orb402 payment is shielded by default. No opt-in required, privacy is the standard.",
-  "Privacy tip: Your spending patterns are valuable data. ORB402 ensures no one can harvest them.",
-  "Privacy tip: On ORB402, payment confirmations never include amounts. Privacy isn't a feature, it's the architecture.",
-  "Privacy tip: Financial surveillance starts with transparent transactions. ORB402 ends it with private ones.",
+  "Privacy tip: BASEUSDP payments never reveal amounts on-chain. Your financial data stays yours.",
+  "Privacy tip: When you send via @baseusdp, only sender and receiver know the details. No public ledger trail.",
+  "Privacy tip: Traditional payments expose your balance and history. BASEUSDP doesn't. That's the point.",
+  "Privacy tip: Every @baseusdp payment is shielded by default. No opt-in required, privacy is the standard.",
+  "Privacy tip: Your spending patterns are valuable data. BASEUSDP ensures no one can harvest them.",
+  "Privacy tip: On BASEUSDP, payment confirmations never include amounts. Privacy isn't a feature, it's the architecture.",
+  "Privacy tip: Financial surveillance starts with transparent transactions. BASEUSDP ends it with private ones.",
 ];
 
 const FEATURE_ANNOUNCEMENTS = [
-  "Did you know? You can send private payments right from a Farcaster cast. Just tag @orb402 with the amount and recipient.",
-  "ORB402 runs on Base with confidential transfers. Fast, cheap, private. The way payments should be.",
-  "Send payments to any Farcaster user — even if they haven't signed up yet. They'll claim it when they join ORB402.",
-  "ORB402 supports USDC payments via cast. More tokens coming soon. Privacy for every payment.",
+  "Did you know? You can send private payments right from a Farcaster cast. Just tag @baseusdp with the amount and recipient.",
+  "BASEUSDP runs on Base with confidential transfers. Fast, cheap, private. The way payments should be.",
+  "Send payments to any Farcaster user — even if they haven't signed up yet. They'll claim it when they join BASEUSDP.",
+  "BASEUSDP supports USDC payments via cast. More tokens coming soon. Privacy for every payment.",
 ];
 
 const ENGAGEMENT_PROMPTS = [
   "What's the #1 reason you care about financial privacy? Reply below 👇",
-  "Tag a friend who should try private payments on Farcaster. @orb402 makes it easy.",
+  "Tag a friend who should try private payments on Farcaster. @baseusdp makes it easy.",
   "If every payment you've ever made was public, would you change your behavior? That's why privacy matters.",
 ];
 
@@ -59,7 +59,7 @@ async function handleDailyStats(supabase: any): Promise<string | null> {
     .gte("created_at", yesterday.toISOString());
 
   const txCount = count || 0;
-  const content = `24h on ORB402: ${txCount} private payments processed. Privacy is the standard.`;
+  const content = `24h on BASEUSDP: ${txCount} private payments processed. Privacy is the standard.`;
   return recordBotCast(supabase, "daily_stats", content, { count: txCount });
 }
 
@@ -89,7 +89,7 @@ async function handleMilestones(supabase: any): Promise<string | null> {
 
   if (existing && existing.length > 0) return null;
 
-  const content = `Milestone: ${milestone} private transactions completed on ORB402. Privacy scales.`;
+  const content = `Milestone: ${milestone} private transactions completed on BASEUSDP. Privacy scales.`;
   return recordBotCast(supabase, "milestone", content, { milestone });
 }
 
@@ -109,7 +109,7 @@ async function handleUptime(supabase: any): Promise<string | null> {
   if (await wasCastToday(supabase, "uptime")) return null;
 
   const content =
-    "ORB402 is live and processing private payments on Base. Status: operational.";
+    "BASEUSDP is live and processing private payments on Base. Status: operational.";
   return recordBotCast(supabase, "uptime", content);
 }
 
@@ -143,7 +143,7 @@ async function handleWeeklyRecap(supabase: any): Promise<string | null> {
     .select("*", { count: "exact", head: true })
     .gte("created_at", weekAgo.toISOString());
 
-  const content = `This week on ORB402: ${userCount || 0} users sent ${txCount || 0} private payments via cast. Privacy is growing.`;
+  const content = `This week on BASEUSDP: ${userCount || 0} users sent ${txCount || 0} private payments via cast. Privacy is growing.`;
   return recordBotCast(supabase, "weekly_recap", content, {
     userCount: userCount || 0,
     txCount: txCount || 0,

@@ -4,7 +4,7 @@
  *
  * Returns a dynamically generated SVG image for cast embeds.
  * NEVER reveals: amount, recipient, wallet address, sender identity.
- * Shows only: "Payment Request on ORB402" + service name (if provided).
+ * Shows only: "Payment Request on BASEUSDP" + service name (if provided).
  */
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
@@ -70,7 +70,7 @@ export default async function handler(
   <text x="600" y="380" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"
         font-size="36" font-weight="700" fill="#ffffff">${escapeXml(serviceName)}</text>
   <text x="600" y="430" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"
-        font-size="20" fill="#a1a1aa">on ORB402</text>
+        font-size="20" fill="#a1a1aa">on BASEUSDP</text>
   <!-- Footer -->
   <text x="600" y="560" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"
         font-size="16" fill="#52525b">Privacy-First Payments</text>

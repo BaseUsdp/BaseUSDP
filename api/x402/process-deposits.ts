@@ -273,7 +273,7 @@ async function checkAndCompleteBridge(
               recordBotCast(
                 supabase,
                 "deposit_confirm",
-                "A new user just funded their ORB402 wallet. Privacy is the default."
+                "A new user just funded their BASEUSDP wallet. Privacy is the default."
               );
             }
           })

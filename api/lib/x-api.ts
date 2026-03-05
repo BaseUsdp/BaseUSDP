@@ -86,7 +86,7 @@ export interface XUser {
 }
 
 /**
- * Fetch recent mentions of the @orb402 bot account.
+ * Fetch recent mentions of the @baseusdp bot account.
  * Uses Bearer token auth (app-level read access).
  */
 export async function fetchMentions(sinceId?: string): Promise<{
@@ -140,7 +140,7 @@ export async function fetchMentions(sinceId?: string): Promise<{
 }
 
 /**
- * Post a reply tweet from the @orb402 bot account.
+ * Post a reply tweet from the @baseusdp bot account.
  * Uses OAuth 1.0a user-context auth.
  */
 export async function replyTweet(

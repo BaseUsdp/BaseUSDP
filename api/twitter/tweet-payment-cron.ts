@@ -2,7 +2,7 @@
  * Twitter/X Mention Payment Cron Handler
  * GET /api/twitter/tweet-payment-cron
  *
- * Triggered by Vercel cron every 1 minute. Polls X API for new @orb402 mentions,
+ * Triggered by Vercel cron every 1 minute. Polls X API for new @baseusdp mentions,
  * parses payment commands, executes ZK transfers, and replies with confirmations.
  *
  * PRIVACY: Reply tweets never reveal amounts, wallets, or financial details.
@@ -148,7 +148,7 @@ async function processMention(
   if (!senderUser || !senderUser.tweet_payments_enabled) {
     const replyId = await replyTweet(
       tweetId,
-      `@${authorUsername} Tweet payments aren't enabled. Enable them at orb402.com/dashboard.`
+      `@${authorUsername} Tweet payments aren't enabled. Enable them at baseusdp.com/dashboard.`
     );
     await updateTweetPayment(supabase, tweetId, {
       status: "failed",
@@ -214,10 +214,10 @@ async function processMention(
     return "processed";
   }
 
-  // Resolve recipient — try ORB402 username first, then x_users by username
+  // Resolve recipient — try BASEUSDP username first, then x_users by username
   let recipientWallet: string | null = null;
 
-  // Try ORB402 user_profiles first
+  // Try BASEUSDP user_profiles first
   const { data: orb402Profile } = await supabase
     .from("user_profiles")
     .select("wallet_address, username")
@@ -227,7 +227,7 @@ async function processMention(
   if (orb402Profile?.wallet_address) {
     recipientWallet = orb402Profile.wallet_address;
     console.log(
-      `[TweetPaymentCron] Resolved as ORB402 user: ${orb402Profile.username} → ${recipientWallet!.slice(0, 10)}...`
+      `[TweetPaymentCron] Resolved as BASEUSDP user: ${orb402Profile.username} → ${recipientWallet!.slice(0, 10)}...`
     );
   } else {
     // Fall back to x_users by username
@@ -245,7 +245,7 @@ async function processMention(
     } else {
       const replyId = await replyTweet(
         tweetId,
-        `@${authorUsername} @${parsed.recipientUsername} doesn't have an ORB402 account yet. They need to sign up at orb402.com first.`
+        `@${authorUsername} @${parsed.recipientUsername} doesn't have an BASEUSDP account yet. They need to sign up at baseusdp.com first.`
       );
       await updateTweetPayment(supabase, tweetId, {
         status: "failed",
@@ -279,7 +279,7 @@ async function processMention(
       errorMsg.toLowerCase().includes("insufficient") ||
       errorMsg.toLowerCase().includes("balance");
     const replyText = isBalance
-      ? `@${authorUsername} Unable to process — check your ORB402 balance.`
+      ? `@${authorUsername} Unable to process — check your BASEUSDP balance.`
       : `@${authorUsername} Unable to process your payment. Please try again later.`;
 
     const replyId = await replyTweet(tweetId, replyText);
@@ -294,7 +294,7 @@ async function processMention(
   // Reply with privacy-safe confirmation
   const replyId = await replyTweet(
     tweetId,
-    `@${parsed.recipientUsername} received a private payment from @${authorUsername} via ORB402`
+    `@${parsed.recipientUsername} received a private payment from @${authorUsername} via BASEUSDP`
   );
 
   await updateTweetPayment(supabase, tweetId, {

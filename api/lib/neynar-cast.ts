@@ -1,13 +1,13 @@
 /**
  * Neynar Cast Publishing Utility
- * Publishes reply casts from the @orb402 bot account via Neynar managed signer.
+ * Publishes reply casts from the @baseusdp bot account via Neynar managed signer.
  */
 
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY || "";
 const NEYNAR_BOT_SIGNER_UUID = process.env.NEYNAR_BOT_SIGNER_UUID || "";
 
 /**
- * Reply to a cast with text from the @orb402 bot account.
+ * Reply to a cast with text from the @baseusdp bot account.
  * Returns the published cast hash on success, or null on failure.
  */
 export async function replyCast(
@@ -50,7 +50,7 @@ export async function replyCast(
 }
 
 /**
- * Publish a top-level cast (not a reply) from the @orb402 bot account.
+ * Publish a top-level cast (not a reply) from the @baseusdp bot account.
  * Returns the published cast hash on success, or null on failure.
  */
 export async function publishCast(text: string): Promise<string | null> {

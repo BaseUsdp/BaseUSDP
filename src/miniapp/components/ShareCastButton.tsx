@@ -1,7 +1,7 @@
 /**
  * Share Cast Button
  * Composes a privacy-safe Farcaster cast after a successful payment
- * Default text: "Sent a private payment via ORB402" (no amount, no recipient)
+ * Default text: "Sent a private payment via BASEUSDP" (no amount, no recipient)
  * Uses dynamic import to avoid crashes outside Farcaster iframe
  */
 
@@ -15,7 +15,7 @@ interface ShareCastButtonProps {
 
 export function ShareCastButton({
   paymentId,
-  text = "Sent a private payment via ORB402",
+  text = "Sent a private payment via BASEUSDP",
   className = "",
 }: ShareCastButtonProps) {
   const handleShare = async () => {

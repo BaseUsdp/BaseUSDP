@@ -2,7 +2,7 @@
  * Cast-Based Payment Webhook Handler
  * POST /api/farcaster/cast-payment
  *
- * Receives Neynar webhooks for @orb402 mentions, parses payment commands,
+ * Receives Neynar webhooks for @baseusdp mentions, parses payment commands,
  * executes ZK transfers, and replies with privacy-safe confirmations.
  *
  * PRIVACY: Reply casts never reveal amounts, wallets, or financial details.
@@ -137,7 +137,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!senderUser || !senderUser.cast_payments_enabled) {
       const replyHash = await replyCast(
         castHash,
-        `@${authorUsername} Cast payments aren't enabled. Enable them in ORB402 Mini App.`
+        `@${authorUsername} Cast payments aren't enabled. Enable them in BASEUSDP Mini App.`
       );
       await updateCastPayment(supabase, castHash, {
         status: "failed",
@@ -198,11 +198,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ ok: true, status: "daily_limit" });
     }
 
-    // 8. Resolve recipient — try ORB402 username first, then Farcaster username
+    // 8. Resolve recipient — try BASEUSDP username first, then Farcaster username
     let recipientWallet: string | null = null;
     let recipientFid: number | null = null;
 
-    // Try ORB402 username lookup first
+    // Try BASEUSDP username lookup first
     const { data: orb402Profile } = await supabase
       .from("user_profiles")
       .select("wallet_address, username")
@@ -211,14 +211,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (orb402Profile?.wallet_address) {
       recipientWallet = orb402Profile.wallet_address;
-      console.log(`[CastPayment] Resolved as ORB402 user: ${orb402Profile.username} → ${recipientWallet.slice(0, 10)}...`);
+      console.log(`[CastPayment] Resolved as BASEUSDP user: ${orb402Profile.username} → ${recipientWallet.slice(0, 10)}...`);
     } else {
       // Fall back to Farcaster username
       try {
         const farcasterData = await resolveFarcasterUsername(parsed.recipientUsername);
         recipientFid = farcasterData.fid;
 
-        // Check if this Farcaster user has an ORB402 account
+        // Check if this Farcaster user has an BASEUSDP account
         const { data: fcProfile } = await supabase
           .from("user_profiles")
           .select("wallet_address")
@@ -231,7 +231,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } else {
           const replyHash = await replyCast(
             castHash,
-            `@${authorUsername} @${parsed.recipientUsername} doesn't have an ORB402 account yet. They need to sign up at orb402.com first.`
+            `@${authorUsername} @${parsed.recipientUsername} doesn't have an BASEUSDP account yet. They need to sign up at baseusdp.com first.`
           );
           await updateCastPayment(supabase, castHash, {
             status: "failed",
@@ -243,7 +243,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } catch (resolveErr: any) {
         const replyHash = await replyCast(
           castHash,
-          `@${authorUsername} Could not find @${parsed.recipientUsername} on ORB402 or Farcaster.`
+          `@${authorUsername} Could not find @${parsed.recipientUsername} on BASEUSDP or Farcaster.`
         );
         await updateCastPayment(supabase, castHash, {
           status: "failed",
@@ -276,7 +276,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const errorMsg = transferResult.error || "Transfer failed";
       const isBalance = errorMsg.toLowerCase().includes("insufficient") || errorMsg.toLowerCase().includes("balance");
       const replyText = isBalance
-        ? `@${authorUsername} Unable to process — check your ORB402 balance.`
+        ? `@${authorUsername} Unable to process — check your BASEUSDP balance.`
         : `@${authorUsername} Unable to process your payment. Please try again later.`;
 
       const replyHash = await replyCast(castHash, replyText);
@@ -291,7 +291,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 10. Reply with privacy-safe confirmation
     const replyHash = await replyCast(
       castHash,
-      `@${parsed.recipientUsername} received a private payment from @${authorUsername} via ORB402`
+      `@${parsed.recipientUsername} received a private payment from @${authorUsername} via BASEUSDP`
     );
 
     await updateCastPayment(supabase, castHash, {

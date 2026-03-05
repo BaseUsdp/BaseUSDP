@@ -70,7 +70,7 @@ export default async function handler(
     }
 
     // 1. Verify SIWF credential
-    const domain = process.env.FARCASTER_DOMAIN || "orb402.com";
+    const domain = process.env.FARCASTER_DOMAIN || "baseusdp.com";
     const { fid } = await verifySIWFCredential({
       message,
       signature,
@@ -113,7 +113,7 @@ export default async function handler(
             recordBotCast(
               supabase,
               "welcome",
-              `Welcome @${displayName} to ORB402! Send private payments by casting @orb402 send [amount] USDC to @friend`,
+              `Welcome @${displayName} to BASEUSDP! Send private payments by casting @baseusdp send [amount] USDC to @friend`,
               { username: displayName }
             );
           }

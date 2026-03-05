@@ -2,7 +2,7 @@
  * Twitter Tweet Mentions API
  * GET /api/twitter/tweet-mentions
  *
- * Returns recent @orb402 tweet payments from the tweet_payments table.
+ * Returns recent @baseusdp tweet payments from the tweet_payments table.
  * Used by the dashboard to show Twitter/X payment activity.
  */
 

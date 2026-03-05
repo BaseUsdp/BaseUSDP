@@ -28,19 +28,19 @@ const NOTIFICATION_TEMPLATES: Record<
   { title: string; body: string }
 > = {
   payment_received: {
-    title: "ORB402",
+    title: "BASEUSDP",
     body: "You received a private payment",
   },
   payment_settled: {
-    title: "ORB402",
+    title: "BASEUSDP",
     body: "Your payment request was settled",
   },
   payment_sent: {
-    title: "ORB402",
+    title: "BASEUSDP",
     body: "Your cast payment was sent successfully",
   },
   deposit_complete: {
-    title: "ORB402",
+    title: "BASEUSDP",
     body: "Your deposit is ready",
   },
 };
@@ -76,10 +76,10 @@ export async function sendFarcasterNotification(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        notificationId: `orb402_${eventType}_${Date.now()}`,
+        notificationId: `baseusdp_${eventType}_${Date.now()}`,
         title: template.title,
         body: template.body,
-        targetUrl: "https://orb402.com/miniapp",
+        targetUrl: "https://www.baseusdp.com/miniapp",
         tokens: [user.notification_token],
       }),
     });
