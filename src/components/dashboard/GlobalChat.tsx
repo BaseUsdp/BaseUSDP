@@ -1,5 +1,5 @@
 /**
- * GlobalChat — token-gated group chat for ORB402 users.
+ * GlobalChat — token-gated group chat for BASEUSDP users.
  * All users with a username can participate.
  * Future: will require $ORB token to send messages.
  */

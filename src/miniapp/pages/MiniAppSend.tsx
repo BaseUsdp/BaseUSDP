@@ -20,9 +20,9 @@ import farcasterApi from "../services/farcasterApi";
 type SendStep = "form" | "preview" | "signing" | "encrypting" | "success" | "failed";
 
 interface RecipientInfo {
-  type: "orb402" | "farcaster";
+  type: "baseusdp" | "farcaster";
   username: string;
-  orb402Username?: string;
+  baseusdpUsername?: string;
   hasDeposited?: boolean;
 }
 
@@ -69,7 +69,7 @@ export default function MiniAppSend() {
     try {
       // Build the transfer request
       const nonce = Date.now();
-      const messageToSign = `ORB402 Transfer: ${parsedAmount} ${token} | Nonce: ${nonce}`;
+      const messageToSign = `BASEUSDP Transfer: ${parsedAmount} ${token} | Nonce: ${nonce}`;
 
       // Sign with Farcaster wallet (lowercase for consistent DB matching)
       const accounts = await provider.request({ method: "eth_accounts" });
@@ -96,12 +96,12 @@ export default function MiniAppSend() {
         message_to_sign: messageToSign,
       };
 
-      // Use ORB402 username if available (for internal transfer), otherwise wallet
-      if (recipient.type === "orb402" || recipient.orb402Username) {
+      // Use BASEUSDP username if available (for internal transfer), otherwise wallet
+      if (recipient.type === "baseusdp" || recipient.baseusdpUsername) {
         transferParams.recipient_username =
-          recipient.orb402Username || recipient.username;
+          recipient.baseusdpUsername || recipient.username;
       } else {
-        // For Farcaster users without ORB402 account, use their Farcaster username
+        // For Farcaster users without BASEUSDP account, use their Farcaster username
         // The backend will handle resolution
         transferParams.recipient_username = `fc:${recipient.username}`;
       }

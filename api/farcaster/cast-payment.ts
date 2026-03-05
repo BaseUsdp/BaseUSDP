@@ -203,15 +203,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let recipientFid: number | null = null;
 
     // Try BASEUSDP username lookup first
-    const { data: orb402Profile } = await supabase
+    const { data: baseusdpProfile } = await supabase
       .from("user_profiles")
       .select("wallet_address, username")
       .ilike("username", parsed.recipientUsername)
       .maybeSingle();
 
-    if (orb402Profile?.wallet_address) {
-      recipientWallet = orb402Profile.wallet_address;
-      console.log(`[CastPayment] Resolved as BASEUSDP user: ${orb402Profile.username} → ${recipientWallet.slice(0, 10)}...`);
+    if (baseusdpProfile?.wallet_address) {
+      recipientWallet = baseusdpProfile.wallet_address;
+      console.log(`[CastPayment] Resolved as BASEUSDP user: ${baseusdpProfile.username} → ${recipientWallet.slice(0, 10)}...`);
     } else {
       // Fall back to Farcaster username
       try {
@@ -235,10 +235,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           );
           await updateCastPayment(supabase, castHash, {
             status: "failed",
-            error_message: "recipient_no_orb402_account",
+            error_message: "recipient_no_baseusdp_account",
             reply_cast_hash: replyHash,
           });
-          return res.status(200).json({ ok: true, status: "no_orb402_account" });
+          return res.status(200).json({ ok: true, status: "no_baseusdp_account" });
         }
       } catch (resolveErr: any) {
         const replyHash = await replyCast(

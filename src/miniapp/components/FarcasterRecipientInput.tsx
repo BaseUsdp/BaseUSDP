@@ -14,24 +14,24 @@ const API_BASE = getApiUrl();
 
 interface FarcasterRecipientInputProps {
   onRecipientResolved: (recipient: {
-    type: "orb402" | "farcaster";
+    type: "baseusdp" | "farcaster";
     username: string;
-    orb402Username?: string;
+    baseusdpUsername?: string;
     hasDeposited?: boolean;
   } | null) => void;
 }
 
-type InputMode = "orb402" | "farcaster";
+type InputMode = "baseusdp" | "farcaster";
 
 export function FarcasterRecipientInput({
   onRecipientResolved,
 }: FarcasterRecipientInputProps) {
-  const [mode, setMode] = useState<InputMode>("orb402");
+  const [mode, setMode] = useState<InputMode>("baseusdp");
   const [inputValue, setInputValue] = useState("");
   const [isResolving, setIsResolving] = useState(false);
   const [resolveResult, setResolveResult] = useState<{
     found: boolean;
-    orb402Username?: string | null;
+    baseusdpUsername?: string | null;
     hasDeposited?: boolean;
     walletHint?: string | null;
     error?: string;
@@ -54,7 +54,7 @@ export function FarcasterRecipientInput({
       setIsResolving(true);
 
       try {
-        if (mode === "orb402") {
+        if (mode === "baseusdp") {
           // Verify BASEUSDP username via /api/user/lookup (same as website)
           const response = await fetch(
             `${API_BASE}/api/user/lookup?username=${encodeURIComponent(username)}`
@@ -68,7 +68,7 @@ export function FarcasterRecipientInput({
               walletHint: data.wallet_hint || null,
             });
             onRecipientResolved({
-              type: "orb402",
+              type: "baseusdp",
               username,
               hasDeposited: data.has_deposited !== false,
             });
@@ -80,7 +80,7 @@ export function FarcasterRecipientInput({
           const result = await farcasterApi.resolveFarcasterUser(username);
           setResolveResult({
             found: result.found,
-            orb402Username: result.orb402Username,
+            baseusdpUsername: result.baseusdpUsername,
             hasDeposited: result.hasDeposited,
           });
 
@@ -88,7 +88,7 @@ export function FarcasterRecipientInput({
             onRecipientResolved({
               type: "farcaster",
               username,
-              orb402Username: result.orb402Username || undefined,
+              baseusdpUsername: result.baseusdpUsername || undefined,
               hasDeposited: result.hasDeposited,
             });
           }
@@ -111,11 +111,11 @@ export function FarcasterRecipientInput({
       <div className="flex gap-1 p-0.5 bg-zinc-800 rounded-lg">
         <button
           onClick={() => {
-            setMode("orb402");
+            setMode("baseusdp");
             setInputValue("");
           }}
           className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            mode === "orb402"
+            mode === "baseusdp"
               ? "bg-indigo-600 text-white"
               : "text-zinc-400 hover:text-zinc-300"
           }`}
@@ -145,7 +145,7 @@ export function FarcasterRecipientInput({
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           placeholder={
-            mode === "orb402" ? "Enter BASEUSDP username" : "Enter Farcaster username"
+            mode === "baseusdp" ? "Enter BASEUSDP username" : "Enter Farcaster username"
           }
           className="w-full pl-9 pr-10 py-2.5 bg-zinc-800/50 border border-zinc-700/50 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500/50"
         />
@@ -174,14 +174,14 @@ export function FarcasterRecipientInput({
           }`}
         >
           {resolveResult.found
-            ? mode === "orb402"
+            ? mode === "baseusdp"
               ? resolveResult.hasDeposited === false
                 ? "User found but hasn't deposited yet"
                 : `User verified${resolveResult.walletHint ? ` (${resolveResult.walletHint})` : ""}`
-              : resolveResult.orb402Username
-                ? `BASEUSDP user: ${resolveResult.orb402Username} (${resolveResult.hasDeposited ? "has funds" : "no deposits yet"})`
+              : resolveResult.baseusdpUsername
+                ? `BASEUSDP user: ${resolveResult.baseusdpUsername} (${resolveResult.hasDeposited ? "has funds" : "no deposits yet"})`
                 : "Found on Farcaster (no BASEUSDP account yet)"
-            : resolveResult.error || (mode === "orb402" ? "Username not found" : "Farcaster user not found")}
+            : resolveResult.error || (mode === "baseusdp" ? "Username not found" : "Farcaster user not found")}
         </div>
       )}
     </div>

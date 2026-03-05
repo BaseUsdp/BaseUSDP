@@ -2,7 +2,7 @@
  * Farcaster User Resolution
  * GET /api/farcaster/resolve-fid?username={farcaster_username}
  *
- * Privacy-safe: returns only { found, orb402Username, hasDeposited }
+ * Privacy-safe: returns only { found, baseusdpUsername, hasDeposited }
  * NEVER returns wallet addresses.
  */
 
@@ -60,7 +60,7 @@ export default async function handler(
     // Resolve Farcaster username → FID → wallet
     const { walletAddress } = await resolveFarcasterUsername(username);
 
-    // Check if this wallet exists in user_profiles (has ORB402 account)
+    // Check if this wallet exists in user_profiles (has BASEUSDP account)
     const { data: profile } = await supabase
       .from("user_profiles")
       .select("username")
@@ -81,14 +81,14 @@ export default async function handler(
     // Privacy-safe response: NO wallet address
     return res.status(200).json({
       found: true,
-      orb402Username: profile?.username || null,
+      baseusdpUsername: profile?.username || null,
       hasDeposited,
     });
   } catch (error: any) {
     // User not found on Farcaster or no verified address
     return res.status(200).json({
       found: false,
-      orb402Username: null,
+      baseusdpUsername: null,
       hasDeposited: false,
     });
   }

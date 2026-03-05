@@ -1,7 +1,7 @@
 /**
  * Bottom Navigation Bar for Mini App
  * 4 tabs: Home, Send, History, Settings
- * Uses Lucide icons, matches ORB402 dark theme
+ * Uses Lucide icons, matches BASEUSDP dark theme
  */
 
 import { useLocation, useNavigate } from "react-router-dom";
