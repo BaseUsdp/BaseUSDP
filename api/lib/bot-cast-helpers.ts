@@ -16,7 +16,7 @@ export async function recordBotCast(
   content: string,
   metadata: Record<string, any> = {}
 ): Promise<string | null> {
-  const prefixedContent = `🤖 ${content}`;
+  const prefixedContent = content;
   console.log(`[BotCast] Publishing (${castType}): ${prefixedContent.slice(0, 80)}...`);
   const castHash = await publishCast(prefixedContent);
   console.log(`[BotCast] Result (${castType}): ${castHash ? `hash=${castHash}` : "FAILED"}`);

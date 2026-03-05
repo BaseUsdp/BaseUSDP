@@ -28,7 +28,7 @@ export async function replyCast(
       },
       body: JSON.stringify({
         signer_uuid: NEYNAR_BOT_SIGNER_UUID,
-        text,
+        text: `🤖 ${text}`,
         parent: parentCastHash,
       }),
     });
@@ -68,7 +68,7 @@ export async function publishCast(text: string): Promise<string | null> {
       },
       body: JSON.stringify({
         signer_uuid: NEYNAR_BOT_SIGNER_UUID,
-        text,
+        text: `🤖 ${text}`,
       }),
     });
 
