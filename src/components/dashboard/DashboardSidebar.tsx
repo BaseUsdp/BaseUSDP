@@ -13,7 +13,6 @@ const DashboardSidebar = ({ activeTab, setActiveTab }: DashboardSidebarProps) =>
     { id: "overview", icon: "ph:squares-four-bold", label: "Overview" },
     { id: "payments", icon: "ph:paper-plane-tilt-bold", label: "Payments" },
     { id: "yield", icon: "ph:trend-up-bold", label: "Yield Vaults" },
-    { id: "cards", icon: "ph:credit-card-bold", label: "Virtual Cards" },
     { id: "governance", icon: "ph:hand-fist-bold", label: "Governance" },
     { id: "settings", icon: "ph:gear-six-bold", label: "Settings" },
   ];

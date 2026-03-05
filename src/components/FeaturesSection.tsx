@@ -25,16 +25,7 @@ const features = [
     statLabel: "Settlement",
     description: "Send and receive payments with complete transaction privacy. Amounts, senders, and recipients stay hidden from public view.",
   },
-  {
-    id: "cards",
-    label: "Virtual Cards",
-    icon: "ph:credit-card-fill",
-    tag: "Cards",
-    stat: "∞",
-    statLabel: "Cards",
-    description: "Generate anonymous virtual cards for online purchases with spending limits, merchant locks, and instant freeze controls.",
-  },
-  {
+{
     id: "yield",
     label: "Yield Vaults",
     icon: "ph:chart-line-up-fill",
@@ -126,31 +117,6 @@ function PaymentsPreview() {
   );
 }
 
-function CardsPreview() {
-  return (
-    <div className="space-y-4">
-      <div className="relative rounded-xl overflow-hidden p-5 h-40" style={{ background: "linear-gradient(135deg, hsl(0 0% 10%), hsl(0 0% 18%))" }}>
-        <div className="absolute top-4 right-4 text-xs font-mono text-white/40">Virtual</div>
-        <div className="absolute bottom-5 left-5">
-          <div className="text-[10px] text-white/40 mb-1">Card Number</div>
-          <div className="text-sm font-mono text-white/80 tracking-widest">•••• •••• •••• 4291</div>
-        </div>
-        <div className="absolute bottom-5 right-5 text-right">
-          <div className="text-[10px] text-white/40 mb-1">Limit</div>
-          <div className="text-sm font-semibold text-white/80">$5,000</div>
-        </div>
-        <Icon icon="ph:credit-card-fill" className="absolute top-4 left-5 w-6 h-6 text-white/20" />
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        {["Freeze", "Top Up", "Settings"].map((action) => (
-          <div key={action} className="text-center py-2 rounded-lg border border-border bg-card text-[10px] font-medium text-muted-foreground">
-            {action}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function YieldPreview() {
   const vaults = [
@@ -194,7 +160,6 @@ function YieldPreview() {
 const previewComponents: Record<string, React.FC> = {
   balance: BalancePreview,
   payments: PaymentsPreview,
-  cards: CardsPreview,
   yield: YieldPreview,
 };
 

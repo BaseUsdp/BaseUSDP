@@ -70,7 +70,6 @@ const TermsAndConditions = () => {
               <li>Privacy-preserving cryptocurrency payment processing</li>
               <li>Zero-knowledge proof generation and verification</li>
               <li>Wallet connection and transaction management</li>
-              <li>Virtual card and anonymous payment solutions</li>
               <li>Dashboard and analytics tools</li>
             </ul>
           </section>

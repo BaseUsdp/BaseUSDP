@@ -29,7 +29,7 @@ const RoadmapSection = () => {
       quarter: "Q2 2026",
       icon: "ph:users-three-bold",
       progress: 0,
-      description: "Launch of the USDP Neobank with P2P payments, confidential savings, and virtual card management.",
+      description: "Launch of the USDP Neobank with P2P payments and confidential savings.",
       milestones: [
         { name: "Neobank App Launch", done: false },
         { name: "Partner Integrations", done: false },

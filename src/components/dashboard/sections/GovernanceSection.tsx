@@ -52,19 +52,6 @@ const GovernanceSection = ({ showBalance }: GovernanceSectionProps) => {
       author: "9hGt...2rYs",
       category: "Treasury"
     },
-    {
-      id: 4,
-      title: "VIP-004: Reduce Card Issuance Fee",
-      description: "Reduce the virtual card issuance fee from 1% to 0.5% to encourage adoption.",
-      status: "failed",
-      endTime: "Ended Jan 2",
-      votesFor: 35,
-      votesAgainst: 65,
-      quorum: 38,
-      requiredQuorum: 40,
-      author: "5kNb...4uVx",
-      category: "Fee Structure"
-    },
   ];
 
   const handleVote = (proposalId: number, vote: string) => {
