@@ -7,11 +7,11 @@
   "miniapp": {
     "version": "0.0.0",
     "name": "BASEUSDP Private Payments",
-    "homeUrl": "https://www.baseusdp.com/miniapp",
-    "iconUrl": "https://www.baseusdp.com/favicon-ORB.jpg",
-    "splashImageUrl": "https://www.baseusdp.com/social-preview.png",
+    "homeUrl": "https://baseusdp.com/miniapp",
+    "iconUrl": "https://baseusdp.com/favicon-ORB.jpg",
+    "splashImageUrl": "https://baseusdp.com/social-preview.png",
     "splashBackgroundColor": "#0a0a0a",
-    "webhookUrl": "https://www.baseusdp.com/api/farcaster/webhook",
+    "webhookUrl": "https://baseusdp.com/api/farcaster/webhook",
     "primaryCategory": "finance",
     "requiredChains": ["eip155:8453"]
   }

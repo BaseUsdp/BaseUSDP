@@ -25,7 +25,7 @@ export function ShareCastButton({
       const embeds: string[] = [];
 
       if (paymentId) {
-        embeds.push(`https://www.baseusdp.com/miniapp/pay/${paymentId}`);
+        embeds.push(`https://baseusdp.com/miniapp/pay/${paymentId}`);
       }
 
       await sdk.actions.composeCast({

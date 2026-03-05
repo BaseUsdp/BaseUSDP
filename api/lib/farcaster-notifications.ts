@@ -79,7 +79,7 @@ export async function sendFarcasterNotification(
         notificationId: `baseusdp_${eventType}_${Date.now()}`,
         title: template.title,
         body: template.body,
-        targetUrl: "https://www.baseusdp.com/miniapp",
+        targetUrl: "https://baseusdp.com/miniapp",
         tokens: [user.notification_token],
       }),
     });
