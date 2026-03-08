@@ -164,6 +164,7 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
               color,
               bgColor,
               agentName: (tx as any).agentName || null,
+              source: (tx as any).source || null,
             };
           });
           setRecentTransactions(converted);
@@ -540,6 +541,12 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
                         <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-400 font-medium">
                           <Icon icon="ph:robot-bold" className="w-3 h-3" />
                           {tx.agentName}
+                        </span>
+                      )}
+                      {tx.source === "x_bot" && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-400 font-medium">
+                          <Icon icon="ri:twitter-x-fill" className="w-3 h-3" />
+                          X Bot
                         </span>
                       )}
                     </div>
