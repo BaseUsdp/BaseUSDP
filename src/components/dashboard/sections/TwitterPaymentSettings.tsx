@@ -14,6 +14,7 @@ import {
   getTweetPaymentSettings,
   updateTweetPaymentSettings,
   unlinkTweetPaymentAccount,
+  startXOAuth,
 } from "@/services/twitterApi";
 
 const TwitterPaymentSettings = () => {
@@ -24,12 +25,23 @@ const TwitterPaymentSettings = () => {
   const [saving, setSaving] = useState(false);
   const [linked, setLinked] = useState(false);
   const [xUsername, setXUsername] = useState("");
-  const [inputUsername, setInputUsername] = useState("");
   const [enabled, setEnabled] = useState(false);
   const [dailyLimit, setDailyLimit] = useState(100);
 
   useEffect(() => {
     loadSettings();
+
+    // Check for OAuth redirect result
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("x_linked") === "true") {
+      toast({ title: "X account verified", description: "Your X account has been linked successfully." });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    const xError = params.get("x_error");
+    if (xError) {
+      toast({ title: "Link failed", description: xError.replace(/\+/g, " "), variant: "destructive" });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, []);
 
   async function loadSettings() {
@@ -48,19 +60,13 @@ const TwitterPaymentSettings = () => {
   }
 
   async function handleLinkAccount() {
-    if (!inputUsername.trim() || !fullWalletAddress) return;
+    if (!fullWalletAddress) return;
     setSaving(true);
     try {
-      await updateTweetPaymentSettings({
-        wallet: fullWalletAddress,
-        x_username: inputUsername.replace(/^@/, ""),
-      });
-      toast({ title: "X account linked", description: `@${inputUsername.replace(/^@/, "")} linked successfully.` });
-      await loadSettings();
-      setInputUsername("");
+      const { authorize_url } = await startXOAuth();
+      window.location.href = authorize_url;
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
       setSaving(false);
     }
   }
@@ -144,26 +150,23 @@ const TwitterPaymentSettings = () => {
             <code className="text-primary">@baseusdp send 5 USDC to @username</code>{" "}
             in a tweet to send a private payment.
           </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={inputUsername}
-              onChange={(e) => setInputUsername(e.target.value)}
-              placeholder="Your X username"
-              className="flex-1 px-3 py-2 rounded-xl border border-border bg-secondary/30 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
-            <Button
-              onClick={handleLinkAccount}
-              disabled={saving || !inputUsername.trim()}
-              className="bg-sky-500 hover:bg-sky-600"
-            >
-              {saving ? (
-                <Icon icon="ph:spinner" className="w-4 h-4 animate-spin" />
-              ) : (
-                "Link Account"
-              )}
-            </Button>
-          </div>
+          <Button
+            onClick={handleLinkAccount}
+            disabled={saving}
+            className="w-full bg-sky-500 hover:bg-sky-600"
+          >
+            {saving ? (
+              <>
+                <Icon icon="ph:spinner" className="w-4 h-4 mr-2 animate-spin" />
+                Redirecting to X...
+              </>
+            ) : (
+              <>
+                <Icon icon="ri:twitter-x-fill" className="w-4 h-4 mr-2" />
+                Verify & Link X Account
+              </>
+            )}
+          </Button>
         </div>
       ) : (
         <div className="space-y-4">

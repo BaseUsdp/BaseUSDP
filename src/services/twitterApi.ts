@@ -69,6 +69,10 @@ export interface TweetMentionsResponse {
 // API calls
 // ---------------------------------------------------------------------------
 
+export async function startXOAuth(): Promise<{ authorize_url: string }> {
+  return request("/api/twitter/oauth-start", { method: "POST" });
+}
+
 export async function getTweetPaymentSettings(): Promise<TweetPaymentSettings> {
   return request("/api/twitter/tweet-payment-settings");
 }
