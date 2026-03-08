@@ -66,22 +66,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // Exchange code for access token
-    const basicAuth = Buffer.from(
-      `${X_OAUTH_CLIENT_ID}:${X_OAUTH_CLIENT_SECRET}`
-    ).toString("base64");
+    const tokenBody: Record<string, string> = {
+      code,
+      grant_type: "authorization_code",
+      redirect_uri: REDIRECT_URI,
+      code_verifier: oauthState.code_verifier,
+      client_id: X_OAUTH_CLIENT_ID,
+    };
+
+    const tokenHeaders: Record<string, string> = {
+      "Content-Type": "application/x-www-form-urlencoded",
+    };
+
+    // Use Basic auth for confidential clients (client secret present)
+    if (X_OAUTH_CLIENT_SECRET) {
+      const basicAuth = Buffer.from(
+        `${X_OAUTH_CLIENT_ID}:${X_OAUTH_CLIENT_SECRET}`
+      ).toString("base64");
+      tokenHeaders.Authorization = `Basic ${basicAuth}`;
+    }
 
     const tokenResponse = await fetch("https://api.x.com/2/oauth2/token", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${basicAuth}`,
-      },
-      body: new URLSearchParams({
-        code,
-        grant_type: "authorization_code",
-        redirect_uri: REDIRECT_URI,
-        code_verifier: oauthState.code_verifier,
-      }).toString(),
+      headers: tokenHeaders,
+      body: new URLSearchParams(tokenBody).toString(),
     });
 
     if (!tokenResponse.ok) {
