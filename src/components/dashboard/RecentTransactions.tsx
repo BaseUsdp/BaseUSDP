@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { ArrowUpRight, ArrowDownLeft, Lock, CheckCircle2, Clock, XCircle, ExternalLink, Loader2 } from "lucide-react";
+import { Icon } from "@iconify/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -178,6 +179,12 @@ const RecentTransactions = ({ showBalance, limit = 5, onViewAll }: RecentTransac
                     {tx.type === "payment" && (
                       <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">
                         x402
+                      </span>
+                    )}
+                    {(tx as any).source === "x_bot" && (
+                      <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 font-medium">
+                        <Icon icon="ri:twitter-x-fill" className="w-3 h-3" />
+                        X Bot
                       </span>
                     )}
                   </div>

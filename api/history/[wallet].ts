@@ -106,6 +106,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // Look up tweet payments by tx_hash to tag X Bot transactions
+    const tweetPaymentHashes = new Set<string>();
+    const allTxHashes = (transactions || []).map((tx: any) => tx.tx_hash).filter(Boolean);
+    if (allTxHashes.length > 0) {
+      const { data: tweetPayments } = await supabase
+        .from("tweet_payments")
+        .select("tx_hash")
+        .in("tx_hash", allTxHashes)
+        .eq("status", "completed");
+
+      if (tweetPayments) {
+        for (const tp of tweetPayments) {
+          if (tp.tx_hash) tweetPaymentHashes.add(tp.tx_hash);
+        }
+      }
+    }
+
     // Format transactions for frontend
     const formattedTransactions = (transactions || []).map((tx: any) => {
       // Determine transaction type from database or infer from wallets
@@ -144,6 +161,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         privacyLevel: tx.privacy_level || "full",
         agentId: tx.agent_id || null,
         agentName: tx.agent_id ? (agentIdToName[tx.agent_id] || "Bot") : null,
+        source: tweetPaymentHashes.has(tx.tx_hash) ? "x_bot" : null,
       };
     });
 
