@@ -65,18 +65,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Exchange code for access token (public client — no Basic auth)
+    // Exchange code for access token (confidential client — Basic auth)
+    const basicAuth = Buffer.from(
+      `${X_OAUTH_CLIENT_ID}:${X_OAUTH_CLIENT_SECRET}`
+    ).toString("base64");
+
+    console.log(`[OAuthCallback] Using client_id length=${X_OAUTH_CLIENT_ID.length}, secret length=${X_OAUTH_CLIENT_SECRET.length}`);
+
     const tokenResponse = await fetch("https://api.x.com/2/oauth2/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${basicAuth}`,
       },
       body: new URLSearchParams({
         code,
         grant_type: "authorization_code",
         redirect_uri: REDIRECT_URI,
         code_verifier: oauthState.code_verifier,
-        client_id: X_OAUTH_CLIENT_ID,
       }).toString(),
     });
 
