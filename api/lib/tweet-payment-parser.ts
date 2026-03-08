@@ -3,10 +3,10 @@
  * Pure function that extracts payment commands from tweet text.
  *
  * Supported formats:
- *   @baseusdp send 5 USDC to @alice
- *   @baseusdp pay @bob 10
- *   @baseusdp tip @charlie 2.50
- *   @baseusdp send @alice 5 USDT
+ *   @BaseUSDPbot send 5 USDC to @alice
+ *   @BaseUSDPbot pay @bob 10
+ *   @BaseUSDPbot tip @charlie 2.50
+ *   @BaseUSDPbot send @alice 5 USDT
  */
 
 export interface ParsedTweetPayment {
@@ -28,17 +28,17 @@ export function parseTweetPayment(text: string): ParsedTweetPayment | null {
   // Normalize whitespace
   const normalized = text.replace(/\s+/g, " ").trim();
 
-  // Pattern 1: @baseusdp send 5 USDC to @alice
-  //            @baseusdp pay 10 USDT to @bob
-  //            @baseusdp tip 2.50 to @charlie
+  // Pattern 1: @BaseUSDPbot send 5 USDC to @alice
+  //            @BaseUSDPbot pay 10 USDT to @bob
+  //            @BaseUSDPbot tip 2.50 to @charlie
   const patternAmountFirst =
-    /(?:^|\s)@baseusdp\s+(?:send|pay|tip)\s+(\d+(?:\.\d{1,2})?)\s*(USDC|USDT)?\s+to\s+@(\w+)/i;
+    /(?:^|\s)@BaseUSDPbot\s+(?:send|pay|tip)\s+(\d+(?:\.\d{1,2})?)\s*(USDC|USDT)?\s+to\s+@(\w+)/i;
 
-  // Pattern 2: @baseusdp pay @bob 10
-  //            @baseusdp send @alice 5 USDT
-  //            @baseusdp tip @charlie 2.50 USDC
+  // Pattern 2: @BaseUSDPbot pay @bob 10
+  //            @BaseUSDPbot send @alice 5 USDT
+  //            @BaseUSDPbot tip @charlie 2.50 USDC
   const patternRecipientFirst =
-    /(?:^|\s)@baseusdp\s+(?:send|pay|tip)\s+@(\w+)\s+(\d+(?:\.\d{1,2})?)\s*(USDC|USDT)?/i;
+    /(?:^|\s)@BaseUSDPbot\s+(?:send|pay|tip)\s+@(\w+)\s+(\d+(?:\.\d{1,2})?)\s*(USDC|USDT)?/i;
 
   let recipientUsername: string;
   let amountStr: string;
