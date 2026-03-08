@@ -121,6 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (tp.tx_hash) tweetPaymentHashes.add(tp.tx_hash);
         }
       }
+      console.log(`[History] Tweet payment hashes found: ${tweetPaymentHashes.size} out of ${allTxHashes.length} transactions`);
     }
 
     // Format transactions for frontend
