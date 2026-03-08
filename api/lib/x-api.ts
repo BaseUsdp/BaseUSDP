@@ -5,7 +5,7 @@
 
 import { createHmac, randomBytes } from "crypto";
 
-const X_BEARER_TOKEN = decodeURIComponent(process.env.X_BEARER_TOKEN || "");
+const X_BEARER_TOKEN = process.env.X_BEARER_TOKEN || "";
 const X_API_KEY = process.env.X_API_KEY || "";
 const X_API_SECRET = process.env.X_API_SECRET || "";
 const X_ACCESS_TOKEN = process.env.X_ACCESS_TOKEN || "";
