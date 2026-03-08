@@ -137,7 +137,7 @@ const TwitterPaymentSettings = () => {
         <div>
           <h3 className="font-display text-lg font-bold">X/Twitter Payments</h3>
           <p className="text-xs text-muted-foreground">
-            Send payments via @baseusdp mentions on X
+            Send payments via @BaseUSDPbot mentions on X
           </p>
         </div>
       </div>
@@ -147,7 +147,7 @@ const TwitterPaymentSettings = () => {
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Link your X account to enable tweet-based payments. Mention{" "}
-            <code className="text-primary">@baseusdp send 5 USDC to @username</code>{" "}
+            <code className="text-primary">@BaseUSDPbot send 5 USDC to @username</code>{" "}
             in a tweet to send a private payment.
           </p>
           <Button
@@ -190,7 +190,7 @@ const TwitterPaymentSettings = () => {
             <div>
               <p className="font-medium">Enable Tweet Payments</p>
               <p className="text-xs text-muted-foreground">
-                Allow sending payments via @baseusdp mentions
+                Allow sending payments via @BaseUSDPbot mentions
               </p>
             </div>
             <Switch checked={enabled} onCheckedChange={setEnabled} />
