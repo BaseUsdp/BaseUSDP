@@ -66,14 +66,15 @@ const DashboardTopBar = ({ showBalance, setShowBalance, setActiveTab, unreadMess
 
       {/* Right Controls */}
       <div className="flex items-center gap-2">
-        {/* Theme indicator */}
-        <div
-          className="hidden sm:inline-flex rounded-md border p-1.5"
+        {/* Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          className="hidden sm:inline-flex rounded-md border p-1.5 transition-colors"
           style={btnStyle}
-          title="Light mode"
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
         >
-          <Sun className="h-4 w-4" />
-        </div>
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </button>
 
         {/* Toggle Balance Visibility */}
         <button

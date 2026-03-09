@@ -71,6 +71,58 @@
     --dash-text-faint: #737373;
     --dash-text-heading: #171717;
   }
+
+  .dark {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 0 0% 95%;
+    --primary-foreground: 0 0% 9%;
+
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 55%;
+
+    --accent: 0 0% 12%;
+    --accent-foreground: 0 0% 95%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 16%;
+    --input: 0 0% 16%;
+    --ring: 0 0% 85%;
+
+    --glow-primary: 0 0% 100%;
+    --glow-accent: 0 0% 100%;
+    --text-primary: 0 0% 100%;
+    --text-secondary: 0 0% 65%;
+    --text-tertiary: 0 0% 45%;
+
+    --glass-bg: 0 0% 6% / 0.8;
+    --glass-border: 0 0% 100% / 0.08;
+    --glass-highlight: 0 0% 100% / 0.05;
+    --glass-shadow: 0 0% 0% / 0.3;
+
+    --dash-surface: rgba(255, 255, 255, 0.04);
+    --dash-surface-hover: rgba(255, 255, 255, 0.07);
+    --dash-border: rgba(255, 255, 255, 0.1);
+    --dash-overlay: rgba(10, 10, 10, 0.5);
+    --dash-sidebar: rgba(10, 10, 10, 0.7);
+    --dash-main: rgba(10, 10, 10, 0.5);
+    --dash-text: #d4d4d4;
+    --dash-text-muted: #a3a3a3;
+    --dash-text-faint: #737373;
+    --dash-text-heading: #f5f5f5;
+  }
 }
 
 @layer base {
@@ -111,6 +163,14 @@
   ::selection {
     background: rgba(0, 0, 0, 0.08);
     color: hsl(0 0% 9%);
+  }
+
+  .dark ::-webkit-scrollbar-track { background: hsl(0 0% 4%); }
+  .dark ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); }
+  .dark ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+  .dark ::selection {
+    background: rgba(255, 255, 255, 0.12);
+    color: hsl(0 0% 95%);
   }
 }
 
@@ -356,6 +416,107 @@
     color: hsl(0 0% 0%);
     font-weight: 700;
   }
+
+  /* Dark mode overrides for component classes */
+  .dark .tag-pill {
+    border-color: hsl(0 0% 25%);
+    color: hsl(0 0% 60%);
+  }
+
+  .dark .service-card:hover {
+    background: hsl(0 0% 10%);
+  }
+
+  .dark .glass-card {
+    background: hsl(0 0% 6%);
+    border-color: hsl(0 0% 16%);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  .dark .glass-card-hover:hover {
+    border-color: hsl(0 0% 25%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .dark .glass-panel {
+    background: hsl(0 0% 8%);
+    border-color: hsl(0 0% 16%);
+  }
+
+  .dark .glass-button {
+    background: hsl(0 0% 8%);
+    border-color: hsl(0 0% 20%);
+  }
+  .dark .glass-button:hover {
+    border-color: hsl(0 0% 100%);
+    background: hsl(0 0% 100%);
+    color: hsl(0 0% 0%);
+  }
+
+  .dark .glass-button-primary {
+    background: hsl(0 0% 100%);
+    color: hsl(0 0% 0%);
+    border-color: hsl(0 0% 100%);
+  }
+
+  .dark .glass-input {
+    background: hsl(0 0% 8%);
+    border-color: hsl(0 0% 16%);
+  }
+  .dark .glass-input:focus {
+    border-color: hsl(0 0% 100%);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
+  }
+
+  .dark .glass-badge {
+    background: hsl(0 0% 12%);
+    border-color: hsl(0 0% 16%);
+    color: hsl(0 0% 100%);
+  }
+
+  .dark .text-gradient,
+  .dark .text-gradient-primary,
+  .dark .text-gradient-purple {
+    color: hsl(0 0% 100%);
+  }
+
+  .dark .stat-number {
+    color: hsl(0 0% 100%);
+  }
+
+  .dark .status-badge {
+    background: hsl(0 0% 12%);
+    border-color: hsl(0 0% 16%);
+    color: hsl(0 0% 100%);
+  }
+
+  .dark .grid-lines {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  }
+
+  .dark .animated-border {
+    background: hsl(0 0% 6%);
+  }
+  .dark .animated-border::before {
+    background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent 60%);
+  }
+
+  .dark .metric-card:hover {
+    border-color: hsl(0 0% 25%);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  .dark .flashlight-card {
+    background: hsl(0 0% 6%);
+    border-color: hsl(0 0% 16%);
+  }
+  .dark .flashlight-card:hover { border-color: hsl(0 0% 100%); }
+
+  .dark .gradient-text-violet {
+    color: hsl(0 0% 100%);
+  }
 }
 
 @layer utilities {
@@ -476,12 +637,34 @@
     transform: translateZ(20px);
   }
 
+  .dark .technical-grid {
+    background-image: linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  }
+
+  .dark .shiny-cta {
+    color: #000000;
+    background: #f5f5f5;
+    border-color: rgba(255,255,255,0.2);
+  }
+
+  .dark .wall-card {
+    background: hsl(0 0% 8%);
+    border-color: hsl(0 0% 16%);
+  }
+  .dark .wall-card:hover {
+    border-color: hsl(0 0% 100%);
+  }
+
   .hover-lift {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
   }
   .hover-lift:hover {
     transform: translateY(-4px);
     box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1);
+  }
+  .dark .hover-lift:hover {
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.4);
   }
 }
 
