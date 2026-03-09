@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion, useTransform, useSpring, useMotionValue } from "framer-motion";
 import usdpLogo from "@/assets/usdp-logo.png";
+import usdpLogoWhite from "@/assets/usdp-logo-white.png";
+import { useTheme } from "@/contexts/ThemeContext";
 import {
   Shield, Lock, Fingerprint, Eye, KeyRound, FileKey,
   Cpu, Blocks, Wallet, CreditCard, Globe, Network,
@@ -162,6 +164,7 @@ const isMobileInputMode = () =>
 const getMaxScroll = (isMobile: boolean) => (isMobile ? MOBILE_MAX_SCROLL : DESKTOP_MAX_SCROLL);
 
 export default function ScrollMorphHero() {
+  const { theme } = useTheme();
   const [introPhase, setIntroPhase] = useState<AnimationPhase>("circle");
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [animationDone, setAnimationDone] = useState(false);
@@ -416,7 +419,7 @@ export default function ScrollMorphHero() {
           transition={{ duration: 0.8 }}
         >
           <motion.img
-            src={usdpLogo}
+            src={theme === "dark" ? usdpLogoWhite : usdpLogo}
             alt="USDP"
             className="pointer-events-none max-w-[30%] sm:max-w-[clamp(120px,30vw,320px)]"
             style={{

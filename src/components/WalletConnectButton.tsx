@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Wallet, ChevronDown, LogOut, Copy, CheckCircle, Loader2, AlertTriangle, Settings, AtSign, AlertCircle, Check, X } from "lucide-react";
+import { Wallet, ChevronDown, LogOut, Copy, CheckCircle, Loader2, AlertTriangle, AtSign, AlertCircle, Check, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useWallet, WalletType } from "@/contexts/WalletContext";
 import { Button } from "@/components/ui/button";
@@ -400,8 +400,8 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
               onClick={handleOpenSettings}
               className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left text-foreground hover:bg-primary/10 rounded-lg transition-colors"
             >
-              <Settings className="w-4 h-4 text-muted-foreground" />
-              Settings
+              <AtSign className="w-4 h-4 text-muted-foreground" />
+              Edit Username
             </button>
 
             <button
@@ -440,7 +440,7 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-foreground">Settings</h2>
+                <h2 className="text-lg font-semibold text-foreground">Edit Username</h2>
                 <button
                   onClick={handleCloseSettings}
                   className="p-1 rounded-lg hover:bg-muted transition-colors"
