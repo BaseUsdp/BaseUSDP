@@ -439,7 +439,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                         (recipientType === "address" && !recipient) ||
                         (recipientType === "username" && (!resolvedWallet || isLookingUp))
                       }
-                      className="w-full h-12 bg-primary hover:bg-primary/90"
+                      className="w-full h-12 bg-gradient-to-r from-sky-600 to-purple-600 hover:from-sky-500 hover:to-purple-500 text-white"
                     >
                       Preview Transaction
                     </Button>
@@ -498,7 +498,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                       <Button variant="outline" onClick={() => setStep("form")} className="flex-1">
                         Back
                       </Button>
-                      <Button onClick={handleConfirm} className="flex-1 bg-primary hover:bg-primary/90">
+                      <Button onClick={handleConfirm} className="flex-1 bg-gradient-to-r from-sky-600 to-purple-600 hover:from-sky-500 hover:to-purple-500 text-white">
                         Confirm & Sign
                       </Button>
                     </div>
@@ -616,7 +616,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                       {error || "Something went wrong"}
                     </p>
 
-                    <Button onClick={handleReset} className="w-full bg-primary hover:bg-primary/90">
+                    <Button onClick={handleReset} className="w-full bg-gradient-to-r from-sky-600 to-purple-600 hover:from-sky-500 hover:to-purple-500 text-white">
                       Try Again
                     </Button>
                   </motion.div>
