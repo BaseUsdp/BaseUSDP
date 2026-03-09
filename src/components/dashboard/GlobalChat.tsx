@@ -214,13 +214,13 @@ const GlobalChat = ({ hasUsername }: GlobalChatProps) => {
   if (!hasUsername) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-          <Lock className="w-8 h-8 text-white/20" />
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Lock className="w-8 h-8 text-muted-foreground/40" />
         </div>
-        <h3 className="text-lg font-semibold text-white/50 mb-1">
+        <h3 className="text-lg font-semibold text-muted-foreground mb-1">
           Username Required
         </h3>
-        <p className="text-sm text-white/30 max-w-xs">
+        <p className="text-sm text-muted-foreground/70 max-w-xs">
           Create a username in Settings to join the global chat.
         </p>
       </div>
@@ -228,11 +228,11 @@ const GlobalChat = ({ hasUsername }: GlobalChatProps) => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-280px)] min-h-[400px] bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-280px)] min-h-[400px] bg-card/50 border border-border rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-white/[0.03]">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/50">
         <Users className="h-4 w-4 text-primary" />
-        <span className="text-sm font-semibold text-white">Global Chat</span>
+        <span className="text-sm font-semibold text-foreground">Global Chat</span>
         <span className="ml-auto flex items-center gap-1.5 text-[10px] text-primary">
           <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
           Live
@@ -243,13 +243,13 @@ const GlobalChat = ({ hasUsername }: GlobalChatProps) => {
       <div className="flex-1 overflow-y-auto px-4 py-3">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-5 w-5 animate-spin text-white/30" />
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : messages.length === 0 ? (
           <div className="text-center py-12">
-            <Users className="w-8 h-8 text-white/10 mx-auto mb-3" />
-            <p className="text-sm text-white/40 mb-1">No messages yet</p>
-            <p className="text-xs text-white/20">
+            <Users className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground mb-1">No messages yet</p>
+            <p className="text-xs text-muted-foreground/60">
               Be the first to start the conversation.
             </p>
           </div>
@@ -271,7 +271,7 @@ const GlobalChat = ({ hasUsername }: GlobalChatProps) => {
                         own ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <span className="text-[10px] text-white/40 font-medium">
+                      <span className="text-[10px] text-muted-foreground font-medium">
                         @{msg.username}
                       </span>
                       {own && (
@@ -285,14 +285,14 @@ const GlobalChat = ({ hasUsername }: GlobalChatProps) => {
                       className={`rounded-2xl px-3.5 py-2 text-sm inline-block whitespace-pre-wrap ${
                         own
                           ? "bg-primary text-white rounded-tr-sm"
-                          : "bg-white/[0.06] text-white/90 rounded-tl-sm"
+                          : "bg-muted text-foreground rounded-tl-sm"
                       }`}
                     >
                       <MessageContent content={msg.content} own={own} />
                     </div>
                     {/* Time */}
                     <p
-                      className={`text-[9px] text-white/20 mt-0.5 ${
+                      className={`text-[9px] text-muted-foreground/50 mt-0.5 ${
                         own ? "text-right" : "text-left"
                       }`}
                     >
@@ -309,9 +309,9 @@ const GlobalChat = ({ hasUsername }: GlobalChatProps) => {
 
       {/* @mention autocomplete */}
       {showMentions && mentionOptions.length > 0 && (
-        <div className="border-t border-white/5 bg-white/[0.03] px-4 py-2">
+        <div className="border-t border-border bg-muted/50 px-4 py-2">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <AtSign size={10} className="text-white/30" />
+            <AtSign size={10} className="text-muted-foreground" />
             {mentionOptions.map((name) => (
               <button
                 key={name}
@@ -327,13 +327,13 @@ const GlobalChat = ({ hasUsername }: GlobalChatProps) => {
 
       {/* Send error */}
       {sendError && (
-        <div className="px-4 py-1.5 border-t border-white/5">
+        <div className="px-4 py-1.5 border-t border-border">
           <p className="text-[10px] text-red-400">{sendError}</p>
         </div>
       )}
 
       {/* Input */}
-      <div className="flex gap-2 p-3 border-t border-white/10 bg-white/[0.02]">
+      <div className="flex gap-2 p-3 border-t border-border bg-card/50">
         <Input
           ref={inputRef}
           value={input}
@@ -345,7 +345,7 @@ const GlobalChat = ({ hasUsername }: GlobalChatProps) => {
           placeholder="Message everyone... (use @name to mention)"
           disabled={sending}
           maxLength={500}
-          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 text-sm"
+          className="bg-muted border-border text-foreground placeholder:text-muted-foreground text-sm"
         />
         <Button
           onClick={handleSend}

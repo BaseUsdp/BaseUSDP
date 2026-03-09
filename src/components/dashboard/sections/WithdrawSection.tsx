@@ -230,7 +230,7 @@ const WithdrawSection = ({ showBalance, initialAmount, initialToken }: WithdrawS
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-xl p-6"
+              className="rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-6"
             >
               {/* Balance Display */}
               <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-sky-500/10 to-purple-500/10 border border-sky-500/20">
@@ -242,7 +242,7 @@ const WithdrawSection = ({ showBalance, initialAmount, initialToken }: WithdrawS
                       className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
                         token === "USDC"
                           ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
-                          : "bg-white/5 text-neutral-400 hover:bg-white/10"
+                          : "bg-muted text-neutral-400 hover:bg-white/10"
                       }`}
                     >
                       USDC
@@ -252,14 +252,14 @@ const WithdrawSection = ({ showBalance, initialAmount, initialToken }: WithdrawS
                       className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
                         token === "USDT"
                           ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                          : "bg-white/5 text-neutral-400 hover:bg-white/10"
+                          : "bg-muted text-neutral-400 hover:bg-white/10"
                       }`}
                     >
                       USDT
                     </button>
                   </div>
                 </div>
-                <p className="text-2xl font-bold text-white mt-2">
+                <p className="text-2xl font-bold text-foreground mt-2">
                   {showBalance ? `$${availableBalance.toFixed(2)}` : "••••••"}
                   <span className="text-sm font-normal text-neutral-400 ml-2">{token}</span>
                 </p>
@@ -276,7 +276,7 @@ const WithdrawSection = ({ showBalance, initialAmount, initialToken }: WithdrawS
                     onChange={(e) => handleAmountChange(e.target.value)}
                     min="0"
                     max={MAX_AMOUNT}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-neutral-500 pr-20"
+                    className="bg-muted border-border text-foreground placeholder:text-neutral-500 pr-20"
                   />
                   <button
                     onClick={setMaxAmount}
@@ -319,7 +319,7 @@ const WithdrawSection = ({ showBalance, initialAmount, initialToken }: WithdrawS
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-xl p-6"
+              className="rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-6"
             >
               <div className="text-center mb-6">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-sky-500/20 to-purple-500/20 flex items-center justify-center">
@@ -330,15 +330,15 @@ const WithdrawSection = ({ showBalance, initialAmount, initialToken }: WithdrawS
               </div>
 
               <div className="space-y-4 mb-6">
-                <div className="flex justify-between p-3 rounded-lg bg-white/5">
+                <div className="flex justify-between p-3 rounded-lg bg-muted">
                   <span className="text-neutral-400">Amount</span>
-                  <span className="text-white font-medium">{amount} {token}</span>
+                  <span className="text-foreground font-medium">{amount} {token}</span>
                 </div>
-                <div className="flex justify-between p-3 rounded-lg bg-white/5">
+                <div className="flex justify-between p-3 rounded-lg bg-muted">
                   <span className="text-neutral-400">Recipient</span>
-                  <span className="text-white font-mono text-sm">Your Wallet</span>
+                  <span className="text-foreground font-mono text-sm">Your Wallet</span>
                 </div>
-                <div className="flex justify-between p-3 rounded-lg bg-white/5">
+                <div className="flex justify-between p-3 rounded-lg bg-muted">
                   <span className="text-neutral-400">Network</span>
                   <span className="text-emerald-400">{activeChain === "base" ? "Base" : "Legacy"}</span>
                 </div>
@@ -348,7 +348,7 @@ const WithdrawSection = ({ showBalance, initialAmount, initialToken }: WithdrawS
                 <Button
                   onClick={() => setStep("form")}
                   variant="outline"
-                  className="flex-1 border-white/10"
+                  className="flex-1 border-border"
                 >
                   Cancel
                 </Button>
@@ -369,7 +369,7 @@ const WithdrawSection = ({ showBalance, initialAmount, initialToken }: WithdrawS
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-xl p-6 text-center"
+              className="rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-6 text-center"
             >
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-sky-500/20 flex items-center justify-center">
                 <Icon icon="ph:spinner" className="w-8 h-8 text-sky-400 animate-spin" />
@@ -388,7 +388,7 @@ const WithdrawSection = ({ showBalance, initialAmount, initialToken }: WithdrawS
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-xl p-6 text-center"
+              className="rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-6 text-center"
             >
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
                 <Icon icon="ph:check-circle-bold" className="w-8 h-8 text-emerald-400" />
@@ -426,7 +426,7 @@ const WithdrawSection = ({ showBalance, initialAmount, initialToken }: WithdrawS
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-xl p-6 text-center"
+              className="rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-6 text-center"
             >
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/20 flex items-center justify-center">
                 <Icon icon="ph:x-circle-bold" className="w-8 h-8 text-red-400" />
@@ -437,7 +437,7 @@ const WithdrawSection = ({ showBalance, initialAmount, initialToken }: WithdrawS
               <Button
                 onClick={resetForm}
                 variant="outline"
-                className="w-full border-white/10"
+                className="w-full border-border"
               >
                 Try Again
               </Button>

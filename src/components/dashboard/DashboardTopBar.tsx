@@ -66,15 +66,14 @@ const DashboardTopBar = ({ showBalance, setShowBalance, setActiveTab, unreadMess
 
       {/* Right Controls */}
       <div className="flex items-center gap-2">
-        {/* Theme Toggle (disabled — light mode WIP) */}
-        <button
-          disabled
-          className="hidden sm:inline-flex rounded-md border p-1.5 opacity-40 cursor-not-allowed"
+        {/* Theme indicator */}
+        <div
+          className="hidden sm:inline-flex rounded-md border p-1.5"
           style={btnStyle}
-          title="Light mode coming soon"
+          title="Light mode"
         >
           <Sun className="h-4 w-4" />
-        </button>
+        </div>
 
         {/* Toggle Balance Visibility */}
         <button

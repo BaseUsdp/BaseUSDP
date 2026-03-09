@@ -316,7 +316,7 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
               onKeyDown={handleKeyDown}
               placeholder="Ask ORB anything..."
               disabled={isLoading}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
               style={{
                 background: "var(--dash-overlay)",
                 border: "1px solid var(--dash-border)",
@@ -329,7 +329,7 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
               className={`p-2.5 rounded-xl transition-all ${
                 input.trim() && !isLoading
                   ? "bg-primary/20 text-primary hover:bg-primary/30 border border-primary/30"
-                  : "bg-white/5 text-white/20 border border-white/10 cursor-not-allowed"
+                  : "bg-muted text-muted-foreground/30 border border-border cursor-not-allowed"
               }`}
             >
               {isLoading ? (

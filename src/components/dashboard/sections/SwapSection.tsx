@@ -103,7 +103,7 @@ const SwapSection = ({ showBalance }: SwapSectionProps) => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-xl p-6 text-center"
+              className="rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-6 text-center"
             >
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
                 <Icon
@@ -141,7 +141,7 @@ const SwapSection = ({ showBalance }: SwapSectionProps) => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-xl p-6 space-y-4"
+              className="rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-6 space-y-4"
             >
               {/* Sell Side */}
               <div
@@ -339,7 +339,7 @@ const SwapSection = ({ showBalance }: SwapSectionProps) => {
                           "px-3 py-1 rounded-lg text-xs font-medium transition-colors",
                           swap.slippageBps === bps
                             ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
-                            : "bg-white/5 text-neutral-400 hover:bg-white/10"
+                            : "bg-muted text-neutral-400 hover:bg-white/10"
                         )}
                       >
                         {bps / 100}%
@@ -350,7 +350,7 @@ const SwapSection = ({ showBalance }: SwapSectionProps) => {
                       placeholder="Custom"
                       value={customSlippage}
                       onChange={(e) => handleCustomSlippage(e.target.value)}
-                      className="w-20 h-7 text-xs bg-white/5 border-white/10"
+                      className="w-20 h-7 text-xs bg-muted border-border"
                       min="0.01"
                       max="50"
                       step="0.1"

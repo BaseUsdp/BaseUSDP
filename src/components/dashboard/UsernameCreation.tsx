@@ -149,7 +149,7 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
   const isFormValid = username.trim().length >= 3 && !error && !isValidating;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4 sm:px-6 relative overflow-hidden">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4 sm:px-6 relative overflow-hidden">
       {/* Background decorative elements */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
@@ -163,7 +163,7 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
         className="relative z-10 w-full max-w-md"
       >
         {/* Glassmorphic Card */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 sm:p-10 md:p-12 shadow-2xl">
+        <div className="bg-card backdrop-blur-xl border border-border rounded-3xl p-8 sm:p-10 md:p-12 shadow-2xl">
           {/* Header */}
           <div className="text-center mb-8">
             <motion.div
@@ -174,25 +174,25 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
             >
               <AtSign className="w-8 h-8 sm:w-10 sm:h-10 text-purple-400" />
             </motion.div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">Create Your Username</h1>
-            <p className="text-white/60 text-sm sm:text-base">Choose a unique username for your USDP identity</p>
+            <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">Create Your Username</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">Choose a unique username for your USDP identity</p>
           </div>
 
           {/* Wallet Address Display */}
           {fullWalletAddress && (
-            <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
-              <p className="text-xs text-white/40 mb-1 font-mono">Wallet Address</p>
-              <p className="text-sm text-white/70 font-mono break-all">{fullWalletAddress}</p>
+            <div className="mb-6 p-4 rounded-xl bg-muted border border-border">
+              <p className="text-xs text-muted-foreground mb-1 font-mono">Wallet Address</p>
+              <p className="text-sm text-foreground/70 font-mono break-all">{fullWalletAddress}</p>
             </div>
           )}
 
           {/* Username Input */}
           <div className="mb-6">
-            <label htmlFor="username" className="block text-sm font-semibold text-white mb-2">
+            <label htmlFor="username" className="block text-sm font-semibold text-foreground mb-2">
               Username
             </label>
             <div className="relative">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                 <AtSign className="w-5 h-5" />
               </div>
               <input
@@ -201,15 +201,15 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
                 value={username}
                 onChange={handleUsernameChange}
                 placeholder="alice"
-                className={`w-full pl-12 pr-12 py-4 rounded-xl bg-white/10 backdrop-blur-sm border-2 transition-all ${
+                className={`w-full pl-12 pr-12 py-4 rounded-xl bg-muted backdrop-blur-sm border-2 transition-all ${
                   error
                     ? "border-red-500/50 focus:border-red-400"
                     : isValidating
                     ? "border-yellow-500/50 focus:border-yellow-400"
                     : isFormValid
                     ? "border-purple-500/50 focus:border-purple-400"
-                    : "border-white/20 focus:border-white/40"
-                } text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/20`}
+                    : "border-border focus:border-foreground/40"
+                } text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/20`}
                 style={{ fontSize: "1rem" }}
                 disabled={isSaving}
                 maxLength={20}
@@ -234,12 +234,12 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
               <motion.p
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-2 text-xs text-white/50"
+                className="mt-2 text-xs text-muted-foreground"
               >
-                Your username will be: <span className="font-mono font-semibold text-white">@{username}</span>
+                Your username will be: <span className="font-mono font-semibold text-foreground">@{username}</span>
               </motion.p>
             )}
-            <div className="mt-3 text-xs text-white/40 space-y-1">
+            <div className="mt-3 text-xs text-muted-foreground space-y-1">
               <p>• 3-20 characters</p>
               <p>• Letters, numbers, underscores, and hyphens only</p>
               <p>• Must start with a letter or number</p>
@@ -247,8 +247,8 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
           </div>
 
           {/* Info Box */}
-          <div className="mb-8 p-4 rounded-xl bg-white/5 border border-white/10">
-            <p className="text-xs text-white/50 leading-relaxed">
+          <div className="mb-8 p-4 rounded-xl bg-muted border border-border">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               Your username will be used to identify you in transactions. It's unique to your wallet and can be used by
               others to send you payments.
             </p>
@@ -264,7 +264,7 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
               className={`w-full py-4 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2 ${
                 isFormValid && !isSaving
                   ? "bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg hover:shadow-xl cursor-pointer"
-                  : "bg-white/10 text-white/30 cursor-not-allowed"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
             >
               {isSaving ? (
@@ -285,7 +285,7 @@ export const UsernameCreation: React.FC<UsernameCreationProps> = ({ onComplete, 
         {/* Back Button */}
         <button
           onClick={onBack}
-          className="mt-6 text-sm text-white/50 hover:text-white transition-colors text-center w-full"
+          className="mt-6 text-sm text-muted-foreground hover:text-foreground transition-colors text-center w-full"
         >
           ← Back to home
         </button>

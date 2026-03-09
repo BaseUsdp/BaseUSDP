@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode } from "react";
 
 type Theme = "dark" | "light";
 
@@ -8,19 +8,14 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: "dark",
+  theme: "light",
   toggleTheme: () => {},
 });
 
 export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  // Force dark mode for now — light mode is WIP
-  const [theme] = useState<Theme>("dark");
-
-  useEffect(() => {
-    document.documentElement.classList.remove("light");
-  }, []);
+  const [theme] = useState<Theme>("light");
 
   const toggleTheme = () => {};
 

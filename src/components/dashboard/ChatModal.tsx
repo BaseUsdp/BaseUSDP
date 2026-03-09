@@ -207,7 +207,7 @@ const ChatModal = ({ open, onClose, username, peerAddress, onMessageSent }: Chat
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-lg mx-4 bg-[#0a0a0a]/95 border border-primary/20 rounded-2xl shadow-2xl backdrop-blur-xl flex flex-col"
+            className="relative w-full max-w-lg mx-4 bg-card/95 border border-border rounded-2xl shadow-2xl backdrop-blur-xl flex flex-col"
             style={{ maxHeight: "80vh" }}
           >
             {/* Header */}

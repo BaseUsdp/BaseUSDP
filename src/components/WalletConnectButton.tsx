@@ -264,46 +264,46 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
         <motion.div
           initial={{ opacity: 0, y: 10, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          className="absolute right-0 top-full mt-2 w-80 p-4 bg-[#0a0a0a]/95 border border-primary/20 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
+          className="absolute right-0 top-full mt-2 w-80 p-4 bg-card/95 border border-border rounded-2xl shadow-2xl backdrop-blur-xl z-50"
         >
-          <p className="text-sm font-semibold mb-1 text-center text-white">Connect Wallet</p>
-          <p className="text-xs text-white/50 text-center mb-4">
+          <p className="text-sm font-semibold mb-1 text-center text-foreground">Connect Wallet</p>
+          <p className="text-xs text-muted-foreground text-center mb-4">
             Select a wallet to connect to USDP
           </p>
-          
+
           <div className="space-y-2">
             <button
               onClick={() => handleConnect("phantom")}
               disabled={isConnecting}
-              className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-white/10 hover:border-purple-500/50 hover:bg-purple-500/10 transition-all group"
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-border hover:border-purple-500/50 hover:bg-purple-500/10 transition-all group"
             >
               <PhantomLogo size={24} />
               <div className="text-left flex-1">
-                <span className="font-medium text-white">Phantom</span>
-                <p className="text-xs text-white/40">Most popular</p>
+                <span className="font-medium text-foreground">Phantom</span>
+                <p className="text-xs text-muted-foreground">Most popular</p>
               </div>
               {isConnecting && (
                 <Loader2 className="ml-2 h-4 w-4 animate-spin text-purple-400" />
               )}
             </button>
-            
+
             <button
               onClick={() => handleConnect("metamask")}
               disabled={isConnecting}
-              className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-white/10 hover:border-orange-500/50 hover:bg-orange-500/10 transition-all group"
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-border hover:border-orange-500/50 hover:bg-orange-500/10 transition-all group"
             >
               <MetaMaskLogo size={24} />
               <div className="text-left flex-1">
-                <span className="font-medium text-white">MetaMask</span>
-                <p className="text-xs text-white/40">Popular EVM wallet</p>
+                <span className="font-medium text-foreground">MetaMask</span>
+                <p className="text-xs text-muted-foreground">Popular EVM wallet</p>
               </div>
               {isConnecting && (
                 <Loader2 className="ml-2 h-4 w-4 animate-spin text-orange-400" />
               )}
             </button>
           </div>
-          
-          <p className="text-xs text-white/40 text-center mt-4">
+
+          <p className="text-xs text-muted-foreground text-center mt-4">
             By connecting, you agree to the Terms of Service
           </p>
         </motion.div>
@@ -316,10 +316,10 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
       <Button
         onClick={() => setShowWalletSelect(true)}
         disabled={isConnecting}
-        className={`gap-2 rounded-full border-0 ${
+        className={`gap-2 rounded-full border border-border ${
           variant === "navbar"
-            ? "bg-white text-black font-semibold hover:bg-white/90 transition-all duration-300 shadow-md hover:shadow-lg"
-            : "bg-white text-black font-semibold hover:bg-white/90 transition-all duration-300 shadow-md hover:shadow-lg px-8 py-4"
+            ? "bg-foreground text-background font-semibold hover:bg-foreground/90 transition-all duration-300 shadow-md hover:shadow-lg"
+            : "bg-foreground text-background font-semibold hover:bg-foreground/90 transition-all duration-300 shadow-md hover:shadow-lg px-8 py-4"
         }`}
       >
         {isConnecting ? (
@@ -338,23 +338,23 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center gap-3 px-4 py-2.5 bg-primary/10 border border-primary/30 rounded-xl hover:border-primary/50 hover:bg-primary/20 transition-all backdrop-blur-md"
+        className="inline-flex items-center gap-3 px-4 py-2.5 bg-muted border border-border rounded-xl hover:border-foreground/30 hover:bg-accent transition-all backdrop-blur-md"
       >
         <div className="relative">
           <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center overflow-hidden">
             {getWalletLogo()}
           </div>
-          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-[#0a0a0a]" />
+          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-background" />
         </div>
         <div className="text-left">
-          <p className="text-xs text-white/50">{getWalletName()}</p>
-          <p className={`text-sm font-medium text-white ${username ? '' : 'font-mono'}`}>{displayName}</p>
+          <p className="text-xs text-muted-foreground">{getWalletName()}</p>
+          <p className={`text-sm font-medium text-foreground ${username ? '' : 'font-mono'}`}>{displayName}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-500 font-medium">
             Base
           </span>
-          <ChevronDown className={`w-4 h-4 text-white/50 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
         </div>
       </motion.button>
 
@@ -364,17 +364,17 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute right-0 top-full mt-2 w-72 p-2 bg-[#0a0a0a]/95 border border-primary/20 rounded-xl shadow-2xl backdrop-blur-xl z-50"
+            className="absolute right-0 top-full mt-2 w-72 p-2 bg-card/95 border border-border rounded-xl shadow-2xl backdrop-blur-xl z-50"
           >
             {username && (
               <div className="p-3 mb-2 bg-primary/10 rounded-lg">
-                <p className="text-xs text-white/50 mb-1">Username</p>
-                <p className="text-sm font-medium text-white">@{username}</p>
+                <p className="text-xs text-muted-foreground mb-1">Username</p>
+                <p className="text-sm font-medium text-foreground">@{username}</p>
               </div>
             )}
             <div className="p-3 mb-2 bg-primary/10 rounded-lg">
-              <p className="text-xs text-white/50 mb-1">Wallet Address</p>
-              <p className="text-xs font-mono break-all text-white">
+              <p className="text-xs text-muted-foreground mb-1">Wallet Address</p>
+              <p className="text-xs font-mono break-all text-foreground">
                 {fullWalletAddress || walletAddress}
               </p>
             </div>
@@ -386,23 +386,23 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
             
             <button
               onClick={handleCopy}
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left text-white hover:bg-primary/10 rounded-lg transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left text-foreground hover:bg-primary/10 rounded-lg transition-colors"
             >
               {copied ? (
                 <CheckCircle className="w-4 h-4 text-primary" />
               ) : (
-                <Copy className="w-4 h-4 text-white/50" />
+                <Copy className="w-4 h-4 text-muted-foreground" />
               )}
               {copied ? "Copied!" : "Copy Address"}
             </button>
 
             <button
               disabled
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left text-white/30 rounded-lg cursor-not-allowed"
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left text-muted-foreground/50 rounded-lg cursor-not-allowed"
             >
-              <Settings className="w-4 h-4 text-white/20" />
+              <Settings className="w-4 h-4 text-muted-foreground/30" />
               Settings
-              <span className="ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-white/10 text-white/40">Soon</span>
+              <span className="ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">Soon</span>
             </button>
 
             <button
@@ -437,31 +437,31 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md mx-4 p-6 bg-[#0a0a0a]/95 border border-primary/20 rounded-2xl shadow-2xl backdrop-blur-xl"
+              className="relative w-full max-w-md mx-4 p-6 bg-card/95 border border-border rounded-2xl shadow-2xl backdrop-blur-xl"
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-white">Settings</h2>
+                <h2 className="text-lg font-semibold text-foreground">Settings</h2>
                 <button
                   onClick={handleCloseSettings}
-                  className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                  className="p-1 rounded-lg hover:bg-muted transition-colors"
                 >
-                  <X className="w-5 h-5 text-white/50" />
+                  <X className="w-5 h-5 text-muted-foreground" />
                 </button>
               </div>
 
               {/* Username Section */}
               <div>
-                <label className="block text-sm font-medium text-white/70 mb-2">
+                <label className="block text-sm font-medium text-foreground/70 mb-2">
                   Username
                 </label>
                 {username && (
-                  <p className="text-xs text-white/40 mb-2">
-                    Current: <span className="text-white/60 font-mono">@{username}</span>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Current: <span className="text-foreground/60 font-mono">@{username}</span>
                   </p>
                 )}
                 <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                     <AtSign className="w-4 h-4" />
                   </div>
                   <input
@@ -473,15 +473,15 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
                       setSaveSuccess(false);
                     }}
                     placeholder="Enter new username"
-                    className={`w-full pl-10 pr-10 py-3 rounded-xl bg-white/10 border transition-all text-sm ${
+                    className={`w-full pl-10 pr-10 py-3 rounded-xl bg-muted border transition-all text-sm ${
                       usernameError
                         ? "border-red-500/50 focus:border-red-400"
                         : isValidatingUsername
                         ? "border-yellow-500/50 focus:border-yellow-400"
                         : isUsernameFormValid
                         ? "border-purple-500/50 focus:border-purple-400"
-                        : "border-white/20 focus:border-white/40"
-                    } text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/20`}
+                        : "border-border focus:border-foreground/40"
+                    } text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/20`}
                     disabled={isSavingUsername}
                     maxLength={20}
                   />
@@ -511,7 +511,7 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
                     Username updated successfully!
                   </motion.p>
                 )}
-                <div className="mt-2 text-xs text-white/30 space-y-0.5">
+                <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
                   <p>3-20 characters, letters, numbers, underscores, hyphens</p>
                 </div>
               </div>
@@ -525,7 +525,7 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
                 className={`w-full mt-6 py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
                   isUsernameFormValid && !isSavingUsername
                     ? "bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg hover:shadow-xl cursor-pointer"
-                    : "bg-white/10 text-white/30 cursor-not-allowed"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
                 }`}
               >
                 {isSavingUsername ? (

@@ -43,7 +43,7 @@ const MessagesSection = () => {
           peerAddress: conv.peerAddress,
         })
       }
-      className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors cursor-pointer"
+      className="p-4 rounded-xl bg-muted/50 border border-border hover:border-foreground/20 transition-colors cursor-pointer"
     >
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2">
@@ -52,11 +52,11 @@ const MessagesSection = () => {
               <User className="w-4 h-4 text-primary" />
             </div>
             {conv.unread && (
-              <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-[#0a0a0a]" />
+              <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-background" />
             )}
           </div>
           <div>
-            <p className="text-sm font-medium text-white">
+            <p className="text-sm font-medium text-foreground">
               @{conv.peerUsername || conv.peerAddress.slice(0, 10) + "..."}
             </p>
             {isRequest && (
@@ -67,11 +67,11 @@ const MessagesSection = () => {
             )}
           </div>
         </div>
-        <span className="text-xs text-white/40 whitespace-nowrap">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">
           {conv.lastMessageAt.getTime() > 0 ? formatTime(conv.lastMessageAt) : ""}
         </span>
       </div>
-      <p className="text-sm text-white/70 leading-relaxed pl-10 truncate">
+      <p className="text-sm text-muted-foreground leading-relaxed pl-10 truncate">
         {conv.lastMessage || "No messages yet"}
       </p>
     </motion.div>
@@ -83,17 +83,17 @@ const MessagesSection = () => {
       animate={{ opacity: 1 }}
       className="flex flex-col items-center justify-center py-16 text-center"
     >
-      <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+      <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
         {type === "inbox" ? (
-          <Inbox className="w-8 h-8 text-white/20" />
+          <Inbox className="w-8 h-8 text-muted-foreground/40" />
         ) : (
-          <ShieldQuestion className="w-8 h-8 text-white/20" />
+          <ShieldQuestion className="w-8 h-8 text-muted-foreground/40" />
         )}
       </div>
-      <h3 className="text-lg font-semibold text-white/50 mb-1">
+      <h3 className="text-lg font-semibold text-muted-foreground mb-1">
         {type === "inbox" ? "No conversations yet" : "No message requests"}
       </h3>
-      <p className="text-sm text-white/30">
+      <p className="text-sm text-muted-foreground/70">
         {type === "inbox"
           ? "Start a conversation by sending a message"
           : "Messages from unknown contacts will appear here"}
@@ -106,7 +106,7 @@ const MessagesSection = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold text-white">
+          <h1 className="font-display text-3xl font-bold text-foreground">
             Messages<span className="text-primary">.</span>
           </h1>
           <p className="text-muted-foreground mt-1">

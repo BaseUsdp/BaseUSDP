@@ -152,9 +152,9 @@ const SendMessageModal = ({ open, onOpenChange, onMessageSent, defaultRecipient 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-white/10 bg-[#0a0a0a]/95 backdrop-blur-xl sm:max-w-md">
+      <DialogContent className="border-border bg-card/95 backdrop-blur-xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-white">Send Message</DialogTitle>
+          <DialogTitle className="text-foreground">Send Message</DialogTitle>
           <DialogDescription className="text-white/50">
             Send an encrypted message to another USDP user
           </DialogDescription>
