@@ -15,7 +15,6 @@ import X402Deposit from "./pages/X402Deposit";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import NotFound from "./pages/NotFound";
-import MiniApp from "./miniapp/MiniApp";
 import {
   Shield,
   AlertTriangle,
@@ -27,7 +26,7 @@ import {
 
 const queryClient = new QueryClient();
 
-const NO_NAV_ROUTES = ["/dashboard", "/miniapp"];
+const NO_NAV_ROUTES = ["/dashboard"];
 
 const scrollTo = (id: string) => {
   const el = document.getElementById(id);
@@ -84,7 +83,6 @@ function AppRoutes() {
         <Route path="/x402-deposit" element={<X402Deposit />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
-        <Route path="/miniapp/*" element={<MiniApp />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
