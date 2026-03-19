@@ -23,7 +23,7 @@ const Footer = () => {
 
   const socialLinks: { name: string; href: string; icon: string; comingSoon?: boolean }[] = [
      { name: "Twitter", href: "https://x.com/BaseUSDP", icon: "simple-icons:twitter" },
-     { name: "GitHub", href: "#", icon: "simple-icons:github", comingSoon: true },
+     { name: "GitHub", href: "https://github.com/BaseUsdp/BaseUSDP", icon: "simple-icons:github" },
   ];
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
