@@ -122,3 +122,23 @@ async function resolveBaseName(
     return null;
   }
 }
+
+// ── Public API ──────────────────────────────────────────────────
+
+/**
+ * Resolve any supported name to an Ethereum address.
+ * Returns null if the name cannot be resolved.
+ */
+export async function resolveName(
+  name: string,
+  provider: Provider
+): Promise<string | null> {
+  const type = detectNameType(name);
+  const normalized = name.trim().toLowerCase();
+
+  if (type === "address") return normalized;
+  if (type === "ens") return resolveENS(normalized, provider);
+  if (type === "basename") return resolveBaseName(normalized, provider);
+
+  return null;
+}
