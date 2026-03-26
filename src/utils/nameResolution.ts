@@ -96,3 +96,29 @@ async function resolveENS(
     return null;
   }
 }
+
+// ── Base Name Resolution ────────────────────────────────────────
+
+async function resolveBaseName(
+  name: string,
+  provider: Provider
+): Promise<string | null> {
+  try {
+    const node = namehash(name);
+    const addrSelector = "0x3b3b57de";
+    const data = addrSelector + node.slice(2);
+
+    const result = await provider.call({
+      to: BASE_NAME_RESOLVER,
+      data,
+    });
+
+    if (!result || result === "0x" || result === "0x" + "0".repeat(64)) {
+      return null;
+    }
+
+    return "0x" + result.slice(-40);
+  } catch {
+    return null;
+  }
+}
