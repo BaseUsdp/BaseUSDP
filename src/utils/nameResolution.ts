@@ -68,3 +68,31 @@ export function namehash(name: string): string {
 
   return node;
 }
+
+// ── ENS Resolution ──────────────────────────────────────────────
+
+type Provider = { call: (tx: { to: string; data: string }) => Promise<string> };
+
+async function resolveENS(
+  name: string,
+  provider: Provider
+): Promise<string | null> {
+  try {
+    const node = namehash(name);
+    const addrSelector = "0x3b3b57de"; // addr(bytes32)
+    const data = addrSelector + node.slice(2);
+
+    const result = await provider.call({
+      to: ENS_REGISTRY,
+      data,
+    });
+
+    if (!result || result === "0x" || result === "0x" + "0".repeat(64)) {
+      return null;
+    }
+
+    return "0x" + result.slice(-40);
+  } catch {
+    return null;
+  }
+}
