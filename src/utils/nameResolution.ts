@@ -7,6 +7,14 @@
 
 export type NameType = "ens" | "basename" | "address" | "unknown";
 
+
+const ENS_REGISTRY = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
+const BASE_NAME_RESOLVER = "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD";
+
+const RESOLVER_ABI = [
+  "function addr(bytes32 node) view returns (address)",
+];
+
 const namespacePatterns = {
   ens: /^[a-zA-Z0-9-]+\.eth$/,
   basename: /^[a-zA-Z0-9-]+\.base$/,
