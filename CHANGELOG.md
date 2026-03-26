@@ -51,3 +51,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Tailwind CSS with custom configuration
 - shadcn/ui component library (60+ primitives)
 - ESLint and PostCSS configuration
+
+## [0.4.0] - 2026-03-26
+
+### Added
+- ENS name resolution (alice.eth → 0x address)
+- Base Name resolution (alice.base → 0x address)
+- `useResolveName` React hook with debouncing and caching
+- `detectNameType` utility for classifying user input
+- EIP-137 namehash implementation
+- Unit tests for name type detection
+- Name resolution documentation
