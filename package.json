@@ -1,8 +1,20 @@
 {
   "name": "baseusdp",
   "private": false,
-  "version": "0.0.0",
+  "version": "0.4.0",
   "type": "module",
+  "description": "Privacy-first stablecoin payment protocol on Base. ZK proof transfers, encrypted messaging, and x402 payment links.",
+  "keywords": ["base", "privacy", "zk-proofs", "usdc", "payments", "web3", "ethereum", "stablecoin", "x402"],
+  "author": "BaseUSDP <baseusdp@proton.me>",
+  "license": "MIT",
+  "homepage": "https://baseusdp.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BaseUsdp/BaseUSDP.git"
+  },
+  "bugs": {
+    "url": "https://github.com/BaseUsdp/BaseUSDP/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
