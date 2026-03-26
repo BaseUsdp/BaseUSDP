@@ -12,6 +12,8 @@ interface UseResolveNameReturn {
   error: string | null;
 }
 
+const cache = new Map<string, string | null>();
+
 /**
  * React hook that resolves ENS names (alice.eth) and Base Names (alice.base)
  * to Ethereum addresses. Includes debouncing.
@@ -49,6 +51,15 @@ export function useResolveName(
       return;
     }
 
+    // Check cache
+    const cached = cache.get(trimmed.toLowerCase());
+    if (cached !== undefined) {
+      setAddress(cached);
+      setError(cached ? null : "Could not resolve name");
+      setIsResolving(false);
+      return;
+    }
+
     if (type === "unknown" || !provider) {
       setAddress(null);
       setError(type === "unknown" ? null : "No provider available");
@@ -69,6 +80,7 @@ export function useResolveName(
       try {
         const resolved = await resolveName(trimmed, provider);
         if (controller.signal.aborted) return;
+        cache.set(trimmed.toLowerCase(), resolved);
         setAddress(resolved);
         setError(resolved ? null : "Could not resolve name");
       } catch {
