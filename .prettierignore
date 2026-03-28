@@ -1,0 +1,38 @@
+# Build output
+dist/
+build/
+.next/
+
+# Dependencies
+node_modules/
+
+# Coverage
+coverage/
+test-results/
+
+# Generated files
+*.min.js
+*.min.css
+
+# Package manager
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Environment
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# WASM
+public/wasm/
+
+# Compiled
+*.d.ts
