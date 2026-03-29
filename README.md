@@ -2,6 +2,16 @@
   <img src="src/assets/usdp-logo-white.png" alt="BASEUSDP" width="120" />
 </p>
 
+<p align="center">
+  <a href="https://github.com/BaseUsdp/BaseUSDP/actions/workflows/build.yml"><img src="https://github.com/BaseUsdp/BaseUSDP/actions/workflows/build.yml/badge.svg" alt="Build Status" /></a>
+  <a href="https://github.com/BaseUsdp/BaseUSDP/actions/workflows/test.yml"><img src="https://github.com/BaseUsdp/BaseUSDP/actions/workflows/test.yml/badge.svg" alt="Tests" /></a>
+  <a href="https://github.com/BaseUsdp/BaseUSDP/actions/workflows/lint.yml"><img src="https://github.com/BaseUsdp/BaseUSDP/actions/workflows/lint.yml/badge.svg" alt="Lint" /></a>
+  <a href="https://github.com/BaseUsdp/BaseUSDP/blob/main/LICENSE"><img src="https://img.shields.io/github/license/BaseUsdp/BaseUSDP" alt="License" /></a>
+  <a href="https://github.com/BaseUsdp/BaseUSDP/releases"><img src="https://img.shields.io/github/v/release/BaseUsdp/BaseUSDP?include_prereleases" alt="Release" /></a>
+</p>
+
+
+
 <h1 align="center">BASEUSDP</h1>
 
 <p align="center">
