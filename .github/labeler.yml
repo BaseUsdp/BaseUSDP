@@ -1,0 +1,15 @@
+documentation:
+  - changed-files:
+    - any-glob-to-any-file: ['docs/**', '**/*.md']
+frontend:
+  - changed-files:
+    - any-glob-to-any-file: ['src/components/**', 'src/pages/**']
+api:
+  - changed-files:
+    - any-glob-to-any-file: ['api/**']
+config:
+  - changed-files:
+    - any-glob-to-any-file: ['*.config.*', '.github/**']
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file: ['package.json', 'package-lock.json']
