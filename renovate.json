@@ -1,0 +1,14 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "labels": ["dependencies"],
+  "rangeStrategy": "pin",
+  "schedule": ["before 9am on Monday"],
+  "packageRules": [
+    { "matchUpdateTypes": ["minor", "patch"], "automerge": true, "groupName": "minor and patch" },
+    { "matchUpdateTypes": ["major"], "automerge": false, "labels": ["dependencies", "major-update"] },
+    { "matchPackagePatterns": ["eslint", "prettier"], "groupName": "linting tools" },
+    { "matchPackagePatterns": ["@types/*"], "groupName": "type definitions", "automerge": true }
+  ],
+  "vulnerabilityAlerts": { "enabled": true, "labels": ["security"] }
+}
