@@ -1,0 +1,10 @@
+* @BaseUsdp/core-team
+/docs/ @BaseUsdp/docs-team
+*.md @BaseUsdp/docs-team
+/api/ @BaseUsdp/backend-team
+/services/privacy/ @BaseUsdp/security-team
+/src/components/ @BaseUsdp/frontend-team
+/src/pages/ @BaseUsdp/frontend-team
+/.github/ @BaseUsdp/devops-team
+/docker/ @BaseUsdp/devops-team
+.env* @BaseUsdp/security-team
