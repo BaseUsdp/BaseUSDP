@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Request — BaseUSDP</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#ffffff;">
+    <tr>
+      <td style="padding:32px 24px;background:#0A0B14;text-align:center;">
+        <h1 style="color:#ffffff;margin:0;font-size:24px;">BaseUSDP</h1>
+        <p style="color:#94a3b8;margin:8px 0 0;">Privacy-Preserving Payments</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:32px 24px;">
+        <h2 style="color:#1e293b;margin:0 0 16px;">Payment Request</h2>
+        <p style="color:#475569;line-height:1.6;">You have received a payment request for:</p>
+        <table width="100%" style="margin:24px 0;border:1px solid #e2e8f0;border-radius:8px;">
+          <tr>
+            <td style="padding:16px 24px;border-bottom:1px solid #e2e8f0;">
+              <span style="color:#64748b;">Amount</span><br>
+              <strong style="color:#1e293b;font-size:24px;">{{amount}} USDC</strong>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 24px;border-bottom:1px solid #e2e8f0;">
+              <span style="color:#64748b;">Description</span><br>
+              <span style="color:#1e293b;">{{description}}</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 24px;">
+              <span style="color:#64748b;">Expires</span><br>
+              <span style="color:#1e293b;">{{expiresAt}}</span>
+            </td>
+          </tr>
+        </table>
+        <a href="{{paymentUrl}}" style="display:inline-block;background:#3B82F6;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:bold;">Pay Now</a>
+        <p style="color:#94a3b8;font-size:12px;margin-top:24px;">This payment is processed privately via BaseUSDP. Your transaction details are not visible to third parties.</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:24px;background:#f8fafc;text-align:center;">
+        <p style="color:#94a3b8;font-size:12px;margin:0;">BaseUSDP — Privacy Payments on Base</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
