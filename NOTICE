@@ -1,0 +1,17 @@
+BaseUSDP — Privacy-Preserving Payments on Base
+Copyright 2025-2026 BaseUSDP Contributors
+
+This product includes software developed by:
+- The React Authors (MIT License)
+- Vercel, Inc. — Next.js (MIT License)
+- wevm — Viem and Wagmi (MIT License)
+- Tailwind Labs — TailwindCSS (MIT License)
+- iden3 — Circom and SnarkJS (GPL-3.0)
+- Supabase, Inc. — Supabase Client (MIT License)
+- RainbowKit Authors (MIT License)
+
+This product uses the Base network, an Ethereum Layer 2 developed by Coinbase.
+
+USDC is a product of Circle Internet Financial, LLC.
+
+For a complete list of third-party licenses, see docs/legal/third-party-licenses.md.
