@@ -1,0 +1,34 @@
+name: Documentation Improvement
+description: Suggest improvements or report issues in documentation
+labels: ["documentation"]
+body:
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - Typo or grammar fix
+        - Missing documentation
+        - Incorrect information
+        - Improvement suggestion
+        - New guide request
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: Page or File
+      description: Which documentation page or file is affected?
+      placeholder: e.g., docs/guides/wallet-setup.md
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the documentation issue or improvement
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Change
+      description: If you have a specific suggestion, describe it here
