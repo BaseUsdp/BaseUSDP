@@ -208,3 +208,31 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 <p align="center">
   Built on Base. Powered by Zero-Knowledge Proofs.
 </p>
+
+## Supported Wallets
+
+| Wallet | Platform | Status |
+|--------|----------|--------|
+| MetaMask | Desktop, Mobile | Fully supported |
+| Coinbase Wallet | Desktop, Mobile | Fully supported |
+| WalletConnect | Any compatible wallet | Supported |
+| Rainbow | Mobile | Supported |
+| Rabby | Desktop | Community tested |
+
+## Network Support
+
+| Network | Status | Chain ID |
+|---------|--------|----------|
+| Base Mainnet | Production | 8453 |
+| Base Sepolia | Testnet | 84532 |
+
+## Audit Status
+
+BaseUSDP smart contracts are currently undergoing a formal security audit. The codebase is open source for community review. We maintain an active [bug bounty program](docs/community/bounty-program.md) for responsible disclosure.
+
+| Component | Status |
+|-----------|--------|
+| Smart Contracts | Audit in progress |
+| ZK Circuits | Internal review complete |
+| Frontend | Community reviewed |
+| API | Internal review complete |
