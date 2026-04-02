@@ -1,0 +1,11 @@
+node_modules
+.next
+dist
+build
+coverage
+public/wasm
+*.config.js
+*.config.cjs
+*.config.mjs
+scripts/
+docker/
