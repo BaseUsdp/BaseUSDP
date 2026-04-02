@@ -1,0 +1,60 @@
+/* BaseUSDP Print Styles */
+/* Applied when users print transaction receipts or invoices */
+
+@media print {
+  /* Hide interactive elements */
+  header,
+  footer,
+  nav,
+  .wallet-dropdown,
+  .network-selector,
+  button:not(.print-visible),
+  .sidebar,
+  .toast-container,
+  .modal-overlay {
+    display: none !important;
+  }
+
+  /* Reset backgrounds and colors for printing */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+    line-height: 1.5;
+  }
+
+  /* Ensure content fills the page */
+  main {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Show full URLs for links */
+  a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: 10pt;
+    color: #666;
+  }
+
+  /* Don't break inside transaction cards */
+  .transaction-card,
+  .receipt-card {
+    break-inside: avoid;
+    border: 1px solid #ccc;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  /* Ensure QR codes print clearly */
+  .qr-code {
+    break-inside: avoid;
+    max-width: 200px;
+  }
+
+  /* Page margins */
+  @page {
+    margin: 1.5cm;
+  }
+}
