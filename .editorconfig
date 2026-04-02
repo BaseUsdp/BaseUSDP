@@ -1,3 +1,6 @@
+# EditorConfig helps maintain consistent coding styles
+# https://editorconfig.org
+
 root = true
 
 [*]
@@ -7,38 +10,22 @@ end_of_line = lf
 charset = utf-8
 trim_trailing_whitespace = true
 insert_final_newline = true
-max_line_length = 100
 
 [*.md]
 trim_trailing_whitespace = false
-max_line_length = 80
 
 [*.{yml,yaml}]
-indent_size = 2
-
-[*.json]
-indent_size = 2
-max_line_length = 80
-
-[*.{ts,tsx}]
-indent_size = 2
-max_line_length = 100
-quote_type = double
-
-[*.css]
 indent_size = 2
 
 [Makefile]
 indent_style = tab
 
-[*.sh]
-indent_style = space
-indent_size = 2
-shell_variant = bash
-binary_next_line = true
-
-[*.{svg,xml}]
+[*.{json,jsonc}]
 indent_size = 2
 
-[{package.json,tsconfig.json,vitest.config.ts}]
+[*.{ts,tsx}]
+indent_size = 2
+quote_type = single
+
+[docker-compose.yml]
 indent_size = 2
