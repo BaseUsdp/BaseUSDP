@@ -1,0 +1,9 @@
+name: Preview Cleanup
+on:
+  pull_request:
+    types: [closed]
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Preview deployment cleaned up by Vercel automatically"
