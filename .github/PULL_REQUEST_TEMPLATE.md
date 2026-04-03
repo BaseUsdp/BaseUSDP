@@ -1,17 +1,19 @@
-## Summary
+## Description
+<!-- Briefly describe what this PR does -->
 
-<!-- Brief description of what this PR does -->
-
-## Changes
-
-- 
+## Type of Change
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Documentation update
+- [ ] Configuration change
+- [ ] Refactoring
 
 ## Testing
+- [ ] Tested locally
+- [ ] Added/updated tests
+- [ ] Existing tests pass
 
-- [ ] App builds successfully (`npm run build`)
-- [ ] Tested in browser
-- [ ] No console errors
-
-## Screenshots
-
-<!-- If applicable -->
+## Checklist
+- [ ] Follows coding standards
+- [ ] Documentation updated
+- [ ] No new security vulnerabilities
