@@ -1,0 +1,4 @@
+[
+  { "name": "Total Bundle", "path": ".next/static/**/*.js", "limit": "500 kB", "gzip": true },
+  { "name": "WASM Module", "path": "public/wasm/**/*.wasm", "limit": "2 MB" }
+]
