@@ -43,7 +43,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
     "lint:fix": "eslint . --fix",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
