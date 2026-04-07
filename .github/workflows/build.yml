@@ -3,8 +3,18 @@ name: Build
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - "LICENSE"
+      - ".editorconfig"
+      - ".gitignore"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - "LICENSE"
 
 concurrency:
   group: build-${{ github.ref }}
