@@ -30,6 +30,10 @@
   "bugs": {
     "url": "https://github.com/BaseUsdp/BaseUSDP/issues"
   },
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
