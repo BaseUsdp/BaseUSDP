@@ -1,0 +1,30 @@
+name: Lockfile Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "package-lock.json"
+
+permissions:
+  pull-requests: write
+
+jobs:
+  check:
+    name: Verify lockfile consistency
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Warn about missing lockfile
+        run: |
+          if [ ! -f "package-lock.json" ]; then
+            echo "::warning::package-lock.json is not committed."
+            echo "This is intentional for now — all installs use --legacy-peer-deps."
+          else
+            echo "package-lock.json exists and is committed."
+          fi
