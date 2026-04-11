@@ -47,6 +47,8 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
     "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "ci": "npm run lint && npm run typecheck && npm run test",
     "prepare": "husky || true"
   },
   "dependencies": {
