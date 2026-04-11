@@ -9,3 +9,7 @@ public/wasm
 *.config.mjs
 scripts/
 docker/
+.husky/
+.vercel/
+.vscode/
+storybook-static/
