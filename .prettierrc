@@ -28,6 +28,13 @@
         "proseWrap": "always",
         "printWidth": 80
       }
+    },
+    {
+      "files": "*.yml",
+      "options": {
+        "tabWidth": 2,
+        "singleQuote": false
+      }
     }
   ]
 }
