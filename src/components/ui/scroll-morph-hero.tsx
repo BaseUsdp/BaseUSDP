@@ -14,6 +14,8 @@ import {
 // --- Types ---
 export type AnimationPhase = "scatter" | "line" | "circle" | "bottom-strip";
 
+const CA_ADDRESS = "XXXX";
+
 const CARD_ICONS = [
   Shield, Lock, Fingerprint, Eye, KeyRound, FileKey,
   Cpu, Blocks, Wallet, CreditCard, Globe, Network,
@@ -169,7 +171,25 @@ export default function ScrollMorphHero() {
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [animationDone, setAnimationDone] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [caCopied, setCaCopied] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleCopyCA = async () => {
+    try {
+      await navigator.clipboard.writeText(CA_ADDRESS);
+      setCaCopied(true);
+      setTimeout(() => setCaCopied(false), 1500);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = CA_ADDRESS;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); setCaCopied(true); setTimeout(() => setCaCopied(false), 1500); } catch {}
+      document.body.removeChild(ta);
+    }
+  };
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -411,6 +431,27 @@ export default function ScrollMorphHero() {
         className="relative w-full h-full flex items-center justify-center"
         style={{ touchAction: animationDone ? "auto" : "none" }}
       >
+
+        {/* Contract Address — sits below the floating navbar, fades with the intro */}
+        <motion.div
+          className="absolute left-0 right-0 z-30 flex items-center justify-center pointer-events-none px-4"
+          style={{
+            top: "clamp(4.5rem, 9vh, 6rem)",
+            opacity: introTextOpacity as any,
+          }}
+        >
+          <button
+            type="button"
+            onClick={handleCopyCA}
+            aria-label={caCopied ? "Contract address copied" : "Copy contract address"}
+            className="pointer-events-auto inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-border bg-background/60 backdrop-blur text-[11px] sm:text-xs font-mono text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+          >
+            <span className="uppercase tracking-[0.2em] text-foreground/80">CA :</span>
+            <span className="truncate max-w-[220px] sm:max-w-[320px]">
+              {caCopied ? "Copied!" : CA_ADDRESS}
+            </span>
+          </button>
+        </motion.div>
 
         {/* Intro Text — shows during circle phase, changes to "Institutional Privacy" */}
         <motion.div
