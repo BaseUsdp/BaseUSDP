@@ -123,7 +123,7 @@ const FAQSection = () => {
         >
            <p className="text-muted-foreground/60 text-sm">
              Still have questions? Reach out to us on{" "}
-             <a href="https://x.com/BaseUSDP" target="_blank" rel="noopener noreferrer" className="text-foreground hover:underline">
+             <a href="https://x.com/UsdpBase" target="_blank" rel="noopener noreferrer" className="text-foreground hover:underline">
                Twitter
              </a>
            </p>

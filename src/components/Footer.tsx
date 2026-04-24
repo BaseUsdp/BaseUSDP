@@ -22,7 +22,7 @@ const Footer = () => {
   };
 
   const socialLinks: { name: string; href: string; icon: string; comingSoon?: boolean }[] = [
-     { name: "Twitter", href: "https://x.com/BaseUSDP", icon: "simple-icons:twitter" },
+     { name: "Twitter", href: "https://x.com/UsdpBase", icon: "simple-icons:twitter" },
      { name: "GitHub", href: "https://github.com/BaseUsdp/BaseUSDP", icon: "simple-icons:github" },
   ];
 
