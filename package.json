@@ -46,7 +46,7 @@
     "prepare": "husky || true"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.78.0",
+    "@anthropic-ai/sdk": "^0.91.0",
     "@coinbase/cdp-sdk": "^1.44.1",
     "@hookform/resolvers": "^3.10.0",
     "@iconify/react": "^6.0.2",
