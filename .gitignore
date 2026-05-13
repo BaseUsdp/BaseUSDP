@@ -49,4 +49,12 @@ yarn-error.log*
 .env*.local
 .vercel
 nolvi-compare/
-NOLVI_*.md
+
+# Internal docs — keep public repo doc-free except README
+*.md
+!README.md
+
+# Any file naming Nolvi, ORB, or ORB402 stays internal
+*[Nn]olvi*
+*[Oo]rb*
+*ORB*
