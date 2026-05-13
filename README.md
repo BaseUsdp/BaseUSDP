@@ -1,69 +1,39 @@
-# Void402
+# BASEUSDP
 
-**Privacy-first financial platform combining x402 micropayments, FHE encryption, and neobank features.**
+**Privacy-First Payments for the AI Economy.**
 
-## What is Void402?
+Confidential transactions powered by Zero-Knowledge Proofs. x402 payments that keep your financial data encrypted — always.
 
-Void402 enables private money transfers and online payments without revealing how much you spent or who you paid. Built on the x402 payment standard with Fully Homomorphic Encryption (FHE) for complete confidentiality.
+## What is BASEUSDP?
+
+BASEUSDP enables private money transfers and online payments without revealing how much you spent or who you paid. Built on the x402 payment standard with zero-knowledge privacy for complete confidentiality.
+
+- **Live app:** https://baseusdp.com
+- **Twitter / X:** [@UsdpBase](https://x.com/UsdpBase)
+- **Network:** Base (Ethereum L2)
 
 ## Features
 
-- **Private Money Transfers** - Send money confidentially with encrypted amounts
-- **Private Online Payments** - Pay for content, APIs, and services using x402 with privacy
-- **Encrypted Balances** - Your balance is encrypted, you control who sees it
-- **Privacy by Default** - Your spending patterns aren't tracked
+- **Private Money Transfers** — Send funds with confidential amounts and recipients
+- **Private Online Payments** — Pay for content, APIs, and services using x402 with privacy
+- **Encrypted Balances** — Your balance is private; you choose who sees it
+- **Privacy by Default** — Your spending patterns aren't tracked
 
-## Project Structure
+## Tech Stack
 
-```
-void402/
-├── packages/
-│   ├── contracts/     # Smart contracts (VoidFHERC20, Void402Facilitator)
-│   ├── backend/       # Backend API services
-│   └── core/          # Core utilities (future)
-└── src/               # Frontend React app
-```
+- **Frontend:** React + Vite + TypeScript + Tailwind CSS
+- **Blockchain:** Base
+- **Privacy:** Zero-Knowledge Proofs
+- **Payment Protocol:** x402
 
-## Quick Start
+## Getting Started
 
-### Backend Setup
-
-1. **Contracts:**
 ```bash
-cd packages/contracts
 npm install
-npm run compile
-npm run deploy:sepolia
-```
-
-2. **Backend Server:**
-```bash
-cd packages/backend
-npm install
-cp .env.example .env
-# Add contract addresses to .env
 npm run dev
 ```
 
-### Frontend
-
-The frontend React app is in the `src/` directory and can be run with:
-```bash
-npm run dev
-```
-
-## Technology Stack
-
-- **Blockchain:** Base (Sepolia testnet)
-- **Smart Contracts:** Solidity, Hardhat, Fhenix FHE
-- **Backend:** Node.js, Express, TypeScript
-- **Payment Protocol:** Coinbase x402 SDKs
-- **Privacy:** Fhenix FHE libraries
-
-## Documentation
-
-- [Contracts README](./packages/contracts/README.md)
-- [Backend README](./packages/backend/README.md)
+The app runs on http://localhost:5173 by default.
 
 ## License
 
