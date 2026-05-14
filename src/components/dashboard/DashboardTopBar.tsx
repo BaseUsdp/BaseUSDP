@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { RefreshCw, Eye, EyeOff, Bell, Home, MessageSquare, Sun, Moon } from "lucide-react";
+import { RefreshCw, Eye, EyeOff, Bell, Home, Sun, Moon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useWallet } from "@/contexts/WalletContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -47,21 +47,6 @@ const DashboardTopBar = ({ showBalance, setShowBalance, setActiveTab, unreadMess
           <Home className="h-4 w-4" />
           <span className="text-xs font-medium hidden sm:inline">Home</span>
         </Link>
-
-        <button
-          disabled
-          className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-not-allowed opacity-50"
-          style={btnStyle}
-        >
-          <MessageSquare className="h-4 w-4" />
-          <span className="text-xs font-medium hidden sm:inline">Messages</span>
-          <span
-            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-            style={{ background: 'var(--dash-surface)', color: 'var(--dash-text-faint)' }}
-          >
-            Soon
-          </span>
-        </button>
       </div>
 
       {/* Right Controls */}
