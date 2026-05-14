@@ -14,6 +14,7 @@ import PaymentPage from "./pages/PaymentPage";
 import X402Deposit from "./pages/X402Deposit";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
+import Docs from "./pages/Docs";
 import NotFound from "./pages/NotFound";
 import {
   Shield,
@@ -83,6 +84,7 @@ function AppRoutes() {
         <Route path="/x402-deposit" element={<X402Deposit />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+        <Route path="/docs" element={<Docs />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>

@@ -8,6 +8,7 @@ const Footer = () => {
   const footerLinks = {
     Platform: [
       { name: "Dashboard", href: "/dashboard", isRoute: true },
+      { name: "Docs", href: "/docs", isRoute: true },
       { name: "Technology", href: "#features" },
       { name: "Applications", href: "#use-cases" },
       { name: "Future Path", href: "#roadmap" },
