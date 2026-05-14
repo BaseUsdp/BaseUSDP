@@ -17,7 +17,7 @@ x402 payments that keep your financial data encrypted — always.
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Twitter](https://img.shields.io/badge/Twitter-%40UsdpBase-1DA1F2?style=flat-square&logo=x)](https://x.com/UsdpBase)
 
-[Live App](https://baseusdp.com) · [Twitter](https://x.com/UsdpBase) · [Docs](https://baseusdp.com)
+[Live App](https://baseusdp.com) · [Twitter](https://x.com/UsdpBase) · [Docs](https://www.baseusdp.com/docs)
 
 </div>
 
