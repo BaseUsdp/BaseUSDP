@@ -14,7 +14,7 @@ import {
 // --- Types ---
 export type AnimationPhase = "scatter" | "line" | "circle" | "bottom-strip";
 
-const CA_ADDRESS = "XXXX";
+const CA_ADDRESS = "0x7b29e5266634bcba06686e580afd4419a8c84b07";
 
 const CARD_ICONS = [
   Shield, Lock, Fingerprint, Eye, KeyRound, FileKey,
