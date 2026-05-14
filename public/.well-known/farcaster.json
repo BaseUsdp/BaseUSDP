@@ -7,7 +7,7 @@
   "miniapp": {
     "version": "0.0.0",
     "name": "BASEUSDP Private Payments",
-    "homeUrl": "https://baseusdp.com/dashboard",
+    "homeUrl": "https://baseusdp.com/miniapp",
     "iconUrl": "https://baseusdp.com/favicon.ico",
     "splashImageUrl": "https://baseusdp.com/social-preview.png",
     "splashBackgroundColor": "#0a0a0a",

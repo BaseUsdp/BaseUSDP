@@ -1,10 +1,8 @@
-import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
-import { sdk as miniAppSdk } from "@farcaster/miniapp-sdk";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { XMTPProvider } from "@/contexts/XMTPContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -93,30 +91,22 @@ function AppRoutes() {
   );
 }
 
-const App = () => {
-  useEffect(() => {
-    miniAppSdk.actions.ready().catch(() => {
-      // Outside a Mini App container; safe to ignore.
-    });
-  }, []);
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <TooltipProvider>
-          <WalletProvider>
-            <XMTPProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <AppRoutes />
-              </BrowserRouter>
-            </XMTPProvider>
-          </WalletProvider>
-        </TooltipProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
-  );
-};
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <ThemeProvider>
+      <TooltipProvider>
+        <WalletProvider>
+          <XMTPProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </XMTPProvider>
+        </WalletProvider>
+      </TooltipProvider>
+    </ThemeProvider>
+  </QueryClientProvider>
+);
 
 export default App;

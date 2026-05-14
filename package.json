@@ -13,7 +13,6 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
     "@coinbase/cdp-sdk": "^1.44.1",
-    "@farcaster/miniapp-sdk": "^0.3.0",
     "@hookform/resolvers": "^3.10.0",
     "@iconify/react": "^6.0.2",
     "@radix-ui/react-accordion": "^1.2.11",
