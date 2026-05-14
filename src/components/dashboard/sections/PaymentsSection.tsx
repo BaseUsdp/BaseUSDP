@@ -105,27 +105,32 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
   };
 
   const handlePreview = () => {
-    const effectiveRecipient = getEffectiveRecipient();
-    
-    if (!effectiveRecipient || !amount) {
-      if (recipientType === "username" && !resolvedWallet) {
-        setError("Please enter a valid username");
-        return;
-      }
+    if (!amount) {
       setError("Please fill in all fields");
       return;
     }
-    
-    if (!isValidAddress(effectiveRecipient)) {
-      setError("Invalid recipient address");
-      return;
+
+    if (recipientType === "username") {
+      if (!usernameInput || !resolvedWallet) {
+        setError("Please enter a valid username");
+        return;
+      }
+    } else {
+      if (!recipient) {
+        setError("Please enter a recipient address");
+        return;
+      }
+      if (!isValidAddress(recipient)) {
+        setError("Invalid recipient address");
+        return;
+      }
     }
-    
+
     if (parseFloat(amount) <= 0) {
       setError("Amount must be greater than 0");
       return;
     }
-    
+
     setError("");
     setStep("preview");
   };
