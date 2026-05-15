@@ -60,7 +60,8 @@ nolvi-compare/
 *.md
 !README.md
 
-# Any file naming Nolvi, ORB, or ORB402 stays internal
+# Any file naming Nolvi, ORB, or internal package names stays internal
 *[Nn]olvi*
 *[Oo]rb*
 *ORB*
+*[Vv]oid*
