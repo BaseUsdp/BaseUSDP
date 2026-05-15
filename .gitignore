@@ -14,6 +14,9 @@ supabase/
 # Only ignore PDFs, keep all .md files
 *.pdf
 
+# Whitepaper build artifact (intermediate HTML emitted by the PDF generator)
+docs/BASEUSDP-Whitepaper.html
+
 # Dependencies
 node_modules/
 packages/*/node_modules/
