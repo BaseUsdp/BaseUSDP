@@ -17,6 +17,7 @@ import X402Deposit from "./pages/X402Deposit";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import Docs from "./pages/Docs";
+import Whitepaper from "./pages/Whitepaper";
 import MiniApp from "./miniapp/MiniApp";
 import NotFound from "./pages/NotFound";
 import {
@@ -26,6 +27,7 @@ import {
   Briefcase,
   Map,
   LayoutDashboard,
+  FileText,
 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -61,6 +63,7 @@ function AppNav() {
     { name: "Solution", link: "#features", icon: <Lightbulb className="h-4 w-4" />, onClick: sectionNav("features") },
     { name: "Use Cases", link: "#use-cases", icon: <Briefcase className="h-4 w-4" />, onClick: sectionNav("use-cases") },
     { name: "Roadmap", link: "#roadmap", icon: <Map className="h-4 w-4" />, onClick: sectionNav("roadmap") },
+    { name: "Whitepaper", link: "/whitepaper", icon: <FileText className="h-4 w-4" /> },
     { name: "Dashboard", link: "/dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
   ];
 
@@ -88,6 +91,7 @@ function AppRoutes() {
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
         <Route path="/docs" element={<Docs />} />
+        <Route path="/whitepaper" element={<Whitepaper />} />
         <Route path="/miniapp/*" element={<MiniApp />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
