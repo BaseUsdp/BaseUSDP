@@ -47,6 +47,16 @@ const SmsHistoryCard = ({ reloadTick }: SmsHistoryCardProps) => {
   const [refundError, setRefundError] = useState<
     Record<string, string | undefined>
   >({});
+  // Re-render-driving clock so Pending rows count down live and flip to
+  // Expired the moment they cross the 24h boundary.
+  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const id = setInterval(
+      () => setNowSec(Math.floor(Date.now() / 1000)),
+      30_000
+    );
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!isConnected || !fullWalletAddress || !SMS_ESCROW_ADDRESS) {
@@ -145,6 +155,27 @@ const SmsHistoryCard = ({ reloadTick }: SmsHistoryCardProps) => {
       cancelled = true;
     };
   }, [isConnected, fullWalletAddress, reloadTick]);
+
+  // The row carries the chain-derived status. We compute the *display*
+  // status here so a Pending row that has just passed its expiry flips to
+  // Expired without waiting for another getEscrow() round trip.
+  function liveStatus(r: LinkRow): DisplayStatus {
+    if (r.status === "pending" && r.expiresAt > 0 && nowSec >= r.expiresAt) {
+      return "expired";
+    }
+    return r.status;
+  }
+
+  function formatRemaining(expiresAt: number): string {
+    const remaining = expiresAt - nowSec;
+    if (remaining <= 0) return "expired";
+    const h = Math.floor(remaining / 3600);
+    const m = Math.floor((remaining % 3600) / 60);
+    const s = remaining % 60;
+    if (h > 0) return `expires in ${h}h ${m}m`;
+    if (m > 0) return `expires in ${m}m`;
+    return `expires in ${s}s`;
+  }
 
   function statusPill(status: DisplayStatus) {
     const map: Record<
@@ -311,6 +342,7 @@ const SmsHistoryCard = ({ reloadTick }: SmsHistoryCardProps) => {
               typeof window !== "undefined"
                 ? `${window.location.origin}/claim/${r.claimToken}`
                 : `/claim/${r.claimToken}`;
+            const display = liveStatus(r);
             return (
               <li
                 key={r.claimToken}
@@ -328,17 +360,26 @@ const SmsHistoryCard = ({ reloadTick }: SmsHistoryCardProps) => {
                     >
                       ${r.amount} USDC
                     </span>
-                    {statusPill(r.status)}
+                    {statusPill(display)}
                   </div>
-                  <a
-                    href={`https://basescan.org/tx/${r.txHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 text-[10px] underline underline-offset-2"
-                    style={{ color: "var(--dash-text-faint)" }}
-                  >
-                    block {r.blockNumber}
-                  </a>
+                  {display === "pending" && r.expiresAt > 0 ? (
+                    <span
+                      className="shrink-0 text-[10px] tabular-nums"
+                      style={{ color: "#22c55e" }}
+                    >
+                      {formatRemaining(r.expiresAt)}
+                    </span>
+                  ) : (
+                    <a
+                      href={`https://basescan.org/tx/${r.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 text-[10px] underline underline-offset-2"
+                      style={{ color: "var(--dash-text-faint)" }}
+                    >
+                      block {r.blockNumber}
+                    </a>
+                  )}
                 </div>
                 <div
                   className="mt-1 font-mono text-[11px] break-all [overflow-wrap:anywhere]"
@@ -384,7 +425,7 @@ const SmsHistoryCard = ({ reloadTick }: SmsHistoryCardProps) => {
                     />
                     <span className="truncate">Open claim page</span>
                   </a>
-                  {r.status === "expired" && (
+                  {display === "expired" && (
                     <button
                       type="button"
                       onClick={() => handleRefund(r.claimToken)}
