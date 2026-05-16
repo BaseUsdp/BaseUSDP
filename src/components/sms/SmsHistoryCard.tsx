@@ -14,17 +14,23 @@ import {
   SMS_ESCROW_ABI,
   SMS_ESCROW_ADDRESS,
   publicClient,
+  readEscrow,
+  type OnChainStatus,
 } from "@/lib/sms/contracts";
 
 interface SmsHistoryCardProps {
   reloadTick: number;
 }
 
+type DisplayStatus = "pending" | "claimed" | "refunded" | "expired" | "unknown";
+
 interface LinkRow {
   claimToken: `0x${string}`;
   amount: string;
   blockNumber: number;
   txHash: `0x${string}`;
+  status: DisplayStatus;
+  expiresAt: number;
 }
 
 const BLOCK_WINDOW = 10000n; // ~5.5 hours on Base
@@ -79,6 +85,8 @@ const SmsHistoryCard = ({ reloadTick }: SmsHistoryCardProps) => {
               amount: (Number(e.args.amount) / 1e6).toFixed(2),
               blockNumber: Number(e.blockNumber),
               txHash: e.transactionHash as `0x${string}`,
+              status: "unknown" as DisplayStatus,
+              expiresAt: 0,
             }))
             .sort((a, b) => b.blockNumber - a.blockNumber)
             .slice(0, 25);
@@ -95,11 +103,89 @@ const SmsHistoryCard = ({ reloadTick }: SmsHistoryCardProps) => {
       }
       setRows(mapped);
       setLoading(false);
+
+      // Fan out per-row getEscrow() reads so each line shows a live
+      // pill (Pending / Claimed / Refunded / Expired). These run after
+      // the initial render so the list shows up immediately.
+      if (mapped.length > 0) {
+        const nowSec = Math.floor(Date.now() / 1000);
+        const enriched = await Promise.all(
+          mapped.map(async (row) => {
+            try {
+              const esc = await readEscrow(row.claimToken);
+              if (!esc) return row;
+              const onChain: OnChainStatus = esc.status;
+              let status: DisplayStatus =
+                onChain === "pending"
+                  ? "pending"
+                  : onChain === "claimed"
+                  ? "claimed"
+                  : onChain === "refunded"
+                  ? "refunded"
+                  : "unknown";
+              if (status === "pending" && esc.expiresAt > 0 && nowSec >= esc.expiresAt) {
+                status = "expired";
+              }
+              return { ...row, status, expiresAt: esc.expiresAt };
+            } catch {
+              return row;
+            }
+          })
+        );
+        if (!cancelled) setRows(enriched);
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [isConnected, fullWalletAddress, reloadTick]);
+
+  function statusPill(status: DisplayStatus) {
+    const map: Record<
+      DisplayStatus,
+      { label: string; color: string; border: string; bg: string }
+    > = {
+      pending: {
+        label: "Pending",
+        color: "#22c55e",
+        border: "rgba(34, 197, 94, 0.4)",
+        bg: "rgba(34, 197, 94, 0.08)",
+      },
+      claimed: {
+        label: "Claimed",
+        color: "hsl(var(--beam-cyan))",
+        border: "rgba(56, 189, 248, 0.4)",
+        bg: "rgba(56, 189, 248, 0.08)",
+      },
+      refunded: {
+        label: "Refunded",
+        color: "var(--dash-text-muted)",
+        border: "var(--dash-border)",
+        bg: "transparent",
+      },
+      expired: {
+        label: "Expired",
+        color: "#f59e0b",
+        border: "rgba(245, 158, 11, 0.4)",
+        bg: "rgba(245, 158, 11, 0.08)",
+      },
+      unknown: {
+        label: "…",
+        color: "var(--dash-text-faint)",
+        border: "var(--dash-border)",
+        bg: "transparent",
+      },
+    };
+    const s = map[status];
+    return (
+      <span
+        className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest"
+        style={{ color: s.color, borderColor: s.border, background: s.bg }}
+      >
+        {s.label}
+      </span>
+    );
+  }
 
   async function copy(claimUrl: string, token: string) {
     try {
@@ -194,13 +280,16 @@ const SmsHistoryCard = ({ reloadTick }: SmsHistoryCardProps) => {
                   background: "var(--dash-surface)",
                 }}
               >
-                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                  <span
-                    className="text-sm font-semibold"
-                    style={{ color: "var(--dash-text)" }}
-                  >
-                    ${r.amount} USDC
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="text-sm font-semibold"
+                      style={{ color: "var(--dash-text)" }}
+                    >
+                      ${r.amount} USDC
+                    </span>
+                    {statusPill(r.status)}
+                  </div>
                   <a
                     href={`https://basescan.org/tx/${r.txHash}`}
                     target="_blank"
