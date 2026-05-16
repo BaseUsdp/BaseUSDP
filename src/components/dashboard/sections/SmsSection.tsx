@@ -21,7 +21,7 @@ const SmsSection = () => {
         <div>
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <h1 className="font-display text-3xl font-bold">
-              Private Link<span className="text-primary">.</span>
+              SMS Pay<span className="text-primary">.</span>
             </h1>
             <span
               className="rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest"
