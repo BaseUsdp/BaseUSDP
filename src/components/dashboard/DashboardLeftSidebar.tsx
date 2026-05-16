@@ -14,11 +14,14 @@ import {
   ArrowLeftRight,
   MessageSquare,
   Terminal,
-  Bot
+  Bot,
+  Vault,
+  Smartphone
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
+import { isSmsWhitelisted, isVeilWhitelisted } from "@/lib/featureGates";
 
 interface DashboardLeftSidebarProps {
   activeTab: string;
@@ -28,16 +31,26 @@ interface DashboardLeftSidebarProps {
 }
 
 const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMessages = 0 }: DashboardLeftSidebarProps) => {
-  const { encryptedBalance, privacyLevel, walletAddress, activeChain } = useWallet();
+  const { encryptedBalance, privacyLevel, walletAddress, fullWalletAddress, activeChain } = useWallet();
   const { stats, isLoading: isLoadingStats } = useTransactionStats();
 
-  const navItems = [
+  const smsAllowed = isSmsWhitelisted(fullWalletAddress);
+  const veilAllowed = isVeilWhitelisted(fullWalletAddress);
+
+  const navItems: {
+    id: string;
+    label: string;
+    icon: typeof LayoutDashboard;
+    disabled?: boolean;
+  }[] = [
     { id: "overview", label: "Dashboard", icon: LayoutDashboard },
     { id: "terminal", label: "AI Terminal", icon: Terminal },
     { id: "agents", label: "Agents", icon: Bot },
     { id: "payments", label: "Payments", icon: Send },
     { id: "withdraw", label: "Withdraw", icon: ArrowUpRight },
-    { id: "swap", label: "Swap", icon: ArrowLeftRight },
+    { id: "veil", label: "Veil Pool", icon: Vault, disabled: !veilAllowed },
+    { id: "sms", label: "SMS Pay", icon: Smartphone, disabled: !smsAllowed },
+    { id: "swap", label: "Swap", icon: ArrowLeftRight, disabled: true },
     { id: "history", label: "History", icon: History },
     { id: "messages", label: "Messages", icon: MessageSquare },
     { id: "settings", label: "Settings", icon: Settings },
@@ -84,18 +97,18 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => !["swap"].includes(item.id) && setActiveTab(item.id)}
-              disabled={["swap"].includes(item.id)}
+              onClick={() => !item.disabled && setActiveTab(item.id)}
+              disabled={item.disabled}
               className={cn(
                 "w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors",
-                (["swap"].includes(item.id))
+                item.disabled
                   ? "cursor-not-allowed opacity-50"
                   : activeTab === item.id
                   ? "bg-sky-500/20 text-sky-400"
                   : ""
               )}
               style={
-                (["swap"].includes(item.id))
+                item.disabled
                   ? { color: 'var(--dash-text-faint)' }
                   : activeTab === item.id
                   ? undefined
@@ -104,7 +117,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
             >
               <item.icon className="w-4 h-4" />
               {item.label}
-              {(["swap"].includes(item.id)) && (
+              {item.disabled && (
                 <span
                   className="ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded-full"
                   style={{ background: 'var(--dash-surface)', color: 'var(--dash-text-faint)' }}

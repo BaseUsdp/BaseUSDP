@@ -8,6 +8,7 @@ import { sdk as miniAppSdk } from "@farcaster/miniapp-sdk";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { XMTPProvider } from "@/contexts/XMTPContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { VeilProvider } from "@/contexts/VeilContext";
 import { FloatingNav } from "@/components/ui/floating-navbar";
 import WalletConnectButton from "@/components/WalletConnectButton";
 import Index from "./pages/Index";
@@ -19,6 +20,7 @@ import TermsAndConditions from "./pages/TermsAndConditions";
 import Docs from "./pages/Docs";
 import Whitepaper from "./pages/Whitepaper";
 import MiniApp from "./miniapp/MiniApp";
+import SmsClaim from "./pages/SmsClaim";
 import NotFound from "./pages/NotFound";
 import {
   Shield,
@@ -32,7 +34,7 @@ import {
 
 const queryClient = new QueryClient();
 
-const NO_NAV_ROUTES = ["/dashboard", "/miniapp"];
+const NO_NAV_ROUTES = ["/dashboard", "/miniapp", "/claim"];
 
 const scrollTo = (id: string) => {
   const el = document.getElementById(id);
@@ -93,6 +95,7 @@ function AppRoutes() {
         <Route path="/docs" element={<Docs />} />
         <Route path="/whitepaper" element={<Whitepaper />} />
         <Route path="/miniapp/*" element={<MiniApp />} />
+        <Route path="/claim/:token" element={<SmsClaim />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
@@ -112,11 +115,13 @@ const App = () => {
         <TooltipProvider>
           <WalletProvider>
             <XMTPProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <AppRoutes />
-              </BrowserRouter>
+              <VeilProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                  <AppRoutes />
+                </BrowserRouter>
+              </VeilProvider>
             </XMTPProvider>
           </WalletProvider>
         </TooltipProvider>

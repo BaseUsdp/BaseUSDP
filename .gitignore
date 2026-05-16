@@ -56,6 +56,9 @@ yarn-error.log*
 .vercel
 nolvi-compare/
 
+# Local SMS escrow store (dev-only file-backed escrow)
+data/
+
 # Internal docs — keep public repo doc-free except README
 *.md
 !README.md
