@@ -101,10 +101,11 @@ const SmsSendCard = ({ onSent }: SmsSendCardProps) => {
     }
 
     const sender = fullWalletAddress as `0x${string}`;
-    const wtype: VeilWalletType =
-      walletType === "metamask" || walletType === "phantom"
-        ? walletType
-        : null;
+    // VeilWalletType is the superset of every WalletType the connect flow
+    // supports, so the cast is safe and routes to the correct injected
+    // provider (metamask / phantom / coinbase / okx / bitget / tokenpocket
+    // / imtoken / mathwallet).
+    const wtype = walletType as VeilWalletType;
 
     let amountUnits: bigint;
     try {

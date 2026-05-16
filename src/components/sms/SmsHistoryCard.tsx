@@ -13,10 +13,12 @@ import { useWallet } from "@/contexts/WalletContext";
 import {
   SMS_ESCROW_ABI,
   SMS_ESCROW_ADDRESS,
+  encodeRefund,
   publicClient,
   readEscrow,
   type OnChainStatus,
 } from "@/lib/sms/contracts";
+import { sendTransaction, type VeilWalletType } from "@/lib/veil/provider";
 
 interface SmsHistoryCardProps {
   reloadTick: number;
@@ -36,11 +38,15 @@ interface LinkRow {
 const BLOCK_WINDOW = 10000n; // ~5.5 hours on Base
 
 const SmsHistoryCard = ({ reloadTick }: SmsHistoryCardProps) => {
-  const { fullWalletAddress, isConnected } = useWallet();
+  const { fullWalletAddress, isConnected, walletType } = useWallet();
   const [rows, setRows] = useState<LinkRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [refundingToken, setRefundingToken] = useState<string | null>(null);
+  const [refundError, setRefundError] = useState<
+    Record<string, string | undefined>
+  >({});
 
   useEffect(() => {
     if (!isConnected || !fullWalletAddress || !SMS_ESCROW_ADDRESS) {
@@ -197,6 +203,40 @@ const SmsHistoryCard = ({ reloadTick }: SmsHistoryCardProps) => {
     }
   }
 
+  async function handleRefund(claimToken: `0x${string}`) {
+    if (!fullWalletAddress || !SMS_ESCROW_ADDRESS) return;
+    setRefundError((prev) => ({ ...prev, [claimToken]: undefined }));
+    setRefundingToken(claimToken);
+    try {
+      const wtype = walletType as VeilWalletType;
+      const hash = await sendTransaction(wtype, {
+        from: fullWalletAddress as `0x${string}`,
+        to: SMS_ESCROW_ADDRESS as `0x${string}`,
+        data: encodeRefund(claimToken),
+      });
+      await publicClient.waitForTransactionReceipt({
+        hash,
+        confirmations: 1,
+      } as any);
+      // Flip the row to Refunded so the UI updates without re-fetching events.
+      setRows((prev) =>
+        prev.map((r) =>
+          r.claimToken === claimToken ? { ...r, status: "refunded" } : r
+        )
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      // Wallet rejections are very common — trim the noise.
+      const clean =
+        message.includes("User rejected") || message.includes("rejected")
+          ? "Wallet rejected the refund signature."
+          : message;
+      setRefundError((prev) => ({ ...prev, [claimToken]: clean }));
+    } finally {
+      setRefundingToken(null);
+    }
+  }
+
   return (
     <div
       className="w-full min-w-0 rounded-xl border p-4 sm:p-5 space-y-3"
@@ -344,7 +384,46 @@ const SmsHistoryCard = ({ reloadTick }: SmsHistoryCardProps) => {
                     />
                     <span className="truncate">Open claim page</span>
                   </a>
+                  {r.status === "expired" && (
+                    <button
+                      type="button"
+                      onClick={() => handleRefund(r.claimToken)}
+                      disabled={refundingToken === r.claimToken}
+                      className="inline-flex w-full items-center justify-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold sm:w-auto disabled:cursor-not-allowed disabled:opacity-60"
+                      style={{
+                        borderColor: "rgba(245, 158, 11, 0.5)",
+                        background: "rgba(245, 158, 11, 0.08)",
+                        color: "#f59e0b",
+                      }}
+                    >
+                      <Icon
+                        icon={
+                          refundingToken === r.claimToken
+                            ? "ph:spinner-bold"
+                            : "ph:arrow-u-up-left-bold"
+                        }
+                        className={`h-3 w-3 shrink-0 ${
+                          refundingToken === r.claimToken
+                            ? "animate-spin"
+                            : ""
+                        }`}
+                      />
+                      <span className="truncate">
+                        {refundingToken === r.claimToken
+                          ? "Refunding…"
+                          : `Refund $${r.amount}`}
+                      </span>
+                    </button>
+                  )}
                 </div>
+                {refundError[r.claimToken] && (
+                  <div
+                    className="mt-2 break-words text-[11px]"
+                    style={{ color: "#ef4444" }}
+                  >
+                    {refundError[r.claimToken]}
+                  </div>
+                )}
               </li>
             );
           })}
