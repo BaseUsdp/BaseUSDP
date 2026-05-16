@@ -1,18 +1,13 @@
 /**
  * Wallet allowlists for dashboard features still in private preview.
  *
- * Lists are sourced from build-time env vars so the repo stays free of
- * specific addresses:
- *   VITE_SMS_WHITELIST   — comma-separated EVM addresses allowed to use SMS Pay
- *   VITE_VEIL_WHITELIST  — comma-separated EVM addresses allowed to use Veil Pool
+ *   VITE_VEIL_WHITELIST — comma-separated EVM addresses allowed to use Veil Pool
  *
- * Empty or unset → feature is hidden / disabled for every wallet, which is
- * the safe default for a public clone.
+ * SMS Pay is currently open to every connected wallet.
  *
  * Vite inlines these at build time, so the addresses *will* appear in the
- * shipped JS bundle. That is fine here because this gate is UI-only —
- * the SMS API endpoints rely on per-request wallet signatures for their
- * own authentication.
+ * shipped JS bundle. That's fine here because the gate is UI-only — the
+ * contract enforces its own authentication via signatures.
  */
 
 function parseList(raw: string | undefined): Set<string> {
@@ -25,12 +20,15 @@ function parseList(raw: string | undefined): Set<string> {
   );
 }
 
-const SMS_ALLOWED = parseList(import.meta.env.VITE_SMS_WHITELIST);
 const VEIL_ALLOWED = parseList(import.meta.env.VITE_VEIL_WHITELIST);
 
-export function isSmsWhitelisted(address: string | null | undefined): boolean {
-  if (!address) return false;
-  return SMS_ALLOWED.has(address.toLowerCase());
+/**
+ * SMS Pay is open to everyone — the section handles its own "connect a
+ * wallet" empty state. Kept as a function so re-gating later is a
+ * one-line change here without touching the sidebar or main content.
+ */
+export function isSmsWhitelisted(_address: string | null | undefined): boolean {
+  return true;
 }
 
 export function isVeilWhitelisted(address: string | null | undefined): boolean {
