@@ -49,19 +49,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // 1. Verify the on-chain escrow exists and is pending.
-  let escrow;
-  try {
-    escrow = await readEscrow(body.claimToken);
-  } catch (err) {
+  //    Retry a few times — the deposit tx may have confirmed on one RPC
+  //    node while the read hits another that hasn't seen the new block yet
+  //    (Base public RPC is load-balanced and there's ~1-3s drift).
+  let escrow: Awaited<ReturnType<typeof readEscrow>> = null;
+  let lastErr: unknown;
+  const RETRY_DELAYS_MS = [0, 1500, 3000, 5000];
+  for (const delay of RETRY_DELAYS_MS) {
+    if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+    try {
+      escrow = await readEscrow(body.claimToken);
+      if (escrow) break;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  if (lastErr && !escrow) {
     return res.status(500).json({
       error: "chain read failed",
-      detail: err instanceof Error ? err.message : String(err),
+      detail: lastErr instanceof Error ? lastErr.message : String(lastErr),
     });
   }
   if (!escrow) {
-    return res
-      .status(404)
-      .json({ error: "no on-chain escrow for this claimToken" });
+    return res.status(404).json({
+      error:
+        "no on-chain escrow for this claimToken (RPC may be lagging — retry in a few seconds)",
+    });
   }
   if (escrow.status !== "pending") {
     return res
