@@ -1,22 +1,31 @@
 /**
- * Client-side EVM provider helpers for the Veil integration.
+ * Client-side EVM provider helpers used by the Veil + SMS flows.
  *
- * Lives outside WalletContext on purpose — the Veil layer must not import
- * from or modify the BASEUSDP pool's wallet context.
+ * Lives outside WalletContext on purpose — these flows must not import from
+ * or modify the BASEUSDP pool's wallet context.
+ *
+ * Despite the directory name (`veil/`), the helpers are wallet-agnostic and
+ * shared by the SMS Pay layer too.
  */
 
 type EvmProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
   isMetaMask?: boolean;
   isPhantom?: boolean;
+  isCoinbaseWallet?: boolean;
 };
 
-export type VeilWalletType = "metamask" | "phantom" | null;
+export type VeilWalletType =
+  | "metamask"
+  | "phantom"
+  | "coinbase"
+  | null;
 
 export function getMetaMaskProvider(): EvmProvider | null {
   if (typeof window === "undefined") return null;
   const provider = (window as any).ethereum as EvmProvider | undefined;
-  if (provider?.isMetaMask && !provider?.isPhantom) return provider;
+  if (provider?.isMetaMask && !provider?.isPhantom && !provider?.isCoinbaseWallet)
+    return provider;
   return null;
 }
 
@@ -27,9 +36,15 @@ export function getPhantomEVMProvider(): EvmProvider | null {
   return null;
 }
 
-export function getEvmProvider(walletType: VeilWalletType): EvmProvider | null {
+export async function getEvmProvider(
+  walletType: VeilWalletType
+): Promise<EvmProvider | null> {
   if (walletType === "metamask") return getMetaMaskProvider();
   if (walletType === "phantom") return getPhantomEVMProvider();
+  if (walletType === "coinbase") {
+    const { getCoinbaseProvider } = await import("@/lib/wallets/coinbase");
+    return (await getCoinbaseProvider()) as EvmProvider;
+  }
   // Fall back to any injected provider.
   return getMetaMaskProvider() ?? getPhantomEVMProvider();
 }
@@ -39,7 +54,7 @@ export async function personalSign(
   address: string,
   message: string
 ): Promise<string> {
-  const provider = getEvmProvider(walletType);
+  const provider = await getEvmProvider(walletType);
   if (!provider) throw new Error("No EVM wallet provider found");
   const sig = await provider.request({
     method: "personal_sign",
@@ -59,7 +74,7 @@ export async function sendTransaction(
   walletType: VeilWalletType,
   params: SendTxParams
 ): Promise<`0x${string}`> {
-  const provider = getEvmProvider(walletType);
+  const provider = await getEvmProvider(walletType);
   if (!provider) throw new Error("No EVM wallet provider found");
 
   const value =
@@ -83,16 +98,15 @@ export async function sendTransaction(
   return hash as `0x${string}`;
 }
 
-/** Read USDC allowance for the Veil entry contract on Base. */
+/** Read USDC allowance for an arbitrary spender. */
 export async function readUsdcAllowance(
   walletType: VeilWalletType,
   owner: `0x${string}`,
   spender: `0x${string}`,
   usdcToken: `0x${string}`
 ): Promise<bigint> {
-  const provider = getEvmProvider(walletType);
+  const provider = await getEvmProvider(walletType);
   if (!provider) throw new Error("No EVM wallet provider found");
-  // ERC20 allowance(owner, spender) selector: 0xdd62ed3e
   const data =
     "0xdd62ed3e" +
     owner.slice(2).padStart(64, "0") +

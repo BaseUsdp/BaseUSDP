@@ -2,8 +2,9 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import { authService } from "@/services/authService";
 import { getZKBalance } from "@/services/api";
 import { getApiUrl } from "@/utils/apiConfig";
+import { getCachedCoinbaseProvider } from "@/lib/wallets/coinbase";
 
-export type WalletType = "phantom" | "metamask" | null;
+export type WalletType = "phantom" | "metamask" | "coinbase" | null;
 export type ActiveChain = "solana" | "base";
 export type PrivacyLevel = "public" | "partial" | "full";
 export type NetworkStatus = "connected" | "wrong_network" | "disconnected";
@@ -69,11 +70,30 @@ const getPhantomProvider = getPhantomSolanaProvider;
 // Helper to get MetaMask EVM provider (for Base)
 const getMetaMaskProvider = (): MetaMaskEVMProvider | null => {
   if (typeof window === "undefined") return null;
-  // MetaMask injects window.ethereum with isMetaMask=true
-  // Avoid picking up Phantom's window.ethereum (which also sets isMetaMask)
+  // MetaMask injects window.ethereum with isMetaMask=true.
+  // Filter out Phantom and Coinbase, both of which also stamp isMetaMask=true.
   const provider = (window as any).ethereum;
-  if (provider?.isMetaMask && !provider?.isPhantom) return provider;
+  if (
+    provider?.isMetaMask &&
+    !provider?.isPhantom &&
+    !provider?.isCoinbaseWallet
+  )
+    return provider;
   return null;
+};
+
+// Coinbase Wallet EVM provider — lazily initialized via the SDK so it works
+// for users without the browser extension (QR code flow) and supports the
+// Smart Wallet (passkey) option.
+const getCoinbaseEVMProvider = async (): Promise<MetaMaskEVMProvider | null> => {
+  if (typeof window === "undefined") return null;
+  try {
+    const { getCoinbaseProvider } = await import("@/lib/wallets/coinbase");
+    return (await getCoinbaseProvider()) as unknown as MetaMaskEVMProvider;
+  } catch (err) {
+    console.error("[WalletContext] Coinbase provider init failed:", err);
+    return null;
+  }
 };
 
 interface WalletContextType {
@@ -412,7 +432,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     if (activeChain === "base") {
       // EVM event listeners (Phantom or MetaMask)
-      const evmProvider = walletType === "metamask" ? getMetaMaskProvider() : getPhantomEVMProvider();
+      const evmProvider =
+        walletType === "metamask"
+          ? getMetaMaskProvider()
+          : walletType === "coinbase"
+          ? (getCachedCoinbaseProvider() as unknown as MetaMaskEVMProvider | null)
+          : getPhantomEVMProvider();
       if (!evmProvider) return;
 
       const handleAccountsChanged = (accounts: string[]) => {
@@ -500,7 +525,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const checkWalletState = async () => {
       if (activeChain === "base") {
         // EVM polling (Phantom or MetaMask)
-        const evmProvider = walletType === "metamask" ? getMetaMaskProvider() : getPhantomEVMProvider();
+        const evmProvider =
+        walletType === "metamask"
+          ? getMetaMaskProvider()
+          : walletType === "coinbase"
+          ? (getCachedCoinbaseProvider() as unknown as MetaMaskEVMProvider | null)
+          : getPhantomEVMProvider();
         if (!evmProvider) {
           clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
           return;
@@ -674,6 +704,38 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           setIsConnecting(false);
           return;
         }
+      } else if (type === "coinbase") {
+        // Coinbase Wallet via the official SDK — supports the browser
+        // extension, mobile QR-code flow, and Coinbase Smart Wallet
+        // (passkey login, no extension required).
+        const cbProvider = await getCoinbaseEVMProvider();
+
+        if (cbProvider) {
+          try {
+            const accounts: string[] = await cbProvider.request({
+              method: "eth_requestAccounts",
+            });
+            if (accounts.length > 0) {
+              walletAddress = accounts[0];
+              chain = "base";
+              console.log("[WalletContext] Coinbase connected:", walletAddress);
+              await ensureBaseChain(cbProvider);
+            }
+          } catch (err: any) {
+            console.error(
+              "[WalletContext] Coinbase connection error:",
+              err
+            );
+            if (err.code === 4001 || err.message?.includes("rejected") || err.message?.includes("cancel")) {
+              setIsConnecting(false);
+              return;
+            }
+            throw err;
+          }
+        } else {
+          setIsConnecting(false);
+          return;
+        }
       }
 
       if (walletAddress && type) {
@@ -774,7 +836,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // ============================================================
   const switchNetwork = useCallback(async () => {
     if (activeChain === "base") {
-      const evmProvider = walletType === "metamask" ? getMetaMaskProvider() : getPhantomEVMProvider();
+      const evmProvider =
+        walletType === "metamask"
+          ? getMetaMaskProvider()
+          : walletType === "coinbase"
+          ? (getCachedCoinbaseProvider() as unknown as MetaMaskEVMProvider | null)
+          : getPhantomEVMProvider();
       if (evmProvider) {
         await ensureBaseChain(evmProvider);
       }

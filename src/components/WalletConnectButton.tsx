@@ -17,6 +17,24 @@ const MetaMaskLogo = ({ size = 20 }: { size?: number }) => (
   <img src={metamaskLogo} alt="MetaMask" width={size} height={size} className="rounded-md" />
 );
 
+// Coinbase Wallet logo — inline SVG so we don't need a new asset.
+const CoinbaseLogo = ({ size = 20 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 1024 1024"
+    xmlns="http://www.w3.org/2000/svg"
+    className="rounded-md"
+    aria-label="Coinbase Wallet"
+  >
+    <circle cx="512" cy="512" r="512" fill="#0052FF" />
+    <path
+      d="M516.3 361.83c62.83 0 112.85 38.34 131.66 95.16H792C771.27 322.78 656.92 224 517.31 224 359 224 224 351.66 224 512.27S356 800 517.31 800c136.59 0 252.95-98.79 274.69-233H648c-19.81 56.84-68.81 95.18-131.65 95.18-87.34 0-148.13-67.59-148.13-150.05.01-83.45 59.78-150.3 148.08-150.3z"
+      fill="#fff"
+    />
+  </svg>
+);
+
 interface WalletConnectButtonProps {
   variant?: "navbar" | "dashboard";
 }
@@ -222,6 +240,7 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
     switch (walletType) {
       case "phantom": return <PhantomLogo />;
       case "metamask": return <MetaMaskLogo />;
+      case "coinbase": return <CoinbaseLogo />;
       default: return <Wallet className="w-4 h-4" />;
     }
   };
@@ -230,6 +249,7 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
     switch (walletType) {
       case "phantom": return "Phantom";
       case "metamask": return "MetaMask";
+      case "coinbase": return "Coinbase Wallet";
       default: return "Wallet";
     }
   };
@@ -299,6 +319,21 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
               </div>
               {isConnecting && (
                 <Loader2 className="ml-2 h-4 w-4 animate-spin text-orange-400" />
+              )}
+            </button>
+
+            <button
+              onClick={() => handleConnect("coinbase")}
+              disabled={isConnecting}
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-border hover:border-blue-500/50 hover:bg-blue-500/10 transition-all group"
+            >
+              <CoinbaseLogo size={24} />
+              <div className="text-left flex-1">
+                <span className="font-medium text-foreground">Coinbase Wallet</span>
+                <p className="text-xs text-muted-foreground">Extension, mobile, or passkey</p>
+              </div>
+              {isConnecting && (
+                <Loader2 className="ml-2 h-4 w-4 animate-spin text-blue-400" />
               )}
             </button>
           </div>
