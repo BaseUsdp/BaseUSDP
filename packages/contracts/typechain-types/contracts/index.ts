@@ -7,6 +7,7 @@ import type * as interfaces from "./interfaces";
 export type { interfaces };
 export type { AgentIdentityRegistry } from "./AgentIdentityRegistry";
 export type { DepositRouter } from "./DepositRouter";
+export type { SMSEscrow } from "./SMSEscrow";
 export type { TrustGatedTransfer } from "./TrustGatedTransfer";
 export type { Void402Facilitator } from "./Void402Facilitator";
 export type { VoidFHERC20 } from "./VoidFHERC20";

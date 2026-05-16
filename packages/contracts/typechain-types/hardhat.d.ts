@@ -150,6 +150,14 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IERC8004Reputation__factory>;
     getContractFactory(
+      name: "IX402PrivacyPool",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IX402PrivacyPool__factory>;
+    getContractFactory(
+      name: "SMSEscrow",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.SMSEscrow__factory>;
+    getContractFactory(
       name: "TrustGatedTransfer",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.TrustGatedTransfer__factory>;
@@ -337,6 +345,16 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.IERC8004Reputation>;
     getContractAt(
+      name: "IX402PrivacyPool",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IX402PrivacyPool>;
+    getContractAt(
+      name: "SMSEscrow",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.SMSEscrow>;
+    getContractAt(
       name: "TrustGatedTransfer",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -494,6 +512,14 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC8004Reputation>;
     deployContract(
+      name: "IX402PrivacyPool",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IX402PrivacyPool>;
+    deployContract(
+      name: "SMSEscrow",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.SMSEscrow>;
+    deployContract(
       name: "TrustGatedTransfer",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.TrustGatedTransfer>;
@@ -680,6 +706,16 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC8004Reputation>;
+    deployContract(
+      name: "IX402PrivacyPool",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IX402PrivacyPool>;
+    deployContract(
+      name: "SMSEscrow",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.SMSEscrow>;
     deployContract(
       name: "TrustGatedTransfer",
       args: any[],

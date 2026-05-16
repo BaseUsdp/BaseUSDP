@@ -3,3 +3,4 @@
 /* eslint-disable */
 export type { IERC8004Identity } from "./IERC8004Identity";
 export type { IERC8004Reputation } from "./IERC8004Reputation";
+export type { IX402PrivacyPool } from "./IX402PrivacyPool";

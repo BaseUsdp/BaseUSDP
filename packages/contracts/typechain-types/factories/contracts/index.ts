@@ -5,6 +5,7 @@ export * as agentReputationRegistrySol from "./AgentReputationRegistry.sol";
 export * as interfaces from "./interfaces";
 export { AgentIdentityRegistry__factory } from "./AgentIdentityRegistry__factory";
 export { DepositRouter__factory } from "./DepositRouter__factory";
+export { SMSEscrow__factory } from "./SMSEscrow__factory";
 export { TrustGatedTransfer__factory } from "./TrustGatedTransfer__factory";
 export { Void402Facilitator__factory } from "./Void402Facilitator__factory";
 export { VoidFHERC20__factory } from "./VoidFHERC20__factory";

@@ -1,35 +1,77 @@
 /**
- * SMS send form. Handles:
- *  - E.164 validation and client-side keccak256 hashing
- *  - Wallet personal_sign of the send commitment
- *  - Online: POST /api/sms/send and surface the claim link
- *  - Offline: persist the signed payload to localStorage and queue it
+ * On-chain SMS send.
+ *  - Validates inputs + checks user's USDC balance on Base.
+ *  - If allowance < amount, prompts USDC.approve(escrow, maxUint256).
+ *  - Prompts escrow.depositFor(claimToken, amount).
+ *  - After the deposit confirms, POSTs phoneE164 + claimToken to
+ *    /api/sms/dispatch so Twilio actually sends the message.
  */
 
 import { Icon } from "@iconify/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useWallet } from "@/contexts/WalletContext";
-import { hashPhone, isValidE164, normalizeE164 } from "@/lib/sms/phone";
+import { isValidE164, normalizeE164 } from "@/lib/sms/phone";
 import { generateClaimToken } from "@/lib/sms/token";
-import { buildSendCommitment } from "@/lib/sms/messages";
-import { personalSign, type VeilWalletType } from "@/lib/veil/provider";
-import { postSmsSend, type SmsSendPayload } from "@/services/smsService";
-import { enqueueSend } from "@/lib/sms/offlineQueue";
-import type { SmsSendResult } from "@/lib/sms/types";
+import {
+  SMS_ESCROW_ADDRESS,
+  USDC_ADDRESS,
+  encodeApprove,
+  encodeDepositFor,
+  parseUsdc,
+  publicClient,
+  readAllowance,
+  readUsdcBalance,
+} from "@/lib/sms/contracts";
+import { sendTransaction, type VeilWalletType } from "@/lib/veil/provider";
 
 interface SmsSendCardProps {
   onSent: () => void;
 }
+
+interface SuccessState {
+  claimToken: `0x${string}`;
+  claimUrl: string;
+  depositTxHash: `0x${string}`;
+  consoleMode: boolean;
+}
+
+type Phase =
+  | "idle"
+  | "checking-allowance"
+  | "approving"
+  | "depositing"
+  | "dispatching"
+  | "done";
 
 const SmsSendCard = ({ onSent }: SmsSendCardProps) => {
   const { fullWalletAddress, isConnected, walletType } = useWallet();
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<SmsSendResult | null>(null);
-  const [queuedNote, setQueuedNote] = useState<string | null>(null);
+  const [result, setResult] = useState<SuccessState | null>(null);
+  const [usdcBalance, setUsdcBalance] = useState<string | null>(null);
+
+  // Pull the connected wallet's USDC balance on Base so the user knows
+  // what they have to work with before signing.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!fullWalletAddress) return;
+      try {
+        const bal = await readUsdcBalance(fullWalletAddress as `0x${string}`);
+        if (!cancelled) {
+          setUsdcBalance((Number(bal) / 1e6).toFixed(2));
+        }
+      } catch {
+        if (!cancelled) setUsdcBalance(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fullWalletAddress, result]);
 
   const reset = () => {
     setPhone("");
@@ -43,73 +85,129 @@ const SmsSendCard = ({ onSent }: SmsSendCardProps) => {
     (/^\d+(\.\d{1,6})?$/.test(amount) && Number(amount) > 0);
   const canSubmit =
     isConnected &&
-    !submitting &&
+    phase === "idle" &&
     isValidE164(phone) &&
     amountValid &&
-    Number(amount) > 0;
+    Number(amount) > 0 &&
+    !!SMS_ESCROW_ADDRESS;
+
+  async function waitForTx(hash: `0x${string}`) {
+    await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 } as any);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!isConnected || !fullWalletAddress) return;
-    setSubmitting(true);
     setError(null);
     setResult(null);
-    setQueuedNote(null);
+    if (!SMS_ESCROW_ADDRESS) {
+      setError("VITE_SMS_ESCROW_ADDRESS not configured");
+      return;
+    }
+
+    const sender = fullWalletAddress as `0x${string}`;
+    const wtype: VeilWalletType =
+      walletType === "metamask" || walletType === "phantom"
+        ? walletType
+        : null;
+
+    let e164: string;
+    let amountUnits: bigint;
+    try {
+      e164 = normalizeE164(phone);
+      amountUnits = parseUsdc(amount);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      return;
+    }
+
+    const claimToken = generateClaimToken();
+    const trimmedNote = note.trim() ? note.trim().slice(0, 140) : null;
 
     try {
-      const e164 = normalizeE164(phone);
-      const phoneHash = hashPhone(e164);
-      const claimToken = generateClaimToken();
-      const commitment = buildSendCommitment({
-        phoneHash,
-        amount,
-        claimToken,
-      });
-
-      const wtype: VeilWalletType =
-        walletType === "metamask" || walletType === "phantom"
-          ? walletType
-          : null;
-      const sig = await personalSign(wtype, fullWalletAddress, commitment);
-
-      const payload: SmsSendPayload = {
-        phoneHash,
-        amount,
-        sender: fullWalletAddress as `0x${string}`,
-        senderSig: sig as `0x${string}`,
-        phoneE164: e164,
-        claimToken,
-        note: note.trim() ? note.trim() : null,
-      };
-
-      if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        enqueueSend({
-          phoneE164: e164,
-          phoneHash,
-          amount,
-          sender: fullWalletAddress as `0x${string}`,
-          senderSig: sig as `0x${string}`,
-          claimToken,
-          note: note.trim() ? note.trim() : null,
-        });
-        setQueuedNote(
-          "You're offline — the signed send was queued and will dispatch automatically when you reconnect."
+      // Step 1: balance + allowance
+      setPhase("checking-allowance");
+      const [bal, allowance] = await Promise.all([
+        readUsdcBalance(sender),
+        readAllowance(sender),
+      ]);
+      if (bal < amountUnits) {
+        throw new Error(
+          `Insufficient USDC on Base. Have ${(Number(bal) / 1e6).toFixed(2)}, need ${amount}.`
         );
-        reset();
-        onSent();
-        return;
       }
 
-      const sent = await postSmsSend(payload);
-      setResult(sent);
+      // Step 2: approve if needed
+      if (allowance < amountUnits) {
+        setPhase("approving");
+        const approveHash = await sendTransaction(wtype, {
+          from: sender,
+          to: USDC_ADDRESS,
+          data: encodeApprove(SMS_ESCROW_ADDRESS as `0x${string}`),
+        });
+        await waitForTx(approveHash);
+      }
+
+      // Step 3: deposit
+      setPhase("depositing");
+      const depositHash = await sendTransaction(wtype, {
+        from: sender,
+        to: SMS_ESCROW_ADDRESS as `0x${string}`,
+        data: encodeDepositFor(claimToken, amountUnits),
+      });
+      await waitForTx(depositHash);
+
+      // Step 4: dispatch SMS via backend (which verifies the on-chain deposit)
+      setPhase("dispatching");
+      const dispatchRes = await fetch("/api/sms/dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          claimToken,
+          phoneE164: e164,
+          note: trimmedNote,
+        }),
+      });
+      const dispatchJson = await dispatchRes.json().catch(() => ({}));
+      if (!dispatchRes.ok) {
+        throw new Error(
+          (dispatchJson as any).error ?? `dispatch failed (${dispatchRes.status})`
+        );
+      }
+
+      setResult({
+        claimToken,
+        claimUrl:
+          (dispatchJson as any).claimUrl ??
+          `${window.location.origin}/claim/${claimToken}`,
+        depositTxHash: depositHash,
+        consoleMode: Boolean((dispatchJson as any).consoleMode),
+      });
+      setPhase("done");
       reset();
       onSent();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSubmitting(false);
+      setPhase("idle");
     }
   }
+
+  const buttonLabel = (() => {
+    switch (phase) {
+      case "checking-allowance":
+        return "Checking allowance…";
+      case "approving":
+        return "Approve USDC in wallet…";
+      case "depositing":
+        return "Confirm deposit in wallet…";
+      case "dispatching":
+        return "Sending SMS…";
+      case "done":
+        return "Sent — send another";
+      default:
+        return "Sign & send SMS";
+    }
+  })();
 
   return (
     <form
@@ -120,18 +218,28 @@ const SmsSendCard = ({ onSent }: SmsSendCardProps) => {
         background: "var(--dash-overlay)",
       }}
     >
-      <div className="flex items-center gap-2">
-        <Icon
-          icon="ph:paper-plane-tilt-bold"
-          className="h-4 w-4"
-          style={{ color: "hsl(var(--beam-cyan))" }}
-        />
-        <h3
-          className="text-sm font-semibold"
-          style={{ color: "var(--dash-text)" }}
-        >
-          Send USDC by SMS
-        </h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Icon
+            icon="ph:paper-plane-tilt-bold"
+            className="h-4 w-4"
+            style={{ color: "hsl(var(--beam-cyan))" }}
+          />
+          <h3
+            className="text-sm font-semibold"
+            style={{ color: "var(--dash-text)" }}
+          >
+            Send USDC by SMS — on-chain
+          </h3>
+        </div>
+        {usdcBalance !== null && (
+          <span
+            className="text-[11px]"
+            style={{ color: "var(--dash-text-faint)" }}
+          >
+            Wallet USDC on Base: ${usdcBalance}
+          </span>
+        )}
       </div>
 
       <div className="space-y-1.5">
@@ -224,23 +332,6 @@ const SmsSendCard = ({ onSent }: SmsSendCardProps) => {
         </div>
       )}
 
-      {queuedNote && (
-        <div
-          className="flex items-start gap-2 rounded-md border px-3 py-2 text-xs"
-          style={{
-            borderColor: "hsl(var(--beam-amber))",
-            background: "rgba(245,158,11,0.08)",
-            color: "hsl(var(--beam-amber))",
-          }}
-        >
-          <Icon
-            icon="ph:queue-bold"
-            className="mt-0.5 h-3.5 w-3.5 shrink-0"
-          />
-          <div>{queuedNote}</div>
-        </div>
-      )}
-
       {result && (
         <div
           className="space-y-2 rounded-md border p-3 text-xs"
@@ -257,9 +348,7 @@ const SmsSendCard = ({ onSent }: SmsSendCardProps) => {
               style={{ color: "hsl(var(--beam-green))" }}
             />
             <span className="font-semibold">
-              {result.consoleMode
-                ? "Escrow created (console-mode SMS — see Local inbox below)"
-                : "SMS dispatched"}
+              On-chain escrow opened · SMS dispatched
             </span>
           </div>
           <div
@@ -268,10 +357,16 @@ const SmsSendCard = ({ onSent }: SmsSendCardProps) => {
           >
             {result.claimUrl}
           </div>
-          <div style={{ color: "var(--dash-text-faint)" }}>
-            Auto-refunds to you at {new Date(result.expiresAt).toLocaleString()}
-            .
-          </div>
+          <a
+            href={`https://basescan.org/tx/${result.depositTxHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 underline underline-offset-2"
+            style={{ color: "var(--dash-text-faint)" }}
+          >
+            <Icon icon="ph:arrow-square-out-bold" className="h-3 w-3" />
+            Deposit tx on Basescan
+          </a>
         </div>
       )}
 
@@ -280,18 +375,24 @@ const SmsSendCard = ({ onSent }: SmsSendCardProps) => {
         disabled={!canSubmit}
         className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {submitting ? (
-          <>
-            <Icon icon="ph:spinner-bold" className="h-4 w-4 animate-spin" />
-            Signing & sending…
-          </>
+        {phase !== "idle" && phase !== "done" ? (
+          <Icon icon="ph:spinner-bold" className="h-4 w-4 animate-spin" />
         ) : (
-          <>
-            <Icon icon="ph:paper-plane-tilt-bold" className="h-4 w-4" />
-            Sign & send SMS
-          </>
+          <Icon icon="ph:paper-plane-tilt-bold" className="h-4 w-4" />
         )}
+        {buttonLabel}
       </button>
+
+      <p
+        className="text-[10px] leading-relaxed"
+        style={{ color: "var(--dash-text-faint)" }}
+      >
+        First send from this wallet requires a one-time USDC approval (a
+        second wallet popup). Subsequent sends only sign the deposit. The
+        recipient pays the gas to claim and receives the USDC minus the
+        pool's 0.5% maintenance fee. Unclaimed escrows refund to you after
+        24 hours via permissionless `refund()`.
+      </p>
     </form>
   );
 };

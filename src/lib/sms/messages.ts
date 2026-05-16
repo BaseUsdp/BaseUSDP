@@ -1,27 +1,19 @@
 /**
- * Mirror of api/lib/sms/messages.ts kept in lockstep with the server.
+ * Canonical claim message — must match SMSEscrow.claimMessage(bytes32,address).
  *
- * The sender signs buildSendCommitment(...) at send time; the recipient
- * signs buildClaimCommitment(...) at claim time. Both are EIP-191 personal
- * sign messages — no wallets need to support typed data.
+ *   BASEUSDP SMS Claim v1
+ *   ClaimToken: 0x<64-hex-lowercase>
+ *   Recipient: 0x<40-hex-lowercase>
+ *
+ * The recipient personal_signs this string; the contract recovers the
+ * signer with ECDSA + the EIP-191 prefix and asserts equality with
+ * msg.sender. Any drift between this format and the Solidity helper
+ * breaks claim — keep them aligned.
  */
 
-export function buildSendCommitment(args: {
-  phoneHash: string;
-  amount: string;
-  claimToken: string;
-}): string {
-  return [
-    "BASEUSDP SMS Send v1",
-    `PhoneHash: ${args.phoneHash.toLowerCase()}`,
-    `Amount: ${args.amount}`,
-    `ClaimToken: ${args.claimToken.toLowerCase()}`,
-  ].join("\n");
-}
-
 export function buildClaimCommitment(args: {
-  claimToken: string;
-  recipient: string;
+  claimToken: `0x${string}`;
+  recipient: `0x${string}`;
 }): string {
   return [
     "BASEUSDP SMS Claim v1",

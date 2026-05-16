@@ -1,19 +1,19 @@
 /**
- * Client-side claim token generation.
- *
- * 16 bytes from crypto.getRandomValues, hex-encoded. The token doubles as
- * the URL slug for the recipient claim page and the key in the escrow
- * store, so it must be unguessable.
+ * 32-byte (64 hex char) claim token, matched to the on-chain `bytes32`
+ * type expected by SMSEscrow. Returned as a 0x-prefixed hex string so it
+ * can be passed straight into viem encoders.
  */
 
-export function generateClaimToken(): string {
-  const bytes = new Uint8Array(16);
+export function generateClaimToken(): `0x${string}` {
+  const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return ("0x" +
+    Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")) as `0x${string}`;
 }
 
+/** Accepts the on-chain `0x...` form (66 chars) used everywhere now. */
 export function isValidClaimToken(value: string): boolean {
-  return /^[a-f0-9]{32}$/.test(value);
+  return /^0x[a-f0-9]{64}$/i.test(value);
 }

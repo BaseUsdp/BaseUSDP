@@ -3,3 +3,4 @@
 /* eslint-disable */
 export { IERC8004Identity__factory } from "./IERC8004Identity__factory";
 export { IERC8004Reputation__factory } from "./IERC8004Reputation__factory";
+export { IX402PrivacyPool__factory } from "./IX402PrivacyPool__factory";

@@ -1689,6 +1689,86 @@
       "artifacts": [
         "TrustGatedTransfer"
       ]
+    },
+    "C:\\code-whisperer-33\\packages\\contracts\\contracts\\SMSEscrow.sol": {
+      "lastModificationDate": 1778900244889,
+      "contentHash": "1d5a3376ad39e284033e4a6fe735d33e",
+      "sourceName": "contracts/SMSEscrow.sol",
+      "solcConfig": {
+        "version": "0.8.28",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "@openzeppelin/contracts/utils/cryptography/ECDSA.sol",
+        "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol",
+        "@openzeppelin/contracts/utils/Strings.sol",
+        "./interfaces/IX402PrivacyPool.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "SMSEscrow"
+      ]
+    },
+    "C:\\code-whisperer-33\\packages\\contracts\\contracts\\interfaces\\IX402PrivacyPool.sol": {
+      "lastModificationDate": 1778896378866,
+      "contentHash": "a26fb3921dad2a16018faf6c3e8d1529",
+      "sourceName": "contracts/interfaces/IX402PrivacyPool.sol",
+      "solcConfig": {
+        "version": "0.8.28",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "IX402PrivacyPool"
+      ]
     }
   }
 }

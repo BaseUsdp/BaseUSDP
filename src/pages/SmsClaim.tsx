@@ -4,46 +4,55 @@ import { motion } from "framer-motion";
 import { Icon } from "@iconify/react";
 import { useWallet } from "@/contexts/WalletContext";
 import WalletConnectButton from "@/components/WalletConnectButton";
-import { getSmsStatus, postSmsClaim } from "@/services/smsService";
 import { buildClaimCommitment } from "@/lib/sms/messages";
 import { isValidClaimToken } from "@/lib/sms/token";
-import { personalSign, type VeilWalletType } from "@/lib/veil/provider";
-import type { EscrowPublic } from "@/lib/sms/types";
+import {
+  SMS_ESCROW_ADDRESS,
+  encodeClaim,
+  publicClient,
+  readEscrow,
+  type ChainEscrow,
+} from "@/lib/sms/contracts";
+import { personalSign, sendTransaction, type VeilWalletType } from "@/lib/veil/provider";
 
-const STATUS_LABELS: Record<EscrowPublic["status"], string> = {
+const STATUS_LABELS: Record<ChainEscrow["status"], string> = {
+  none: "—",
   pending: "Ready to claim",
   claimed: "Claimed",
   refunded: "Refunded to sender",
-  expired: "Expired — can be refunded",
 };
 
 const SmsClaim = () => {
   const { token } = useParams<{ token: string }>();
   const { isConnected, fullWalletAddress, walletType } = useWallet();
-  const [escrow, setEscrow] = useState<EscrowPublic | null>(null);
+  const [escrow, setEscrow] = useState<ChainEscrow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [claiming, setClaiming] = useState(false);
+  const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
 
   const tokenValid = useMemo(
     () => Boolean(token && isValidClaimToken(token)),
     [token]
   );
+  const claimToken = tokenValid ? (token as `0x${string}`) : null;
+  const expired = escrow
+    ? Date.now() / 1000 >= escrow.expiresAt && escrow.status === "pending"
+    : false;
 
   useEffect(() => {
-    if (!tokenValid || !token) return;
+    if (!claimToken) return;
     const ctrl = new AbortController();
     let cancelled = false;
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await getSmsStatus(token, ctrl.signal);
+        const res = await readEscrow(claimToken);
         if (cancelled) return;
         setEscrow(res);
       } catch (err) {
         if (cancelled) return;
-        if ((err as Error).name === "AbortError") return;
         setError(err instanceof Error ? err.message : String(err));
       } finally {
         if (!cancelled) setLoading(false);
@@ -53,29 +62,48 @@ const SmsClaim = () => {
       cancelled = true;
       ctrl.abort();
     };
-  }, [tokenValid, token]);
+  }, [claimToken]);
 
   async function handleClaim() {
-    if (!token || !isConnected || !fullWalletAddress) return;
+    if (!claimToken || !isConnected || !fullWalletAddress) return;
+    if (!SMS_ESCROW_ADDRESS) {
+      setError("VITE_SMS_ESCROW_ADDRESS not configured");
+      return;
+    }
     setClaiming(true);
     setError(null);
     try {
-      const commitment = buildClaimCommitment({
-        claimToken: token,
-        recipient: fullWalletAddress,
-      });
+      const recipient = fullWalletAddress as `0x${string}`;
+      const commitment = buildClaimCommitment({ claimToken, recipient });
       const wtype: VeilWalletType =
         walletType === "metamask" || walletType === "phantom"
           ? walletType
           : null;
-      const sig = await personalSign(wtype, fullWalletAddress, commitment);
-      const res = await postSmsClaim(token, {
-        recipient: fullWalletAddress as `0x${string}`,
-        recipientSig: sig as `0x${string}`,
+      const sig = (await personalSign(
+        wtype,
+        recipient,
+        commitment
+      )) as `0x${string}`;
+
+      const txHash = await sendTransaction(wtype, {
+        from: recipient,
+        to: SMS_ESCROW_ADDRESS as `0x${string}`,
+        data: encodeClaim(claimToken, sig),
       });
-      setEscrow(res.escrow);
+      await publicClient.waitForTransactionReceipt({
+        hash: txHash,
+        confirmations: 1,
+      } as any);
+      setClaimTxHash(txHash);
+
+      const refreshed = await readEscrow(claimToken);
+      setEscrow(refreshed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      // viem wraps the contract revert reason in shortMessage; surface it
+      // cleanly when present.
+      const short = (err as any)?.shortMessage as string | undefined;
+      setError(short ?? msg);
     } finally {
       setClaiming(false);
     }
@@ -105,9 +133,12 @@ const SmsClaim = () => {
         </Link>
 
         <div>
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest" style={{ color: "hsl(var(--beam-cyan))" }}>
+          <div
+            className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest"
+            style={{ color: "hsl(var(--beam-cyan))" }}
+          >
             <Icon icon="ph:lock-key-bold" className="h-3.5 w-3.5" />
-            Private USDC claim
+            On-chain USDC claim
           </div>
           <h1
             className="font-display mt-2 text-2xl font-bold"
@@ -119,9 +150,9 @@ const SmsClaim = () => {
             className="mt-1 text-xs leading-relaxed"
             style={{ color: "var(--dash-text-muted)" }}
           >
-            Connect a wallet to receive these funds. The sender authorized this
-            claim against the phone number that received the SMS — no other
-            wallet can claim it.
+            Connect a wallet to receive these funds. Settlement runs through
+            the BASEUSDP privacy pool, so the recipient address arriving
+            on-chain isn't directly linked to the sender's deposit.
           </p>
         </div>
 
@@ -139,9 +170,12 @@ const SmsClaim = () => {
         )}
 
         {tokenValid && loading && (
-          <div className="flex items-center gap-2 text-sm" style={{ color: "var(--dash-text-muted)" }}>
+          <div
+            className="flex items-center gap-2 text-sm"
+            style={{ color: "var(--dash-text-muted)" }}
+          >
             <Icon icon="ph:spinner-bold" className="h-4 w-4 animate-spin" />
-            Loading…
+            Loading on-chain state…
           </div>
         )}
 
@@ -155,6 +189,20 @@ const SmsClaim = () => {
             }}
           >
             {error}
+          </div>
+        )}
+
+        {tokenValid && !loading && !escrow && !error && (
+          <div
+            className="rounded-md border p-3 text-xs"
+            style={{
+              borderColor: "var(--dash-border)",
+              background: "var(--dash-overlay)",
+              color: "var(--dash-text-muted)",
+            }}
+          >
+            No escrow found for this token. It may have been already settled,
+            or the link may be from a previous test environment.
           </div>
         )}
 
@@ -177,7 +225,7 @@ const SmsClaim = () => {
                 className="font-display text-3xl font-bold"
                 style={{ color: "var(--dash-text)" }}
               >
-                ${escrow.amount}{" "}
+                ${escrow.amountUsdc}{" "}
                 <span
                   className="text-base font-semibold"
                   style={{ color: "var(--dash-text-muted)" }}
@@ -185,28 +233,39 @@ const SmsClaim = () => {
                   USDC
                 </span>
               </div>
-              {escrow.note && (
-                <p
-                  className="mt-2 text-xs italic"
-                  style={{ color: "var(--dash-text-muted)" }}
-                >
-                  "{escrow.note}"
-                </p>
-              )}
+              <p
+                className="mt-1 text-[10px]"
+                style={{ color: "var(--dash-text-faint)" }}
+              >
+                You'll receive this minus the pool's 0.5% maintenance fee.
+              </p>
               <div
                 className="mt-3 grid grid-cols-2 gap-2 text-[11px]"
                 style={{ color: "var(--dash-text-muted)" }}
               >
                 <div>
-                  <div className="font-semibold uppercase tracking-widest" style={{ color: "var(--dash-text-faint)" }}>From</div>
-                  <div className="font-mono break-all" style={{ color: "var(--dash-text)" }}>
+                  <div
+                    className="font-semibold uppercase tracking-widest"
+                    style={{ color: "var(--dash-text-faint)" }}
+                  >
+                    From
+                  </div>
+                  <div
+                    className="font-mono break-all"
+                    style={{ color: "var(--dash-text)" }}
+                  >
                     {escrow.sender.slice(0, 6)}…{escrow.sender.slice(-4)}
                   </div>
                 </div>
                 <div>
-                  <div className="font-semibold uppercase tracking-widest" style={{ color: "var(--dash-text-faint)" }}>Expires</div>
+                  <div
+                    className="font-semibold uppercase tracking-widest"
+                    style={{ color: "var(--dash-text-faint)" }}
+                  >
+                    Expires
+                  </div>
                   <div style={{ color: "var(--dash-text)" }}>
-                    {new Date(escrow.expiresAt).toLocaleString()}
+                    {new Date(escrow.expiresAt * 1000).toLocaleString()}
                   </div>
                 </div>
               </div>
@@ -225,18 +284,18 @@ const SmsClaim = () => {
                 className="font-semibold"
                 style={{
                   color:
-                    escrow.status === "pending"
+                    escrow.status === "pending" && !expired
                       ? "hsl(var(--beam-green))"
                       : escrow.status === "claimed"
                       ? "hsl(var(--beam-cyan))"
                       : "hsl(var(--beam-amber))",
                 }}
               >
-                {STATUS_LABELS[escrow.status]}
+                {expired ? "Expired — can be refunded" : STATUS_LABELS[escrow.status]}
               </span>
             </div>
 
-            {escrow.status === "pending" && (
+            {escrow.status === "pending" && !expired && (
               <>
                 {!isConnected ? (
                   <div className="flex flex-col items-stretch gap-2">
@@ -262,7 +321,7 @@ const SmsClaim = () => {
                           icon="ph:spinner-bold"
                           className="h-4 w-4 animate-spin"
                         />
-                        Claiming…
+                        Claiming on Base…
                       </>
                     ) : (
                       <>
@@ -285,11 +344,20 @@ const SmsClaim = () => {
                 }}
               >
                 Claimed by {escrow.recipient.slice(0, 6)}…
-                {escrow.recipient.slice(-4)} on{" "}
-                {escrow.settledAt
-                  ? new Date(escrow.settledAt).toLocaleString()
-                  : "—"}
-                .
+                {escrow.recipient.slice(-4)}.
+                {claimTxHash && (
+                  <>
+                    {" "}
+                    <a
+                      href={`https://basescan.org/tx/${claimTxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline underline-offset-2"
+                    >
+                      View tx
+                    </a>
+                  </>
+                )}
               </div>
             )}
 

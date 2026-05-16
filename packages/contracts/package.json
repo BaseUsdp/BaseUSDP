@@ -11,6 +11,8 @@
     "deploy:pool:base": "hardhat run scripts/deploy-privacy-pool.ts --network base",
     "deploy:router:sepolia": "hardhat run scripts/deploy-deposit-router.ts --network baseSepolia",
     "deploy:router:base": "hardhat run scripts/deploy-deposit-router.ts --network base",
+    "deploy:sms:sepolia": "hardhat run scripts/deploy-sms-escrow.ts --network baseSepolia",
+    "deploy:sms:base": "hardhat run scripts/deploy-sms-escrow.ts --network base",
     "node": "hardhat node"
   },
   "keywords": [
