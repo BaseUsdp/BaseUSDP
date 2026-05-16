@@ -122,6 +122,38 @@ export const SMS_ESCROW_ABI = [
     inputs: [],
     outputs: [{ name: "", type: "uint64" }],
   },
+  {
+    type: "event",
+    name: "Deposited",
+    inputs: [
+      { name: "claimToken", type: "bytes32", indexed: true },
+      { name: "sender", type: "address", indexed: true },
+      { name: "amount", type: "uint96", indexed: false },
+      { name: "expiresAt", type: "uint64", indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "Claimed",
+    inputs: [
+      { name: "claimToken", type: "bytes32", indexed: true },
+      { name: "recipient", type: "address", indexed: true },
+      { name: "grossAmount", type: "uint96", indexed: false },
+      { name: "nonce", type: "uint256", indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "Refunded",
+    inputs: [
+      { name: "claimToken", type: "bytes32", indexed: true },
+      { name: "sender", type: "address", indexed: true },
+      { name: "amount", type: "uint96", indexed: false },
+    ],
+    anonymous: false,
+  },
 ] as const;
 
 export type OnChainStatus = "none" | "pending" | "claimed" | "refunded";

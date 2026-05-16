@@ -46,35 +46,55 @@ const SmsHistoryCard = ({ reloadTick }: SmsHistoryCardProps) => {
     (async () => {
       setLoading(true);
       setError(null);
-      try {
-        const latest = await publicClient.getBlockNumber();
-        const fromBlock =
-          latest > BLOCK_WINDOW ? latest - BLOCK_WINDOW : 0n;
-        const events = await publicClient.getContractEvents({
-          address: SMS_ESCROW_ADDRESS,
-          abi: SMS_ESCROW_ABI as any,
-          eventName: "Deposited",
-          args: { sender: fullWalletAddress as `0x${string}` } as any,
-          fromBlock,
-          toBlock: "latest",
-        } as any);
+
+      // The user's wallet address might be checksum-cased; viem filters
+      // indexed topics by the raw 32-byte left-padded form, so case
+      // shouldn't matter, but pass lowercase to be safe.
+      const senderLc = (fullWalletAddress as string).toLowerCase() as `0x${string}`;
+
+      // Retry the event query — right after a fresh deposit the public RPC
+      // node we hit may not yet have the latest block. Three quick attempts
+      // covers nearly every propagation lag we see in practice.
+      const delays = reloadTick > 0 ? [0, 1200, 2500, 5000] : [0];
+      let mapped: LinkRow[] = [];
+      let lastErr: unknown = null;
+      for (const delay of delays) {
+        if (delay > 0) await new Promise((r) => setTimeout(r, delay));
         if (cancelled) return;
-        const mapped: LinkRow[] = (events as any[])
-          .map((e) => ({
-            claimToken: e.args.claimToken as `0x${string}`,
-            amount: (Number(e.args.amount) / 1e6).toFixed(2),
-            blockNumber: Number(e.blockNumber),
-            txHash: e.transactionHash as `0x${string}`,
-          }))
-          .sort((a, b) => b.blockNumber - a.blockNumber)
-          .slice(0, 25);
-        setRows(mapped);
-      } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : String(err));
-      } finally {
-        if (!cancelled) setLoading(false);
+        try {
+          const latest = await publicClient.getBlockNumber();
+          const fromBlock =
+            latest > BLOCK_WINDOW ? latest - BLOCK_WINDOW : 0n;
+          const events = await publicClient.getContractEvents({
+            address: SMS_ESCROW_ADDRESS,
+            abi: SMS_ESCROW_ABI as any,
+            eventName: "Deposited",
+            args: { sender: senderLc } as any,
+            fromBlock,
+            toBlock: "latest",
+          } as any);
+          mapped = (events as any[])
+            .map((e) => ({
+              claimToken: e.args.claimToken as `0x${string}`,
+              amount: (Number(e.args.amount) / 1e6).toFixed(2),
+              blockNumber: Number(e.blockNumber),
+              txHash: e.transactionHash as `0x${string}`,
+            }))
+            .sort((a, b) => b.blockNumber - a.blockNumber)
+            .slice(0, 25);
+          if (mapped.length > 0 || reloadTick === 0) break;
+        } catch (err) {
+          lastErr = err;
+        }
       }
+      if (cancelled) return;
+      if (mapped.length === 0 && lastErr) {
+        setError(
+          lastErr instanceof Error ? lastErr.message : String(lastErr)
+        );
+      }
+      setRows(mapped);
+      setLoading(false);
     })();
     return () => {
       cancelled = true;
