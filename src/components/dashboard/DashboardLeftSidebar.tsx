@@ -16,7 +16,7 @@ import {
   Terminal,
   Bot,
   Vault,
-  Smartphone
+  Link as LinkIcon
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
@@ -49,7 +49,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
     { id: "payments", label: "Payments", icon: Send },
     { id: "withdraw", label: "Withdraw", icon: ArrowUpRight },
     { id: "veil", label: "Veil Pool", icon: Vault, disabled: !veilAllowed },
-    { id: "sms", label: "SMS Pay", icon: Smartphone, disabled: !smsAllowed },
+    { id: "sms", label: "Private Link", icon: LinkIcon, disabled: !smsAllowed },
     { id: "swap", label: "Swap", icon: ArrowLeftRight, disabled: true },
     { id: "history", label: "History", icon: History },
     { id: "messages", label: "Messages", icon: MessageSquare },

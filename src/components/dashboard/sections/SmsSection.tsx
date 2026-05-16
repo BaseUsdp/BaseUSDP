@@ -1,31 +1,14 @@
 import { motion } from "framer-motion";
 import { Icon } from "@iconify/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import SmsDisclosure from "@/components/sms/SmsDisclosure";
 import SmsSendCard from "@/components/sms/SmsSendCard";
 import SmsHistoryCard from "@/components/sms/SmsHistoryCard";
-import SmsQueueCard from "@/components/sms/SmsQueueCard";
-import SmsOfflineBadge from "@/components/sms/SmsOfflineBadge";
-import {
-  installOnlineDrainer,
-  listQueued,
-  subscribeQueue,
-} from "@/lib/sms/offlineQueue";
 
 const SmsSection = () => {
   const { isConnected } = useWallet();
   const [reloadTick, setReloadTick] = useState(0);
-  const [queuedCount, setQueuedCount] = useState(() => listQueued().length);
-
-  useEffect(() => {
-    installOnlineDrainer();
-    const unsub = subscribeQueue(() => setQueuedCount(listQueued().length));
-    return () => {
-      unsub();
-    };
-  }, []);
-
   const refresh = () => setReloadTick((t) => t + 1);
 
   return (
@@ -38,7 +21,7 @@ const SmsSection = () => {
         <div>
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <h1 className="font-display text-3xl font-bold">
-              SMS Pay<span className="text-primary">.</span>
+              Private Link<span className="text-primary">.</span>
             </h1>
             <span
               className="rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest"
@@ -47,14 +30,14 @@ const SmsSection = () => {
                 color: "hsl(var(--beam-cyan))",
               }}
             >
-              Local preview
+              On-chain · Base
             </span>
-            <SmsOfflineBadge queuedCount={queuedCount} />
           </div>
           <p className="text-muted-foreground mt-1">
-            Send private USDC to any E.164 phone number. The recipient doesn't
-            need a wallet to receive the link — only to claim. Unclaimed sends
-            auto-refund to you in 24 hours.
+            Lock USDC into the escrow, get a claim link, share it however you
+            want — WhatsApp, Telegram, iMessage, email, anything. The
+            recipient connects a wallet on the claim page and the USDC
+            settles to them through the privacy pool.
           </p>
         </div>
       </div>
@@ -71,16 +54,14 @@ const SmsSection = () => {
           }}
         >
           <Icon icon="ph:wallet-bold" className="mt-0.5 h-4 w-4 shrink-0" />
-          Connect a wallet to sign send commitments.
+          Connect a wallet on Base to generate a claim link.
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <SmsSendCard onSent={refresh} />
-        <SmsHistoryCard reloadTick={reloadTick} onMutated={refresh} />
+        <SmsHistoryCard reloadTick={reloadTick} />
       </div>
-
-      <SmsQueueCard onChanged={refresh} />
 
       <details
         className="rounded-xl border p-4 text-xs"
@@ -94,35 +75,35 @@ const SmsSection = () => {
           className="cursor-pointer text-sm font-semibold"
           style={{ color: "var(--dash-text)" }}
         >
-          How this works locally
+          How it works
         </summary>
         <ul className="mt-3 space-y-1.5 leading-relaxed">
           <li>
-            Phone numbers are normalized to E.164 and{" "}
-            <code className="font-mono">keccak256</code>-hashed in your browser
-            before they touch the network.
+            You enter an amount and click <em>Generate claim link</em>.
+            Your wallet signs two transactions the first time
+            (USDC approval + deposit), then just one each subsequent send.
           </li>
           <li>
-            The send commitment{" "}
-            <code className="font-mono">(phoneHash, amount, claimToken)</code>{" "}
-            is signed by your wallet with{" "}
-            <code className="font-mono">personal_sign</code>.
+            USDC is locked in the on-chain <code className="font-mono">
+              SMSEscrow
+            </code> contract on Base, keyed by a random 32-byte token.
           </li>
           <li>
-            The local API stores the escrow in{" "}
-            <code className="font-mono">data/sms-escrow.json</code>. In
-            production this would be the on-chain{" "}
-            <code className="font-mono">SMSEscrow.sol</code> contract.
+            You share the resulting link with the recipient over any channel
+            you trust. The link is unguessable — only someone you give it to
+            can claim it.
           </li>
           <li>
-            With <code className="font-mono">SMS_PROVIDER=console</code>{" "}
-            (default), the SMS body is logged to stdout and the local inbox
-            above. Set <code className="font-mono">SMS_PROVIDER=twilio</code>{" "}
-            with valid Twilio creds to send real SMS.
+            The recipient opens the link, connects any wallet, and signs a
+            single claim transaction. USDC is delivered through the privacy
+            pool's external transfer path, so on-chain observers can't link
+            your deposit to the recipient's address.
           </li>
           <li>
-            The refund endpoint is permissionless: anyone can trigger it after
-            the 24-hour expiry. Funds can never get stuck behind the relay.
+            Recipient receives the deposit amount minus the pool's 0.5%
+            maintenance fee. If nothing happens in 24 hours, anyone (including
+            you) can call <code className="font-mono">refund()</code> to send
+            the USDC back to your wallet — no admin, no trusted relay.
           </li>
         </ul>
       </details>

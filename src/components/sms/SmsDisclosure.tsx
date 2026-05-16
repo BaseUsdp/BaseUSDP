@@ -17,12 +17,12 @@ const SmsDisclosure = () => {
       />
       <div>
         <span className="font-semibold" style={{ color: "var(--dash-text)" }}>
-          Phone numbers are hashed in your browser before they leave.
+          Pay anyone with a one-time claim link.
         </span>{" "}
-        BASEUSDP only stores keccak256 hashes — never raw numbers, names, or
-        message history. Unclaimed escrows auto-refund to the sender after 24
-        hours, and the refund endpoint is permissionless, so funds can never
-        get stuck behind the relay.
+        Your USDC is escrowed on-chain. Anyone with the link can claim it once;
+        you can refund yourself if the link goes unclaimed for 24 hours.
+        Settlement runs through the BASEUSDP privacy pool, so the recipient
+        address on Basescan isn't directly linked back to your deposit.
       </div>
     </div>
   );
