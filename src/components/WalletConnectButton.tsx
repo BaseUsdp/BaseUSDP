@@ -35,6 +35,56 @@ const CoinbaseLogo = ({ size = 20 }: { size?: number }) => (
   </svg>
 );
 
+// Brand-colored monogram tiles for the additional injected wallets. Lightweight
+// and consistent with the rounded-square frame the other logos use.
+const MonogramLogo = ({
+  size = 20,
+  letters,
+  bg,
+  fg = "#fff",
+}: {
+  size?: number;
+  letters: string;
+  bg: string;
+  fg?: string;
+}) => (
+  <div
+    style={{
+      width: size,
+      height: size,
+      background: bg,
+      color: fg,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: Math.round(size * 0.42),
+      fontWeight: 700,
+      letterSpacing: -0.5,
+      lineHeight: 1,
+    }}
+    className="rounded-md select-none"
+    aria-hidden
+  >
+    {letters}
+  </div>
+);
+
+const OkxLogo = ({ size = 20 }: { size?: number }) => (
+  <MonogramLogo size={size} letters="OKX" bg="#000" />
+);
+const BitgetLogo = ({ size = 20 }: { size?: number }) => (
+  <MonogramLogo size={size} letters="BG" bg="#54FFF5" fg="#000" />
+);
+const TokenPocketLogo = ({ size = 20 }: { size?: number }) => (
+  <MonogramLogo size={size} letters="TP" bg="#2980FE" />
+);
+const ImTokenLogo = ({ size = 20 }: { size?: number }) => (
+  <MonogramLogo size={size} letters="im" bg="#11C4D1" />
+);
+const MathWalletLogo = ({ size = 20 }: { size?: number }) => (
+  <MonogramLogo size={size} letters="M" bg="#1972F5" />
+);
+
 interface WalletConnectButtonProps {
   variant?: "navbar" | "dashboard";
 }
@@ -241,6 +291,11 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
       case "phantom": return <PhantomLogo />;
       case "metamask": return <MetaMaskLogo />;
       case "coinbase": return <CoinbaseLogo />;
+      case "okx": return <OkxLogo />;
+      case "bitget": return <BitgetLogo />;
+      case "tokenpocket": return <TokenPocketLogo />;
+      case "imtoken": return <ImTokenLogo />;
+      case "mathwallet": return <MathWalletLogo />;
       default: return <Wallet className="w-4 h-4" />;
     }
   };
@@ -250,6 +305,11 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
       case "phantom": return "Phantom";
       case "metamask": return "MetaMask";
       case "coinbase": return "Coinbase Wallet";
+      case "okx": return "OKX Wallet";
+      case "bitget": return "Bitget Wallet";
+      case "tokenpocket": return "TokenPocket";
+      case "imtoken": return "imToken";
+      case "mathwallet": return "MathWallet";
       default: return "Wallet";
     }
   };
@@ -291,7 +351,7 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
             Select a wallet to connect to USDP
           </p>
 
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
             <button
               onClick={() => handleConnect("phantom")}
               disabled={isConnecting}
@@ -331,6 +391,81 @@ const WalletConnectButton = ({ variant = "navbar" }: WalletConnectButtonProps) =
               <div className="text-left flex-1">
                 <span className="font-medium text-foreground">Coinbase Wallet</span>
                 <p className="text-xs text-muted-foreground">Extension, mobile, or passkey</p>
+              </div>
+              {isConnecting && (
+                <Loader2 className="ml-2 h-4 w-4 animate-spin text-blue-400" />
+              )}
+            </button>
+
+            <button
+              onClick={() => handleConnect("okx")}
+              disabled={isConnecting}
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-border hover:border-foreground/40 hover:bg-foreground/5 transition-all group"
+            >
+              <OkxLogo size={24} />
+              <div className="text-left flex-1">
+                <span className="font-medium text-foreground">OKX Wallet</span>
+                <p className="text-xs text-muted-foreground">Extension or mobile</p>
+              </div>
+              {isConnecting && (
+                <Loader2 className="ml-2 h-4 w-4 animate-spin text-foreground" />
+              )}
+            </button>
+
+            <button
+              onClick={() => handleConnect("bitget")}
+              disabled={isConnecting}
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-border hover:border-cyan-400/50 hover:bg-cyan-400/10 transition-all group"
+            >
+              <BitgetLogo size={24} />
+              <div className="text-left flex-1">
+                <span className="font-medium text-foreground">Bitget Wallet</span>
+                <p className="text-xs text-muted-foreground">Formerly BitKeep</p>
+              </div>
+              {isConnecting && (
+                <Loader2 className="ml-2 h-4 w-4 animate-spin text-cyan-400" />
+              )}
+            </button>
+
+            <button
+              onClick={() => handleConnect("tokenpocket")}
+              disabled={isConnecting}
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-border hover:border-blue-500/50 hover:bg-blue-500/10 transition-all group"
+            >
+              <TokenPocketLogo size={24} />
+              <div className="text-left flex-1">
+                <span className="font-medium text-foreground">TokenPocket</span>
+                <p className="text-xs text-muted-foreground">Multi-chain wallet</p>
+              </div>
+              {isConnecting && (
+                <Loader2 className="ml-2 h-4 w-4 animate-spin text-blue-400" />
+              )}
+            </button>
+
+            <button
+              onClick={() => handleConnect("imtoken")}
+              disabled={isConnecting}
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-border hover:border-teal-400/50 hover:bg-teal-400/10 transition-all group"
+            >
+              <ImTokenLogo size={24} />
+              <div className="text-left flex-1">
+                <span className="font-medium text-foreground">imToken</span>
+                <p className="text-xs text-muted-foreground">Mobile dApp browser</p>
+              </div>
+              {isConnecting && (
+                <Loader2 className="ml-2 h-4 w-4 animate-spin text-teal-400" />
+              )}
+            </button>
+
+            <button
+              onClick={() => handleConnect("mathwallet")}
+              disabled={isConnecting}
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-border hover:border-blue-400/50 hover:bg-blue-400/10 transition-all group"
+            >
+              <MathWalletLogo size={24} />
+              <div className="text-left flex-1">
+                <span className="font-medium text-foreground">MathWallet</span>
+                <p className="text-xs text-muted-foreground">Multi-chain wallet</p>
               </div>
               {isConnecting && (
                 <Loader2 className="ml-2 h-4 w-4 animate-spin text-blue-400" />

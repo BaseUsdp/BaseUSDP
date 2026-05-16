@@ -13,18 +13,39 @@ type EvmProvider = {
   isMetaMask?: boolean;
   isPhantom?: boolean;
   isCoinbaseWallet?: boolean;
+  isOkxWallet?: boolean;
+  isBitKeep?: boolean;
+  isTokenPocket?: boolean;
+  isImToken?: boolean;
+  isMathWallet?: boolean;
 };
 
 export type VeilWalletType =
   | "metamask"
   | "phantom"
   | "coinbase"
+  | "okx"
+  | "bitget"
+  | "tokenpocket"
+  | "imtoken"
+  | "mathwallet"
   | null;
 
 export function getMetaMaskProvider(): EvmProvider | null {
   if (typeof window === "undefined") return null;
   const provider = (window as any).ethereum as EvmProvider | undefined;
-  if (provider?.isMetaMask && !provider?.isPhantom && !provider?.isCoinbaseWallet)
+  // Many wallets also stamp isMetaMask=true to ride MetaMask's auto-detect
+  // path. Exclude them so this resolves to the real MetaMask only.
+  if (
+    provider?.isMetaMask &&
+    !provider?.isPhantom &&
+    !provider?.isCoinbaseWallet &&
+    !provider?.isOkxWallet &&
+    !provider?.isBitKeep &&
+    !provider?.isTokenPocket &&
+    !provider?.isImToken &&
+    !provider?.isMathWallet
+  )
     return provider;
   return null;
 }
@@ -36,17 +57,73 @@ export function getPhantomEVMProvider(): EvmProvider | null {
   return null;
 }
 
+export function getOkxProvider(): EvmProvider | null {
+  if (typeof window === "undefined") return null;
+  const direct = (window as any).okxwallet as EvmProvider | undefined;
+  if (direct?.request) return direct;
+  const eth = (window as any).ethereum as EvmProvider | undefined;
+  if (eth?.isOkxWallet) return eth;
+  return null;
+}
+
+export function getBitgetProvider(): EvmProvider | null {
+  if (typeof window === "undefined") return null;
+  const direct = (window as any).bitkeep?.ethereum as EvmProvider | undefined;
+  if (direct?.request) return direct;
+  const eth = (window as any).ethereum as EvmProvider | undefined;
+  if (eth?.isBitKeep) return eth;
+  return null;
+}
+
+export function getTokenPocketProvider(): EvmProvider | null {
+  if (typeof window === "undefined") return null;
+  const direct = (window as any).tokenpocket?.ethereum as
+    | EvmProvider
+    | undefined;
+  if (direct?.request) return direct;
+  const eth = (window as any).ethereum as EvmProvider | undefined;
+  if (eth?.isTokenPocket) return eth;
+  return null;
+}
+
+export function getImTokenProvider(): EvmProvider | null {
+  if (typeof window === "undefined") return null;
+  const eth = (window as any).ethereum as EvmProvider | undefined;
+  if (eth?.isImToken) return eth;
+  return null;
+}
+
+export function getMathWalletProvider(): EvmProvider | null {
+  if (typeof window === "undefined") return null;
+  const eth = (window as any).ethereum as EvmProvider | undefined;
+  if (eth?.isMathWallet) return eth;
+  return null;
+}
+
 export async function getEvmProvider(
   walletType: VeilWalletType
 ): Promise<EvmProvider | null> {
   if (walletType === "metamask") return getMetaMaskProvider();
   if (walletType === "phantom") return getPhantomEVMProvider();
+  if (walletType === "okx") return getOkxProvider();
+  if (walletType === "bitget") return getBitgetProvider();
+  if (walletType === "tokenpocket") return getTokenPocketProvider();
+  if (walletType === "imtoken") return getImTokenProvider();
+  if (walletType === "mathwallet") return getMathWalletProvider();
   if (walletType === "coinbase") {
     const { getCoinbaseProvider } = await import("@/lib/wallets/coinbase");
     return (await getCoinbaseProvider()) as EvmProvider;
   }
   // Fall back to any injected provider.
-  return getMetaMaskProvider() ?? getPhantomEVMProvider();
+  return (
+    getMetaMaskProvider() ??
+    getPhantomEVMProvider() ??
+    getOkxProvider() ??
+    getBitgetProvider() ??
+    getTokenPocketProvider() ??
+    getImTokenProvider() ??
+    getMathWalletProvider()
+  );
 }
 
 export async function personalSign(

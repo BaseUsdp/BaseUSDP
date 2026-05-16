@@ -4,7 +4,16 @@ import { getZKBalance } from "@/services/api";
 import { getApiUrl } from "@/utils/apiConfig";
 import { getCachedCoinbaseProvider } from "@/lib/wallets/coinbase";
 
-export type WalletType = "phantom" | "metamask" | "coinbase" | null;
+export type WalletType =
+  | "phantom"
+  | "metamask"
+  | "coinbase"
+  | "okx"
+  | "bitget"
+  | "tokenpocket"
+  | "imtoken"
+  | "mathwallet"
+  | null;
 export type ActiveChain = "solana" | "base";
 export type PrivacyLevel = "public" | "partial" | "full";
 export type NetworkStatus = "connected" | "wrong_network" | "disconnected";
@@ -70,16 +79,100 @@ const getPhantomProvider = getPhantomSolanaProvider;
 // Helper to get MetaMask EVM provider (for Base)
 const getMetaMaskProvider = (): MetaMaskEVMProvider | null => {
   if (typeof window === "undefined") return null;
-  // MetaMask injects window.ethereum with isMetaMask=true.
-  // Filter out Phantom and Coinbase, both of which also stamp isMetaMask=true.
+  // MetaMask injects window.ethereum with isMetaMask=true. Several other
+  // wallets (Phantom, Coinbase, OKX, Bitget, TokenPocket, imToken,
+  // MathWallet) also stamp isMetaMask=true to ride MetaMask's auto-detect
+  // path — exclude them so this resolves to the real MetaMask only.
   const provider = (window as any).ethereum;
   if (
     provider?.isMetaMask &&
     !provider?.isPhantom &&
-    !provider?.isCoinbaseWallet
+    !provider?.isCoinbaseWallet &&
+    !provider?.isOkxWallet &&
+    !provider?.isBitKeep &&
+    !provider?.isTokenPocket &&
+    !provider?.isImToken &&
+    !provider?.isMathWallet
   )
     return provider;
   return null;
+};
+
+// ---------------------------------------------------------------------------
+// Additional injected EIP-1193 wallets. All look like MetaMask from the
+// caller's perspective; only detection differs.
+// ---------------------------------------------------------------------------
+
+const getOkxProvider = (): MetaMaskEVMProvider | null => {
+  if (typeof window === "undefined") return null;
+  const direct = (window as any).okxwallet as MetaMaskEVMProvider | undefined;
+  if (direct?.request) return direct;
+  const eth = (window as any).ethereum;
+  if (eth?.isOkxWallet) return eth;
+  return null;
+};
+
+const getBitgetProvider = (): MetaMaskEVMProvider | null => {
+  if (typeof window === "undefined") return null;
+  const direct = (window as any).bitkeep?.ethereum as
+    | MetaMaskEVMProvider
+    | undefined;
+  if (direct?.request) return direct;
+  const eth = (window as any).ethereum;
+  if (eth?.isBitKeep) return eth;
+  return null;
+};
+
+const getTokenPocketProvider = (): MetaMaskEVMProvider | null => {
+  if (typeof window === "undefined") return null;
+  const direct = (window as any).tokenpocket?.ethereum as
+    | MetaMaskEVMProvider
+    | undefined;
+  if (direct?.request) return direct;
+  const eth = (window as any).ethereum;
+  if (eth?.isTokenPocket) return eth;
+  return null;
+};
+
+const getImTokenProvider = (): MetaMaskEVMProvider | null => {
+  if (typeof window === "undefined") return null;
+  const eth = (window as any).ethereum;
+  if (eth?.isImToken) return eth;
+  return null;
+};
+
+const getMathWalletProvider = (): MetaMaskEVMProvider | null => {
+  if (typeof window === "undefined") return null;
+  const eth = (window as any).ethereum;
+  if (eth?.isMathWallet) return eth;
+  return null;
+};
+
+// Single dispatch used by listeners, polling, switchNetwork, and the auth
+// adapter — keeps the WalletType → provider mapping in one place.
+const getEvmProviderForType = (
+  type: WalletType
+): MetaMaskEVMProvider | null => {
+  switch (type) {
+    case "metamask":
+      return getMetaMaskProvider();
+    case "coinbase":
+      return getCachedCoinbaseProvider() as unknown as MetaMaskEVMProvider | null;
+    case "okx":
+      return getOkxProvider();
+    case "bitget":
+      return getBitgetProvider();
+    case "tokenpocket":
+      return getTokenPocketProvider();
+    case "imtoken":
+      return getImTokenProvider();
+    case "mathwallet":
+      return getMathWalletProvider();
+    case "phantom":
+      return getPhantomEVMProvider();
+    default:
+      return null;
+  }
 };
 
 // Coinbase Wallet EVM provider — lazily initialized via the SDK so it works
@@ -267,13 +360,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (chain === "base") {
       // Pick the right EVM provider based on wallet type. Coinbase comes
       // from the SDK cache (warm by the time we get here — connect ran
-      // first), MetaMask and Phantom are injected globals.
-      const evmProvider =
-        wType === "metamask"
-          ? getMetaMaskProvider()
-          : wType === "coinbase"
-          ? (getCachedCoinbaseProvider() as unknown as MetaMaskEVMProvider | null)
-          : getPhantomEVMProvider();
+      // first); the rest are injected globals.
+      const evmProvider = getEvmProviderForType(wType ?? null);
       return {
         address,
         chain: "base" as const,
@@ -374,8 +462,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         await new Promise(resolve => setTimeout(resolve, 500));
 
         if (savedChain === "base") {
-          // EVM reconnect via Phantom or MetaMask
-          const evmProvider = type === "metamask" ? getMetaMaskProvider() : getPhantomEVMProvider();
+          // EVM reconnect via whichever wallet was last connected. Coinbase
+          // needs the async SDK init; everything else is an injected global.
+          let evmProvider: MetaMaskEVMProvider | null = null;
+          if (type === "coinbase") {
+            evmProvider = await getCoinbaseEVMProvider();
+          } else {
+            evmProvider = getEvmProviderForType(type);
+          }
           if (evmProvider) {
             try {
               const accounts: string[] = await evmProvider.request({ method: 'eth_accounts' });
@@ -438,13 +532,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!isConnected || !fullWalletAddress) return;
 
     if (activeChain === "base") {
-      // EVM event listeners (Phantom or MetaMask)
-      const evmProvider =
-        walletType === "metamask"
-          ? getMetaMaskProvider()
-          : walletType === "coinbase"
-          ? (getCachedCoinbaseProvider() as unknown as MetaMaskEVMProvider | null)
-          : getPhantomEVMProvider();
+      // EVM event listeners (any of the supported EIP-1193 wallets)
+      const evmProvider = getEvmProviderForType(walletType);
       if (!evmProvider) return;
 
       const handleAccountsChanged = (accounts: string[]) => {
@@ -531,13 +620,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     const checkWalletState = async () => {
       if (activeChain === "base") {
-        // EVM polling (Phantom or MetaMask)
-        const evmProvider =
-        walletType === "metamask"
-          ? getMetaMaskProvider()
-          : walletType === "coinbase"
-          ? (getCachedCoinbaseProvider() as unknown as MetaMaskEVMProvider | null)
-          : getPhantomEVMProvider();
+        // EVM polling (any of the supported EIP-1193 wallets)
+        const evmProvider = getEvmProviderForType(walletType);
         if (!evmProvider) {
           clearWalletAndRedirect("Your wallet connection was lost. Please reconnect.");
           return;
@@ -711,6 +795,57 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           setIsConnecting(false);
           return;
         }
+      } else if (
+        type === "okx" ||
+        type === "bitget" ||
+        type === "tokenpocket" ||
+        type === "imtoken" ||
+        type === "mathwallet"
+      ) {
+        // All five are injected EIP-1193 providers — same connect flow as
+        // MetaMask, only the provider lookup and install URL differ.
+        const lookup: Record<string, () => MetaMaskEVMProvider | null> = {
+          okx: getOkxProvider,
+          bitget: getBitgetProvider,
+          tokenpocket: getTokenPocketProvider,
+          imtoken: getImTokenProvider,
+          mathwallet: getMathWalletProvider,
+        };
+        const installUrl: Record<string, string> = {
+          okx: "https://www.okx.com/web3",
+          bitget: "https://web3.bitget.com/en/wallet-download",
+          tokenpocket: "https://www.tokenpocket.pro/en/download/app",
+          imtoken: "https://token.im/download",
+          mathwallet: "https://mathwallet.org/en-us/",
+        };
+        const evmProvider = lookup[type]();
+        if (evmProvider) {
+          try {
+            const accounts: string[] = await evmProvider.request({
+              method: "eth_requestAccounts",
+            });
+            if (accounts.length > 0) {
+              walletAddress = accounts[0];
+              chain = "base";
+              console.log(`[WalletContext] ${type} connected:`, walletAddress);
+              await ensureBaseChain(evmProvider);
+            }
+          } catch (err: any) {
+            console.error(
+              `[WalletContext] ${type} connection error:`,
+              err
+            );
+            if (err.code === 4001 || err.message?.includes("rejected")) {
+              setIsConnecting(false);
+              return;
+            }
+            throw err;
+          }
+        } else {
+          window.open(installUrl[type], "_blank");
+          setIsConnecting(false);
+          return;
+        }
       } else if (type === "coinbase") {
         // Coinbase Wallet via the official SDK — supports the browser
         // extension, mobile QR-code flow, and Coinbase Smart Wallet
@@ -843,12 +978,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // ============================================================
   const switchNetwork = useCallback(async () => {
     if (activeChain === "base") {
-      const evmProvider =
-        walletType === "metamask"
-          ? getMetaMaskProvider()
-          : walletType === "coinbase"
-          ? (getCachedCoinbaseProvider() as unknown as MetaMaskEVMProvider | null)
-          : getPhantomEVMProvider();
+      const evmProvider = getEvmProviderForType(walletType);
       if (evmProvider) {
         await ensureBaseChain(evmProvider);
       }
