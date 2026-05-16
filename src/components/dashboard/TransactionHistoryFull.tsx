@@ -187,7 +187,7 @@ const TransactionHistoryFull = ({ showBalance }: TransactionHistoryFullProps) =>
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `void402_transactions_${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `usdp_transactions_${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };

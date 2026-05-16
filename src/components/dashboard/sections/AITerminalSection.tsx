@@ -177,7 +177,7 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
               AI Terminal
             </h2>
             <p className="text-xs" style={{ color: "var(--dash-text-faint)" }}>
-              Talk to ORB in plain English
+              Talk to AI in plain English
             </p>
           </div>
           <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
@@ -194,7 +194,7 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
                 <Sparkles className="w-8 h-8 text-primary" />
               </div>
               <h3 className="text-base font-semibold mb-1" style={{ color: "var(--dash-text)" }}>
-                Welcome to ORB Terminal
+                Welcome to AI Terminal
               </h3>
               <p className="text-xs mb-6 max-w-xs" style={{ color: "var(--dash-text-faint)" }}>
                 Your AI-powered assistant for managing payments, checking balances, and navigating USDP.
@@ -314,7 +314,7 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask ORB anything..."
+              placeholder="Ask anything..."
               disabled={isLoading}
               className="flex-1 px-4 py-2.5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
               style={{

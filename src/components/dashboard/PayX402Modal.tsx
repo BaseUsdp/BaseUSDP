@@ -223,7 +223,7 @@ const PayX402Modal = ({ open, onOpenChange }: PayX402ModalProps) => {
                 </label>
                 <div className="relative">
                   <Input
-                    placeholder="x402_abc123 or https://void402.app/pay/..."
+                    placeholder="x402_abc123 or payment link..."
                     value={paymentId}
                     onChange={(e) => setPaymentId(e.target.value)}
                     className="bg-secondary border-border h-12 pr-12"

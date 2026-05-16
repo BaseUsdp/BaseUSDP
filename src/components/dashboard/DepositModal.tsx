@@ -966,7 +966,7 @@ const DepositModal = ({ open, onOpenChange, initialAmount, initialToken }: Depos
                   {(token !== "USDT" && privacyLevel === "full") && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Privacy mixer fee (est.)</span>
-                      <span className="text-red-400">-${(parseFloat(amount) * 0.15).toFixed(2)}</span>
+                      <span className="text-red-400">-${(parseFloat(amount) * 0.01).toFixed(2)} – ${(parseFloat(amount) * 0.05).toFixed(2)}</span>
                     </div>
                   )}
                   {(privacyLevel === "partial" || (token === "USDT" && privacyLevel === "full")) && (
@@ -991,14 +991,14 @@ const DepositModal = ({ open, onOpenChange, initialAmount, initialToken }: Depos
                     <span className="text-sm font-medium text-foreground">You will receive (est.)</span>
                     <span className="text-base font-bold text-emerald-400">
                       {(privacyLevel === "full" && token !== "USDT")
-                        ? `~$${(parseFloat(amount) * 0.85).toFixed(2)} ${token}`
+                        ? `~$${(parseFloat(amount) * 0.95).toFixed(2)} – $${(parseFloat(amount) * 0.99).toFixed(2)} ${token}`
                         : `$${parseFloat(amount).toFixed(2)} ${token}`
                       }
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground/60 leading-tight">
                     {(privacyLevel === "full" && token !== "USDT")
-                      ? "The only fee is from the privacy mixer. No Void402 platform fee. Actual amount may vary slightly depending on mixer rates."
+                      ? "The only fee is from the privacy mixer. No platform fee. Actual amount may vary slightly depending on mixer rates."
                       : (privacyLevel === "partial" || (token === "USDT" && privacyLevel === "full"))
                         ? "Partial privacy: Split transfers without mixer. Faster processing, zero fees."
                         : "Public mode: Direct deposit without privacy mixing. Fastest processing, zero fees."
