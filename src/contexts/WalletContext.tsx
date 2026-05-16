@@ -265,8 +265,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // ============================================================
   const buildWalletAdapter = useCallback((chain: ActiveChain, address: string, wType?: WalletType) => {
     if (chain === "base") {
-      // Pick the right EVM provider based on wallet type
-      const evmProvider = wType === "metamask" ? getMetaMaskProvider() : getPhantomEVMProvider();
+      // Pick the right EVM provider based on wallet type. Coinbase comes
+      // from the SDK cache (warm by the time we get here — connect ran
+      // first), MetaMask and Phantom are injected globals.
+      const evmProvider =
+        wType === "metamask"
+          ? getMetaMaskProvider()
+          : wType === "coinbase"
+          ? (getCachedCoinbaseProvider() as unknown as MetaMaskEVMProvider | null)
+          : getPhantomEVMProvider();
       return {
         address,
         chain: "base" as const,
