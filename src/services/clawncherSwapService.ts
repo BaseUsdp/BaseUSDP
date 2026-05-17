@@ -20,6 +20,7 @@ import {
 } from "viem";
 import { base } from "viem/chains";
 import { getApiUrl } from "@/utils/apiConfig";
+import usdpLogo from "@/assets/usdp-logo.png";
 
 // ============================================================================
 // Constants
@@ -121,7 +122,7 @@ export const USDP_TOKEN: TokenInfo = {
   name: "BASEUSDP",
   address: "0x7b29e5266634BCbA06686E580AfD4419a8c84b07",
   decimals: 18,
-  logoUrl: "https://baseusdp.com/usdp-logo.png",
+  logoUrl: usdpLogo,
 };
 
 // Tokens users can receive on the Swap page (sell list + USDP).
