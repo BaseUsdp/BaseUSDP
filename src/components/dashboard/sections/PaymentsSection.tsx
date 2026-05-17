@@ -11,6 +11,7 @@ import PrivacyLevelSelector from "../PrivacyLevelSelector";
 import X402PaymentModal from "../X402PaymentModal";
 import PayX402Modal from "../PayX402Modal";
 import X402RequestsManagement from "../X402RequestsManagement";
+import PaymentLinkGenerator from "../PaymentLinkGenerator";
 import {
   getMetaMaskEVMProvider,
 } from "@/services/transactionSigningService";
@@ -284,6 +285,10 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
           <TabsTrigger value="x402" className="gap-2">
             <Icon icon="ph:download-bold" className="w-4 h-4" />
             Requests
+          </TabsTrigger>
+          <TabsTrigger value="link" className="gap-2">
+            <Icon icon="ph:link-bold" className="w-4 h-4" />
+            Link
           </TabsTrigger>
           <TabsTrigger value="pay" className="gap-2 opacity-40 cursor-not-allowed" disabled>
             <Icon icon="ph:credit-card-bold" className="w-4 h-4" />
@@ -634,6 +639,11 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
         {/* x402 Requests Tab */}
         <TabsContent value="x402">
           <X402RequestsManagement onCreateNew={() => setX402CreateModalOpen(true)} />
+        </TabsContent>
+
+        {/* Payment Link Tab */}
+        <TabsContent value="link">
+          <PaymentLinkGenerator />
         </TabsContent>
 
         {/* Pay Request Tab */}
