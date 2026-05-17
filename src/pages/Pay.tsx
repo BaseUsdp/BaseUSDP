@@ -169,7 +169,13 @@ const Pay = () => {
 
               <div className="mb-4 space-y-2">
                 <Link
-                  to="/dashboard"
+                  to={`/dashboard?tab=payments&send-to=${encodeURIComponent(
+                    to
+                  )}&send-amount=${encodeURIComponent(
+                    amountRaw
+                  )}&send-token=${validation.token}${
+                    memo ? `&send-memo=${encodeURIComponent(memo)}` : ""
+                  }`}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90"
                 >
                   <Icon icon="ph:shield-check-bold" className="h-4 w-4" />

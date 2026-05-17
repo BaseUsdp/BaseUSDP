@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useWallet } from "@/contexts/WalletContext";
 import { useXMTP } from "@/contexts/XMTPContext";
@@ -13,9 +14,23 @@ const DashboardLayoutNew = () => {
   const { isConnected } = useWallet();
   const { unreadCount: unreadMessages } = useXMTP();
   const [showBalance, setShowBalance] = useState(true);
-  const [activeTab, setActiveTab] = useState("overview");
-  const [paymentsInitialTab, setPaymentsInitialTab] = useState<string | undefined>(undefined);
+  const [searchParams] = useSearchParams();
+  const initialTabFromUrl = searchParams.get("tab");
+  const hasSendPrefill = !!searchParams.get("send-to");
+  const [activeTab, setActiveTab] = useState(initialTabFromUrl || "overview");
+  const [paymentsInitialTab, setPaymentsInitialTab] = useState<string | undefined>(
+    hasSendPrefill ? "send" : undefined
+  );
   const [withdrawInitialAmount, setWithdrawInitialAmount] = useState<string | undefined>(undefined);
+
+  // If a payment-link visitor lands here with prefill params, force the
+  // Payments tab on first mount so the prefilled Send form is visible.
+  useEffect(() => {
+    if (hasSendPrefill) {
+      setActiveTab("payments");
+      setPaymentsInitialTab("send");
+    }
+  }, [hasSendPrefill]);
 
   if (!isConnected) {
     return (

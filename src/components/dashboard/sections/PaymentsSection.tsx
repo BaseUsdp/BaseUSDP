@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Icon } from "@iconify/react";
@@ -30,6 +31,10 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
   const { encryptedBalance, privacyLevel, walletType, isConnected, fullWalletAddress, activeChain } = useWallet();
   const apiUrl = getApiUrl();
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const prefillTo = searchParams.get("send-to") ?? "";
+  const prefillAmount = searchParams.get("send-amount") ?? "";
+
   const [activeTab, setActiveTab] = useState(initialTab || "send");
   const [x402CreateModalOpen, setX402CreateModalOpen] = useState(false);
 
@@ -41,14 +46,30 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
   }, [initialTab]);
   const [payX402ModalOpen, setPayX402ModalOpen] = useState(false);
 
-  // Send form state
+  // Send form state — prefill from /pay landing's query params on first mount
+  const isPrefillValidAddress = /^0x[a-fA-F0-9]{40}$/.test(prefillTo);
   const [recipientType, setRecipientType] = useState<RecipientType>("address");
-  const [recipient, setRecipient] = useState("");
+  const [recipient, setRecipient] = useState(isPrefillValidAddress ? prefillTo : "");
   const [usernameInput, setUsernameInput] = useState("");
   const [resolvedWallet, setResolvedWallet] = useState<string | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(prefillAmount && parseFloat(prefillAmount) > 0 ? prefillAmount : "");
+
+  // Consume the prefill params so they don't re-apply on every navigation
+  // back to this section.
+  useEffect(() => {
+    if (prefillTo || prefillAmount || searchParams.get("send-token") || searchParams.get("send-memo")) {
+      const remaining = new URLSearchParams(searchParams);
+      remaining.delete("send-to");
+      remaining.delete("send-amount");
+      remaining.delete("send-token");
+      remaining.delete("send-memo");
+      setSearchParams(remaining, { replace: true });
+    }
+    // Only run once on mount — intentionally empty dep array.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyLevel>(privacyLevel);
   const [step, setStep] = useState<TransactionStep>("form");
   const [txHash, setTxHash] = useState("");
