@@ -90,6 +90,13 @@ const VeilSection = ({ showBalance }: VeilSectionProps) => {
     !!fullWalletAddress &&
     VEIL_WHITELIST.has(fullWalletAddress.toLowerCase());
 
+  const showVerifyGate =
+    isConnected &&
+    !!fullWalletAddress &&
+    !statusLoading &&
+    status?.eligibility !== undefined &&
+    status.eligibility.isAllowed === false;
+
   const actions = [
     {
       id: "deposit" as const,
@@ -187,6 +194,83 @@ const VeilSection = ({ showBalance }: VeilSectionProps) => {
         >
           <Icon icon="ph:warning-bold" className="mt-0.5 h-4 w-4 shrink-0" />
           <div>{error}</div>
+        </div>
+      )}
+
+      {showVerifyGate && (
+        <div
+          className="rounded-xl border p-4 text-sm"
+          style={{
+            borderColor: "rgba(239,68,68,0.4)",
+            background: "rgba(239,68,68,0.06)",
+          }}
+        >
+          <div className="mb-2 flex items-center gap-2">
+            <Icon
+              icon="ph:shield-slash-bold"
+              className="h-4 w-4 shrink-0"
+              style={{ color: "#ef4444" }}
+            />
+            <span
+              className="text-sm font-semibold"
+              style={{ color: "var(--dash-text)" }}
+            >
+              This wallet must be verified before depositing
+            </span>
+          </div>
+          <p
+            className="text-xs leading-relaxed"
+            style={{ color: "var(--dash-text-muted)" }}
+          >
+            Veil's entry contract only accepts deposits from pre-verified
+            wallets — any attempt from an unverified address reverts on-chain.
+            Verify once (free, ~2 min) with one of the providers below; the
+            attestation lands on Base and deposits unlock right after.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href="https://www.coinbase.com/onchain-verify"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold underline-offset-2 hover:underline"
+              style={{
+                borderColor: "var(--dash-border)",
+                color: "var(--dash-text)",
+              }}
+            >
+              <Icon icon="ph:check-circle-bold" className="h-3.5 w-3.5" />
+              Coinbase Onchain Verify
+              <Icon icon="ph:arrow-up-right-bold" className="h-3 w-3" />
+            </a>
+            <a
+              href="https://www.binance.com/en/babt"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold underline-offset-2 hover:underline"
+              style={{
+                borderColor: "var(--dash-border)",
+                color: "var(--dash-text)",
+              }}
+            >
+              <Icon icon="ph:check-circle-bold" className="h-3.5 w-3.5" />
+              Binance BABT
+              <Icon icon="ph:arrow-up-right-bold" className="h-3 w-3" />
+            </a>
+            <a
+              href="https://ethos.network"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold underline-offset-2 hover:underline"
+              style={{
+                borderColor: "var(--dash-border)",
+                color: "var(--dash-text)",
+              }}
+            >
+              <Icon icon="ph:check-circle-bold" className="h-3.5 w-3.5" />
+              Ethos Score
+              <Icon icon="ph:arrow-up-right-bold" className="h-3 w-3" />
+            </a>
+          </div>
         </div>
       )}
 

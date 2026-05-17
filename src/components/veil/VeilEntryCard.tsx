@@ -2,12 +2,12 @@ import { Icon } from "@iconify/react";
 
 const items = [
   {
-    icon: "ph:check-circle-bold",
-    label: "0.3% fee, fixed on-chain",
+    icon: "ph:identification-badge-bold",
+    label: "Pre-verified wallets only · Coinbase / Binance / Ethos",
   },
   {
     icon: "ph:gift-bold",
-    label: "First deposit per address is free",
+    label: "Daily free deposits per address, then 0.3% fee",
   },
   {
     icon: "ph:clock-countdown-bold",

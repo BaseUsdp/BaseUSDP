@@ -82,13 +82,13 @@ const VeilStatusBadge = ({ status, loading }: Props) => {
           ok={verified}
           label={
             verified
-              ? "Verified · instant deposit"
-              : "Unverified · 0xbow screening (~15 min)"
+              ? "Verified · deposits unlocked"
+              : "Unverified · deposits blocked"
           }
           hint={
             verified
-              ? "Coinbase / Binance / Ethos attestation detected. Deposits enter the shielded set without screening delay."
-              : "Deposits will pass through 0xbow KYT screening before entering the shielded set. Pre-verify with Coinbase / Binance / Ethos for instant deposits."
+              ? "Coinbase / Binance / Ethos attestation detected. Deposits enter the shielded set in ~8 min."
+              : "Veil's entry contract only accepts deposits from pre-verified wallets. Verify once (free, ~2 min) via Coinbase Onchain Verify, Binance BABT, or Ethos Score."
           }
         />
       )}
