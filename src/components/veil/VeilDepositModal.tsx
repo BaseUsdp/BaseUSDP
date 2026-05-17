@@ -41,6 +41,41 @@ type Step =
   | "done"
   | "error";
 
+// Mirrors MINIMUM_NET from @veil-cash/sdk's CLI — the contract reverts with
+// MinimumDepositNotMet below these. Bump if the SDK changes them.
+const MIN_NET: Record<Token, number> = {
+  USDC: 10,
+  ETH: 0.01,
+};
+
+// Entry contract custom errors → user-friendly copy. Wallets typically embed
+// the error name in the rejection message, so we match against the raw text.
+const ERROR_HINTS: Array<[RegExp, string]> = [
+  [/MinimumDepositNotMet/, "Minimum deposit is 10 USDC or 0.01 ETH."],
+  [
+    /NotAllowedToDeposit/,
+    "Your wallet failed 0xbow KYT screening. Verify via Coinbase, Binance, or Ethos and try again.",
+  ],
+  [/DepositsDisabled/, "Deposits are temporarily disabled at the contract."],
+  [
+    /InvalidDepositKey(ForUser)?/,
+    "Deposit key mismatch — sign out of Veil and sign back in to refresh.",
+  ],
+  [/UserNotRegistered/, "Your wallet isn't registered on Veil yet."],
+  [
+    /USDCTransferFailed/,
+    "USDC transfer failed — check your balance and network.",
+  ],
+  [/FeeTransferFailed/, "Protocol fee transfer failed at the contract."],
+];
+
+function friendlyDepositError(raw: string): string {
+  for (const [pattern, hint] of ERROR_HINTS) {
+    if (pattern.test(raw)) return hint;
+  }
+  return raw;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -88,10 +123,13 @@ const VeilDepositModal = ({ open, onClose, onDeposited }: Props) => {
   };
 
   const ammoutNumber = parseFloat(amount || "0");
+  const minNet = MIN_NET[token];
+  const meetsMinimum = ammoutNumber >= minNet;
   const canSubmit =
     keypair !== null &&
     !!fullWalletAddress &&
     ammoutNumber > 0 &&
+    meetsMinimum &&
     !["registering", "approving", "depositing"].includes(step);
 
   const handleSubmit = async () => {
@@ -210,8 +248,8 @@ const VeilDepositModal = ({ open, onClose, onDeposited }: Props) => {
       setStep("done");
       onDeposited?.();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setErrorMsg(msg);
+      const raw = err instanceof Error ? err.message : String(err);
+      setErrorMsg(friendlyDepositError(raw));
       setStep("error");
     }
   };
@@ -303,16 +341,24 @@ const VeilDepositModal = ({ open, onClose, onDeposited }: Props) => {
 
             {/* Amount */}
             <label className="block">
-              <span
-                className="mb-1 block text-[11px] font-bold uppercase tracking-widest"
-                style={{ color: "var(--dash-text-faint)" }}
-              >
-                Amount ({token})
-              </span>
+              <div className="mb-1 flex items-baseline justify-between">
+                <span
+                  className="text-[11px] font-bold uppercase tracking-widest"
+                  style={{ color: "var(--dash-text-faint)" }}
+                >
+                  Amount ({token})
+                </span>
+                <span
+                  className="text-[10px]"
+                  style={{ color: "var(--dash-text-faint)" }}
+                >
+                  Min {minNet} {token}
+                </span>
+              </div>
               <input
                 type="number"
                 inputMode="decimal"
-                placeholder="0.0"
+                placeholder={`${minNet}`}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="w-full rounded-lg border px-3 py-3 text-lg outline-none"
@@ -322,6 +368,14 @@ const VeilDepositModal = ({ open, onClose, onDeposited }: Props) => {
                   color: "var(--dash-text)",
                 }}
               />
+              {ammoutNumber > 0 && !meetsMinimum && (
+                <p
+                  className="mt-1 text-[11px]"
+                  style={{ color: "#f59e0b" }}
+                >
+                  Minimum deposit is {minNet} {token}.
+                </p>
+              )}
             </label>
 
             {/* Verification status */}
