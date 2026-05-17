@@ -89,6 +89,7 @@ const VeilTransferModal = ({ open, onClose, onTransferred }: Props) => {
         recipientAddress: recipient as `0x${string}`,
         senderKeypair: keypair,
         pool: token === "USDC" ? "usdc" : "eth",
+        provingKeyPath: "/veil-keys",
         onProgress: (stage, detail) => {
           if (stage === "submitting") setStep("submitting");
           setProgress(detail ? `${stage} · ${detail}` : stage);

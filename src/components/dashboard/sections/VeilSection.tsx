@@ -24,6 +24,13 @@ interface VeilSectionProps {
 
 type ActiveModal = "deposit" | "withdraw" | "transfer" | null;
 
+const VEIL_WHITELIST = new Set([
+  "0x7d8d501ddcb0e5fda674d5b356c25fb08d5865c5",
+]);
+
+const VEIL_GATED_HINT =
+  "Veil Pool is in closed beta — opening to all users soon.";
+
 const VeilSection = ({ showBalance }: VeilSectionProps) => {
   const { fullWalletAddress, isConnected } = useWallet();
   const { keypair, disconnect } = useVeil();
@@ -79,30 +86,34 @@ const VeilSection = ({ showBalance }: VeilSectionProps) => {
 
   const refresh = () => setReloadTick((t) => t + 1);
 
+  const isWhitelisted =
+    !!fullWalletAddress &&
+    VEIL_WHITELIST.has(fullWalletAddress.toLowerCase());
+
   const actions = [
     {
       id: "deposit" as const,
       label: "Deposit",
       icon: "ph:arrow-down-bold",
       desc: "Move USDC or ETH into the shielded set",
-      disabled: false,
-      hint: undefined as string | undefined,
+      disabled: !isWhitelisted,
+      hint: isWhitelisted ? undefined : VEIL_GATED_HINT,
     },
     {
       id: "withdraw" as const,
       label: "Withdraw",
       icon: "ph:arrow-up-bold",
       desc: "Send private balance to a public address",
-      disabled: true,
-      hint: "Waiting on a browser-compatible build of the Veil SDK. The official veil.cash app handles this today; we'll wire it up once the SDK ships browser proof generation.",
+      disabled: !isWhitelisted,
+      hint: isWhitelisted ? undefined : VEIL_GATED_HINT,
     },
     {
       id: "transfer" as const,
       label: "Private transfer",
       icon: "ph:arrows-left-right-bold",
       desc: "Send privately to another Veil user",
-      disabled: true,
-      hint: "Waiting on a browser-compatible build of the Veil SDK. The official veil.cash app handles this today; we'll wire it up once the SDK ships browser proof generation.",
+      disabled: !isWhitelisted,
+      hint: isWhitelisted ? undefined : VEIL_GATED_HINT,
     },
   ];
 

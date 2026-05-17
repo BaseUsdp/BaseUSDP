@@ -67,6 +67,7 @@ const VeilWithdrawModal = ({ open, onClose, onWithdrawn }: Props) => {
         recipient: recipient as `0x${string}`,
         keypair,
         pool: token === "USDC" ? "usdc" : "eth",
+        provingKeyPath: "/veil-keys",
         onProgress: (stage, detail) => {
           if (stage === "submitting") setStep("submitting");
           setProgress(detail ? `${stage} · ${detail}` : stage);
