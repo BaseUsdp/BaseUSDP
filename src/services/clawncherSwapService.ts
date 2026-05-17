@@ -31,10 +31,11 @@ const BASE_CHAIN_ID = 8453;
 const PERMIT2_ADDRESS: Address =
   "0x000000000022D473030F116dDEE9F6B43aC78BA3";
 
-// ORB402 fee configuration
-const ORB402_FEE_RECIPIENT: Address =
-  "0x5e4de1d7ffe5bacd49f586cb6d0ad4c6473b5f6e";
-const ORB402_FEE_BPS = 50; // 0.5%
+// Flywheel fee configuration — routes the 0.5% swap fee to the BASEUSDP
+// flywheel wallet on Base (buybacks / burns / rewards).
+const FLYWHEEL_FEE_RECIPIENT: Address =
+  "0xbcaE5535265c12c500aFb411E3Dcf9e0a751B39a";
+const SWAP_FEE_BPS = 50; // 0.5%
 
 // ============================================================================
 // Types
@@ -212,8 +213,8 @@ function buildSwapQuery(
     sellAmount: params.sellAmount.toString(),
     slippageBps: (params.slippageBps ?? 300).toString(),
     taker: includeTaker ? params.taker : undefined,
-    swapFeeRecipient: ORB402_FEE_RECIPIENT,
-    swapFeeBps: ORB402_FEE_BPS.toString(),
+    swapFeeRecipient: FLYWHEEL_FEE_RECIPIENT,
+    swapFeeBps: SWAP_FEE_BPS.toString(),
   });
 }
 

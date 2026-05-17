@@ -2,6 +2,7 @@
  * Wallet allowlists for dashboard features still in private preview.
  *
  *   VITE_VEIL_WHITELIST — comma-separated EVM addresses allowed to use Veil Pool
+ *   VITE_SWAP_WHITELIST — comma-separated EVM addresses allowed to use Swap
  *
  * SMS Pay is currently open to every connected wallet.
  *
@@ -21,6 +22,7 @@ function parseList(raw: string | undefined): Set<string> {
 }
 
 const VEIL_ALLOWED = parseList(import.meta.env.VITE_VEIL_WHITELIST);
+const SWAP_ALLOWED = parseList(import.meta.env.VITE_SWAP_WHITELIST);
 
 /**
  * SMS Pay is open to everyone — the section handles its own "connect a
@@ -34,4 +36,9 @@ export function isSmsWhitelisted(_address: string | null | undefined): boolean {
 export function isVeilWhitelisted(address: string | null | undefined): boolean {
   if (!address) return false;
   return VEIL_ALLOWED.has(address.toLowerCase());
+}
+
+export function isSwapWhitelisted(address: string | null | undefined): boolean {
+  if (!address) return false;
+  return SWAP_ALLOWED.has(address.toLowerCase());
 }

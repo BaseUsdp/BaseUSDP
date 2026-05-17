@@ -20,7 +20,7 @@ import AgentsSection from "./sections/AgentsSection";
 import SwapSection from "./sections/SwapSection";
 import VeilSection from "./sections/VeilSection";
 import SmsSection from "./sections/SmsSection";
-import { isSmsWhitelisted, isVeilWhitelisted } from "@/lib/featureGates";
+import { isSmsWhitelisted, isVeilWhitelisted, isSwapWhitelisted } from "@/lib/featureGates";
 import { getTransactionHistory, TransactionHistoryResponse, getZKBalance } from "@/services/api";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
 
@@ -300,6 +300,9 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
   }
 
   if (activeTab === "swap") {
+    if (!isSwapWhitelisted(fullWalletAddress)) {
+      return null;
+    }
     return (
       <div className="p-4 sm:p-6">
         <SwapSection showBalance={showBalance} />

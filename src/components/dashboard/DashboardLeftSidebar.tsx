@@ -21,7 +21,7 @@ import {
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
-import { isSmsWhitelisted, isVeilWhitelisted } from "@/lib/featureGates";
+import { isSmsWhitelisted, isVeilWhitelisted, isSwapWhitelisted } from "@/lib/featureGates";
 
 interface DashboardLeftSidebarProps {
   activeTab: string;
@@ -36,6 +36,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
 
   const smsAllowed = isSmsWhitelisted(fullWalletAddress);
   const veilAllowed = isVeilWhitelisted(fullWalletAddress);
+  const swapAllowed = isSwapWhitelisted(fullWalletAddress);
 
   const navItems: {
     id: string;
@@ -50,7 +51,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
     { id: "withdraw", label: "Withdraw", icon: ArrowUpRight },
     { id: "veil", label: "Veil Pool", icon: Vault, disabled: !veilAllowed },
     { id: "sms", label: "SMS Pay", icon: Smartphone, disabled: !smsAllowed },
-    { id: "swap", label: "Swap", icon: ArrowLeftRight, disabled: true },
+    { id: "swap", label: "Swap", icon: ArrowLeftRight, disabled: !swapAllowed },
     { id: "history", label: "History", icon: History },
     { id: "messages", label: "Messages", icon: MessageSquare },
     { id: "settings", label: "Settings", icon: Settings },
