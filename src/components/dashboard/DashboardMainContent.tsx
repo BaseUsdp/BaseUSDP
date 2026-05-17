@@ -9,6 +9,7 @@ import SendPaymentModal from "./SendPaymentModal";
 import X402PaymentModal from "./X402PaymentModal";
 import PayX402Modal from "./PayX402Modal";
 import PrivacyLevelSelector from "./PrivacyLevelSelector";
+import FlywheelCard from "./FlywheelCard";
 import SettingsSection from "./sections/SettingsSection";
 import PaymentsSection from "./sections/PaymentsSection";
 import HistorySection from "./sections/HistorySection";
@@ -509,6 +510,9 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
             <PrivacyLevelSelector compact onNavigateToSettings={() => setActiveTab("settings")} />
           </motion.div>
         </div>
+
+        {/* BASEUSDP Flywheel */}
+        <FlywheelCard />
 
         {/* Recent Transactions */}
         <motion.div

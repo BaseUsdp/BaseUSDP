@@ -9,6 +9,7 @@ import ReceivePaymentModal from "../ReceivePaymentModal";
 import X402PaymentModal from "../X402PaymentModal";
 import PayX402Modal from "../PayX402Modal";
 import PrivacyLevelSelector from "../PrivacyLevelSelector";
+import FlywheelCard from "../FlywheelCard";
 
 interface OverviewSectionProps {
   showBalance: boolean;
@@ -90,11 +91,14 @@ const OverviewSection = ({ showBalance, setShowBalance, setActiveTab }: Overview
       {/* Quick Actions */}
       <QuickActionsGrid onAction={handleQuickAction} />
 
+      {/* BASEUSDP Flywheel */}
+      <FlywheelCard />
+
       {/* Recent Transactions */}
-      <RecentTransactions 
-        showBalance={showBalance} 
-        limit={5} 
-        onViewAll={() => setActiveTab("history")} 
+      <RecentTransactions
+        showBalance={showBalance}
+        limit={5}
+        onViewAll={() => setActiveTab("history")}
       />
 
       {/* Modals */}
