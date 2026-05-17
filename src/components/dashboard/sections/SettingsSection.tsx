@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import TwitterPaymentSettings from "./TwitterPaymentSettings";
-import { useAddressResolver } from "@/hooks/useAddressResolver";
+import { getApiUrl } from "@/utils/apiConfig";
 
 const SETTINGS_STORAGE_KEY = "void402_settings";
 
@@ -37,23 +37,87 @@ const SettingsSection = () => {
   const [notifications, setNotifications] = useState(loadSettings().notifications);
   const [autoApprove, setAutoApprove] = useState(loadSettings().autoApprove);
   const [saved, setSaved] = useState(false);
-  const { resolveAddress } = useAddressResolver();
   const [myHandle, setMyHandle] = useState<string | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [handleInput, setHandleInput] = useState("");
+  const [handleError, setHandleError] = useState<string | null>(null);
+  const [handleSaving, setHandleSaving] = useState(false);
 
-  // Look up the current wallet's username so we can surface their tip URL.
-  useEffect(() => {
+  // Look up the current wallet's profile so we can surface their tip URL.
+  // Only show the URL when the user has set a *custom* username — auto-
+  // generated truncated placeholders aren't real handles.
+  const loadProfile = async () => {
     if (!fullWalletAddress) {
       setMyHandle(null);
+      setProfileLoading(false);
       return;
     }
-    let cancelled = false;
-    resolveAddress(fullWalletAddress).then((handle) => {
-      if (!cancelled) setMyHandle(handle);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [fullWalletAddress, resolveAddress]);
+    setProfileLoading(true);
+    try {
+      const res = await fetch(
+        `${getApiUrl()}/api/user/profile?wallet=${encodeURIComponent(fullWalletAddress)}`
+      );
+      const data = await res.json();
+      if (data?.success && data.profile?.has_custom_username && data.profile?.username) {
+        setMyHandle(data.profile.username);
+      } else {
+        setMyHandle(null);
+      }
+    } catch {
+      setMyHandle(null);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullWalletAddress]);
+
+  const validateHandle = (value: string): string | null => {
+    if (value.length < 3) return "At least 3 characters";
+    if (value.length > 20) return "20 characters max";
+    if (!/^[a-zA-Z0-9]/.test(value)) return "Must start with a letter or number";
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(value)) {
+      return "Letters, numbers, underscores, and hyphens only";
+    }
+    return null;
+  };
+
+  const saveHandle = async () => {
+    if (!fullWalletAddress) return;
+    const trimmed = handleInput.trim().replace(/^@/, "");
+    const err = validateHandle(trimmed);
+    if (err) {
+      setHandleError(err);
+      return;
+    }
+    setHandleError(null);
+    setHandleSaving(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/user/profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wallet_address: fullWalletAddress, username: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setHandleError(data.error || "Couldn't save username");
+        return;
+      }
+      toast({
+        title: "Username set",
+        description: `@${trimmed} is yours. Your tip page is live.`,
+      });
+      setHandleInput("");
+      await loadProfile();
+    } catch {
+      setHandleError("Network error — try again");
+    } finally {
+      setHandleSaving(false);
+    }
+  };
 
   const tipUrl = myHandle
     ? `${typeof window !== "undefined" ? window.location.origin : "https://baseusdp.com"}/tip/@${myHandle}`
@@ -240,26 +304,31 @@ const SettingsSection = () => {
         </div>
       </motion.div>
 
-      {/* Tip jar URL */}
-      {myHandle && tipUrl && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="rounded-2xl border border-border bg-card p-6"
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center">
-              <Icon icon="ph:hand-coins-bold" className="w-5 h-5 text-pink-500" />
-            </div>
-            <div>
-              <h3 className="font-display text-lg font-bold">Your tip page</h3>
-              <p className="text-xs text-muted-foreground">
-                Public URL anyone can use to send you a tip on BASEUSDP
-              </p>
-            </div>
+      {/* Tip jar / username card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="rounded-2xl border border-border bg-card p-6"
+      >
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center">
+            <Icon icon="ph:hand-coins-bold" className="w-5 h-5 text-pink-500" />
           </div>
+          <div>
+            <h3 className="font-display text-lg font-bold">Your tip page</h3>
+            <p className="text-xs text-muted-foreground">
+              Public URL anyone can use to send you a tip on BASEUSDP
+            </p>
+          </div>
+        </div>
 
+        {profileLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Icon icon="ph:circle-notch-bold" className="h-4 w-4 animate-spin" />
+            Loading profile…
+          </div>
+        ) : myHandle && tipUrl ? (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/30 p-3">
             <code className="flex-1 truncate text-sm font-mono">{tipUrl}</code>
             <button
@@ -280,8 +349,48 @@ const SettingsSection = () => {
               Open
             </a>
           </div>
-        </motion.div>
-      )}
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              You don't have a username yet. Pick one (3–20 chars) to unlock
+              your public tip page at <span className="font-mono">baseusdp.com/tip/@you</span>.
+            </p>
+            <div className="flex items-stretch gap-2">
+              <div className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-background px-3">
+                <Icon icon="ph:at-bold" className="h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="yourhandle"
+                  value={handleInput}
+                  onChange={(e) => {
+                    setHandleInput(e.target.value);
+                    setHandleError(null);
+                  }}
+                  className="flex-1 bg-transparent py-2 text-sm outline-none"
+                  maxLength={20}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={saveHandle}
+                disabled={handleSaving || handleInput.trim().length < 3}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {handleSaving ? (
+                  <Icon icon="ph:circle-notch-bold" className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Icon icon="ph:check-bold" className="h-4 w-4" />
+                )}
+                Save
+              </button>
+            </div>
+            {handleError && (
+              <p className="text-xs text-red-500">{handleError}</p>
+            )}
+          </div>
+        )}
+      </motion.div>
+
 
       {/* X/Twitter Payment Settings */}
       <TwitterPaymentSettings />
