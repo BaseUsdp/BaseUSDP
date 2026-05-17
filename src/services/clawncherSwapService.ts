@@ -86,6 +86,8 @@ export interface SwapResult {
 // Token List
 // ============================================================================
 
+// Tokens users can sell on the Swap page. USDP is intentionally absent —
+// it is buy-only (see BUY_TOKENS below).
 export const BASE_TOKENS: TokenInfo[] = [
   {
     symbol: "ETH",
@@ -112,6 +114,24 @@ export const BASE_TOKENS: TokenInfo[] = [
       "https://assets.coingecko.com/coins/images/2518/small/weth.png",
   },
 ];
+
+// Buy-only token: users can swap INTO USDP but not OUT of it via this UI.
+export const USDP_TOKEN: TokenInfo = {
+  symbol: "USDP",
+  name: "BASEUSDP",
+  address: "0x7b29e5266634BCbA06686E580AfD4419a8c84b07",
+  decimals: 18,
+  logoUrl: "https://baseusdp.com/usdp-logo.png",
+};
+
+// Tokens users can receive on the Swap page (sell list + USDP).
+export const BUY_TOKENS: TokenInfo[] = [...BASE_TOKENS, USDP_TOKEN];
+
+export function isSellableToken(address: string): boolean {
+  return BASE_TOKENS.some(
+    (t) => t.address.toLowerCase() === address.toLowerCase()
+  );
+}
 
 // ============================================================================
 // Helpers

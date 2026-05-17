@@ -8,6 +8,8 @@ import { useSwap } from "@/hooks/useSwap";
 import {
   formatTokenAmount,
   BASE_TOKENS,
+  BUY_TOKENS,
+  isSellableToken,
 } from "@/services/clawncherSwapService";
 import TokenSelector from "../TokenSelector";
 import { cn } from "@/lib/utils";
@@ -191,11 +193,19 @@ const SwapSection = ({ showBalance }: SwapSectionProps) => {
                 </div>
               </div>
 
-              {/* Flip Button */}
+              {/* Flip Button — disabled when the receive token isn't sellable
+                  (e.g. USDP) so users can't flip a buy-only token onto the
+                  sell side. */}
               <div className="flex justify-center -my-2 relative z-10">
                 <button
                   onClick={swap.flipTokens}
-                  className="w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-sky-500/20"
+                  disabled={!isSellableToken(swap.buyToken.address)}
+                  title={
+                    isSellableToken(swap.buyToken.address)
+                      ? "Flip tokens"
+                      : `${swap.buyToken.symbol} can only be received, not sold here`
+                  }
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                   style={{
                     background: "var(--dash-surface)",
                     border: "1px solid var(--dash-border)",
@@ -226,6 +236,7 @@ const SwapSection = ({ showBalance }: SwapSectionProps) => {
                     selected={swap.buyToken}
                     onSelect={swap.setBuyToken}
                     exclude={swap.sellToken.address}
+                    tokens={BUY_TOKENS}
                   />
                   <div className="flex-1">
                     <div

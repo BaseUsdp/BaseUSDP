@@ -6,12 +6,13 @@ interface TokenSelectorProps {
   selected: TokenInfo;
   onSelect: (token: TokenInfo) => void;
   exclude?: string; // address to exclude (the other side of the pair)
+  tokens?: TokenInfo[]; // override list (defaults to BASE_TOKENS — sellable set)
 }
 
-const TokenSelector = ({ selected, onSelect, exclude }: TokenSelectorProps) => {
+const TokenSelector = ({ selected, onSelect, exclude, tokens }: TokenSelectorProps) => {
   const [open, setOpen] = useState(false);
 
-  const availableTokens = BASE_TOKENS.filter(
+  const availableTokens = (tokens ?? BASE_TOKENS).filter(
     (t) => t.address.toLowerCase() !== exclude?.toLowerCase()
   );
 
@@ -54,9 +55,10 @@ const TokenSelector = ({ selected, onSelect, exclude }: TokenSelectorProps) => {
             onClick={() => setOpen(false)}
           />
           <div
-            className="absolute top-full left-0 mt-1 z-50 rounded-lg overflow-hidden min-w-[180px]"
+            className="absolute top-full left-0 mt-1 z-50 rounded-lg overflow-hidden min-w-[180px] shadow-xl"
             style={{
-              background: "var(--dash-surface)",
+              background: "hsl(var(--card))",
+              backdropFilter: "none",
               border: "1px solid var(--dash-border)",
             }}
           >
