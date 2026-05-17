@@ -4,6 +4,7 @@ import { Icon } from "@iconify/react";
 import { useWallet } from "@/contexts/WalletContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import AddressDisplay from "@/components/AddressDisplay";
 import DepositModal from "./DepositModal";
 import SendPaymentModal from "./SendPaymentModal";
 import X402PaymentModal from "./X402PaymentModal";
@@ -120,13 +121,6 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
             } else if (diffDays === 1) timeStr = "Yesterday, " + date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
             else timeStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
-            // Format address
-            const formatAddress = (addr?: string) => {
-              if (!addr) return "Unknown";
-              if (addr.length <= 8) return addr;
-              return `${addr.slice(0, 4)}...${addr.slice(-4)}`;
-            };
-
             // Determine type and icon
             let type = "transfer";
             let icon = "ph:arrow-down-left-bold";
@@ -154,14 +148,13 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
               bgColor = "bg-red-500/20";
             }
 
-            // For usernames (@...) show as-is, for wallet addresses truncate
-            const displayCounterparty = counterparty?.startsWith("@") ? counterparty : formatAddress(counterparty);
-
+            // Hand the raw counterparty (full address or @handle) to
+            // AddressDisplay; it decides between handle / ENS / "Unknown".
             return {
               type,
               direction,
-              from: direction === "received" ? displayCounterparty : undefined,
-              to: direction === "sent" ? displayCounterparty : undefined,
+              from: direction === "received" ? counterparty : undefined,
+              to: direction === "sent" ? counterparty : undefined,
               amount: `${direction === "sent" ? "-" : "+"}$${Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
               time: timeStr,
               icon,
@@ -558,9 +551,10 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
                     <div className="text-sm flex items-center gap-1.5" style={{ color: 'var(--dash-text)' }}>
                       {tx.type === "deposit" ? "Deposit" :
                        tx.type === "withdraw" ? "Withdrawal" :
-                       tx.type === "sent" ? `Sent to ${tx.to}` :
-                       tx.type === "received" ? `Received from ${tx.from}` :
-                       tx.type === "x402" ? `x402 from ${tx.from || "Service"}` : `Transfer`}
+                       tx.type === "x402" ? <>x402 from <AddressDisplay value={tx.from} unknownLabel="Service" /></> :
+                       tx.direction === "sent" ? <>Sent to <AddressDisplay value={tx.to} /></> :
+                       tx.direction === "received" ? <>Received from <AddressDisplay value={tx.from} /></> :
+                       `Transfer`}
                       {tx.agentName && (
                         <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-400 font-medium">
                           <Icon icon="ph:robot-bold" className="w-3 h-3" />

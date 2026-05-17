@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useWallet } from "@/contexts/WalletContext";
 import { getTransactionHistory, TransactionHistoryResponse } from "@/services/api";
 import { Loader2 } from "lucide-react";
+import AddressDisplay from "@/components/AddressDisplay";
 
 interface TransactionHistoryFullProps {
   showBalance: boolean;
@@ -262,11 +263,13 @@ const TransactionHistoryFull = ({ showBalance }: TransactionHistoryFullProps) =>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="font-medium truncate">
-                    {tx.direction === "sent" 
-                      ? `Sent to ${tx.counterparty.startsWith("@") ? tx.counterparty : (tx.counterparty.length > 16 ? tx.counterparty.slice(0, 6) + "..." + tx.counterparty.slice(-6) : tx.counterparty)}` 
-                      : tx.direction === "deposit" 
-                      ? `Deposit from ${tx.counterparty}` 
-                      : `Received from ${tx.counterparty.startsWith("@") ? tx.counterparty : (tx.counterparty.length > 16 ? tx.counterparty.slice(0, 6) + "..." + tx.counterparty.slice(-6) : tx.counterparty)}`}
+                    {tx.direction === "sent" ? (
+                      <>Sent to <AddressDisplay value={tx.counterparty} /></>
+                    ) : tx.direction === "deposit" ? (
+                      <>Deposit from {tx.counterparty}</>
+                    ) : (
+                      <>Received from <AddressDisplay value={tx.counterparty} /></>
+                    )}
                   </p>
                   {tx.type === "x402" && (
                     <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">

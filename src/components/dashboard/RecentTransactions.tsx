@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { getTransactionHistory, TransactionHistoryResponse } from "@/services/api";
+import AddressDisplay from "@/components/AddressDisplay";
 
 interface RecentTransactionsProps {
   showBalance: boolean;
@@ -70,12 +71,6 @@ const RecentTransactions = ({ showBalance, limit = 5, onViewAll }: RecentTransac
     if (diffDays === 1) return "Yesterday";
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
-  };
-
-  const formatAddress = (address?: string) => {
-    if (!address) return "Unknown";
-    if (address.length <= 8) return address;
-    return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
 
   const formatAmount = (amount?: number, type?: string, from?: string, to?: string) => {
@@ -172,9 +167,11 @@ const RecentTransactions = ({ showBalance, limit = 5, onViewAll }: RecentTransac
                     <p className="font-medium truncate">
                       {tx.type === "deposit" ? "Deposit" :
                        tx.type === "withdraw" ? "Withdrawal" :
-                       direction === "sent" 
-                        ? `Sent to ${counterparty?.startsWith("@") ? counterparty : formatAddress(counterparty)}` 
-                        : `Received from ${counterparty?.startsWith("@") ? counterparty : formatAddress(counterparty)}`}
+                       direction === "sent" ? (
+                         <>Sent to <AddressDisplay value={counterparty} /></>
+                       ) : (
+                         <>Received from <AddressDisplay value={counterparty} /></>
+                       )}
                     </p>
                     {tx.type === "payment" && (
                       <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">
