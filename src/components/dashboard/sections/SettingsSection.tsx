@@ -8,6 +8,13 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import TwitterPaymentSettings from "./TwitterPaymentSettings";
 import { getApiUrl } from "@/utils/apiConfig";
+import {
+  ADDRESS_BOOK_MAX,
+  addEntry as addContactEntry,
+  listEntries as listContactEntries,
+  removeEntry as removeContactEntry,
+  type AddressBookEntry,
+} from "@/lib/addressBook";
 
 const SETTINGS_STORAGE_KEY = "void402_settings";
 
@@ -83,6 +90,42 @@ const SettingsSection = () => {
       return "Letters, numbers, underscores, and hyphens only";
     }
     return null;
+  };
+
+  // Saved contacts (address book) — localStorage backed.
+  const [contacts, setContacts] = useState<AddressBookEntry[]>([]);
+  const [contactLabel, setContactLabel] = useState("");
+  const [contactValue, setContactValue] = useState("");
+  const [contactEmoji, setContactEmoji] = useState("");
+  const [contactError, setContactError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setContacts(listContactEntries());
+    const refresh = () => setContacts(listContactEntries());
+    window.addEventListener("address-book:changed", refresh);
+    return () => window.removeEventListener("address-book:changed", refresh);
+  }, []);
+
+  const addContact = () => {
+    const result = addContactEntry({
+      label: contactLabel,
+      value: contactValue,
+      emoji: contactEmoji || undefined,
+    });
+    if (!result.ok) {
+      setContactError(result.error || "Couldn't save");
+      return;
+    }
+    setContactError(null);
+    setContactLabel("");
+    setContactValue("");
+    setContactEmoji("");
+    toast({ title: "Contact saved" });
+  };
+
+  const removeContact = (id: string, label: string) => {
+    removeContactEntry(id);
+    toast({ title: `Removed ${label}` });
   };
 
   const saveHandle = async () => {
@@ -391,6 +434,107 @@ const SettingsSection = () => {
         )}
       </motion.div>
 
+
+      {/* Saved contacts (address book) */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="rounded-2xl border border-border bg-card p-6"
+      >
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+            <Icon icon="ph:address-book-bold" className="w-5 h-5 text-emerald-500" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-display text-lg font-bold">Saved contacts</h3>
+            <p className="text-xs text-muted-foreground">
+              Quick-pick recipients in the Send form · {contacts.length}/{ADDRESS_BOOK_MAX}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[80px_1fr_1fr_auto]">
+          <input
+            type="text"
+            placeholder="🎁"
+            value={contactEmoji}
+            onChange={(e) => {
+              setContactEmoji(e.target.value);
+              setContactError(null);
+            }}
+            maxLength={4}
+            className="rounded-lg border border-border bg-background px-3 py-2 text-center text-sm outline-none focus:border-primary"
+          />
+          <input
+            type="text"
+            placeholder="Label (e.g. Alice)"
+            value={contactLabel}
+            onChange={(e) => {
+              setContactLabel(e.target.value);
+              setContactError(null);
+            }}
+            maxLength={32}
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+          />
+          <input
+            type="text"
+            placeholder="0x… or @handle"
+            value={contactValue}
+            onChange={(e) => {
+              setContactValue(e.target.value);
+              setContactError(null);
+            }}
+            className="rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm outline-none focus:border-primary"
+          />
+          <button
+            type="button"
+            onClick={addContact}
+            disabled={!contactLabel.trim() || !contactValue.trim()}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Icon icon="ph:plus-bold" className="h-4 w-4" />
+            Add
+          </button>
+        </div>
+
+        {contactError && (
+          <p className="mt-2 text-xs text-red-500">{contactError}</p>
+        )}
+
+        {contacts.length === 0 ? (
+          <p className="mt-4 rounded-lg border border-dashed border-border bg-secondary/20 px-3 py-4 text-center text-xs text-muted-foreground">
+            No saved contacts yet. Add one above to see it as a quick-pick on the Send form.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-2">
+            {contacts.map((c) => (
+              <div
+                key={c.id}
+                className="flex items-center gap-3 rounded-lg border border-border bg-secondary/20 px-3 py-2"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary/40 text-sm">
+                  {c.emoji || (c.type === "username" ? "@" : "0x")}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold">{c.label}</div>
+                  <div className="truncate font-mono text-[11px] text-muted-foreground">
+                    {c.type === "username" ? `@${c.value}` : c.value}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeContact(c.id, c.label)}
+                  className="inline-flex items-center justify-center rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+                  title={`Remove ${c.label}`}
+                >
+                  <Icon icon="ph:trash-bold" className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </motion.div>
 
       {/* X/Twitter Payment Settings */}
       <TwitterPaymentSettings />

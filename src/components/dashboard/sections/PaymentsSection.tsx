@@ -14,6 +14,10 @@ import PayX402Modal from "../PayX402Modal";
 import X402RequestsManagement from "../X402RequestsManagement";
 import PaymentLinkGenerator from "../PaymentLinkGenerator";
 import {
+  listEntries as listContactEntries,
+  type AddressBookEntry,
+} from "@/lib/addressBook";
+import {
   getMetaMaskEVMProvider,
 } from "@/services/transactionSigningService";
 import { executeZKTransfer } from "@/services/api";
@@ -63,6 +67,28 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [amount, setAmount] = useState(prefillAmount && parseFloat(prefillAmount) > 0 ? prefillAmount : "");
+
+  // Saved contacts (address book, localStorage) — quick-pick pills above
+  // the recipient field. Re-reads on the custom event the util fires.
+  const [savedContacts, setSavedContacts] = useState<AddressBookEntry[]>([]);
+  useEffect(() => {
+    setSavedContacts(listContactEntries());
+    const refresh = () => setSavedContacts(listContactEntries());
+    window.addEventListener("address-book:changed", refresh);
+    return () => window.removeEventListener("address-book:changed", refresh);
+  }, []);
+
+  const pickContact = (entry: AddressBookEntry) => {
+    if (entry.type === "username") {
+      setRecipientType("username");
+      setUsernameInput(entry.value);
+      setRecipient("");
+    } else {
+      setRecipientType("address");
+      setRecipient(entry.value);
+      setUsernameInput("");
+    }
+  };
 
   // Consume the prefill params so they don't re-apply on every navigation
   // back to this section.
@@ -361,6 +387,32 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                     exit={{ opacity: 0, x: -20 }}
                     className="space-y-5"
                   >
+                    {/* Saved Contacts (quick-pick pills) */}
+                    {savedContacts.length > 0 && (
+                      <div>
+                        <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-2">
+                          Saved Contacts
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {savedContacts.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => pickContact(c)}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary px-3 py-1.5 text-xs font-medium hover:border-primary/50 hover:bg-secondary/80"
+                              title={c.type === "username" ? `@${c.value}` : c.value}
+                            >
+                              {c.emoji && <span>{c.emoji}</span>}
+                              <span>{c.label}</span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {c.type === "username" ? "@" + c.value : `${c.value.slice(0, 4)}…${c.value.slice(-4)}`}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Recipient Type Selector */}
                     <div>
                       <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-2">
