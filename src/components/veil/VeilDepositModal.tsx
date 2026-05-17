@@ -4,8 +4,9 @@
  * Flow:
  *   1. Require Veil session (sign-derived keypair).
  *   2. If wallet not yet registered on Veil → register tx (one-time).
- *   3. If USDC and allowance insufficient → approve tx (scoped to amount).
- *   4. Deposit tx (0.3 % fee added on-chain; first deposit free per address).
+ *   3. Resolve gross amount via daily-free + getDepositAmountWithFee.
+ *   4. If USDC and allowance < gross → approve gross, wait for receipt.
+ *   5. Deposit gross (queueUSDC / queueETH).
  */
 
 import { useEffect, useState } from "react";
@@ -28,6 +29,8 @@ import {
   fetchVeilStatus,
   type VeilStatus,
 } from "@/services/veilService";
+import { createPublicClient, http, parseUnits, formatUnits } from "viem";
+import { base } from "viem/chains";
 
 type Token = "USDC" | "ETH";
 type Step =
@@ -97,6 +100,14 @@ const VeilDepositModal = ({ open, onClose, onDeposited }: Props) => {
     setTxHash(null);
     try {
       const sdk = await import("@veil-cash/sdk");
+      const addresses = sdk.ADDRESSES;
+      const pool: "usdc" | "eth" = token === "USDC" ? "usdc" : "eth";
+      const decimals = token === "USDC" ? 6 : 18;
+      const netWei = parseUnits(amount as `${number}`, decimals);
+      const publicClient = createPublicClient({
+        chain: base,
+        transport: http(),
+      });
 
       // Step 1: register if needed.
       if (!isRegistered) {
@@ -112,39 +123,81 @@ const VeilDepositModal = ({ open, onClose, onDeposited }: Props) => {
         });
       }
 
-      // Step 2: USDC approve if needed.
+      // Step 2: compute gross. queueUSDC / queueETH calldata uses the gross
+      // (amount pulled from wallet, fee included). When the user has a free
+      // daily slot, gross == net. Otherwise the entry contract computes
+      // gross = getDepositAmountWithFee(net) = net + 0.3% fee.
+      const freeRemaining = await sdk.getDailyFreeRemaining({
+        address: fullWalletAddress as `0x${string}`,
+        pool,
+      });
+      let grossWei: bigint;
+      if (freeRemaining > 0) {
+        grossWei = netWei;
+      } else {
+        // viem 2.46 added EIP-7702 fields to readContract params; cast around
+        // the strict typing — runtime call is unchanged.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        grossWei = (await (publicClient.readContract as any)({
+          address: addresses.entry,
+          abi: sdk.ENTRY_ABI,
+          functionName: "getDepositAmountWithFee",
+          args: [netWei],
+        })) as bigint;
+      }
+      const grossStr = formatUnits(grossWei, decimals);
+
+      // Step 3: USDC approve if needed (must cover gross, not net).
       if (token === "USDC") {
         setStep("approving");
-        const addresses = sdk.ADDRESSES;
-        const decimals = 6;
-        const amountWei = BigInt(Math.floor(ammoutNumber * 10 ** decimals));
         const allowance = await readUsdcAllowance(
           wtype,
           fullWalletAddress as `0x${string}`,
           addresses.entry,
           addresses.usdcToken
         );
-        // Need slightly more than amount due to 0.3% fee added on top.
-        const required = (amountWei * 1010n) / 1000n;
-        if (allowance < required) {
-          // Approve a hair above what the deposit will consume.
-          const approveAmount = (Number(required) / 10 ** decimals).toFixed(
-            decimals
-          );
-          const approveTx = sdk.buildApproveUSDCTx({ amount: approveAmount });
-          await sendTransaction(wtype, {
+        if (allowance < grossWei) {
+          const approveTx = sdk.buildApproveUSDCTx({ amount: grossStr });
+          const approveHash = await sendTransaction(wtype, {
             from: fullWalletAddress as `0x${string}`,
             to: approveTx.to,
             data: approveTx.data,
           });
+          // Wait for the approve to be mined and visible before deposit,
+          // otherwise queueUSDC reverts with "transfer amount exceeds allowance".
+          let updated = await readUsdcAllowance(
+            wtype,
+            fullWalletAddress as `0x${string}`,
+            addresses.entry,
+            addresses.usdcToken
+          );
+          let confirmations = 1;
+          while (updated < grossWei && confirmations <= 3) {
+            await publicClient.waitForTransactionReceipt({
+              hash: approveHash,
+              confirmations,
+            });
+            updated = await readUsdcAllowance(
+              wtype,
+              fullWalletAddress as `0x${string}`,
+              addresses.entry,
+              addresses.usdcToken
+            );
+            confirmations += 1;
+          }
+          if (updated < grossWei) {
+            throw new Error(
+              "USDC approval is not yet visible on RPC. Wait a few seconds and try again."
+            );
+          }
         }
       }
 
-      // Step 3: deposit.
+      // Step 4: deposit using the gross amount.
       setStep("depositing");
       const depTx = sdk.buildDepositTx({
         depositKey,
-        amount,
+        amount: grossStr,
         token,
       });
       const hash = await sendTransaction(wtype, {
@@ -353,7 +406,7 @@ const VeilDepositModal = ({ open, onClose, onDeposited }: Props) => {
               <li className="flex justify-between">
                 <span>Protocol fee</span>
                 <span style={{ color: "var(--dash-text)" }}>
-                  0.3% (first deposit per address free)
+                  0.3% — daily free slots may apply
                 </span>
               </li>
               <li className="flex justify-between">
