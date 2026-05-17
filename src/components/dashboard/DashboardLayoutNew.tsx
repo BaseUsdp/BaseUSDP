@@ -16,7 +16,8 @@ const DashboardLayoutNew = () => {
   const [showBalance, setShowBalance] = useState(true);
   const [searchParams] = useSearchParams();
   const initialTabFromUrl = searchParams.get("tab");
-  const hasSendPrefill = !!searchParams.get("send-to");
+  const hasSendPrefill =
+    !!searchParams.get("send-to") || !!searchParams.get("send-handle");
   const [activeTab, setActiveTab] = useState(initialTabFromUrl || "overview");
   const [paymentsInitialTab, setPaymentsInitialTab] = useState<string | undefined>(
     hasSendPrefill ? "send" : undefined

@@ -15,6 +15,7 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import PaymentPage from "./pages/PaymentPage";
 import Pay from "./pages/Pay";
+import Tip from "./pages/Tip";
 import X402Deposit from "./pages/X402Deposit";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
@@ -35,7 +36,7 @@ import {
 
 const queryClient = new QueryClient();
 
-const NO_NAV_ROUTES = ["/dashboard", "/miniapp", "/claim", "/pay"];
+const NO_NAV_ROUTES = ["/dashboard", "/miniapp", "/claim", "/pay", "/tip"];
 
 const scrollTo = (id: string) => {
   const el = document.getElementById(id);
@@ -91,6 +92,7 @@ function AppRoutes() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/pay" element={<Pay />} />
         <Route path="/pay/:id" element={<PaymentPage />} />
+        <Route path="/tip/:handle" element={<Tip />} />
         <Route path="/x402-deposit" element={<X402Deposit />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-and-conditions" element={<TermsAndConditions />} />

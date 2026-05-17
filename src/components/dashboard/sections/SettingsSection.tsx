@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import TwitterPaymentSettings from "./TwitterPaymentSettings";
+import { useAddressResolver } from "@/hooks/useAddressResolver";
 
 const SETTINGS_STORAGE_KEY = "void402_settings";
 
@@ -31,11 +32,42 @@ function loadSettings(): UserSettings {
 }
 
 const SettingsSection = () => {
-  const { privacyLevel, setPrivacyLevel, activeChain } = useWallet();
+  const { privacyLevel, setPrivacyLevel, activeChain, fullWalletAddress } = useWallet();
   const { toast } = useToast();
   const [notifications, setNotifications] = useState(loadSettings().notifications);
   const [autoApprove, setAutoApprove] = useState(loadSettings().autoApprove);
   const [saved, setSaved] = useState(false);
+  const { resolveAddress } = useAddressResolver();
+  const [myHandle, setMyHandle] = useState<string | null>(null);
+
+  // Look up the current wallet's username so we can surface their tip URL.
+  useEffect(() => {
+    if (!fullWalletAddress) {
+      setMyHandle(null);
+      return;
+    }
+    let cancelled = false;
+    resolveAddress(fullWalletAddress).then((handle) => {
+      if (!cancelled) setMyHandle(handle);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [fullWalletAddress, resolveAddress]);
+
+  const tipUrl = myHandle
+    ? `${typeof window !== "undefined" ? window.location.origin : "https://baseusdp.com"}/tip/@${myHandle}`
+    : null;
+
+  const copyTipUrl = async () => {
+    if (!tipUrl) return;
+    try {
+      await navigator.clipboard.writeText(tipUrl);
+      toast({ title: "Tip URL copied", description: "Drop it in your bio." });
+    } catch {
+      toast({ title: "Couldn't copy", description: "Clipboard unavailable." });
+    }
+  };
   // When user clicks a privacy button, save immediately
   const handlePrivacySelect = (level: PrivacyLevel) => {
     setPrivacyLevel(level); // This saves to localStorage via WalletContext
@@ -207,6 +239,49 @@ const SettingsSection = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Tip jar URL */}
+      {myHandle && tipUrl && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="rounded-2xl border border-border bg-card p-6"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center">
+              <Icon icon="ph:hand-coins-bold" className="w-5 h-5 text-pink-500" />
+            </div>
+            <div>
+              <h3 className="font-display text-lg font-bold">Your tip page</h3>
+              <p className="text-xs text-muted-foreground">
+                Public URL anyone can use to send you a tip on BASEUSDP
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/30 p-3">
+            <code className="flex-1 truncate text-sm font-mono">{tipUrl}</code>
+            <button
+              type="button"
+              onClick={copyTipUrl}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-secondary/50"
+            >
+              <Icon icon="ph:copy-bold" className="h-3.5 w-3.5" />
+              Copy
+            </button>
+            <a
+              href={tipUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-secondary/50"
+            >
+              <Icon icon="ph:arrow-square-out-bold" className="h-3.5 w-3.5" />
+              Open
+            </a>
+          </div>
+        </motion.div>
+      )}
 
       {/* X/Twitter Payment Settings */}
       <TwitterPaymentSettings />

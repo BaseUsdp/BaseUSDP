@@ -34,6 +34,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const prefillTo = searchParams.get("send-to") ?? "";
   const prefillAmount = searchParams.get("send-amount") ?? "";
+  const prefillHandle = searchParams.get("send-handle") ?? "";
 
   const [activeTab, setActiveTab] = useState(initialTab || "send");
   const [x402CreateModalOpen, setX402CreateModalOpen] = useState(false);
@@ -46,11 +47,18 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
   }, [initialTab]);
   const [payX402ModalOpen, setPayX402ModalOpen] = useState(false);
 
-  // Send form state — prefill from /pay landing's query params on first mount
+  // Send form state — prefill from /pay landing or /tip/@handle query params
   const isPrefillValidAddress = /^0x[a-fA-F0-9]{40}$/.test(prefillTo);
-  const [recipientType, setRecipientType] = useState<RecipientType>("address");
-  const [recipient, setRecipient] = useState(isPrefillValidAddress ? prefillTo : "");
-  const [usernameInput, setUsernameInput] = useState("");
+  const isPrefillHandle = prefillHandle.length > 1;
+  const [recipientType, setRecipientType] = useState<RecipientType>(
+    isPrefillHandle ? "username" : "address"
+  );
+  const [recipient, setRecipient] = useState(
+    isPrefillValidAddress && !isPrefillHandle ? prefillTo : ""
+  );
+  const [usernameInput, setUsernameInput] = useState(
+    isPrefillHandle ? prefillHandle.replace(/^@/, "") : ""
+  );
   const [resolvedWallet, setResolvedWallet] = useState<string | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
@@ -59,9 +67,16 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
   // Consume the prefill params so they don't re-apply on every navigation
   // back to this section.
   useEffect(() => {
-    if (prefillTo || prefillAmount || searchParams.get("send-token") || searchParams.get("send-memo")) {
+    const hasAny =
+      prefillTo ||
+      prefillAmount ||
+      prefillHandle ||
+      searchParams.get("send-token") ||
+      searchParams.get("send-memo");
+    if (hasAny) {
       const remaining = new URLSearchParams(searchParams);
       remaining.delete("send-to");
+      remaining.delete("send-handle");
       remaining.delete("send-amount");
       remaining.delete("send-token");
       remaining.delete("send-memo");
