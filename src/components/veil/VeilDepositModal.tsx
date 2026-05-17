@@ -130,6 +130,7 @@ const VeilDepositModal = ({ open, onClose, onDeposited }: Props) => {
     !!fullWalletAddress &&
     ammoutNumber > 0 &&
     meetsMinimum &&
+    isVerified &&
     !["registering", "approving", "depositing"].includes(step);
 
   const handleSubmit = async () => {
@@ -378,34 +379,37 @@ const VeilDepositModal = ({ open, onClose, onDeposited }: Props) => {
               )}
             </label>
 
-            {/* Verification status */}
+            {/* Verification gate — entry contract reverts NotAllowedToDeposit
+                when isAllowedDepositor(wallet) is false. Hard-block submit
+                instead of letting the user fire a tx that's guaranteed to
+                revert. */}
             {!isVerified && status?.eligibility !== undefined && (
               <div
                 className="rounded-lg border px-3 py-2.5 text-xs leading-relaxed"
                 style={{
-                  borderColor: "rgba(245,158,11,0.4)",
-                  background: "rgba(245,158,11,0.06)",
+                  borderColor: "rgba(239,68,68,0.4)",
+                  background: "rgba(239,68,68,0.06)",
                   color: "var(--dash-text-muted)",
                 }}
               >
                 <div className="mb-1.5 flex items-center gap-2">
                   <Icon
-                    icon="ph:shield-warning-bold"
+                    icon="ph:shield-slash-bold"
                     className="h-4 w-4 shrink-0"
-                    style={{ color: "#f59e0b" }}
+                    style={{ color: "#ef4444" }}
                   />
                   <span
                     className="text-sm font-semibold"
                     style={{ color: "var(--dash-text)" }}
                   >
-                    This deposit will be screened by 0xbow
+                    Wallet must be verified to deposit
                   </span>
                 </div>
                 <p>
-                  Your wallet isn't pre-verified. Funds enter a 0xbow KYT
-                  screening queue (usually ≤15 min, max 5 days) before joining
-                  the shielded set. For instant deposits, pre-verify with one
-                  of:
+                  Veil's entry contract only accepts deposits from pre-verified
+                  wallets. Verify once (free, ~2 min) with any of these — the
+                  attestation lands on Base and you can deposit immediately
+                  after:
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <a
@@ -418,7 +422,7 @@ const VeilDepositModal = ({ open, onClose, onDeposited }: Props) => {
                       color: "var(--dash-text)",
                     }}
                   >
-                    Coinbase ↗
+                    Coinbase Onchain Verify ↗
                   </a>
                   <a
                     href="https://www.binance.com/en/babt"
@@ -465,9 +469,7 @@ const VeilDepositModal = ({ open, onClose, onDeposited }: Props) => {
               </li>
               <li className="flex justify-between">
                 <span>Queue → shielded set</span>
-                <span style={{ color: "var(--dash-text)" }}>
-                  {isVerified ? "≈ 8 min" : "≈ 15 min (screening)"}
-                </span>
+                <span style={{ color: "var(--dash-text)" }}>≈ 8 min</span>
               </li>
               <li className="flex justify-between">
                 <span>Wallet registered</span>
@@ -478,7 +480,7 @@ const VeilDepositModal = ({ open, onClose, onDeposited }: Props) => {
               <li className="flex justify-between">
                 <span>Verification</span>
                 <span style={{ color: "var(--dash-text)" }}>
-                  {isVerified ? "Verified" : "0xbow KYT at deposit"}
+                  {isVerified ? "Verified" : "Required — see above"}
                 </span>
               </li>
             </ul>
