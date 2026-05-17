@@ -104,28 +104,12 @@ export const BASE_TOKENS: TokenInfo[] = [
       "https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png",
   },
   {
-    symbol: "USDT",
-    name: "Tether",
-    address: "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
-    decimals: 6,
-    logoUrl:
-      "https://assets.coingecko.com/coins/images/325/small/Tether.png",
-  },
-  {
     symbol: "WETH",
     name: "Wrapped Ether",
     address: "0x4200000000000000000000000000000000000006",
     decimals: 18,
     logoUrl:
       "https://assets.coingecko.com/coins/images/2518/small/weth.png",
-  },
-  {
-    symbol: "DAI",
-    name: "Dai Stablecoin",
-    address: "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
-    decimals: 18,
-    logoUrl:
-      "https://assets.coingecko.com/coins/images/9956/small/dai-multi-collateral-mcd.png",
   },
 ];
 
