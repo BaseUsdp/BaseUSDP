@@ -11,6 +11,7 @@ import X402PaymentModal from "./X402PaymentModal";
 import PayX402Modal from "./PayX402Modal";
 import PrivacyLevelSelector from "./PrivacyLevelSelector";
 import FlywheelCard from "./FlywheelCard";
+import OnchainBadgesRow from "./OnchainBadgesRow";
 import SettingsSection from "./sections/SettingsSection";
 import PaymentsSection from "./sections/PaymentsSection";
 import HistorySection from "./sections/HistorySection";
@@ -509,6 +510,9 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
 
         {/* BASEUSDP Flywheel */}
         <FlywheelCard />
+
+        {/* Onchain badges */}
+        <OnchainBadgesRow />
 
         {/* Recent Transactions */}
         <motion.div
