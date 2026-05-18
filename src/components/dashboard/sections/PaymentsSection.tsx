@@ -386,8 +386,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
 
     const parsedAmount = parseFloat(amount);
 
-    // Auto-execute is only offered on recurring schedules.
-    const useAutoExecute = scheduleMode === "recurring" && autoExecute;
+    const useAutoExecute = scheduleMode !== "now" && autoExecute;
     let maxPerTxValue = parsedAmount;
     if (useAutoExecute) {
       const trimmedMax = autoExecuteMax.trim();
@@ -797,7 +796,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                         </div>
                       )}
 
-                      {scheduleMode === "recurring" && (
+                      {scheduleMode !== "now" && (
                         <div className="mt-4 rounded-xl border border-border bg-secondary/40 p-3">
                           <label className="flex items-start gap-3 cursor-pointer">
                             <input
@@ -809,10 +808,9 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                             <div className="flex-1">
                               <p className="text-sm font-medium">Execute automatically</p>
                               <p className="text-xs text-muted-foreground mt-0.5">
-                                Sign one authorization now. Each scheduled payment fires
-                                from your pool balance with no further signing.
-                                Authorization expires in 1 year and can be revoked anytime
-                                by cancelling the schedule.
+                                {scheduleMode === "recurring"
+                                  ? "Sign one authorization now. Each scheduled payment fires from your pool balance with no further signing. Authorization expires in 1 year and can be revoked anytime by cancelling the schedule."
+                                  : "Sign one authorization now. The payment fires automatically at the scheduled time — no banner, no further signing. Cancel the schedule before then to revoke."}
                               </p>
                             </div>
                           </label>
