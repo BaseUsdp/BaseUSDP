@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { getApiUrl } from "@/utils/apiConfig";
 import { getPhantomProvider, getMetaMaskEVMProvider, WalletAdapter } from "@/services/transactionSigningService";
+import { getEvmProvider, type VeilWalletType } from "@/lib/veil/provider";
 
 interface DepositModalProps {
   open: boolean;
@@ -259,38 +260,44 @@ const DepositModal = ({ open, onOpenChange, initialAmount, initialToken }: Depos
       // ============================================
       setProcessingStatus("Please approve the transfer in your wallet...");
 
-      const ethProvider = (window as any).phantom?.ethereum;
+      const ethProvider = await getEvmProvider(walletType as VeilWalletType);
       if (!ethProvider) {
-        throw new Error("Phantom Ethereum provider not found. Please update Phantom.");
+        throw new Error("No EVM wallet provider found. Please connect an EVM wallet (MetaMask, Phantom, Coinbase, Rabby, etc.).");
       }
 
-      // Ensure connected to Base chain
+      // Ensure connected to Base chain. Skip the switch if we're already there —
+      // some wallets (and Phantom on a no-op switch) throw rather than no-op.
       const BASE_CHAIN_ID = "0x2105";
-      try {
-        await ethProvider.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: BASE_CHAIN_ID }],
-        });
-      } catch (switchErr: any) {
-        if (switchErr.code === 4902) {
+      const currentChainId = (await ethProvider.request({ method: "eth_chainId" })) as string;
+      if (currentChainId?.toLowerCase() !== BASE_CHAIN_ID) {
+        try {
           await ethProvider.request({
-            method: "wallet_addEthereumChain",
-            params: [{
-              chainId: BASE_CHAIN_ID,
-              chainName: "Base",
-              nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-              rpcUrls: ["https://mainnet.base.org"],
-              blockExplorerUrls: ["https://basescan.org"],
-            }],
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: BASE_CHAIN_ID }],
           });
-        } else {
-          throw new Error("Failed to switch to Base network");
+        } catch (switchErr: any) {
+          if (switchErr?.code === 4902) {
+            await ethProvider.request({
+              method: "wallet_addEthereumChain",
+              params: [{
+                chainId: BASE_CHAIN_ID,
+                chainName: "Base",
+                nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+                rpcUrls: ["https://mainnet.base.org"],
+                blockExplorerUrls: ["https://basescan.org"],
+              }],
+            });
+          } else {
+            const code = switchErr?.code ?? "unknown";
+            const message = switchErr?.message ?? String(switchErr);
+            throw new Error(`Failed to switch to Base network (code ${code}): ${message}`);
+          }
         }
       }
 
-      const accounts = await ethProvider.request({ method: "eth_accounts" });
+      const accounts = (await ethProvider.request({ method: "eth_accounts" })) as string[];
       if (!accounts || accounts.length === 0) {
-        throw new Error("No Ethereum accounts found in Phantom");
+        throw new Error("No Ethereum accounts found in your wallet. Please unlock and reconnect.");
       }
 
       // If user needs to approve the DepositRouter for USDC (one-time)
