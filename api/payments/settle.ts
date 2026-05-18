@@ -89,7 +89,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (creatorFid) {
           await sendFarcasterNotification(creatorFid, 'payment_settled');
         }
-        sendTelegramNotification(payment.user_wallet, 'x402').catch(() => undefined);
+        // Awaited so the Vercel function doesn't terminate the in-flight
+        // Telegram fetch when res.json() returns below.
+        await sendTelegramNotification(payment.user_wallet, 'x402').catch(() => undefined);
       }
     } catch (notifError: any) {
       // Non-critical: log but don't fail the settlement

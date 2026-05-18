@@ -287,10 +287,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Fan out Telegram notifications. Recipient: incoming ping (only fires
       // for internal transfers where the recipient is a BASEUSDP user).
       // Sender: outgoing confirmation if they've opted in.
+      // Awaited (parallel) so the Vercel function doesn't terminate the
+      // in-flight fetch to the Telegram API when res.json() returns.
+      const notifications: Promise<unknown>[] = [
+        sendTelegramNotification(sender_wallet, "outgoing"),
+      ];
       if (!force_external) {
-        sendTelegramNotification(base_recipient_wallet, "incoming").catch(() => undefined);
+        notifications.push(
+          sendTelegramNotification(base_recipient_wallet, "incoming")
+        );
       }
-      sendTelegramNotification(sender_wallet, "outgoing").catch(() => undefined);
+      await Promise.all(notifications).catch(() => undefined);
 
       return res.status(200).json({
         success: true,
