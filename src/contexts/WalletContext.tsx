@@ -81,8 +81,11 @@ const getMetaMaskProvider = (): MetaMaskEVMProvider | null => {
   if (typeof window === "undefined") return null;
   // MetaMask injects window.ethereum with isMetaMask=true. Several other
   // wallets (Phantom, Coinbase, OKX, Bitget, TokenPocket, imToken,
-  // MathWallet) also stamp isMetaMask=true to ride MetaMask's auto-detect
-  // path — exclude them so this resolves to the real MetaMask only.
+  // MathWallet, Rabby) also stamp isMetaMask=true to ride MetaMask's
+  // auto-detect path — exclude them so this resolves to the real MetaMask
+  // only. Rabby in particular passes connect/eth_requestAccounts as MetaMask
+  // but its eth_sendTransaction envelope diverges, surfacing as an
+  // "unexpected error" on Base sends.
   const provider = (window as any).ethereum;
   if (
     provider?.isMetaMask &&
@@ -92,7 +95,8 @@ const getMetaMaskProvider = (): MetaMaskEVMProvider | null => {
     !provider?.isBitKeep &&
     !provider?.isTokenPocket &&
     !provider?.isImToken &&
-    !provider?.isMathWallet
+    !provider?.isMathWallet &&
+    !provider?.isRabby
   )
     return provider;
   return null;
