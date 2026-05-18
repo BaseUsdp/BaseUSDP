@@ -22,6 +22,22 @@ import {
 } from "@/services/transactionSigningService";
 import { executeZKTransfer } from "@/services/api";
 import { getApiUrl } from "@/utils/apiConfig";
+import {
+  createScheduledPayment,
+  markScheduledPaymentSent,
+  type ScheduledPaymentFrequency,
+} from "@/services/scheduledPayments";
+import ScheduledList from "../ScheduledList";
+
+type ScheduleMode = "now" | "once" | "recurring";
+
+function toLocalDateTimeInput(d: Date): string {
+  const off = d.getTimezoneOffset();
+  const local = new Date(d.getTime() - off * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+const DEFAULT_SCHEDULE_OFFSET_MS = 24 * 60 * 60 * 1000;
 
 interface PaymentsSectionProps {
   showBalance: boolean;
@@ -39,6 +55,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
   const prefillTo = searchParams.get("send-to") ?? "";
   const prefillAmount = searchParams.get("send-amount") ?? "";
   const prefillHandle = searchParams.get("send-handle") ?? "";
+  const prefillScheduledId = searchParams.get("scheduled-id") ?? "";
 
   const [activeTab, setActiveTab] = useState(initialTab || "send");
   const [x402CreateModalOpen, setX402CreateModalOpen] = useState(false);
@@ -67,6 +84,16 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [amount, setAmount] = useState(prefillAmount && parseFloat(prefillAmount) > 0 ? prefillAmount : "");
+
+  // Scheduling state
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("now");
+  const [scheduledFor, setScheduledFor] = useState<string>(() =>
+    toLocalDateTimeInput(new Date(Date.now() + DEFAULT_SCHEDULE_OFFSET_MS))
+  );
+  const [recurringFrequency, setRecurringFrequency] = useState<ScheduledPaymentFrequency>("weekly");
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
+  const [pendingScheduledId] = useState<string>(prefillScheduledId);
 
   // Saved contacts (address book, localStorage) — quick-pick pills above
   // the recipient field. Re-reads on the custom event the util fires.
@@ -99,13 +126,14 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
       prefillHandle ||
       searchParams.get("send-token") ||
       searchParams.get("send-memo");
-    if (hasAny) {
+    if (hasAny || searchParams.get("scheduled-id")) {
       const remaining = new URLSearchParams(searchParams);
       remaining.delete("send-to");
       remaining.delete("send-handle");
       remaining.delete("send-amount");
       remaining.delete("send-token");
       remaining.delete("send-memo");
+      remaining.delete("scheduled-id");
       setSearchParams(remaining, { replace: true });
     }
     // Only run once on mount — intentionally empty dep array.
@@ -263,6 +291,11 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
       if (result.success && result.signature) {
         setTxHash(result.signature);
         setStep("pending");
+        if (pendingScheduledId && fullWalletAddress) {
+          markScheduledPaymentSent(pendingScheduledId, fullWalletAddress, result.signature).catch(
+            (err) => console.error("[Scheduled] mark-sent failed:", err)
+          );
+        }
         await new Promise(resolve => setTimeout(resolve, 1000));
         setStep("success");
       } else {
@@ -310,12 +343,80 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
     }
   };
 
+  const handleSchedule = async () => {
+    if (!fullWalletAddress) {
+      setError("Wallet not connected.");
+      return;
+    }
+    if (!amount || parseFloat(amount) <= 0) {
+      setError("Amount must be greater than 0");
+      return;
+    }
+    const recipientValue =
+      recipientType === "username"
+        ? usernameInput.replace(/^@/, "").trim()
+        : recipient.trim();
+    if (!recipientValue) {
+      setError("Please enter a recipient");
+      return;
+    }
+    if (recipientType === "address" && !isValidAddress(recipientValue)) {
+      setError("Invalid recipient address");
+      return;
+    }
+    if (recipientType === "username" && !resolvedWallet) {
+      setError("Please enter a valid username");
+      return;
+    }
+    const scheduledAt = new Date(scheduledFor);
+    if (Number.isNaN(scheduledAt.getTime())) {
+      setError("Please pick a valid date and time");
+      return;
+    }
+    if (scheduledAt.getTime() < Date.now() - 60_000) {
+      setError("Pick a time in the future");
+      return;
+    }
+
+    setError("");
+    setScheduling(true);
+    setScheduleSuccess(null);
+
+    const result = await createScheduledPayment({
+      user_wallet: fullWalletAddress,
+      recipient_type: recipientType,
+      recipient_value: recipientValue,
+      token: "USDC",
+      amount: parseFloat(amount),
+      is_recurring: scheduleMode === "recurring",
+      frequency: scheduleMode === "recurring" ? recurringFrequency : null,
+      scheduled_for: scheduledAt.toISOString(),
+    });
+
+    setScheduling(false);
+
+    if (result.success && result.schedule) {
+      const niceDate = scheduledAt.toLocaleString();
+      setScheduleSuccess(
+        scheduleMode === "recurring"
+          ? `Recurring (${recurringFrequency}) starting ${niceDate}`
+          : `Scheduled for ${niceDate}`
+      );
+    } else {
+      setError(result.error ?? "Failed to schedule payment");
+    }
+  };
+
   const handleReset = () => {
     setRecipient("");
     setUsernameInput("");
     setResolvedWallet(null);
     setLookupError(null);
     setAmount("");
+    setScheduleMode("now");
+    setScheduledFor(toLocalDateTimeInput(new Date(Date.now() + DEFAULT_SCHEDULE_OFFSET_MS)));
+    setRecurringFrequency("weekly");
+    setScheduleSuccess(null);
     setStep("form");
     setTxHash("");
     setError("");
@@ -351,6 +452,10 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
           <TabsTrigger value="link" className="gap-2">
             <Icon icon="ph:link-bold" className="w-4 h-4" />
             Link
+          </TabsTrigger>
+          <TabsTrigger value="scheduled" className="gap-2">
+            <Icon icon="ph:clock-bold" className="w-4 h-4" />
+            Scheduled
           </TabsTrigger>
           <TabsTrigger value="pay" className="gap-2 opacity-40 cursor-not-allowed" disabled>
             <Icon icon="ph:credit-card-bold" className="w-4 h-4" />
@@ -521,6 +626,91 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                     {/* Privacy Level */}
                     <PrivacyLevelSelector onChange={setSelectedPrivacy} />
 
+                    {/* Schedule mode */}
+                    <div>
+                      <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-2">
+                        When
+                      </label>
+                      <div className="flex gap-2 mb-3">
+                        {([
+                          { value: "now", label: "Send now", icon: "ph:paper-plane-tilt-bold" },
+                          { value: "once", label: "Schedule", icon: "ph:clock-bold" },
+                          { value: "recurring", label: "Recurring", icon: "ph:arrows-clockwise-bold" },
+                        ] as const).map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setScheduleMode(opt.value);
+                              setScheduleSuccess(null);
+                            }}
+                            className={cn(
+                              "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
+                              scheduleMode === opt.value
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                            )}
+                          >
+                            <Icon icon={opt.icon} className="w-4 h-4" />
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {scheduleMode === "recurring" && (
+                        <div className="mb-3">
+                          <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-2">
+                            Frequency
+                          </label>
+                          <div className="flex gap-2">
+                            {(["daily", "weekly", "monthly"] as const).map((freq) => (
+                              <button
+                                key={freq}
+                                type="button"
+                                onClick={() => setRecurringFrequency(freq)}
+                                className={cn(
+                                  "flex-1 py-2 px-3 rounded-lg text-sm font-medium capitalize transition-all",
+                                  recurringFrequency === freq
+                                    ? "bg-primary/15 text-primary border border-primary/40"
+                                    : "bg-secondary text-muted-foreground hover:bg-secondary/80 border border-transparent"
+                                )}
+                              >
+                                {freq}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {scheduleMode !== "now" && (
+                        <div>
+                          <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-2">
+                            {scheduleMode === "recurring" ? "First run" : "Send at"}
+                          </label>
+                          <Input
+                            type="datetime-local"
+                            value={scheduledFor}
+                            onChange={(e) => setScheduledFor(e.target.value)}
+                            className="bg-secondary border-border h-12"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            v1 notifies you when it's due — you sign and send. No key custody.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Schedule success banner */}
+                    {scheduleSuccess && (
+                      <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-500/10 text-emerald-400 text-sm">
+                        <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-medium">Payment scheduled</p>
+                          <p className="text-xs text-emerald-400/80">{scheduleSuccess}</p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Error Message */}
                     {error && (
                       <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
@@ -530,17 +720,38 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                     )}
 
                     {/* Submit Button */}
-                    <Button
-                      onClick={handlePreview}
-                      disabled={
-                        !amount ||
-                        (recipientType === "address" && !recipient) ||
-                        (recipientType === "username" && (!resolvedWallet || isLookingUp))
-                      }
-                      className="w-full h-12 bg-gradient-to-r from-sky-600 to-purple-600 hover:from-sky-500 hover:to-purple-500 text-white"
-                    >
-                      Preview Transaction
-                    </Button>
+                    {scheduleMode === "now" ? (
+                      <Button
+                        onClick={handlePreview}
+                        disabled={
+                          !amount ||
+                          (recipientType === "address" && !recipient) ||
+                          (recipientType === "username" && (!resolvedWallet || isLookingUp))
+                        }
+                        className="w-full h-12 bg-gradient-to-r from-sky-600 to-purple-600 hover:from-sky-500 hover:to-purple-500 text-white"
+                      >
+                        Preview Transaction
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleSchedule}
+                        disabled={
+                          scheduling ||
+                          !amount ||
+                          (recipientType === "address" && !recipient) ||
+                          (recipientType === "username" && (!resolvedWallet || isLookingUp))
+                        }
+                        className="w-full h-12 bg-gradient-to-r from-sky-600 to-purple-600 hover:from-sky-500 hover:to-purple-500 text-white"
+                      >
+                        {scheduling ? (
+                          <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Scheduling...</>
+                        ) : scheduleMode === "recurring" ? (
+                          "Create Recurring Schedule"
+                        ) : (
+                          "Schedule Payment"
+                        )}
+                      </Button>
+                    )}
                   </motion.div>
                 )}
 
@@ -732,6 +943,11 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
         {/* Payment Link Tab */}
         <TabsContent value="link">
           <PaymentLinkGenerator />
+        </TabsContent>
+
+        {/* Scheduled Tab */}
+        <TabsContent value="scheduled">
+          <ScheduledList />
         </TabsContent>
 
         {/* Pay Request Tab */}

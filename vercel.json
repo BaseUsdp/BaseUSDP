@@ -35,6 +35,10 @@
     {
       "path": "/api/twitter/tweet-payment-cron",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-payments",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useWallet } from "@/contexts/WalletContext";
 import { useXMTP } from "@/contexts/XMTPContext";
 import NetworkWarningBanner from "./NetworkWarningBanner";
+import ScheduledPaymentsBanner from "./ScheduledPaymentsBanner";
 import DashboardTopBar from "./DashboardTopBar";
 import DashboardLeftSidebar from "./DashboardLeftSidebar";
 import DashboardRightSidebar from "./DashboardRightSidebar";
@@ -44,7 +45,8 @@ const DashboardLayoutNew = () => {
   return (
     <div className="min-h-screen bg-background">
       <NetworkWarningBanner />
-      
+      <ScheduledPaymentsBanner />
+
       <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
