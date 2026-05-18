@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getApiUrl } from "@/utils/apiConfig";
 import { authService } from "@/services/authService";
+import { fireAutoCast } from "@/services/farcasterAutoCast";
 
 interface WithdrawSectionProps {
   showBalance: boolean;
@@ -164,6 +165,10 @@ const WithdrawSection = ({ showBalance, initialAmount, initialToken }: WithdrawS
 
       setTxSignature(withdrawData.signature);
       setStep("success");
+
+      if (fullWalletAddress) {
+        void fireAutoCast(fullWalletAddress, "withdraw", parseFloat(amount), token);
+      }
 
       // Refresh balance after successful withdrawal
       if (refreshBalance) {

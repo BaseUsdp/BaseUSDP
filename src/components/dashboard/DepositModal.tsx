@@ -38,6 +38,7 @@ import {
 import { getApiUrl } from "@/utils/apiConfig";
 import { getPhantomProvider, getMetaMaskEVMProvider, WalletAdapter } from "@/services/transactionSigningService";
 import { getEvmProvider, type VeilWalletType } from "@/lib/veil/provider";
+import { fireAutoCast } from "@/services/farcasterAutoCast";
 
 interface DepositModalProps {
   open: boolean;
@@ -496,6 +497,10 @@ const DepositModal = ({ open, onOpenChange, initialAmount, initialToken }: Depos
       // STEP 6: Success!
       // ============================================
       setStep("success");
+
+      if (fullWalletAddress) {
+        void fireAutoCast(fullWalletAddress, "deposit", depositAmount, token);
+      }
 
       if (refreshBalance) {
         setTimeout(() => refreshBalance(), 2000);

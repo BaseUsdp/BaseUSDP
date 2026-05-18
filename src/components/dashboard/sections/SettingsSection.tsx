@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import TwitterPaymentSettings from "./TwitterPaymentSettings";
+import FarcasterAutoCastSettings from "./FarcasterAutoCastSettings";
 import { getApiUrl } from "@/utils/apiConfig";
 import {
   ADDRESS_BOOK_MAX,
@@ -538,6 +539,9 @@ const SettingsSection = () => {
 
       {/* X/Twitter Payment Settings */}
       <TwitterPaymentSettings />
+
+      {/* Farcaster Auto-Cast */}
+      <FarcasterAutoCastSettings />
 
       {/* Save Button */}
       <Button
