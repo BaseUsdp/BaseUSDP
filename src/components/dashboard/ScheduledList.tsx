@@ -156,9 +156,22 @@ const ScheduleCard = ({ schedule: s, cancelling, onCancel, onSendNow, readonly }
               {s.frequency}
             </span>
           )}
-          {s.is_due && (
+          {s.auto_execute && !s.auth_revoked && (
+            <span className="text-[10px] uppercase tracking-wider bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded-full font-medium">
+              Auto
+            </span>
+          )}
+          {s.is_due && !s.auto_execute && (
             <span className="text-[10px] uppercase tracking-wider bg-yellow-500/15 text-yellow-400 px-1.5 py-0.5 rounded-full font-medium">
               Due now
+            </span>
+          )}
+          {s.retry_count > 0 && s.last_error && (
+            <span
+              className="text-[10px] uppercase tracking-wider bg-red-500/15 text-red-400 px-1.5 py-0.5 rounded-full font-medium"
+              title={s.last_error}
+            >
+              {s.retry_count} fail{s.retry_count === 1 ? "" : "s"}
             </span>
           )}
         </div>

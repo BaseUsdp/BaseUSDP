@@ -1,5 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import {
+  recoverScheduledPaymentAuthSigner,
+  SCHEDULED_PAYMENT_AUTH_SCOPE,
+} from "../lib/scheduled-auth.js";
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey =
@@ -45,6 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const {
+      schedule_id,
       user_wallet,
       recipient_type,
       recipient_value,
@@ -54,6 +59,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       is_recurring,
       frequency,
       scheduled_for,
+      auto_execute,
+      auth_signature,
+      auth_max_per_tx,
+      auth_expires_at,
     } = req.body ?? {};
 
     if (!user_wallet || typeof user_wallet !== "string") {
@@ -103,19 +112,90 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const trimmedMemo = typeof memo === "string" ? memo.slice(0, 120).replace(/[\x00-\x1F\x7F]/g, "") : null;
 
+    // Auto-execute path: verify the client-signed EIP-712 auth before insert.
+    const autoExecuteFlag = Boolean(auto_execute);
+    let authMaxPerTxNumeric: number | null = null;
+    let authExpiresAtIso: string | null = null;
+    let authSignatureClean: string | null = null;
+    let scheduleIdToUse: string | null = null;
+
+    if (autoExecuteFlag) {
+      if (!schedule_id || typeof schedule_id !== "string" || !/^[0-9a-f-]{36}$/i.test(schedule_id)) {
+        return res.status(400).json({ error: "schedule_id (uuid) required when auto_execute is true" });
+      }
+      if (!auth_signature || typeof auth_signature !== "string") {
+        return res.status(400).json({ error: "auth_signature required when auto_execute is true" });
+      }
+      const parsedMax = parseFloat(auth_max_per_tx);
+      if (!Number.isFinite(parsedMax) || parsedMax <= 0 || parsedMax > 999999.99) {
+        return res.status(400).json({ error: "auth_max_per_tx must be a positive number under 999999.99" });
+      }
+      if (parsedMax < parsedAmount) {
+        return res.status(400).json({ error: "auth_max_per_tx must be >= scheduled amount" });
+      }
+      const expiresAtDate = auth_expires_at ? new Date(auth_expires_at) : null;
+      if (!expiresAtDate || Number.isNaN(expiresAtDate.getTime())) {
+        return res.status(400).json({ error: "auth_expires_at must be a valid ISO timestamp" });
+      }
+      if (expiresAtDate.getTime() < Date.now() + 60_000) {
+        return res.status(400).json({ error: "auth_expires_at must be in the future" });
+      }
+      if (expiresAtDate.getTime() > Date.now() + 2 * 365 * 24 * 60 * 60 * 1000) {
+        return res.status(400).json({ error: "auth_expires_at cannot be more than 2 years out" });
+      }
+
+      const expiresAtUnix = BigInt(Math.floor(expiresAtDate.getTime() / 1000));
+      const maxPerTxUnits = BigInt(Math.round(parsedMax * 1_000_000));
+
+      const recovered = recoverScheduledPaymentAuthSigner(
+        {
+          scope: SCHEDULED_PAYMENT_AUTH_SCOPE,
+          scheduleId: schedule_id,
+          userWallet: user_wallet,
+          recipientType: recipient_type,
+          recipientValue: normalizedRecipient,
+          token,
+          maxPerTx: maxPerTxUnits,
+          expiresAt: expiresAtUnix,
+        },
+        auth_signature
+      );
+
+      if (!recovered || recovered !== user_wallet.toLowerCase()) {
+        console.warn(
+          `[Scheduled] auth signature does not match user_wallet (recovered=${recovered}, expected=${user_wallet.toLowerCase()})`
+        );
+        return res.status(400).json({ error: "Authorization signature does not match user wallet" });
+      }
+
+      authMaxPerTxNumeric = parsedMax;
+      authExpiresAtIso = expiresAtDate.toISOString();
+      authSignatureClean = auth_signature;
+      scheduleIdToUse = schedule_id;
+    }
+
+    const insertPayload: Record<string, unknown> = {
+      user_wallet,
+      recipient_type,
+      recipient_value: normalizedRecipient,
+      token,
+      amount: parsedAmount,
+      memo: trimmedMemo,
+      is_recurring: recurringFlag,
+      frequency: normalizedFrequency,
+      scheduled_for: scheduledAt.toISOString(),
+      auto_execute: autoExecuteFlag,
+    };
+    if (autoExecuteFlag) {
+      insertPayload.id = scheduleIdToUse;
+      insertPayload.auth_signature = authSignatureClean;
+      insertPayload.auth_max_per_tx = authMaxPerTxNumeric;
+      insertPayload.auth_expires_at = authExpiresAtIso;
+    }
+
     const { data, error } = await supabase
       .from("scheduled_payments")
-      .insert({
-        user_wallet,
-        recipient_type,
-        recipient_value: normalizedRecipient,
-        token,
-        amount: parsedAmount,
-        memo: trimmedMemo,
-        is_recurring: recurringFlag,
-        frequency: normalizedFrequency,
-        scheduled_for: scheduledAt.toISOString(),
-      })
+      .insert(insertPayload)
       .select()
       .single();
 

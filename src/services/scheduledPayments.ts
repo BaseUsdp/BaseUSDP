@@ -17,11 +17,18 @@ export interface ScheduledPayment {
   status: "active" | "cancelled" | "completed";
   last_sent_at: string | null;
   last_tx_hash: string | null;
+  auto_execute: boolean;
+  auth_expires_at: string | null;
+  auth_max_per_tx: number | string | null;
+  auth_revoked: boolean;
+  last_error: string | null;
+  retry_count: number;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateScheduledPaymentInput {
+  schedule_id?: string;
   user_wallet: string;
   recipient_type: "address" | "username";
   recipient_value: string;
@@ -31,7 +38,32 @@ export interface CreateScheduledPaymentInput {
   is_recurring: boolean;
   frequency?: ScheduledPaymentFrequency | null;
   scheduled_for: string;
+  auto_execute?: boolean;
+  auth_signature?: string;
+  auth_max_per_tx?: number;
+  auth_expires_at?: string;
 }
+
+export const SCHEDULED_PAYMENT_AUTH_DOMAIN = {
+  name: "BASEUSDP",
+  version: "1",
+  chainId: 8453,
+} as const;
+
+export const SCHEDULED_PAYMENT_AUTH_TYPES = {
+  ScheduledPaymentAuth: [
+    { name: "scope", type: "string" },
+    { name: "scheduleId", type: "string" },
+    { name: "userWallet", type: "address" },
+    { name: "recipientType", type: "string" },
+    { name: "recipientValue", type: "string" },
+    { name: "token", type: "string" },
+    { name: "maxPerTx", type: "uint256" },
+    { name: "expiresAt", type: "uint256" },
+  ],
+} as const;
+
+export const SCHEDULED_PAYMENT_AUTH_SCOPE = "scheduled-payment-auto-execute";
 
 export async function createScheduledPayment(
   input: CreateScheduledPaymentInput

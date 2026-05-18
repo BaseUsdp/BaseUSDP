@@ -20,11 +20,15 @@ import {
 import {
   getMetaMaskEVMProvider,
 } from "@/services/transactionSigningService";
+import { getEvmProvider, type VeilWalletType } from "@/lib/veil/provider";
 import { executeZKTransfer } from "@/services/api";
 import { getApiUrl } from "@/utils/apiConfig";
 import {
   createScheduledPayment,
   markScheduledPaymentSent,
+  SCHEDULED_PAYMENT_AUTH_DOMAIN,
+  SCHEDULED_PAYMENT_AUTH_TYPES,
+  SCHEDULED_PAYMENT_AUTH_SCOPE,
   type ScheduledPaymentFrequency,
 } from "@/services/scheduledPayments";
 import ScheduledList from "../ScheduledList";
@@ -94,6 +98,8 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
   const [scheduling, setScheduling] = useState(false);
   const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
   const [pendingScheduledId] = useState<string>(prefillScheduledId);
+  const [autoExecute, setAutoExecute] = useState(false);
+  const [autoExecuteMax, setAutoExecuteMax] = useState<string>("");
 
   // Saved contacts (address book, localStorage) — quick-pick pills above
   // the recipient field. Re-reads on the custom event the util fires.
@@ -378,28 +384,116 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
       return;
     }
 
+    const parsedAmount = parseFloat(amount);
+
+    // Auto-execute is only offered on recurring schedules.
+    const useAutoExecute = scheduleMode === "recurring" && autoExecute;
+    let maxPerTxValue = parsedAmount;
+    if (useAutoExecute) {
+      const trimmedMax = autoExecuteMax.trim();
+      maxPerTxValue = trimmedMax === "" ? parsedAmount : parseFloat(trimmedMax);
+      if (!Number.isFinite(maxPerTxValue) || maxPerTxValue < parsedAmount) {
+        setError("Max per payment must be >= the scheduled amount");
+        return;
+      }
+      if (maxPerTxValue > 999999.99) {
+        setError("Max per payment too large");
+        return;
+      }
+    }
+
     setError("");
     setScheduling(true);
     setScheduleSuccess(null);
+
+    let authPayload: {
+      schedule_id: string;
+      auth_signature: string;
+      auth_max_per_tx: number;
+      auth_expires_at: string;
+    } | null = null;
+
+    if (useAutoExecute) {
+      try {
+        const provider = await getEvmProvider(walletType as VeilWalletType);
+        if (!provider) {
+          throw new Error("No EVM wallet provider found");
+        }
+
+        const scheduleId = crypto.randomUUID();
+        const expiresAtDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+        const expiresAtUnix = Math.floor(expiresAtDate.getTime() / 1000);
+        const maxPerTxUnits = Math.round(maxPerTxValue * 1_000_000);
+
+        const typedData = {
+          domain: SCHEDULED_PAYMENT_AUTH_DOMAIN,
+          primaryType: "ScheduledPaymentAuth",
+          types: {
+            EIP712Domain: [
+              { name: "name", type: "string" },
+              { name: "version", type: "string" },
+              { name: "chainId", type: "uint256" },
+            ],
+            ...SCHEDULED_PAYMENT_AUTH_TYPES,
+          },
+          message: {
+            scope: SCHEDULED_PAYMENT_AUTH_SCOPE,
+            scheduleId,
+            userWallet: fullWalletAddress,
+            recipientType,
+            recipientValue,
+            token: "USDC",
+            maxPerTx: String(maxPerTxUnits),
+            expiresAt: String(expiresAtUnix),
+          },
+        };
+
+        const signature = (await provider.request({
+          method: "eth_signTypedData_v4",
+          params: [fullWalletAddress, JSON.stringify(typedData)],
+        })) as string;
+
+        authPayload = {
+          schedule_id: scheduleId,
+          auth_signature: signature,
+          auth_max_per_tx: maxPerTxValue,
+          auth_expires_at: expiresAtDate.toISOString(),
+        };
+      } catch (signErr: any) {
+        setScheduling(false);
+        if (
+          signErr?.message?.toLowerCase?.().includes("reject") ||
+          signErr?.message?.toLowerCase?.().includes("user denied")
+        ) {
+          setError("Authorization cancelled. Schedule was not created.");
+        } else {
+          setError(signErr?.message ?? "Failed to get authorization signature");
+        }
+        return;
+      }
+    }
 
     const result = await createScheduledPayment({
       user_wallet: fullWalletAddress,
       recipient_type: recipientType,
       recipient_value: recipientValue,
       token: "USDC",
-      amount: parseFloat(amount),
+      amount: parsedAmount,
       is_recurring: scheduleMode === "recurring",
       frequency: scheduleMode === "recurring" ? recurringFrequency : null,
       scheduled_for: scheduledAt.toISOString(),
+      auto_execute: useAutoExecute,
+      ...(authPayload ?? {}),
     });
 
     setScheduling(false);
 
     if (result.success && result.schedule) {
       const niceDate = scheduledAt.toLocaleString();
+      const autoNote = useAutoExecute ? " — auto-executes, no further action required" : "";
       setScheduleSuccess(
         scheduleMode === "recurring"
-          ? `Recurring (${recurringFrequency}) starting ${niceDate}`
+          ? `Recurring (${recurringFrequency}) starting ${niceDate}${autoNote}`
           : `Scheduled for ${niceDate}`
       );
     } else {
@@ -416,6 +510,8 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
     setScheduleMode("now");
     setScheduledFor(toLocalDateTimeInput(new Date(Date.now() + DEFAULT_SCHEDULE_OFFSET_MS)));
     setRecurringFrequency("weekly");
+    setAutoExecute(false);
+    setAutoExecuteMax("");
     setScheduleSuccess(null);
     setStep("form");
     setTxHash("");
@@ -693,9 +789,52 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                             onChange={(e) => setScheduledFor(e.target.value)}
                             className="bg-secondary border-border h-12"
                           />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            v1 notifies you when it's due — you sign and send. No key custody.
-                          </p>
+                          {!autoExecute && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              You'll get a banner when it's due — sign and send manually.
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {scheduleMode === "recurring" && (
+                        <div className="mt-4 rounded-xl border border-border bg-secondary/40 p-3">
+                          <label className="flex items-start gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={autoExecute}
+                              onChange={(e) => setAutoExecute(e.target.checked)}
+                              className="mt-1 h-4 w-4 rounded border-border accent-primary"
+                            />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">Execute automatically</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Sign one authorization now. Each scheduled payment fires
+                                from your pool balance with no further signing.
+                                Authorization expires in 1 year and can be revoked anytime
+                                by cancelling the schedule.
+                              </p>
+                            </div>
+                          </label>
+
+                          {autoExecute && (
+                            <div className="mt-3 ml-7">
+                              <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-1">
+                                Max per payment (USDC)
+                              </label>
+                              <Input
+                                type="number"
+                                placeholder={amount || "Defaults to scheduled amount"}
+                                value={autoExecuteMax}
+                                onChange={(e) => setAutoExecuteMax(e.target.value)}
+                                className="bg-background border-border h-10"
+                              />
+                              <p className="text-[11px] text-muted-foreground mt-1">
+                                Hard cap per cycle. Server will refuse to send more than this
+                                even if you change the schedule amount later.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
