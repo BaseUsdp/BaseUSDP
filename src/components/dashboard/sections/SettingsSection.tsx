@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import TwitterPaymentSettings from "./TwitterPaymentSettings";
 import FarcasterAutoCastSettings from "./FarcasterAutoCastSettings";
+import TelegramSettings from "./TelegramSettings";
 import { getApiUrl } from "@/utils/apiConfig";
 import {
   ADDRESS_BOOK_MAX,
@@ -542,6 +543,9 @@ const SettingsSection = () => {
 
       {/* Farcaster Auto-Cast */}
       <FarcasterAutoCastSettings />
+
+      {/* Telegram Notifications */}
+      <TelegramSettings />
 
       {/* Save Button */}
       <Button

@@ -8,6 +8,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import { sendFarcasterNotification, getFidByWallet } from '../lib/farcaster-notifications.js';
+import { sendTelegramNotification } from '../lib/telegram-notify.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -88,6 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (creatorFid) {
           await sendFarcasterNotification(creatorFid, 'payment_settled');
         }
+        sendTelegramNotification(payment.user_wallet, 'x402').catch(() => undefined);
       }
     } catch (notifError: any) {
       // Non-critical: log but don't fail the settlement

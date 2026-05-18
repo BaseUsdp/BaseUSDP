@@ -34,6 +34,7 @@ import bs58 from 'bs58';
 import { isBaseChain } from '../lib/chain-config.js';
 import { isValidBaseAddress } from '../lib/void402-base.js';
 import { executeBaseTransfer } from '../lib/transfer-base.js';
+import { sendTelegramNotification } from '../lib/telegram-notify.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -282,6 +283,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!result.success) {
         return res.status(400).json({ error: result.error });
       }
+
+      // Fan out Telegram notifications. Recipient: incoming ping (only fires
+      // for internal transfers where the recipient is a BASEUSDP user).
+      // Sender: outgoing confirmation if they've opted in.
+      if (!force_external) {
+        sendTelegramNotification(base_recipient_wallet, "incoming").catch(() => undefined);
+      }
+      sendTelegramNotification(sender_wallet, "outgoing").catch(() => undefined);
 
       return res.status(200).json({
         success: true,
