@@ -18,6 +18,12 @@ import {
   type AddressBookEntry,
 } from "@/lib/addressBook";
 import {
+  listRecent,
+  pushRecent,
+  RECENT_RECIPIENTS_DISPLAY,
+  type RecentRecipient,
+} from "@/lib/recentRecipients";
+import {
   getMetaMaskEVMProvider,
 } from "@/services/transactionSigningService";
 import { getEvmProvider, type VeilWalletType } from "@/lib/veil/provider";
@@ -112,6 +118,38 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
   }, []);
 
   const pickContact = (entry: AddressBookEntry) => {
+    if (entry.type === "username") {
+      setRecipientType("username");
+      setUsernameInput(entry.value);
+      setRecipient("");
+    } else {
+      setRecipientType("address");
+      setRecipient(entry.value);
+      setUsernameInput("");
+    }
+  };
+
+  // Recent recipients (last 5 sent-to, localStorage). Hidden when empty;
+  // entries already present in Saved Contacts are filtered out to avoid
+  // duplicate pills.
+  const [recents, setRecents] = useState<RecentRecipient[]>([]);
+  useEffect(() => {
+    setRecents(listRecent());
+    const refresh = () => setRecents(listRecent());
+    window.addEventListener("recent-recipients:changed", refresh);
+    return () => window.removeEventListener("recent-recipients:changed", refresh);
+  }, []);
+
+  const visibleRecents = (() => {
+    const savedKeys = new Set(
+      savedContacts.map((c) => `${c.type}:${c.value.toLowerCase()}`)
+    );
+    return recents
+      .filter((r) => !savedKeys.has(`${r.type}:${r.value.toLowerCase()}`))
+      .slice(0, RECENT_RECIPIENTS_DISPLAY);
+  })();
+
+  const pickRecent = (entry: RecentRecipient) => {
     if (entry.type === "username") {
       setRecipientType("username");
       setUsernameInput(entry.value);
@@ -304,6 +342,16 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
         }
         await new Promise(resolve => setTimeout(resolve, 1000));
         setStep("success");
+        // Record for the Recent recipients quick-pick row. Skips invalid
+        // inputs internally; per-browser, not per-wallet.
+        if (recipientType === "username" && usernameInput) {
+          pushRecent({
+            type: "username",
+            value: usernameInput.startsWith("@") ? usernameInput.substring(1) : usernameInput,
+          });
+        } else if (recipientType === "address" && recipient) {
+          pushRecent({ type: "address", value: recipient });
+        }
       } else {
         const errorStep = result.step || "unknown";
         let errorMessage = result.error || "Transaction failed";
@@ -587,6 +635,36 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                     exit={{ opacity: 0, x: -20 }}
                     className="space-y-5"
                   >
+                    {/* Recent recipients (last 5 sent-to, localStorage) */}
+                    {visibleRecents.length > 0 && (
+                      <div>
+                        <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-2">
+                          Recent
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {visibleRecents.map((r) => (
+                            <button
+                              key={`${r.type}:${r.value}`}
+                              type="button"
+                              onClick={() => pickRecent(r)}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary px-3 py-1.5 text-xs font-medium hover:border-primary/50 hover:bg-secondary/80"
+                              title={r.type === "username" ? `@${r.value}` : r.value}
+                            >
+                              <Icon
+                                icon={r.type === "username" ? "ph:at-bold" : "ph:wallet-bold"}
+                                className="w-3 h-3 text-muted-foreground"
+                              />
+                              <span>
+                                {r.type === "username"
+                                  ? "@" + r.value
+                                  : `${r.value.slice(0, 6)}…${r.value.slice(-4)}`}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Saved Contacts (quick-pick pills) */}
                     {savedContacts.length > 0 && (
                       <div>
