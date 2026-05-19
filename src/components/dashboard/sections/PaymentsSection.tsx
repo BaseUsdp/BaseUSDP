@@ -23,6 +23,8 @@ import {
   RECENT_RECIPIENTS_DISPLAY,
   type RecentRecipient,
 } from "@/lib/recentRecipients";
+import { getSendThreshold } from "@/lib/sendThreshold";
+import SendConfirmDialog from "../SendConfirmDialog";
 import {
   getMetaMaskEVMProvider,
 } from "@/services/transactionSigningService";
@@ -149,6 +151,25 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
       .slice(0, RECENT_RECIPIENTS_DISPLAY);
   })();
 
+  // Send safeguard (#19) — extra confirm step for amounts above the
+  // user-configured threshold. Threshold lives in localStorage and is
+  // edited from the Settings tab. sessionSkipThreshold lets the user
+  // opt out for the rest of the tab session via a checkbox in the
+  // dialog (resets on reload).
+  const [largeSendDialog, setLargeSendDialog] = useState<{
+    open: boolean;
+    pending: "send" | "schedule" | null;
+  }>({ open: false, pending: null });
+  const [sessionSkipThreshold, setSessionSkipThreshold] = useState(false);
+
+  const shouldGateLargeSend = () => {
+    if (sessionSkipThreshold) return false;
+    const threshold = getSendThreshold();
+    if (threshold <= 0) return false;
+    const parsed = parseFloat(amount);
+    return Number.isFinite(parsed) && parsed > threshold;
+  };
+
   const pickRecent = (entry: RecentRecipient) => {
     if (entry.type === "username") {
       setRecipientType("username");
@@ -270,7 +291,11 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
     setStep("preview");
   };
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (skipThresholdCheck = false) => {
+    if (!skipThresholdCheck && shouldGateLargeSend()) {
+      setLargeSendDialog({ open: true, pending: "send" });
+      return;
+    }
     if (!isConnected || !fullWalletAddress || !walletType) {
       setError("Wallet not connected. Please connect your wallet first.");
       setStep("failed");
@@ -397,7 +422,11 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
     }
   };
 
-  const handleSchedule = async () => {
+  const handleSchedule = async (skipThresholdCheck = false) => {
+    if (!skipThresholdCheck && shouldGateLargeSend()) {
+      setLargeSendDialog({ open: true, pending: "schedule" });
+      return;
+    }
     if (!fullWalletAddress) {
       setError("Wallet not connected.");
       return;
@@ -949,7 +978,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                       </Button>
                     ) : (
                       <Button
-                        onClick={handleSchedule}
+                        onClick={() => handleSchedule()}
                         disabled={
                           scheduling ||
                           !amount ||
@@ -1022,7 +1051,7 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                       <Button variant="outline" onClick={() => setStep("form")} className="flex-1">
                         Back
                       </Button>
-                      <Button onClick={handleConfirm} className="flex-1 bg-gradient-to-r from-sky-600 to-purple-600 hover:from-sky-500 hover:to-purple-500 text-white">
+                      <Button onClick={() => handleConfirm()} className="flex-1 bg-gradient-to-r from-sky-600 to-purple-600 hover:from-sky-500 hover:to-purple-500 text-white">
                         Confirm & Sign
                       </Button>
                     </div>
@@ -1196,6 +1225,32 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
       {/* Modals */}
       <X402PaymentModal open={x402CreateModalOpen} onOpenChange={setX402CreateModalOpen} />
       <PayX402Modal open={payX402ModalOpen} onOpenChange={setPayX402ModalOpen} />
+
+      {/* Send safeguard: extra confirm step for amounts above the user's threshold */}
+      <SendConfirmDialog
+        open={largeSendDialog.open}
+        onOpenChange={(open) => {
+          if (!open) setLargeSendDialog({ open: false, pending: null });
+        }}
+        amount={amount}
+        token="USDC"
+        recipientDisplay={
+          recipientType === "username"
+            ? `@${usernameInput.replace(/^@/, "")}`
+            : recipient
+        }
+        threshold={getSendThreshold()}
+        onConfirm={(skipFurther) => {
+          const pending = largeSendDialog.pending;
+          setLargeSendDialog({ open: false, pending: null });
+          if (skipFurther) setSessionSkipThreshold(true);
+          if (pending === "send") {
+            handleConfirm(true);
+          } else if (pending === "schedule") {
+            handleSchedule(true);
+          }
+        }}
+      />
     </motion.div>
   );
 };
