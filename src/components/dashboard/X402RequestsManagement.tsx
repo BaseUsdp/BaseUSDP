@@ -274,7 +274,7 @@ const X402RequestsManagement = ({ onCreateNew }: X402RequestsManagementProps) =>
           >
             <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
           </Button>
-          <Button onClick={onCreateNew} className="bg-accent hover:bg-accent/90 h-9">
+          <Button onClick={onCreateNew} className="bg-primary hover:bg-primary/90 h-9">
             <Icon icon="ph:plus-bold" className="w-4 h-4 mr-2" />
             New Request
           </Button>
