@@ -172,19 +172,36 @@ const TransactionHistoryFull = ({ showBalance }: TransactionHistoryFullProps) =>
   );
 
   const handleExportCSV = () => {
-    const headers = ["Date", "Type", "Direction", "Amount", "Counterparty", "Status", "Hash"];
-    const rows = filteredAndSortedTransactions.map(tx => [
-      tx.timestamp,
-      tx.type,
-      tx.direction,
-      tx.privacyLevel === "public" || showBalance ? tx.amountDisplay : "Encrypted",
-      tx.counterparty,
-      tx.status,
-      tx.txHash,
-    ]);
-    
-    const csv = [headers, ...rows].map(row => row.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
+    const escape = (val: unknown) => {
+      const s = val == null ? "" : String(val);
+      return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+
+    const headers = ["Date", "Type", "Direction", "Amount", "Counterparty", "Status", "TxHash", "PaymentId", "Source"];
+    const rows = filteredAndSortedTransactions.map(tx => {
+      const canShowAmount = tx.privacyLevel === "public" || showBalance;
+      const signed = tx.direction === "sent" ? -Math.abs(tx.amount) : Math.abs(tx.amount);
+      const amountCell = canShowAmount ? signed.toFixed(2) : "Encrypted";
+      const source = tx.source ?? (tx.agentName ? `agent:${tx.agentName}` : "");
+      return [
+        tx.date.toISOString(),
+        tx.type,
+        tx.direction,
+        amountCell,
+        tx.counterparty,
+        tx.status,
+        tx.txHash,
+        tx.paymentId ?? "",
+        source,
+      ];
+    });
+
+    // BOM so Excel opens UTF-8 correctly; CRLF line endings for spreadsheet compatibility.
+    const csv = "﻿" + [headers, ...rows]
+      .map(row => row.map(escape).join(","))
+      .join("\r\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
