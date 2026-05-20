@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { getApiUrl } from "@/utils/apiConfig";
 import { authService } from "@/services/authService";
 import { fireAutoCast } from "@/services/farcasterAutoCast";
+import { fireClientWebhook } from "@/services/webhooks";
 
 interface WithdrawSectionProps {
   showBalance: boolean;
@@ -168,6 +169,11 @@ const WithdrawSection = ({ showBalance, initialAmount, initialToken }: WithdrawS
 
       if (fullWalletAddress) {
         void fireAutoCast(fullWalletAddress, "withdraw", parseFloat(amount), token);
+        void fireClientWebhook(fullWalletAddress, "withdraw", {
+          amount: parseFloat(amount),
+          token,
+          tx_hash: withdrawData.signature,
+        });
       }
 
       // Refresh balance after successful withdrawal

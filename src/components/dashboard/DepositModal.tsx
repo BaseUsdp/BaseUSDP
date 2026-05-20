@@ -39,6 +39,7 @@ import { getApiUrl } from "@/utils/apiConfig";
 import { getPhantomProvider, getMetaMaskEVMProvider, WalletAdapter } from "@/services/transactionSigningService";
 import { getEvmProvider, type VeilWalletType } from "@/lib/veil/provider";
 import { fireAutoCast } from "@/services/farcasterAutoCast";
+import { fireClientWebhook } from "@/services/webhooks";
 
 interface DepositModalProps {
   open: boolean;
@@ -500,6 +501,10 @@ const DepositModal = ({ open, onOpenChange, initialAmount, initialToken }: Depos
 
       if (fullWalletAddress) {
         void fireAutoCast(fullWalletAddress, "deposit", depositAmount, token);
+        void fireClientWebhook(fullWalletAddress, "deposit", {
+          amount: depositAmount,
+          token,
+        });
       }
 
       if (refreshBalance) {

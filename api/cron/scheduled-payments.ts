@@ -5,6 +5,7 @@ import {
   recoverScheduledPaymentAuthSigner,
   SCHEDULED_PAYMENT_AUTH_SCOPE,
 } from "../lib/scheduled-auth.js";
+import { fireWebhooks } from "../lib/webhook-notify.js";
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey =
@@ -170,6 +171,15 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
         console.log(
           `[CronScheduled] executed ${row.id}: $${row.amount} ${row.token} tx=${execResult.txHash}`
         );
+        await fireWebhooks(row.user_wallet, "scheduled", {
+          schedule_id: row.id,
+          recipient_type: row.recipient_type,
+          recipient: row.recipient_value,
+          amount: Number(row.amount),
+          token: row.token,
+          is_recurring: row.is_recurring,
+          tx_hash: execResult.txHash ?? null,
+        }).catch(() => undefined);
       } else {
         summary.failed += 1;
         const newRetryCount = (row.retry_count ?? 0) + 1;

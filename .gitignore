@@ -65,6 +65,9 @@ nolvi-compare/
 # Local SMS escrow store (dev-only file-backed escrow)
 data/
 
+# Local-only tooling (e.g. git-filter-repo single-file script)
+tools/
+
 # Internal docs — keep public repo doc-free except README
 *.md
 !README.md

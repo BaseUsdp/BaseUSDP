@@ -35,6 +35,7 @@ import { isBaseChain } from '../lib/chain-config.js';
 import { isValidBaseAddress } from '../lib/void402-base.js';
 import { executeBaseTransfer } from '../lib/transfer-base.js';
 import { sendTelegramNotification } from '../lib/telegram-notify.js';
+import { fireWebhooks } from '../lib/webhook-notify.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -291,10 +292,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // in-flight fetch to the Telegram API when res.json() returns.
       const notifications: Promise<unknown>[] = [
         sendTelegramNotification(sender_wallet, "outgoing"),
+        fireWebhooks(sender_wallet, "outgoing", {
+          to: base_recipient_wallet,
+          amount: transferAmount,
+          token,
+          tx_hash: result.txHash,
+          external: !!force_external,
+        }),
       ];
       if (!force_external) {
         notifications.push(
-          sendTelegramNotification(base_recipient_wallet, "incoming")
+          sendTelegramNotification(base_recipient_wallet, "incoming"),
+          fireWebhooks(base_recipient_wallet, "incoming", {
+            from: sender_wallet,
+            amount: transferAmount,
+            token,
+            tx_hash: result.txHash,
+          })
         );
       }
       await Promise.all(notifications).catch(() => undefined);

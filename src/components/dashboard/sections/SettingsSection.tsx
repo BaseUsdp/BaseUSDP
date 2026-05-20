@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import TwitterPaymentSettings from "./TwitterPaymentSettings";
 import FarcasterAutoCastSettings from "./FarcasterAutoCastSettings";
 import TelegramSettings from "./TelegramSettings";
+import WebhooksSettings from "./WebhooksSettings";
 import { getApiUrl } from "@/utils/apiConfig";
 import {
   ADDRESS_BOOK_MAX,
@@ -634,6 +635,9 @@ const SettingsSection = () => {
 
       {/* Telegram Notifications */}
       <TelegramSettings />
+
+      {/* Webhooks — POST to any URL on events */}
+      <WebhooksSettings />
 
       {/* Save Button */}
       <Button
