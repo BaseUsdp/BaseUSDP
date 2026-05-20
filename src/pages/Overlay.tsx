@@ -11,6 +11,7 @@
  *   ?duration=6                                            (seconds, default 6, range 2-30)
  *   ?min=0                                                 (minimum tip amount to show)
  *   ?accent=#ff8c00                                        (CSS color for the accent bar)
+ *   ?obs=true                                              (hide the preview status card — set this once you've pasted the URL into OBS)
  *
  * Implementation:
  *   - Poll /api/overlay/recent every 5s with the latest-seen timestamp.
@@ -64,6 +65,7 @@ const Overlay = () => {
   }, [params]);
 
   const accent = params.get("accent") || "#0052FF";
+  const obsMode = params.get("obs") === "true";
 
   const handleParam = rawHandle.startsWith("@") ? rawHandle.slice(1) : rawHandle;
 
@@ -160,13 +162,50 @@ const Overlay = () => {
         ))}
       </AnimatePresence>
 
-      {/* Tiny "OBS overlay" hint that shows only when the page is opened
-          outside of OBS (e.g. a normal browser tab). Helps streamers verify
-          they have the right URL. We can't reliably detect OBS, so just
-          show it in the corner with a subtle style. */}
+      {/* Visible preview card so the page looks intentional in a normal
+          browser tab. Streamers add ?obs=true once they've pasted the URL
+          into OBS to hide it. */}
+      {!obsMode && (
+        <div
+          className="pointer-events-auto fixed top-6 left-1/2 -translate-x-1/2 rounded-2xl shadow-2xl text-white"
+          style={{
+            background: "rgba(17,17,17,0.92)",
+            padding: "16px 20px",
+            maxWidth: "520px",
+            fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span style={{ width: 8, height: 8, borderRadius: 9999, background: "#22c55e", display: "inline-block" }} />
+            <strong style={{ fontSize: 14 }}>BASEUSDP overlay live</strong>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+              {resolvedHandle ? `@${resolvedHandle}` : handleParam.slice(0, 6) + "…" + handleParam.slice(-4)}
+            </span>
+          </div>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", margin: 0 }}>
+            Waiting for tips. New tips will animate in the {positionRaw.replace("-", " ")} corner.
+          </p>
+          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 8, marginBottom: 0 }}>
+            Paste this URL into OBS / Streamlabs as a Browser Source, then add{" "}
+            <code style={{ background: "rgba(255,255,255,0.1)", padding: "1px 6px", borderRadius: 4 }}>
+              ?obs=true
+            </code>{" "}
+            to the URL to hide this banner.
+          </p>
+        </div>
+      )}
+
+      {/* Tiny corner watermark with a dark pill so it's legible on any
+          background (including the default white in a non-OBS browser). */}
       <p
-        className="pointer-events-auto fixed bottom-2 right-2 text-[10px] text-white/40 font-mono select-none"
-        style={{ textShadow: "0 0 4px rgba(0,0,0,0.8)" }}
+        className="pointer-events-auto fixed bottom-2 right-2 text-[10px] font-mono select-none"
+        style={{
+          background: "rgba(0,0,0,0.45)",
+          color: "rgba(255,255,255,0.85)",
+          padding: "3px 8px",
+          borderRadius: 9999,
+        }}
       >
         BASEUSDP overlay {resolvedHandle ? `@${resolvedHandle}` : ""}
       </p>
