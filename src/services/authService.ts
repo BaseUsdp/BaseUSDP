@@ -102,6 +102,15 @@ class AuthService {
     localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString());
   }
 
+  /**
+   * Public setter for the session token, used by the WebAuthn / biometric
+   * unlock flow which mints its own session via /api/webauthn/auth-verify
+   * instead of the usual wallet-signed nonce flow.
+   */
+  setSessionFromBiometric(token: string, expiresIn: number): void {
+    this.saveSession(token, expiresIn);
+  }
+
   private clearSession(): void {
     this.sessionToken = null;
     this.tokenExpiry = null;

@@ -10,6 +10,13 @@ import DashboardLeftSidebar from "./DashboardLeftSidebar";
 import DashboardRightSidebar from "./DashboardRightSidebar";
 import DashboardMainContent from "./DashboardMainContent";
 import WalletConnectPrompt from "./WalletConnectPrompt";
+import BiometricLockScreen from "./BiometricLockScreen";
+import { useIdleLock } from "@/hooks/useIdleLock";
+import {
+  isBiometricEnabled,
+  getIdleMinutes,
+  BIOMETRIC_PREFS_EVENT,
+} from "@/lib/biometricPrefs";
 
 const DashboardLayoutNew = () => {
   const { isConnected } = useWallet();
@@ -24,6 +31,24 @@ const DashboardLayoutNew = () => {
     hasSendPrefill ? "send" : undefined
   );
   const [withdrawInitialAmount, setWithdrawInitialAmount] = useState<string | undefined>(undefined);
+
+  // Biometric / WebAuthn idle-lock state.
+  const [locked, setLocked] = useState(false);
+  const [biometricEnabled, setBiometricEnabledState] = useState(isBiometricEnabled());
+  const [idleMin, setIdleMin] = useState(getIdleMinutes());
+  useEffect(() => {
+    const sync = () => {
+      setBiometricEnabledState(isBiometricEnabled());
+      setIdleMin(getIdleMinutes());
+    };
+    window.addEventListener(BIOMETRIC_PREFS_EVENT, sync);
+    return () => window.removeEventListener(BIOMETRIC_PREFS_EVENT, sync);
+  }, []);
+  useIdleLock({
+    enabled: biometricEnabled && isConnected && !locked,
+    idleMinutes: idleMin,
+    onIdle: () => setLocked(true),
+  });
 
   // If a payment-link visitor lands here with prefill params, force the
   // Payments tab on first mount so the prefilled Send form is visible.
@@ -105,6 +130,11 @@ const DashboardLayoutNew = () => {
           </div>
         </motion.div>
       </div>
+
+      <BiometricLockScreen
+        open={locked && isConnected}
+        onUnlocked={() => setLocked(false)}
+      />
     </div>
   );
 };

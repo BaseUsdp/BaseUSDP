@@ -10,6 +10,7 @@ import TwitterPaymentSettings from "./TwitterPaymentSettings";
 import FarcasterAutoCastSettings from "./FarcasterAutoCastSettings";
 import TelegramSettings from "./TelegramSettings";
 import WebhooksSettings from "./WebhooksSettings";
+import BiometricUnlockSettings from "./BiometricUnlockSettings";
 import { getApiUrl } from "@/utils/apiConfig";
 import {
   ADDRESS_BOOK_MAX,
@@ -638,6 +639,9 @@ const SettingsSection = () => {
 
       {/* Webhooks — POST to any URL on events */}
       <WebhooksSettings />
+
+      {/* Biometric / WebAuthn unlock */}
+      <BiometricUnlockSettings />
 
       {/* Save Button */}
       <Button
