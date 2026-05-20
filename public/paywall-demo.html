@@ -77,32 +77,82 @@
     // a static <script> tag with their wallet baked in.
     (function () {
       var p = new URLSearchParams(window.location.search);
-      var wallet = p.get("wallet") || "";
-      var price = p.get("price") || "0.10";
-      var token = (p.get("token") || "USDC").toUpperCase();
+      var rawWallet = p.get("wallet") || "";
+      var rawPrice = p.get("price") || "0.10";
+      var rawToken = (p.get("token") || "USDC").toUpperCase();
+
+      // Strict validation — anything else gets rejected so we never inject
+      // attacker-controlled strings into the DOM.
+      var validWallet = /^0x[0-9a-fA-F]{40}$/.test(rawWallet);
+      var priceNum = Number(rawPrice);
+      var validPrice = isFinite(priceNum) && priceNum > 0 && priceNum < 10000;
+      var validToken = rawToken === "USDC" || rawToken === "USDT";
+
       var banner = document.getElementById("config-banner");
 
-      var validWallet = /^0x[0-9a-fA-F]{40}$/.test(wallet);
-      if (!validWallet) {
-        banner.innerHTML =
-          "⚠️ <strong>No wallet configured.</strong> Add " +
-          "<code>?wallet=0xYourAddress</code> to the URL to make the paywall point at your own wallet. " +
-          "You can also set <code>&price=0.10</code> and <code>&token=USDT</code>.";
-        return; // Don't inject the script at all if config is missing.
+      function setBannerSafe(msg, ok) {
+        // Build with text nodes so URL params can never inject HTML.
+        while (banner.firstChild) banner.removeChild(banner.firstChild);
+        banner.className = "config" + (ok ? " ok" : "");
+        msg.forEach(function (part) {
+          if (part.tag) {
+            var el = document.createElement(part.tag);
+            el.textContent = part.text;
+            banner.appendChild(el);
+          } else {
+            banner.appendChild(document.createTextNode(part.text));
+          }
+        });
       }
 
-      banner.className = "config ok";
-      banner.innerHTML =
-        "✓ <strong>Test mode.</strong> Paying <code>" +
-        wallet.slice(0, 6) + "…" + wallet.slice(-4) +
-        "</code>, <code>" + Number(price).toFixed(2) + " " + token + "</code> on Base. " +
-        "Pay button below opens a popup; once the tx settles, the locked section reveals.";
+      if (!validWallet) {
+        setBannerSafe([
+          { text: "⚠️ " },
+          { tag: "strong", text: "No wallet configured." },
+          { text: " Add " },
+          { tag: "code", text: "?wallet=0xYourAddress" },
+          { text: " to the URL to make the paywall point at your own wallet. You can also set " },
+          { tag: "code", text: "&price=0.10" },
+          { text: " and " },
+          { tag: "code", text: "&token=USDT" },
+          { text: "." },
+        ], false);
+        return; // Don't inject the script at all if config is missing.
+      }
+      if (!validPrice) {
+        setBannerSafe([
+          { text: "⚠️ " },
+          { tag: "strong", text: "Invalid price." },
+          { text: " Use a positive number under 10000, e.g. " },
+          { tag: "code", text: "?price=0.10" },
+          { text: "." },
+        ], false);
+        return;
+      }
+      if (!validToken) {
+        setBannerSafe([
+          { text: "⚠️ " },
+          { tag: "strong", text: "Invalid token." },
+          { text: " Must be USDC or USDT." },
+        ], false);
+        return;
+      }
+
+      setBannerSafe([
+        { text: "✓ " },
+        { tag: "strong", text: "Test mode." },
+        { text: " Paying " },
+        { tag: "code", text: rawWallet.slice(0, 6) + "…" + rawWallet.slice(-4) },
+        { text: ", " },
+        { tag: "code", text: priceNum.toFixed(2) + " " + rawToken },
+        { text: " on Base. Pay button below opens a popup; once the tx settles, the locked section reveals." },
+      ], true);
 
       var s = document.createElement("script");
       s.src = "/embed/paywall.js";
-      s.setAttribute("data-wallet", wallet);
-      s.setAttribute("data-price", price);
-      s.setAttribute("data-token", token);
+      s.setAttribute("data-wallet", rawWallet);
+      s.setAttribute("data-price", String(priceNum));
+      s.setAttribute("data-token", rawToken);
       document.body.appendChild(s);
     })();
   </script>
