@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BASEUSDP Paywall — Live Demo</title>
+  <meta name="robots" content="noindex">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 720px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+      color: #111;
+      background: #fafafa;
+    }
+    h1 { margin-bottom: 8px; }
+    .byline { color: #666; font-size: 14px; margin-bottom: 24px; }
+    .config {
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      padding: 14px 16px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      color: #5a3e00;
+    }
+    .config code {
+      background: #fff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .ok { background: #d1fae5; border-color: #6ee7b7; color: #065f46; }
+    .baseusdp-paywall {
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 24px 0;
+    }
+    .baseusdp-paywall h2 { margin-top: 0; }
+    footer { margin-top: 40px; font-size: 12px; color: #888; text-align: center; }
+    footer a { color: #0052FF; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="config" id="config-banner">…</div>
+
+  <h1>How I doubled my onchain yield in 90 days</h1>
+  <p class="byline">A test article hosted at <code>baseusdp.com/paywall-demo.html</code>. The paragraphs below are gated by the BASEUSDP paywall script.</p>
+
+  <p><em>(Free preview)</em> Yields on Base have been brutal this year. Most "DeFi 2.0" tokens are down 80%+ from peaks, and the safe stablecoin yields have compressed to single digits.</p>
+  <p>But there's still alpha in the boring stuff if you know where to look. Here's exactly what I did, with numbers.</p>
+
+  <div class="baseusdp-paywall">
+    <h2>The actual playbook (paid content)</h2>
+    <p><strong>Step 1.</strong> Bridge from Ethereum mainnet to Base via the official bridge. Gas was ~$3 in late April; the bridge takes ~15 min for the L2 finality wait.</p>
+    <p><strong>Step 2.</strong> Park ~70% of capital in a lending market for the base rate, route the other 30% into a higher-risk LP position for the kicker.</p>
+    <p><strong>Step 3.</strong> Set up an auto-compound schedule via BASEUSDP's scheduled-payments feature so you never miss a weekly compound.</p>
+    <p><strong>Step 4.</strong> Hedge tail risk with a tiny put position on a perp DEX — cheap insurance against a deleveraging event.</p>
+    <p><strong>Step 5.</strong> Track everything in a spreadsheet. The biggest variance-reducer is just <em>looking at the numbers every week</em>.</p>
+    <p>Result over 90 days: 14.2% annualized after fees, on USDC denominator. ~2x the boring lending rate, with manageable downside.</p>
+  </div>
+
+  <p>That's all there is to it. Real edge is mostly discipline + reading the room.</p>
+
+  <footer>
+    Demo page for <a href="https://baseusdp.com" target="_blank">BASEUSDP</a> paywall script.
+    Source: <code>public/paywall-demo.html</code>.
+  </footer>
+
+  <script>
+    // The paywall script is injected via JS so we can read configuration
+    // from URL query params instead of hard-coding it. Real writers paste
+    // a static <script> tag with their wallet baked in.
+    (function () {
+      var p = new URLSearchParams(window.location.search);
+      var wallet = p.get("wallet") || "";
+      var price = p.get("price") || "0.10";
+      var token = (p.get("token") || "USDC").toUpperCase();
+      var banner = document.getElementById("config-banner");
+
+      var validWallet = /^0x[0-9a-fA-F]{40}$/.test(wallet);
+      if (!validWallet) {
+        banner.innerHTML =
+          "⚠️ <strong>No wallet configured.</strong> Add " +
+          "<code>?wallet=0xYourAddress</code> to the URL to make the paywall point at your own wallet. " +
+          "You can also set <code>&price=0.10</code> and <code>&token=USDT</code>.";
+        return; // Don't inject the script at all if config is missing.
+      }
+
+      banner.className = "config ok";
+      banner.innerHTML =
+        "✓ <strong>Test mode.</strong> Paying <code>" +
+        wallet.slice(0, 6) + "…" + wallet.slice(-4) +
+        "</code>, <code>" + Number(price).toFixed(2) + " " + token + "</code> on Base. " +
+        "Pay button below opens a popup; once the tx settles, the locked section reveals.";
+
+      var s = document.createElement("script");
+      s.src = "/embed/paywall.js";
+      s.setAttribute("data-wallet", wallet);
+      s.setAttribute("data-price", price);
+      s.setAttribute("data-token", token);
+      document.body.appendChild(s);
+    })();
+  </script>
+</body>
+</html>
