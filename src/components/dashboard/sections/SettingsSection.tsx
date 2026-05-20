@@ -11,6 +11,7 @@ import FarcasterAutoCastSettings from "./FarcasterAutoCastSettings";
 import TelegramSettings from "./TelegramSettings";
 import WebhooksSettings from "./WebhooksSettings";
 import BiometricUnlockSettings from "./BiometricUnlockSettings";
+import NfcTapToPaySettings from "./NfcTapToPaySettings";
 import { getApiUrl } from "@/utils/apiConfig";
 import {
   ADDRESS_BOOK_MAX,
@@ -642,6 +643,9 @@ const SettingsSection = () => {
 
       {/* Biometric / WebAuthn unlock */}
       <BiometricUnlockSettings />
+
+      {/* NFC tap-to-pay */}
+      <NfcTapToPaySettings />
 
       {/* Save Button */}
       <Button
