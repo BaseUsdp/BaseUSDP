@@ -24,6 +24,7 @@ import {
   type RecentRecipient,
 } from "@/lib/recentRecipients";
 import { getSendThreshold } from "@/lib/sendThreshold";
+import { celebrateOncePerSession } from "@/lib/celebrate";
 import SendConfirmDialog from "../SendConfirmDialog";
 import {
   getMetaMaskEVMProvider,
@@ -367,6 +368,10 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
         }
         await new Promise(resolve => setTimeout(resolve, 1000));
         setStep("success");
+        // Tiny dopamine moment: confetti fires once per tab session on
+        // the first successful send. Subsequent sends in the same session
+        // are silent so it doesn't get annoying.
+        celebrateOncePerSession("send");
         // Record for the Recent recipients quick-pick row. Skips invalid
         // inputs internally; per-browser, not per-wallet.
         if (recipientType === "username" && usernameInput) {
