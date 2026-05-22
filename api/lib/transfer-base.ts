@@ -75,8 +75,26 @@ export async function executeBaseTransfer(
     const baseIntPool = getBaseIntermediateWalletPool();
     await baseIntPool.initialize();
 
-    // Find an intermediate wallet with sufficient on-chain pool balance
+    // Find an intermediate wallet with sufficient liquidity.
+    // First pass: pool balance >= amount → use it directly (no top-up needed).
+    // Second pass: pool + raw wallet balance >= amount → use it, but we'll
+    // need to auto-deposit the deficit from the wallet's raw balance into
+    // the pool before the transfer can route. This makes simple "send USDC
+    // to an intermediate" admin top-ups Just Work without a separate
+    // deposit step.
+    const ERC20_ABI = [
+      "function balanceOf(address) view returns (uint256)",
+      "function approve(address spender, uint256 amount) external returns (bool)",
+      "function allowance(address owner, address spender) view returns (uint256)",
+    ];
+    const erc20Readonly = new ethersLib.Contract(tokenAddress, ERC20_ABI, provider);
+
     let intWalletData: any = null;
+    let topUpDeficit: bigint = 0n;
+    let fallbackCandidate: any = null;
+    let fallbackPoolBalance: bigint = 0n;
+    let fallbackRawBalance: bigint = 0n;
+
     const readonlyPool = getPrivacyPoolContract(provider as any);
     const allWallets = baseIntPool.getAllWallets();
     for (const candidate of allWallets) {
@@ -92,11 +110,38 @@ export async function executeBaseTransfer(
           intWalletData = candidate;
           break;
         }
+
+        // Pool alone isn't enough — check raw wallet balance to see if a
+        // top-up is feasible. Track the candidate with the largest combined
+        // (pool + raw) so we pick the cleanest top-up.
+        const raw: bigint = await erc20Readonly.balanceOf(candidate.address);
+        const combined = available + raw;
+        console.log(
+          `[BaseTransfer]   ↳ raw wallet balance: ${raw.toString()} (combined: ${combined.toString()})`
+        );
+        if (combined >= amountInUnits) {
+          const combinedThisCandidate = available + raw;
+          const fallbackCombined = fallbackPoolBalance + fallbackRawBalance;
+          if (!fallbackCandidate || combinedThisCandidate > fallbackCombined) {
+            fallbackCandidate = candidate;
+            fallbackPoolBalance = available;
+            fallbackRawBalance = raw;
+          }
+        }
       } catch (e: any) {
         console.warn(
           `[BaseTransfer] Failed to check balance for ${candidate.address}: ${e.message}`
         );
       }
+    }
+
+    if (!intWalletData && fallbackCandidate) {
+      // Pick the fallback and remember how much we need to deposit.
+      intWalletData = fallbackCandidate;
+      topUpDeficit = amountInUnits - fallbackPoolBalance;
+      console.log(
+        `[BaseTransfer] No wallet has full pool coverage. Falling back to ${fallbackCandidate.address.slice(0, 10)}... — will auto-deposit ${topUpDeficit.toString()} from raw balance into pool.`
+      );
     }
 
     if (!intWalletData) {
@@ -153,6 +198,43 @@ export async function executeBaseTransfer(
     }
 
     const privacyPoolContract = getPrivacyPoolContract(intSigner);
+
+    // If we picked a fallback candidate, top up its pool balance from raw
+    // before the proof upload. Approves the privacy pool to pull the
+    // deficit, then deposits. After this, the rest of the transfer flow
+    // looks identical to the happy path.
+    if (topUpDeficit > 0n) {
+      try {
+        const erc20 = new ethersLib.Contract(tokenAddress, ERC20_ABI, intSigner);
+        const poolAddress = await privacyPoolContract.getAddress();
+
+        const currentAllowance: bigint = await erc20.allowance(
+          intWalletData.address,
+          poolAddress
+        );
+        if (currentAllowance < topUpDeficit) {
+          console.log(
+            `[BaseTransfer] Approving pool to spend ${topUpDeficit.toString()} ${token}...`
+          );
+          const approveTx = await erc20.approve(poolAddress, topUpDeficit);
+          await approveTx.wait();
+          console.log(`[BaseTransfer] Approval mined: ${approveTx.hash}`);
+        }
+
+        console.log(
+          `[BaseTransfer] Auto-depositing ${topUpDeficit.toString()} ${token} into pool for ${intWalletData.address.slice(0, 10)}...`
+        );
+        const depositTx = await privacyPoolContract.deposit(tokenAddress, topUpDeficit);
+        await depositTx.wait();
+        console.log(`[BaseTransfer] Auto-deposit mined: ${depositTx.hash}`);
+      } catch (depositErr: any) {
+        console.error("[BaseTransfer] Auto-deposit failed:", depositErr.message);
+        return {
+          success: false,
+          error: `Auto-deposit into pool failed: ${depositErr.shortMessage || depositErr.message}`,
+        };
+      }
+    }
 
     // Generate nonce and proof
     const privacyNonce = generatePrivacyNonce(senderWallet);
