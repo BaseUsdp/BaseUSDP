@@ -26,6 +26,8 @@ import {
 import { getSendThreshold } from "@/lib/sendThreshold";
 import { celebrateOncePerSession } from "@/lib/celebrate";
 import SendConfirmDialog from "../SendConfirmDialog";
+import QrScannerModal from "../QrScannerModal";
+import type { QrPayload } from "@/lib/qr-scan";
 import {
   getMetaMaskEVMProvider,
 } from "@/services/transactionSigningService";
@@ -97,6 +99,9 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [amount, setAmount] = useState(prefillAmount && parseFloat(prefillAmount) > 0 ? prefillAmount : "");
+
+  // QR scanner state
+  const [qrOpen, setQrOpen] = useState(false);
 
   // Scheduling state
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("now");
@@ -766,7 +771,13 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
                             onChange={(e) => setRecipient(e.target.value)}
                             className="bg-secondary border-border h-12 pr-12"
                           />
-                          <button className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-primary/10 rounded">
+                          <button
+                            type="button"
+                            onClick={() => setQrOpen(true)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-primary/10 rounded"
+                            aria-label="Scan QR code"
+                            title="Scan a payment QR"
+                          >
                             <QrCode className="w-5 h-5 text-muted-foreground" />
                           </button>
                         </div>
@@ -1253,6 +1264,37 @@ const PaymentsSection = ({ showBalance, initialTab }: PaymentsSectionProps) => {
             handleConfirm(true);
           } else if (pending === "schedule") {
             handleSchedule(true);
+          }
+        }}
+      />
+
+      {/* In-app QR scanner. Native BarcodeDetector under the hood; parses
+          BASEUSDP /pay URLs, ethereum: URIs, or plain 0x addresses and
+          prefills the recipient + amount fields. */}
+      <QrScannerModal
+        open={qrOpen}
+        onOpenChange={setQrOpen}
+        onResult={(payload: QrPayload) => {
+          // Always switch to address mode on a QR scan — usernames are
+          // typed, not scanned.
+          if (payload.kind === "baseusdp-pay") {
+            setRecipientType("address");
+            setUsernameInput("");
+            setRecipient(payload.to);
+            if (payload.amount && Number(payload.amount) > 0) {
+              setAmount(payload.amount);
+            }
+          } else if (payload.kind === "ethereum-uri" || payload.kind === "address") {
+            setRecipientType("address");
+            setUsernameInput("");
+            setRecipient(payload.to);
+            // Skip amount for ethereum: URIs — they encode wei, not dollars.
+          } else {
+            // Unknown shape — drop the raw value into the recipient field
+            // so the user can see what was scanned and fix it manually.
+            setRecipientType("address");
+            setUsernameInput("");
+            setRecipient(payload.value);
           }
         }}
       />
