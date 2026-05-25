@@ -25,7 +25,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Icon } from "@iconify/react";
+import { Avatar } from "@coinbase/onchainkit/identity";
+import { base } from "viem/chains";
 import { getApiUrl } from "@/utils/apiConfig";
+
+const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 
 interface Tip {
   id: string;
@@ -249,7 +253,15 @@ const TipCard = ({ tip, accent }: TipCardProps) => {
       }}
     >
       <div className="flex items-center gap-2 mb-1">
-        <span style={{ fontSize: 18 }}>💸</span>
+        {tip.sender_address && ADDRESS_RE.test(tip.sender_address) ? (
+          <Avatar
+            address={tip.sender_address as `0x${string}`}
+            chain={base}
+            className="w-6 h-6 rounded-full shrink-0"
+          />
+        ) : (
+          <span style={{ fontSize: 18 }}>💸</span>
+        )}
         <span className="font-bold text-base">{sender}</span>
         <span className="text-white/70 text-sm">tipped</span>
         <span className="font-bold text-base" style={{ color: accent }}>

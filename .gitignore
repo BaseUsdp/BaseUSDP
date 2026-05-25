@@ -33,6 +33,9 @@ packages/*/build/
 # Veil proving keys — copied at build time from node_modules/@veil-cash/sdk/keys/
 public/veil-keys/
 
+# OnchainKit stylesheet — copied at build time from node_modules/@coinbase/onchainkit/
+public/onchainkit-styles.css
+
 # Solana build artifacts
 packages/void402-solana/target/
 packages/void402-solana/.mint_address.txt

@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { sdk as miniAppSdk } from "@farcaster/miniapp-sdk";
+import { OnchainKitProvider } from "@coinbase/onchainkit";
+import { base } from "viem/chains";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { XMTPProvider } from "@/contexts/XMTPContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -119,21 +121,26 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <TooltipProvider>
-          <WalletProvider>
-            <XMTPProvider>
-              <VeilProvider>
-                <Toaster />
-                <Sonner />
-                <BrowserRouter>
-                  <AppRoutes />
-                </BrowserRouter>
-              </VeilProvider>
-            </XMTPProvider>
-          </WalletProvider>
-        </TooltipProvider>
-      </ThemeProvider>
+      <OnchainKitProvider
+        chain={base}
+        apiKey={import.meta.env.VITE_ONCHAINKIT_API_KEY}
+      >
+        <ThemeProvider>
+          <TooltipProvider>
+            <WalletProvider>
+              <XMTPProvider>
+                <VeilProvider>
+                  <Toaster />
+                  <Sonner />
+                  <BrowserRouter>
+                    <AppRoutes />
+                  </BrowserRouter>
+                </VeilProvider>
+              </XMTPProvider>
+            </WalletProvider>
+          </TooltipProvider>
+        </ThemeProvider>
+      </OnchainKitProvider>
     </QueryClientProvider>
   );
 };
