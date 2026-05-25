@@ -99,13 +99,6 @@ const Overlay = () => {
         memo: "great stream!",
       },
       {
-        sender_username: null,
-        sender_address: "0x0000000000000000000000000000000000000000",
-        amount: 1.5,
-        token: "USDC",
-        memo: null,
-      },
-      {
         sender_username: "vitalik",
         sender_address: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
         amount: 100,
