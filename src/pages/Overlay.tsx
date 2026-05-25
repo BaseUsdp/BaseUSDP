@@ -70,6 +70,7 @@ const Overlay = () => {
 
   const accent = params.get("accent") || "#0052FF";
   const obsMode = params.get("obs") === "true";
+  const demoMode = params.get("demo") === "1";
 
   const handleParam = rawHandle.startsWith("@") ? rawHandle.slice(1) : rawHandle;
 
@@ -81,7 +82,60 @@ const Overlay = () => {
   const [resolvedHandle, setResolvedHandle] = useState<string | null>(null);
   const [missingHandle, setMissingHandle] = useState<boolean>(false);
 
+  // Demo mode: skip the API entirely and inject fake tip cards on a loop so
+  // the avatar rendering can be verified visually without sending real tips.
+  // Triggered by `?demo=1` on the URL.
   useEffect(() => {
+    if (!demoMode) return;
+    setMissingHandle(false);
+    setResolvedHandle("demo");
+
+    const fixtures: Omit<Tip, "id" | "created_at">[] = [
+      {
+        sender_username: "jesse",
+        sender_address: "0x849151d7D0bF1F34b70d5caD5149D28CC2308bf1",
+        amount: 5,
+        token: "USDC",
+        memo: "great stream!",
+      },
+      {
+        sender_username: null,
+        sender_address: "0x0000000000000000000000000000000000000000",
+        amount: 1.5,
+        token: "USDC",
+        memo: null,
+      },
+      {
+        sender_username: "vitalik",
+        sender_address: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+        amount: 100,
+        token: "USDC",
+        memo: "love the work",
+      },
+    ];
+
+    let i = 0;
+    const inject = () => {
+      const base = fixtures[i % fixtures.length];
+      const tip: Tip = {
+        ...base,
+        id: `demo-${Date.now()}-${i}`,
+        created_at: new Date().toISOString(),
+      };
+      i++;
+      setVisibleTips((prev) => [...prev, tip]);
+      window.setTimeout(() => {
+        setVisibleTips((prev) => prev.filter((t) => t.id !== tip.id));
+      }, durationSec * 1000);
+    };
+
+    inject();
+    const interval = window.setInterval(inject, Math.max(2500, durationSec * 1000 - 500));
+    return () => window.clearInterval(interval);
+  }, [demoMode, durationSec]);
+
+  useEffect(() => {
+    if (demoMode) return;
     if (!handleParam) {
       setMissingHandle(true);
       return;
@@ -138,7 +192,7 @@ const Overlay = () => {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [handleParam, minAmount, durationSec]);
+  }, [handleParam, minAmount, durationSec, demoMode]);
 
   if (missingHandle) {
     return (
