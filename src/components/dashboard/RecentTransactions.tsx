@@ -140,7 +140,8 @@ const RecentTransactions = ({ showBalance, limit = 5, onViewAll }: RecentTransac
           {transactions.map((tx, i) => {
             const direction = getDirection(tx);
             const counterparty = getCounterparty(tx);
-            
+            const counterpartyAddress = direction === "sent" ? tx.to : tx.from;
+
             return (
               <motion.div
                 key={tx.signature}
@@ -168,9 +169,9 @@ const RecentTransactions = ({ showBalance, limit = 5, onViewAll }: RecentTransac
                       {tx.type === "deposit" ? "Deposit" :
                        tx.type === "withdraw" ? "Withdrawal" :
                        direction === "sent" ? (
-                         <>Sent to <AddressDisplay value={counterparty} /></>
+                         <>Sent to <AddressDisplay value={counterparty} showAvatar avatarAddress={counterpartyAddress} /></>
                        ) : (
-                         <>Received from <AddressDisplay value={counterparty} /></>
+                         <>Received from <AddressDisplay value={counterparty} showAvatar avatarAddress={counterpartyAddress} /></>
                        )}
                     </p>
                     {tx.type === "payment" && (

@@ -23,6 +23,7 @@ interface Transaction {
   amount: number;
   amountDisplay: string;
   counterparty: string;
+  counterpartyAddress?: string;
   timestamp: string;
   date: Date;
   status: TransactionStatus;
@@ -66,6 +67,7 @@ const convertApiTransaction = (tx: TransactionHistoryResponse["transactions"][0]
     amount,
     amountDisplay: `${amountPrefix}$${Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     counterparty: counterparty || "Unknown",
+    counterpartyAddress: direction === "sent" ? tx.to : tx.from,
     timestamp: new Date(tx.timestamp).toLocaleString(),
     date: new Date(tx.timestamp),
     status: tx.status,
@@ -281,11 +283,11 @@ const TransactionHistoryFull = ({ showBalance }: TransactionHistoryFullProps) =>
                 <div className="flex items-center gap-2">
                   <p className="font-medium truncate">
                     {tx.direction === "sent" ? (
-                      <>Sent to <AddressDisplay value={tx.counterparty} /></>
+                      <>Sent to <AddressDisplay value={tx.counterparty} showAvatar avatarAddress={tx.counterpartyAddress} /></>
                     ) : tx.direction === "deposit" ? (
                       <>Deposit from {tx.counterparty}</>
                     ) : (
-                      <>Received from <AddressDisplay value={tx.counterparty} /></>
+                      <>Received from <AddressDisplay value={tx.counterparty} showAvatar avatarAddress={tx.counterpartyAddress} /></>
                     )}
                   </p>
                   {tx.type === "x402" && (

@@ -9,6 +9,7 @@ import { ArrowLeft, ArrowUpRight, ArrowDownLeft, Clock, Loader2, RefreshCw } fro
 import { useNavigate } from "react-router-dom";
 import { useFarcaster } from "../contexts/FarcasterContext";
 import farcasterApi from "../services/farcasterApi";
+import AddressDisplay from "@/components/AddressDisplay";
 
 interface Transaction {
   signature: string;
@@ -155,7 +156,21 @@ export default function MiniAppHistory() {
                   <div className="flex items-center gap-1 text-xs text-zinc-500">
                     <span>{formatDate(tx.timestamp)}</span>
                     <span>·</span>
-                    <span>{tx.type === "deposit" ? "From your wallet" : tx.counterpartyUsername ? tx.counterparty : truncateHash(tx.signature)}</span>
+                    {tx.type === "deposit" ? (
+                      <span>From your wallet</span>
+                    ) : (
+                      <AddressDisplay
+                        value={
+                          tx.counterpartyUsername && tx.counterparty
+                            ? tx.counterparty
+                            : (isOutgoing ? tx.to : tx.from) ?? null
+                        }
+                        avatarAddress={isOutgoing ? tx.to : tx.from}
+                        showAvatar
+                        avatarClassName="w-4 h-4 rounded-full"
+                        unknownLabel={truncateHash(tx.signature)}
+                      />
+                    )}
                   </div>
                 </div>
 
