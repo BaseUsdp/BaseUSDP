@@ -11,6 +11,10 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import Anthropic from "@anthropic-ai/sdk";
 import { BLOCKCHAIN_TOOLS } from "../lib/ai-tools.js";
 import { executeToolCall } from "../lib/ai-tool-executor.js";
+import {
+  BASE_MCP_ISSUER,
+  readAccessToken,
+} from "../lib/base-mcp-oauth.js";
 
 const SYSTEM_PROMPT = `You are the AI assistant for BASEUSDP — a confidential payment platform on Base (Ethereum L2). You help users manage their wallet, send payments, check balances, and navigate the dashboard.
 
@@ -50,6 +54,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? `\n\nUser context: Wallet ${context.walletAddress || "not connected"}, Balance: ${context.balance || "unknown"}, Chain: ${context.chain || "base"}, Connected: ${context.isConnected ? "yes" : "no"}`
     : "";
 
+  // Resolve the Base MCP access token from cookies. When present (and the
+  // feature flag is on), we ask Claude to call out to mcp.base.org as an
+  // additional tool source — swaps, lending, vault yields, etc. become
+  // available through the chat. When absent, we keep the existing native
+  // tool path exactly as before. Failure to resolve a token is silent —
+  // the chat just falls back to the native-only experience.
+  const mcpEnabled = process.env.ENABLE_BASE_MCP === "true";
+  const baseMcpToken = mcpEnabled ? await readAccessToken(req, res) : null;
+  const mcpServers = baseMcpToken
+    ? [
+        {
+          type: "url" as const,
+          url: BASE_MCP_ISSUER,
+          name: "base-mcp",
+          authorization_token: baseMcpToken,
+        },
+      ]
+    : undefined;
+
   try {
     const client = new Anthropic({ apiKey });
 
@@ -65,13 +88,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const MAX_ITERATIONS = 3;
 
     for (let i = 0; i < MAX_ITERATIONS; i++) {
-      const response = await client.messages.create({
+      const baseParams = {
         model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
         system: SYSTEM_PROMPT,
         tools: BLOCKCHAIN_TOOLS,
         messages,
-      });
+      } as const;
+
+      const response = mcpServers
+        ? await client.beta.messages.create({
+            ...baseParams,
+            mcp_servers: mcpServers,
+            betas: ["mcp-client-2025-04-04"],
+          } as any)
+        : await client.messages.create(baseParams);
 
       // Collect text blocks
       const textBlocks = response.content.filter(
@@ -125,8 +156,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      // Add assistant response and tool results to continue the conversation
-      messages.push({ role: "assistant", content: response.content });
+      // Add assistant response and tool results to continue the conversation.
+      // Cast to `any` because the beta response shape may include MCP-specific
+      // block types (mcp_tool_use / mcp_tool_result) that the non-beta param
+      // types don't know about, but are accepted at runtime.
+      messages.push({ role: "assistant", content: response.content as any });
       messages.push({ role: "user", content: toolResults });
     }
 

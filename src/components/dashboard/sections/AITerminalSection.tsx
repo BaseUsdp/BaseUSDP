@@ -1,11 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Terminal, Send, Loader2, Bot, User, Sparkles } from "lucide-react";
+import { Terminal, Send, Loader2, Bot, User, Sparkles, Link2, Link2Off } from "lucide-react";
+import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
 import { useWallet } from "@/contexts/WalletContext";
 import { getApiUrl } from "@/utils/apiConfig";
 import SendPaymentModal from "../SendPaymentModal";
 import DepositModal from "../DepositModal";
 import X402PaymentModal from "../X402PaymentModal";
+
+const BASE_MCP_ENABLED = import.meta.env.VITE_ENABLE_BASE_MCP === "true";
+type BaseMcpStatus = "loading" | "connected" | "disconnected";
 
 interface TerminalMessage {
   id: string;
@@ -45,6 +50,69 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
   const [x402InitialAmount, setX402InitialAmount] = useState<string | undefined>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const [baseMcpStatus, setBaseMcpStatus] = useState<BaseMcpStatus>(
+    BASE_MCP_ENABLED ? "loading" : "disconnected",
+  );
+  const [baseMcpBusy, setBaseMcpBusy] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const refreshBaseMcpStatus = async () => {
+    if (!BASE_MCP_ENABLED) return;
+    try {
+      const res = await fetch(`${getApiUrl()}/api/auth/base-mcp/status`, {
+        credentials: "same-origin",
+      });
+      const data = await res.json();
+      setBaseMcpStatus(data.connected ? "connected" : "disconnected");
+    } catch {
+      setBaseMcpStatus("disconnected");
+    }
+  };
+
+  useEffect(() => {
+    refreshBaseMcpStatus();
+  }, []);
+
+  // Surface OAuth callback outcomes as toasts and clean up the URL so a
+  // refresh doesn't re-show them.
+  useEffect(() => {
+    const outcome = searchParams.get("base_mcp");
+    if (!outcome) return;
+    if (outcome === "connected") {
+      toast.success("Base Account connected — your AI can now swap, lend, and explore Base.");
+      setBaseMcpStatus("connected");
+    } else if (outcome === "error") {
+      const reason = searchParams.get("reason") || "unknown";
+      toast.error(`Couldn't connect Base Account (${reason}).`);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("base_mcp");
+    next.delete("reason");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const connectBaseMcp = () => {
+    setBaseMcpBusy(true);
+    const returnTo = encodeURIComponent("/dashboard?tab=ai");
+    window.location.href = `${getApiUrl()}/api/auth/base-mcp/start?return_to=${returnTo}`;
+  };
+
+  const disconnectBaseMcp = async () => {
+    setBaseMcpBusy(true);
+    try {
+      await fetch(`${getApiUrl()}/api/auth/base-mcp/disconnect`, {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      setBaseMcpStatus("disconnected");
+      toast.success("Base Account disconnected.");
+    } catch {
+      toast.error("Couldn't disconnect — try again.");
+    } finally {
+      setBaseMcpBusy(false);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -180,9 +248,36 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
               Talk to AI in plain English
             </p>
           </div>
-          <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[10px] font-medium text-emerald-400">Online</span>
+          <div className="ml-auto flex items-center gap-2">
+            {BASE_MCP_ENABLED && (
+              <button
+                onClick={baseMcpStatus === "connected" ? disconnectBaseMcp : connectBaseMcp}
+                disabled={baseMcpBusy || baseMcpStatus === "loading"}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-medium transition-colors ${
+                  baseMcpStatus === "connected"
+                    ? "bg-sky-500/10 border-sky-500/30 text-sky-400 hover:bg-sky-500/20"
+                    : "bg-transparent border-border text-muted-foreground hover:bg-white/5"
+                }`}
+                title={
+                  baseMcpStatus === "connected"
+                    ? "Base Account connected — click to disconnect"
+                    : "Connect your Base Account to unlock swaps, lending, vault yields, and more"
+                }
+              >
+                {baseMcpBusy || baseMcpStatus === "loading" ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : baseMcpStatus === "connected" ? (
+                  <Link2 className="w-3 h-3" />
+                ) : (
+                  <Link2Off className="w-3 h-3" />
+                )}
+                {baseMcpStatus === "connected" ? "Base connected" : "Connect Base"}
+              </button>
+            )}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[10px] font-medium text-emerald-400">Online</span>
+            </div>
           </div>
         </div>
 
