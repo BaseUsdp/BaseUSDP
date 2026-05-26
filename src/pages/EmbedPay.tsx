@@ -13,17 +13,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Icon } from "@iconify/react";
-import {
-  createWalletClient,
-  custom,
-  isAddress,
-  parseUnits,
-  type Address,
-  type Hex,
-} from "viem";
-import { base } from "viem/chains";
+import { isAddress, type Address } from "viem";
 import { Button } from "@/components/ui/button";
 import AddressDisplay from "@/components/AddressDisplay";
+import { sendErc20WithOptionalPaymaster } from "@/lib/paymaster";
 
 type Token = "USDC" | "USDT";
 
@@ -82,6 +75,7 @@ const EmbedPay = () => {
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [sponsored, setSponsored] = useState<boolean>(false);
   const [account, setAccount] = useState<Address | null>(null);
 
   // Discover an EVM provider on the visitor's browser. Don't auto-prompt —
@@ -137,22 +131,21 @@ const EmbedPay = () => {
         }
       }
 
-      // Send the ERC-20 transfer.
+      // Send the ERC-20 transfer. Uses CDP Paymaster (gasless) when the
+      // wallet supports EIP-5792 paymasterService on Base; otherwise falls
+      // back to a standard signed transfer where the user pays gas.
       setStep("sending");
-      const walletClient = createWalletClient({
-        account: addr,
-        chain: base,
-        transport: custom(provider),
-      });
-      const amountWei = parseUnits(amountRaw, TOKEN_DECIMALS[validation.token]);
-
-      const hash: Hex = await walletClient.writeContract({
-        address: TOKEN_ADDRESSES[validation.token],
-        abi: ERC20_TRANSFER_ABI,
-        functionName: "transfer",
-        args: [to as Address, amountWei],
-      });
+      const { txHash: hash, sponsored: wasSponsored } =
+        await sendErc20WithOptionalPaymaster({
+          provider,
+          from: addr,
+          tokenAddress: TOKEN_ADDRESSES[validation.token],
+          recipient: to as Address,
+          amount: amountRaw,
+          decimals: TOKEN_DECIMALS[validation.token],
+        });
       setTxHash(hash);
+      setSponsored(wasSponsored);
       setStep("success");
 
       // Notify the opener page (paywall.js) so it can unlock content.
@@ -227,7 +220,7 @@ const EmbedPay = () => {
           <div className="flex items-center justify-between text-sm mt-2">
             <span className="text-muted-foreground">Recipient</span>
             <span className="font-mono text-xs">
-              <AddressDisplay address={to} />
+              <AddressDisplay value={to} />
             </span>
           </div>
           <div className="flex items-center justify-between text-sm mt-2">
@@ -242,6 +235,12 @@ const EmbedPay = () => {
               <Icon icon="ph:check-circle-bold" className="w-5 h-5" />
               <span className="text-sm font-medium">Payment sent. Returning you to the article…</span>
             </div>
+            {sponsored && (
+              <div className="flex items-center gap-1.5 text-xs text-primary">
+                <Icon icon="ph:sparkle-bold" className="w-3.5 h-3.5" />
+                <span>Gas sponsored by BASEUSDP — you paid $0 in fees</span>
+              </div>
+            )}
             {txHash && (
               <p className="text-xs text-muted-foreground font-mono break-all">
                 tx: {txHash}
