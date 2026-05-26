@@ -16,7 +16,7 @@ import {
   readAccessToken,
 } from "../lib/base-mcp-oauth.js";
 
-const SYSTEM_PROMPT = `You are the AI assistant for BASEUSDP — a confidential payment platform on Base (Ethereum L2). You help users manage their wallet, send payments, check balances, and navigate the dashboard.
+const BASE_SYSTEM_PROMPT = `You are the AI assistant for BASEUSDP — a confidential payment platform on Base (Ethereum L2). You help users manage their wallet, send payments, check balances, and navigate the dashboard.
 
 You have access to tools that let you check balances, look up tokens, view transaction history, and help users with payments.
 
@@ -32,6 +32,20 @@ Rules:
 - CRITICAL: If the user's request is unclear, not related to BASEUSDP, or not something you can do, respond with a helpful message explaining what you CAN do. Do NOT call a tool unless you are certain.
 - CRITICAL: Only call a tool when you are CERTAIN the user wants to perform that specific action. If there is any ambiguity, respond with text only and ask for clarification.
 - Never trigger actions just because a keyword was mentioned. "Tell me about payments" should explain payments, NOT open the payments page.`;
+
+const BASE_MCP_SYSTEM_PROMPT = `${BASE_SYSTEM_PROMPT}
+
+The user has also connected their Base Account, which gives you access to additional tools provided by the Base MCP server (base-mcp). These tools let you read live Base chain data and prepare on-chain actions on their behalf. Use them whenever the user asks about:
+- Live DeFi yields, rates, or vault APYs on Base (Morpho, Moonwell)
+- Swapping or trading tokens on Base (Aerodrome, Uniswap)
+- Lending, borrowing, or depositing into a yield vault
+- Perpetual futures (Avantis)
+- New token launches on Base (Bankr)
+- The user's Base Account balance or transaction history on the live chain (different from their BASEUSDP-internal balance)
+
+When the user asks a question that fits the above, call the appropriate base-mcp tool with real arguments — never refuse with "I don't have real-time data" while a tool is available. Write actions (swaps, deposits, etc.) will surface a Base Account approval modal to the user — you don't need to ask permission first, just prepare the call.
+
+Use BASEUSDP-native tools (check_balance, send_payment, etc.) for in-app balance, payment requests, deposits/withdrawals to the privacy pool, and navigation.`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -72,6 +86,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       ]
     : undefined;
+  const systemPrompt = mcpServers ? BASE_MCP_SYSTEM_PROMPT : BASE_SYSTEM_PROMPT;
+  console.log("[AI Chat] base-mcp attached:", !!mcpServers, "mcpEnabled:", mcpEnabled);
 
   try {
     const client = new Anthropic({ apiKey });
@@ -91,7 +107,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const baseParams = {
         model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
-        system: SYSTEM_PROMPT,
+        system: systemPrompt,
         tools: BLOCKCHAIN_TOOLS,
         messages,
       } as const;
@@ -100,9 +116,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? await client.beta.messages.create({
             ...baseParams,
             mcp_servers: mcpServers,
-            betas: ["mcp-client-2025-04-04"],
+            betas: ["mcp-client-2025-11-20"],
           } as any)
         : await client.messages.create(baseParams);
+
+      if (mcpServers) {
+        const blockTypes = response.content.map((b: any) => b.type).join(",");
+        console.log(
+          "[AI Chat] response blocks:",
+          blockTypes,
+          "stop_reason:",
+          response.stop_reason,
+        );
+      }
 
       // Collect text blocks
       const textBlocks = response.content.filter(
