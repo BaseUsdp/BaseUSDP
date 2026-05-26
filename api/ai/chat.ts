@@ -112,13 +112,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         messages,
       } as const;
 
-      const response = mcpServers
-        ? await client.beta.messages.create({
-            ...baseParams,
-            mcp_servers: mcpServers,
-            betas: ["mcp-client-2025-11-20"],
-          } as any)
-        : await client.messages.create(baseParams);
+      let response: any;
+      try {
+        response = mcpServers
+          ? await client.beta.messages.create({
+              ...baseParams,
+              mcp_servers: mcpServers,
+              betas: ["mcp-client-2025-04-04"],
+            } as any)
+          : await client.messages.create(baseParams);
+      } catch (mcpErr: any) {
+        // If the MCP path fails (auth expired, beta schema mismatch, MCP
+        // server down), fall back to native-only so the user gets *some*
+        // reply rather than a 500. Surface the error to logs for diagnosis.
+        if (mcpServers) {
+          console.warn(
+            "[AI Chat] MCP path failed, falling back to native:",
+            mcpErr?.message || mcpErr,
+            mcpErr?.status,
+          );
+          response = await client.messages.create(baseParams);
+        } else {
+          throw mcpErr;
+        }
+      }
 
       if (mcpServers) {
         const blockTypes = response.content.map((b: any) => b.type).join(",");
