@@ -182,10 +182,17 @@ function isProd(req: VercelRequest): boolean {
 }
 
 function cookieAttrs(req: VercelRequest, opts: { maxAge?: number } = {}): string {
+  // SameSite=None+Secure rather than Lax because the OAuth callback redirect
+  // from mcp.base.org back to baseusdp.com counts as cross-site under stricter
+  // privacy modes (Safari ITP, Firefox total cookie protection). Lax should
+  // work for top-level navigations per the spec, but in practice many
+  // browsers drop the cookie. None+Secure is the explicit "this can travel
+  // across sites" setting — safe here because cookies are HttpOnly and the
+  // state cookie expires in 10 minutes.
   const parts = [
     "Path=/",
     "HttpOnly",
-    "SameSite=Lax",
+    isProd(req) ? "SameSite=None" : "SameSite=Lax",
   ];
   if (isProd(req)) parts.push("Secure");
   if (opts.maxAge !== undefined) parts.push(`Max-Age=${Math.max(0, opts.maxAge)}`);

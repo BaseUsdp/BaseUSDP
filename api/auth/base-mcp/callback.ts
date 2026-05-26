@@ -39,7 +39,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const pending = readPendingTxCookie(req);
-  if (!pending || pending.state !== state) {
+  if (!pending) {
+    console.warn("[base-mcp/callback] no pending tx cookie. cookies:", req.headers.cookie || "(none)");
+    res.setHeader("Location", "/dashboard?base_mcp=error&reason=no_cookie");
+    return res.status(302).end();
+  }
+  if (pending.state !== state) {
+    console.warn("[base-mcp/callback] state mismatch", { expected: pending.state, got: state });
     res.setHeader("Location", "/dashboard?base_mcp=error&reason=state_mismatch");
     return res.status(302).end();
   }
