@@ -51,6 +51,9 @@ const EmbedPay = () => {
   const tokenRaw = (params.get("token") ?? "USDC").toUpperCase();
   const articleId = params.get("article") ?? "";
   const fromOrigin = params.get("from") ?? "";
+  // `?preview=success` jumps straight to the success state for screenshots —
+  // skips wallet connect / signing entirely. Visual only, no real payment.
+  const previewMode = params.get("preview") === "success";
 
   const validation = useMemo(() => {
     const issues: string[] = [];
@@ -72,10 +75,14 @@ const EmbedPay = () => {
     };
   }, [to, amountRaw, tokenRaw, articleId, fromOrigin]);
 
-  const [step, setStep] = useState<Step>("idle");
+  const [step, setStep] = useState<Step>(previewMode ? "success" : "idle");
   const [error, setError] = useState<string | null>(null);
-  const [txHash, setTxHash] = useState<string | null>(null);
-  const [sponsored, setSponsored] = useState<boolean>(false);
+  const [txHash, setTxHash] = useState<string | null>(
+    previewMode
+      ? "0xabc1234567890abcdef1234567890abcdef1234567890abcdef1234567890dead"
+      : null,
+  );
+  const [sponsored, setSponsored] = useState<boolean>(previewMode);
   const [account, setAccount] = useState<Address | null>(null);
 
   // Discover an EVM provider on the visitor's browser. Don't auto-prompt —
