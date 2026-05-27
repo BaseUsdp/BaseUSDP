@@ -84,9 +84,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       displayHandle = `@${profile.username}`;
     }
 
+    // zk_transactions has no `token` column in prod; default to USDC for now.
     const { data: txs, error: txErr } = await supabase
       .from("zk_transactions")
-      .select("id, sender_wallet, amount, token, memo, created_at, transaction_type")
+      .select("id, sender_wallet, amount, memo, created_at, transaction_type")
       .eq("recipient_wallet", wallet)
       .neq("sender_wallet", wallet)
       .order("created_at", { ascending: false })
@@ -136,7 +137,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           typeof t.amount === "string"
             ? Number(t.amount)
             : (t.amount as number | null),
-        token: (t.token as string | null) ?? "USDC",
+        token: "USDC",
         memo: (t.memo as string | null) ?? null,
         created_at: t.created_at as string,
       };
