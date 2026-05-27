@@ -13,6 +13,7 @@ import WebhooksSettings from "./WebhooksSettings";
 import BiometricUnlockSettings from "./BiometricUnlockSettings";
 import NfcTapToPaySettings from "./NfcTapToPaySettings";
 import { getApiUrl } from "@/utils/apiConfig";
+import { authService } from "@/services/authService";
 import {
   ADDRESS_BOOK_MAX,
   addEntry as addContactEntry,
@@ -59,6 +60,83 @@ const SettingsSection = () => {
   const [handleInput, setHandleInput] = useState("");
   const [handleError, setHandleError] = useState<string | null>(null);
   const [handleSaving, setHandleSaving] = useState(false);
+
+  // MCP plugin opt-in. When true, the user's @handle is resolvable and
+  // tippable via the BASEUSDP Base MCP plugin so AI assistants (Claude,
+  // ChatGPT) can address them by handle. Off by default.
+  const [mcpEnabled, setMcpEnabled] = useState(false);
+  const [mcpLoading, setMcpLoading] = useState(true);
+  const [mcpSaving, setMcpSaving] = useState(false);
+
+  const loadMcpEnabled = async () => {
+    const token = authService.getSessionToken();
+    if (!token) {
+      setMcpEnabled(false);
+      setMcpLoading(false);
+      return;
+    }
+    setMcpLoading(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/user/mcp-settings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setMcpEnabled(!!data?.enabled);
+    } catch {
+      setMcpEnabled(false);
+    } finally {
+      setMcpLoading(false);
+    }
+  };
+
+  const toggleMcp = async (next: boolean) => {
+    const token = authService.getSessionToken();
+    if (!token) {
+      toast({
+        title: "Sign in required",
+        description: "Connect your wallet to manage AI access.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setMcpSaving(true);
+    const prev = mcpEnabled;
+    setMcpEnabled(next);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/user/mcp-settings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ enabled: next }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || "Update failed");
+      }
+      toast({
+        title: next ? "AI access enabled" : "AI access disabled",
+        description: next
+          ? "AI assistants can now resolve and tip your @handle via Base MCP."
+          : "Your @handle is no longer exposed to AI assistants.",
+      });
+    } catch (err: any) {
+      setMcpEnabled(prev);
+      toast({
+        title: "Couldn't update",
+        description: err?.message || "Try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setMcpSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMcpEnabled();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullWalletAddress]);
 
   // Look up the current wallet's profile so we can surface their tip URL.
   // Only show the URL when the user has set a *custom* username — auto-
@@ -481,6 +559,47 @@ const SettingsSection = () => {
         )}
       </motion.div>
 
+
+      {/* AI assistant access — Base MCP opt-in */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.36 }}
+        className="rounded-2xl border border-border bg-card p-6"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
+            <Icon icon="ph:robot-bold" className="w-5 h-5 text-violet-500" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-display text-lg font-bold">AI assistant access</h3>
+            <p className="text-xs text-muted-foreground">
+              Let AI assistants (Claude, ChatGPT) resolve your @handle and tip you via the Base MCP plugin
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30">
+          <div className="flex-1 min-w-0 pr-4">
+            <p className="font-medium">
+              Allow AI assistants to find me by @handle
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Exposes your @handle → wallet mapping at <span className="font-mono">baseusdp.com/api/mcp/*</span>.
+              Off by default. Toggle off any time.
+            </p>
+          </div>
+          {mcpLoading ? (
+            <Icon icon="ph:circle-notch-bold" className="h-4 w-4 animate-spin text-muted-foreground" />
+          ) : (
+            <Switch
+              checked={mcpEnabled}
+              disabled={mcpSaving}
+              onCheckedChange={toggleMcp}
+            />
+          )}
+        </div>
+      </motion.div>
 
       {/* Send safeguard (#19) — extra confirm step for large sends */}
       <motion.div

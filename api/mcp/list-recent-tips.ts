@@ -68,14 +68,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let wallet: string;
     let displayHandle: string | null = null;
     if (ADDRESS_RE.test(cleanHandle)) {
+      // Raw addresses are accepted without the opt-in gate because the
+      // caller already has the address; we're not revealing new linkage.
       wallet = cleanHandle.toLowerCase();
     } else {
       const { data: profile, error } = await supabase
         .from("user_profiles")
-        .select("wallet_address, username")
+        .select("wallet_address, username, mcp_enabled")
         .ilike("username", cleanHandle)
         .maybeSingle();
-      if (error || !profile?.wallet_address) {
+      if (error || !profile?.wallet_address || !profile.mcp_enabled) {
         return res
           .status(404)
           .json({ success: false, error: "Handle not found" });

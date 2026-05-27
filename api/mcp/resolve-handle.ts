@@ -51,11 +51,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const { data: profile, error } = await supabase
       .from("user_profiles")
-      .select("wallet_address, username, profile_picture")
+      .select("wallet_address, username, profile_picture, mcp_enabled")
       .ilike("username", cleanHandle)
       .single();
 
     if (error || !profile) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Handle not found" });
+    }
+
+    if (!profile.mcp_enabled) {
+      // Privacy: opaque "not found" rather than confirming the handle exists
+      // so we don't leak the universe of registered usernames either.
       return res
         .status(404)
         .json({ success: false, error: "Handle not found" });

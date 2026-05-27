@@ -69,10 +69,11 @@ async function resolveRecipient(
   const supabase = createClient(supabaseUrl, supabaseKey);
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("wallet_address, username")
+    .select("wallet_address, username, mcp_enabled")
     .ilike("username", handle)
     .single();
   if (error || !data) throw new Error(`Handle @${handle} not found`);
+  if (!data.mcp_enabled) throw new Error(`Handle @${handle} not found`);
   return { address: data.wallet_address as Address, handle: `@${data.username}` };
 }
 
