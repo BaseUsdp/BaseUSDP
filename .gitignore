@@ -74,6 +74,8 @@ tools/
 # Internal docs — keep public repo doc-free except README
 *.md
 !README.md
+# Base MCP plugin spec is published publicly so AI clients can fetch it.
+!public/baseusdp-plugin.md
 
 # Any file naming Nolvi, ORB, or internal package names stays internal
 *[Nn]olvi*
