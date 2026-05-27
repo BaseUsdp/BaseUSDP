@@ -84,10 +84,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       displayHandle = `@${profile.username}`;
     }
 
-    // zk_transactions has no `token` column in prod; default to USDC for now.
+    // zk_transactions schema has token_symbol (not token) and no memo column.
+    // SELECT * keeps this resilient to future column additions.
     const { data: txs, error: txErr } = await supabase
       .from("zk_transactions")
-      .select("id, sender_wallet, amount, memo, created_at, transaction_type")
+      .select("*")
       .eq("recipient_wallet", wallet)
       .neq("sender_wallet", wallet)
       .order("created_at", { ascending: false })
@@ -137,8 +138,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           typeof t.amount === "string"
             ? Number(t.amount)
             : (t.amount as number | null),
-        token: "USDC",
-        memo: (t.memo as string | null) ?? null,
+        token: (t.token_symbol as string | null) ?? "USDC",
+        memo: (t.memo as string | null) ?? (t.description as string | null) ?? null,
         created_at: t.created_at as string,
       };
     });
