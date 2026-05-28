@@ -144,7 +144,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") {
     // Streamable HTTP GET (server-initiated SSE) is not supported — stateless.
-    return res.status(405).json(rpcError(null, -32601, "Only POST is supported"));
+    // Return a human-readable hint (still 405, so MCP clients fall back to
+    // POST correctly) for anyone who opens this URL in a browser.
+    return res.status(405).json({
+      name: "BASEUSDP MCP server",
+      message:
+        "This is a Model Context Protocol (MCP) endpoint. Connect it from an MCP client (Claude, Cursor, etc.) — it speaks JSON-RPC over POST. Opening it in a browser does nothing useful.",
+      transport: "streamable-http",
+      tools: [
+        "resolve_handle",
+        "send_tip",
+        "create_payment_request",
+        "list_recent_tips",
+      ],
+      docs: "https://baseusdp.com/baseusdp-plugin.md",
+    });
   }
 
   const host = req.headers.host || "baseusdp.com";
