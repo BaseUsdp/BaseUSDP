@@ -6,6 +6,7 @@ import { base } from "viem/chains";
 import { wrapFetchWithPayment } from "x402-fetch";
 import { useWallet, getEvmProviderForType } from "@/contexts/WalletContext";
 import { getApiUrl } from "@/utils/apiConfig";
+import { authService } from "@/services/authService";
 
 interface TopTipper {
   handle: string | null;
@@ -79,9 +80,16 @@ const CreatorAnalyticsSection = () => {
       });
       // wrapFetchWithPayment signs the x402 payment (default cap 0.10 USDC;
       // this endpoint charges 0.01) and retries with the X-PAYMENT header.
+      // The bearer token lets the server grant free access when you're
+      // viewing your *own* analytics — in that case it returns 200 directly
+      // and no payment / wallet prompt happens.
       const fetchWithPay = wrapFetchWithPayment(fetch, walletClient as any);
       const url = `${getApiUrl()}/api/x402/creator-stats?handle=${encodeURIComponent(handle)}`;
-      const res = await fetchWithPay(url);
+      const token = authService.getSessionToken();
+      const res = await fetchWithPay(
+        url,
+        token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+      );
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error || `Request failed (${res.status})`);

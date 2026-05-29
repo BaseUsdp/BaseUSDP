@@ -26,6 +26,7 @@ import { facilitator } from "@coinbase/x402";
 import { processPriceToAtomicAmount } from "x402/shared";
 import { exact } from "x402/schemes";
 import { settleResponseHeader } from "x402/types";
+import { extractBearerToken } from "../lib/bearer-auth.js";
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey =
@@ -61,20 +62,45 @@ function buildRequirements(resource: string): any {
   };
 }
 
-async function computeStats(handle: string) {
+async function resolveProfile(
+  handle: string,
+): Promise<{ wallet: string; username: string } | null> {
   if (!supabaseUrl || !supabaseKey) throw new Error("Database not configured");
   const supabase = createClient(supabaseUrl, supabaseKey);
-
   const clean = handle.trim().replace(/^@/, "");
   const { data: profile, error } = await supabase
     .from("user_profiles")
     .select("wallet_address, username, mcp_enabled")
     .ilike("username", clean)
     .maybeSingle();
-  if (error || !profile?.wallet_address || !profile.mcp_enabled) {
-    return null; // gated / not found
-  }
-  const wallet = (profile.wallet_address as string).toLowerCase();
+  if (error || !profile?.wallet_address || !profile.mcp_enabled) return null;
+  return {
+    wallet: (profile.wallet_address as string).toLowerCase(),
+    username: profile.username as string,
+  };
+}
+
+/**
+ * Returns the session wallet for a bearer token, or null. Used to grant the
+ * authenticated creator free access to their own analytics.
+ */
+async function walletForToken(token: string | null): Promise<string | null> {
+  if (!token || !supabaseUrl || !supabaseKey) return null;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const { data: session } = await supabase
+    .from("auth_sessions")
+    .select("user_wallet")
+    .eq("session_token", token)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+  return session?.user_wallet
+    ? (session.user_wallet as string).toLowerCase()
+    : null;
+}
+
+async function computeStats(wallet: string, username: string) {
+  if (!supabaseUrl || !supabaseKey) throw new Error("Database not configured");
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
   const { data: txs } = await supabase
     .from("zk_transactions")
@@ -135,7 +161,7 @@ async function computeStats(handle: string) {
     }));
 
   return {
-    handle: `@${profile.username}`,
+    handle: `@${username}`,
     total_received: Number(total.toFixed(2)),
     tip_count: incoming.length,
     unique_tippers: senderWallets.length,
@@ -161,6 +187,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const handle = (req.query.handle as string | undefined)?.trim();
   if (!handle) {
     return res.status(400).json({ error: "handle query parameter is required" });
+  }
+
+  // Resolve the creator first. 404 immediately if not found / not opted in,
+  // so nobody pays for a nonexistent creator.
+  let profile;
+  try {
+    profile = await resolveProfile(handle);
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Lookup failed" });
+  }
+  if (!profile) {
+    return res
+      .status(404)
+      .json({ error: "Creator not found or has not enabled AI access" });
+  }
+
+  // Free access for the authenticated creator viewing their own analytics.
+  // (Also sidesteps the facilitator's self_send_not_allowed when payer ==
+  // payout wallet.)
+  const requesterWallet = await walletForToken(extractBearerToken(req));
+  if (requesterWallet && requesterWallet === profile.wallet) {
+    const stats = await computeStats(profile.wallet, profile.username);
+    return res.status(200).json({ success: true, stats, free: true });
   }
 
   const host = req.headers.host || "baseusdp.com";
@@ -211,14 +260,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Payment is valid — produce the resource.
-    const stats = await computeStats(handle);
-    if (!stats) {
-      // Creator not found / not opted in. Don't settle — nothing to sell.
-      return res.status(404).json({
-        error: "Creator not found or has not enabled AI access",
-      });
-    }
+    // Payment is valid — produce the resource (creator already resolved above).
+    const stats = await computeStats(profile.wallet, profile.username);
 
     // Settle on-chain, then return the data + settlement header.
     const settlement = await settle(decoded as any, requirements as any);
