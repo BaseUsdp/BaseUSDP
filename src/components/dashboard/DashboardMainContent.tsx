@@ -22,6 +22,7 @@ import AgentsSection from "./sections/AgentsSection";
 import SwapSection from "./sections/SwapSection";
 import VeilSection from "./sections/VeilSection";
 import SmsSection from "./sections/SmsSection";
+import CreatorAnalyticsSection from "./sections/CreatorAnalyticsSection";
 import { isSmsWhitelisted, isVeilWhitelisted, isSwapWhitelisted } from "@/lib/featureGates";
 import { getTransactionHistory, TransactionHistoryResponse, getZKBalance } from "@/services/api";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
@@ -324,6 +325,10 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
         <MessagesSection />
       </div>
     );
+  }
+
+  if (activeTab === "analytics") {
+    return <CreatorAnalyticsSection />;
   }
 
   // Overview Tab

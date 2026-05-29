@@ -154,7 +154,9 @@ const getMathWalletProvider = (): MetaMaskEVMProvider | null => {
 
 // Single dispatch used by listeners, polling, switchNetwork, and the auth
 // adapter — keeps the WalletType → provider mapping in one place.
-const getEvmProviderForType = (
+// Exported so features that need a raw EIP-1193 provider for signing
+// (e.g. the x402 analytics widget) can reuse the same mapping.
+export const getEvmProviderForType = (
   type: WalletType
 ): MetaMaskEVMProvider | null => {
   switch (type) {
