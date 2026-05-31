@@ -19,6 +19,8 @@ import {
 } from "@/services/transactionSigningService";
 import { executeZKTransfer, getZKBalance } from "@/services/api";
 import { getApiUrl } from "@/utils/apiConfig";
+import { getPasskeyStepUpThreshold } from "@/lib/passkeyStepUp";
+import { authenticateWithBiometric, listDevices } from "@/services/webauthn";
 
 const MAX_AMOUNT = 999999.99;
 
@@ -303,6 +305,42 @@ const SendPaymentModal = ({ open, onOpenChange, initialRecipient, initialAmount,
       setError("Wallet not connected. Please connect your wallet first.");
       setStep("failed");
       return;
+    }
+
+    // Passkey step-up for large sends. When the configured threshold is
+    // non-zero, the amount meets/exceeds it, and the user has a passkey
+    // registered, prompt a fresh biometric assertion before signing the
+    // transfer. Skips silently if no passkey is registered so existing
+    // users aren't blocked.
+    const stepUpThreshold = getPasskeyStepUpThreshold();
+    const amountNum = parseFloat(amount);
+    if (
+      stepUpThreshold > 0 &&
+      Number.isFinite(amountNum) &&
+      amountNum >= stepUpThreshold
+    ) {
+      try {
+        const devices = await listDevices(fullWalletAddress);
+        if (devices.success && (devices.devices?.length ?? 0) > 0) {
+          const stepUp = await authenticateWithBiometric(fullWalletAddress);
+          if (!stepUp.success) {
+            setError(
+              stepUp.error === "Cancelled or denied"
+                ? "Biometric step-up cancelled. Send not submitted."
+                : `Biometric step-up failed: ${stepUp.error ?? "unknown"}`,
+            );
+            setStep("failed");
+            return;
+          }
+        }
+        // No passkey registered → skip the gate silently.
+      } catch (stepUpErr: any) {
+        setError(
+          `Couldn't run passkey step-up: ${stepUpErr?.message ?? "unknown"}`,
+        );
+        setStep("failed");
+        return;
+      }
     }
 
     try {

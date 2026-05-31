@@ -26,6 +26,12 @@ import {
   getSendThreshold,
   setSendThreshold as persistSendThreshold,
 } from "@/lib/sendThreshold";
+import {
+  DEFAULT_PASSKEY_STEPUP_THRESHOLD,
+  getPasskeyStepUpThreshold,
+  setPasskeyStepUpThreshold as persistPasskeyStepUpThreshold,
+} from "@/lib/passkeyStepUp";
+import { listDevices as listPasskeyDevices } from "@/services/webauthn";
 
 const SETTINGS_STORAGE_KEY = "void402_settings";
 
@@ -185,6 +191,62 @@ const SettingsSection = () => {
   useEffect(() => {
     setSendThresholdInput(String(getSendThreshold()));
   }, []);
+
+  // Passkey step-up threshold — localStorage backed. Triggers biometric
+  // assertion before signing a send when amount >= threshold and a passkey
+  // is registered. 0 = disabled.
+  const [passkeyStepUpInput, setPasskeyStepUpInput] = useState<string>("");
+  const [hasPasskey, setHasPasskey] = useState<boolean>(false);
+  useEffect(() => {
+    setPasskeyStepUpInput(String(getPasskeyStepUpThreshold()));
+  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!fullWalletAddress) return;
+      try {
+        const r = await listPasskeyDevices(fullWalletAddress);
+        if (!cancelled) setHasPasskey(r.success && (r.devices?.length ?? 0) > 0);
+      } catch {
+        if (!cancelled) setHasPasskey(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [fullWalletAddress]);
+
+  const savePasskeyStepUp = () => {
+    const trimmed = passkeyStepUpInput.trim();
+    if (trimmed === "") {
+      persistPasskeyStepUpThreshold(DEFAULT_PASSKEY_STEPUP_THRESHOLD);
+      setPasskeyStepUpInput(String(DEFAULT_PASSKEY_STEPUP_THRESHOLD));
+      toast({
+        title: "Reset to default",
+        description: "Passkey step-up disabled.",
+      });
+      return;
+    }
+    const parsed = parseFloat(trimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      toast({
+        title: "Invalid value",
+        description: "Enter a non-negative number, or 0 to disable.",
+        variant: "destructive",
+      });
+      setPasskeyStepUpInput(String(getPasskeyStepUpThreshold()));
+      return;
+    }
+    persistPasskeyStepUpThreshold(parsed);
+    toast({
+      title: "Saved",
+      description:
+        parsed === 0
+          ? "Passkey step-up disabled."
+          : `Biometric will be required for sends of $${parsed.toFixed(2)} or more.`,
+    });
+  };
 
   const saveSendThreshold = () => {
     const trimmed = sendThresholdInput.trim();
@@ -645,6 +707,58 @@ const SettingsSection = () => {
             Save
           </Button>
         </div>
+      </motion.div>
+
+      {/* Passkey step-up — biometric required for large sends */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.36 }}
+        className="rounded-2xl border border-border bg-card p-6"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+            <Icon icon="ph:fingerprint-bold" className="w-5 h-5 text-indigo-500" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-display text-lg font-bold">Passkey step-up</h3>
+            <p className="text-xs text-muted-foreground">
+              Require a fresh biometric (Touch ID / Face ID / hardware key) before signing sends of this amount or more. Set to 0 to disable.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="0.01"
+              value={passkeyStepUpInput}
+              onChange={(e) => setPasskeyStepUpInput(e.target.value)}
+              onBlur={savePasskeyStepUp}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              placeholder="0"
+              className="w-full rounded-lg border border-border bg-secondary pl-7 pr-3 py-2 text-sm focus:border-primary/50 focus:outline-none"
+            />
+          </div>
+          <Button variant="outline" onClick={savePasskeyStepUp} className="sm:w-auto">
+            Save
+          </Button>
+        </div>
+
+        {!hasPasskey && (
+          <p className="mt-3 text-xs text-amber-500">
+            No passkey registered yet — step-up won't trigger until you register one in the Biometric Unlock section below.
+          </p>
+        )}
       </motion.div>
 
       {/* Saved contacts (address book) */}
