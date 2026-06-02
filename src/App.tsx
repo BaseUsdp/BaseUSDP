@@ -27,6 +27,7 @@ import Docs from "./pages/Docs";
 import Whitepaper from "./pages/Whitepaper";
 import MiniApp from "./miniapp/MiniApp";
 import SmsClaim from "./pages/SmsClaim";
+import ProfilePage from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import {
   Shield,
@@ -40,7 +41,7 @@ import {
 
 const queryClient = new QueryClient();
 
-const NO_NAV_ROUTES = ["/dashboard", "/miniapp", "/claim", "/pay", "/tip", "/embed", "/overlay"];
+const NO_NAV_ROUTES = ["/dashboard", "/miniapp", "/claim", "/pay", "/tip", "/embed", "/overlay", "/@"];
 
 const scrollTo = (id: string) => {
   const el = document.getElementById(id);
@@ -106,6 +107,7 @@ function AppRoutes() {
         <Route path="/whitepaper" element={<Whitepaper />} />
         <Route path="/miniapp/*" element={<MiniApp />} />
         <Route path="/claim/:token" element={<SmsClaim />} />
+        <Route path="/@:handle" element={<ProfilePage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>

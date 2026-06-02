@@ -349,15 +349,25 @@ const SettingsSection = () => {
     }
   };
 
-  const tipUrl = myHandle
-    ? `${typeof window !== "undefined" ? window.location.origin : "https://baseusdp.com"}/tip/@${myHandle}`
-    : null;
+  const origin =
+    typeof window !== "undefined" ? window.location.origin : "https://baseusdp.com";
+  const tipUrl = myHandle ? `${origin}/tip/@${myHandle}` : null;
+  const profileUrl = myHandle ? `${origin}/@${myHandle}` : null;
 
   const copyTipUrl = async () => {
     if (!tipUrl) return;
     try {
       await navigator.clipboard.writeText(tipUrl);
       toast({ title: "Tip URL copied", description: "Drop it in your bio." });
+    } catch {
+      toast({ title: "Couldn't copy", description: "Clipboard unavailable." });
+    }
+  };
+  const copyProfileUrl = async () => {
+    if (!profileUrl) return;
+    try {
+      await navigator.clipboard.writeText(profileUrl);
+      toast({ title: "Profile URL copied", description: "Share your public BASEUSDP page." });
     } catch {
       toast({ title: "Couldn't copy", description: "Clipboard unavailable." });
     }
@@ -558,26 +568,58 @@ const SettingsSection = () => {
             <Icon icon="ph:circle-notch-bold" className="h-4 w-4 animate-spin" />
             Loading profile…
           </div>
-        ) : myHandle && tipUrl ? (
-          <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/30 p-3">
-            <code className="flex-1 truncate text-sm font-mono">{tipUrl}</code>
-            <button
-              type="button"
-              onClick={copyTipUrl}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-secondary/50"
-            >
-              <Icon icon="ph:copy-bold" className="h-3.5 w-3.5" />
-              Copy
-            </button>
-            <a
-              href={tipUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-secondary/50"
-            >
-              <Icon icon="ph:arrow-square-out-bold" className="h-3.5 w-3.5" />
-              Open
-            </a>
+        ) : myHandle && tipUrl && profileUrl ? (
+          <div className="space-y-3">
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                Public profile
+              </p>
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/30 p-3">
+                <code className="flex-1 truncate text-sm font-mono">{profileUrl}</code>
+                <button
+                  type="button"
+                  onClick={copyProfileUrl}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-secondary/50"
+                >
+                  <Icon icon="ph:copy-bold" className="h-3.5 w-3.5" />
+                  Copy
+                </button>
+                <a
+                  href={profileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-secondary/50"
+                >
+                  <Icon icon="ph:arrow-square-out-bold" className="h-3.5 w-3.5" />
+                  Open
+                </a>
+              </div>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                Tip form
+              </p>
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/30 p-3">
+                <code className="flex-1 truncate text-sm font-mono">{tipUrl}</code>
+                <button
+                  type="button"
+                  onClick={copyTipUrl}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-secondary/50"
+                >
+                  <Icon icon="ph:copy-bold" className="h-3.5 w-3.5" />
+                  Copy
+                </button>
+                <a
+                  href={tipUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-secondary/50"
+                >
+                  <Icon icon="ph:arrow-square-out-bold" className="h-3.5 w-3.5" />
+                  Open
+                </a>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
