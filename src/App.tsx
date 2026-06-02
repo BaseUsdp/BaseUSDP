@@ -107,7 +107,10 @@ function AppRoutes() {
         <Route path="/whitepaper" element={<Whitepaper />} />
         <Route path="/miniapp/*" element={<MiniApp />} />
         <Route path="/claim/:token" element={<SmsClaim />} />
-        <Route path="/@:handle" element={<ProfilePage />} />
+        {/* React Router v6 doesn't accept `:handle` immediately after a
+            literal `@` in the same segment, so we splat and parse the
+            handle from the catchall param inside ProfilePage. */}
+        <Route path="/@*" element={<ProfilePage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>

@@ -38,7 +38,11 @@ interface Profile {
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 
 const ProfilePage = () => {
-  const { handle: rawHandle = "" } = useParams<{ handle: string }>();
+  // The route is mounted at /@* (splat) because React Router v6 won't
+  // accept :handle right after a literal @ in the same segment. The
+  // splat param holds whatever came after /@.
+  const params = useParams<{ "*"?: string; handle?: string }>();
+  const rawHandle = (params["*"] ?? params.handle ?? "").trim();
   const handle = rawHandle.startsWith("@") ? rawHandle.slice(1) : rawHandle;
 
   const [profile, setProfile] = useState<Profile | null>(null);
