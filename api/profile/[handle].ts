@@ -61,10 +61,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { data: profile, error } = await supabase
       .from("user_profiles")
-      .select("wallet_address, username, profile_picture, has_custom_username")
+      .select("wallet_address, username, profile_picture")
       .ilike("username", clean)
       .maybeSingle();
-    if (error || !profile?.wallet_address || !profile.has_custom_username) {
+    if (error || !profile?.wallet_address) {
       return res
         .status(404)
         .json({ success: false, error: "Profile not found" });
