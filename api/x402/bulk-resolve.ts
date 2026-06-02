@@ -21,6 +21,7 @@ import { facilitator } from "@coinbase/x402";
 import { processPriceToAtomicAmount } from "x402/shared";
 import { exact } from "x402/schemes";
 import { settleResponseHeader } from "x402/types";
+import { extractBearerToken } from "../lib/bearer-auth.js";
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey =
@@ -58,6 +59,26 @@ interface ResolveResult {
   handle: string;
   address?: string;
   error?: "not_found";
+}
+
+/**
+ * Returns the session wallet for a bearer token, or null. Used to grant
+ * the platform owner (whose wallet is PAY_TO) free access — sidesteps the
+ * facilitator's self_send_not_allowed so the owner can test the endpoint
+ * from the same wallet that receives payouts.
+ */
+async function walletForToken(token: string | null): Promise<string | null> {
+  if (!token || !supabaseUrl || !supabaseKey) return null;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const { data: session } = await supabase
+    .from("auth_sessions")
+    .select("user_wallet")
+    .eq("session_token", token)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+  return session?.user_wallet
+    ? (session.user_wallet as string).toLowerCase()
+    : null;
 }
 
 async function resolveMany(handles: string[]): Promise<ResolveResult[]> {
@@ -137,6 +158,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res
       .status(400)
       .json({ error: "handles must be an array of strings" });
+  }
+
+  // Free path: the platform owner (whose wallet is PAY_TO) can hit the
+  // endpoint authenticated and skip x402 entirely. Lets us test from the
+  // dashboard without the facilitator rejecting a payer==payee.
+  const requesterWallet = await walletForToken(extractBearerToken(req));
+  if (requesterWallet && requesterWallet === PAY_TO.toLowerCase()) {
+    const results = await resolveMany(handles);
+    return res
+      .status(200)
+      .json({ success: true, free: true, requested: handles.length, results });
   }
 
   const host = req.headers.host || "baseusdp.com";

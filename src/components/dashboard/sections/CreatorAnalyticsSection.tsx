@@ -33,6 +33,16 @@ const CreatorAnalyticsSection = () => {
   const [stats, setStats] = useState<Stats | null>(null);
   const [paidTx, setPaidTx] = useState<string | null>(null);
 
+  // Bulk-resolve state.
+  const [bulkInput, setBulkInput] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [bulkResults, setBulkResults] = useState<
+    { handle: string; address?: string; error?: string }[] | null
+  >(null);
+  const [bulkPaidTx, setBulkPaidTx] = useState<string | null>(null);
+  const [bulkFree, setBulkFree] = useState(false);
+
   // Pre-fill with the logged-in user's own handle for convenience.
   useEffect(() => {
     const loadOwnHandle = async () => {
@@ -119,6 +129,80 @@ const CreatorAnalyticsSection = () => {
 
   const fmtDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—";
+
+  const unlockBulk = async () => {
+    // Split on commas, spaces, newlines; drop empties and strip leading @
+    const handles = bulkInput
+      .split(/[\s,]+/)
+      .map((h) => h.trim().replace(/^@/, ""))
+      .filter((h) => h.length > 0);
+    if (handles.length === 0) {
+      setBulkError("Enter one or more handles, separated by commas or newlines.");
+      return;
+    }
+    if (handles.length > 50) {
+      setBulkError("Max 50 handles per call.");
+      return;
+    }
+    if (!isConnected || !fullWalletAddress) {
+      setBulkError("Connect your wallet first.");
+      return;
+    }
+    const provider = getEvmProviderForType(walletType);
+    if (!provider) {
+      setBulkError("No EVM wallet provider available.");
+      return;
+    }
+
+    setBulkError(null);
+    setBulkResults(null);
+    setBulkPaidTx(null);
+    setBulkFree(false);
+    setBulkLoading(true);
+    try {
+      const walletClient = createWalletClient({
+        account: fullWalletAddress as `0x${string}`,
+        chain: base,
+        transport: custom(provider as any),
+      });
+      const fetchWithPay = wrapFetchWithPayment(fetch, walletClient as any);
+      const token = authService.getSessionToken();
+      const url = `${getApiUrl()}/api/x402/bulk-resolve`;
+      const res = await fetchWithPay(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ handles }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || `Request failed (${res.status})`);
+      }
+      const data = await res.json();
+      setBulkResults(data.results ?? []);
+      setBulkFree(!!data.free);
+      const payHeader = res.headers.get("X-PAYMENT-RESPONSE");
+      if (payHeader) {
+        try {
+          const decoded = JSON.parse(atob(payHeader));
+          if (decoded?.transaction) setBulkPaidTx(decoded.transaction);
+        } catch {
+          /* opaque header — fine */
+        }
+      }
+    } catch (err: any) {
+      const msg = err?.message || "Payment or lookup failed.";
+      setBulkError(
+        /rejected|denied|user/i.test(msg)
+          ? "Payment cancelled in wallet."
+          : msg,
+      );
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -240,6 +324,99 @@ const CreatorAnalyticsSection = () => {
           </div>
         </motion.div>
       )}
+
+      {/* Bulk handle resolution — second x402 endpoint */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="rounded-2xl border border-border bg-card p-6"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-sky-500/20 flex items-center justify-center">
+            <Icon icon="ph:list-magnifying-glass-bold" className="w-5 h-5 text-sky-500" />
+          </div>
+          <div className="flex-1">
+            <h2 className="font-display text-lg font-bold">Bulk handle resolution</h2>
+            <p className="text-xs text-muted-foreground">
+              Paste up to 50 @handles (commas or newlines) and get back wallet addresses. $0.05 USDC per call via x402.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <textarea
+            placeholder="@jesse, @vitalik, @alice ..."
+            value={bulkInput}
+            onChange={(e) => setBulkInput(e.target.value)}
+            rows={3}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/50"
+          />
+          <button
+            type="button"
+            onClick={unlockBulk}
+            disabled={bulkLoading || !bulkInput.trim()}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {bulkLoading ? (
+              <>
+                <Icon icon="ph:circle-notch-bold" className="h-4 w-4 animate-spin" />
+                Resolving…
+              </>
+            ) : (
+              <>
+                <Icon icon="ph:lock-key-open-bold" className="h-4 w-4" />
+                Resolve — $0.05
+              </>
+            )}
+          </button>
+        </div>
+
+        {bulkError && <p className="mt-3 text-xs text-red-500">{bulkError}</p>}
+
+        {bulkResults && (
+          <div className="mt-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted-foreground">
+                {bulkResults.length} result{bulkResults.length === 1 ? "" : "s"}
+              </p>
+              {bulkFree ? (
+                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-500">
+                  <Icon icon="ph:check-circle-bold" className="h-3.5 w-3.5" />
+                  Free (owner)
+                </span>
+              ) : bulkPaidTx ? (
+                <a
+                  href={`https://basescan.org/tx/${bulkPaidTx}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] text-emerald-500 hover:underline"
+                >
+                  <Icon icon="ph:check-circle-bold" className="h-3.5 w-3.5" />
+                  Paid $0.05
+                </a>
+              ) : null}
+            </div>
+            <div className="space-y-1.5">
+              {bulkResults.map((r) => (
+                <div
+                  key={r.handle + (r.address ?? r.error ?? "")}
+                  className="flex items-center justify-between rounded-lg bg-secondary/20 px-3 py-2 text-sm"
+                >
+                  <span className="font-medium">{r.handle}</span>
+                  {r.address ? (
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {r.address.slice(0, 6)}…{r.address.slice(-4)}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-red-400">not found</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 };
