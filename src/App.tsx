@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { sdk as miniAppSdk } from "@farcaster/miniapp-sdk";
 import { OnchainKitProvider } from "@coinbase/onchainkit";
 import { base } from "viem/chains";
@@ -88,6 +88,17 @@ function AppNav() {
   );
 }
 
+function RootCatchAll() {
+  const location = useLocation();
+  if (location.pathname.startsWith("/@") && location.pathname.length > 2) {
+    return <ProfilePage />;
+  }
+  return <NotFound />;
+}
+
+// silence "Navigate imported but unused" — kept for potential future use
+void Navigate;
+
 function AppRoutes() {
   return (
     <>
@@ -107,11 +118,10 @@ function AppRoutes() {
         <Route path="/whitepaper" element={<Whitepaper />} />
         <Route path="/miniapp/*" element={<MiniApp />} />
         <Route path="/claim/:token" element={<SmsClaim />} />
-        {/* React Router v6 doesn't accept `:handle` immediately after a
-            literal `@` in the same segment, so we splat and parse the
-            handle from the catchall param inside ProfilePage. */}
-        <Route path="/@*" element={<ProfilePage />} />
-        <Route path="*" element={<NotFound />} />
+        {/* React Router v6 won't reliably match `@` as a literal segment
+            prefix (`/@:handle` and `/@*` both fall through to NotFound).
+            We handle /@<handle> manually inside RootCatchAll below. */}
+        <Route path="*" element={<RootCatchAll />} />
       </Routes>
     </>
   );

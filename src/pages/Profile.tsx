@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Icon } from "@iconify/react";
 import { Avatar } from "@coinbase/onchainkit/identity";
@@ -38,11 +38,12 @@ interface Profile {
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 
 const ProfilePage = () => {
-  // The route is mounted at /@* (splat) because React Router v6 won't
-  // accept :handle right after a literal @ in the same segment. The
-  // splat param holds whatever came after /@.
-  const params = useParams<{ "*"?: string; handle?: string }>();
-  const rawHandle = (params["*"] ?? params.handle ?? "").trim();
+  // The route is handled via the root catchall (RootCatchAll in App.tsx)
+  // because React Router v6 won't match `@` as a literal segment prefix.
+  // Parse the handle directly out of the pathname.
+  const { pathname } = useLocation();
+  const after = pathname.startsWith("/@") ? pathname.slice(2) : "";
+  const rawHandle = decodeURIComponent(after.split("/")[0] ?? "").trim();
   const handle = rawHandle.startsWith("@") ? rawHandle.slice(1) : rawHandle;
 
   const [profile, setProfile] = useState<Profile | null>(null);
