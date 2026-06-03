@@ -17,7 +17,8 @@ import {
   Bot,
   Vault,
   Smartphone,
-  LineChart
+  LineChart,
+  Radio
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
@@ -55,6 +56,7 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
     { id: "swap", label: "Swap", icon: ArrowLeftRight, disabled: !swapAllowed },
     { id: "history", label: "History", icon: History },
     { id: "analytics", label: "Analytics", icon: LineChart },
+    { id: "streamer", label: "Streamer Mode", icon: Radio },
     { id: "messages", label: "Messages", icon: MessageSquare },
     { id: "settings", label: "Settings", icon: Settings },
   ];

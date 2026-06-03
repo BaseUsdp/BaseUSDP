@@ -23,6 +23,7 @@ import SwapSection from "./sections/SwapSection";
 import VeilSection from "./sections/VeilSection";
 import SmsSection from "./sections/SmsSection";
 import CreatorAnalyticsSection from "./sections/CreatorAnalyticsSection";
+import StreamerSection from "./sections/StreamerSection";
 import { isSmsWhitelisted, isVeilWhitelisted, isSwapWhitelisted } from "@/lib/featureGates";
 import { getTransactionHistory, TransactionHistoryResponse, getZKBalance } from "@/services/api";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
@@ -329,6 +330,10 @@ const DashboardMainContent = ({ activeTab, setActiveTab, showBalance, setShowBal
 
   if (activeTab === "analytics") {
     return <CreatorAnalyticsSection />;
+  }
+
+  if (activeTab === "streamer") {
+    return <StreamerSection />;
   }
 
   // Overview Tab
