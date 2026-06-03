@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Terminal, Send, Loader2, Bot, User, Sparkles, Link2, Link2Off } from "lucide-react";
+import { Terminal, Send, Loader2, Bot, User, Sparkles, Link2, Link2Off, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 import { useWallet } from "@/contexts/WalletContext";
@@ -11,6 +11,17 @@ import X402PaymentModal from "../X402PaymentModal";
 
 const BASE_MCP_ENABLED = import.meta.env.VITE_ENABLE_BASE_MCP === "true";
 type BaseMcpStatus = "loading" | "connected" | "disconnected";
+
+// Web Speech API — Chrome/Edge/Safari support it under either name.
+// Firefox doesn't (we gracefully hide the mic button when unsupported).
+const SpeechRecognitionImpl: any =
+  typeof window !== "undefined"
+    ? (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition
+    : null;
+const SUPPORTS_VOICE_INPUT = !!SpeechRecognitionImpl;
+const SUPPORTS_VOICE_OUTPUT =
+  typeof window !== "undefined" && "speechSynthesis" in window;
 
 interface TerminalMessage {
   id: string;
@@ -50,6 +61,11 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
   const [x402InitialAmount, setX402InitialAmount] = useState<string | undefined>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Voice mode state.
+  const [isListening, setIsListening] = useState(false);
+  const [voiceReply, setVoiceReply] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   const [baseMcpStatus, setBaseMcpStatus] = useState<BaseMcpStatus>(
     BASE_MCP_ENABLED ? "loading" : "disconnected",
@@ -162,6 +178,78 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
     }
   };
 
+  const speakReply = (text: string) => {
+    if (!voiceReply || !SUPPORTS_VOICE_OUTPUT) return;
+    try {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 1.05;
+      utter.pitch = 1.0;
+      window.speechSynthesis.speak(utter);
+    } catch {
+      // best-effort — silent fail on quota / restricted contexts
+    }
+  };
+
+  const startListening = () => {
+    if (!SUPPORTS_VOICE_INPUT || isListening) return;
+    try {
+      const rec = new SpeechRecognitionImpl();
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.lang = "en-US";
+      rec.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((r: any) => r[0]?.transcript ?? "")
+          .join("");
+        setInput(transcript);
+      };
+      rec.onerror = (event: any) => {
+        setIsListening(false);
+        if (event?.error && event.error !== "aborted" && event.error !== "no-speech") {
+          toast.error(`Voice input error: ${event.error}`);
+        }
+      };
+      rec.onend = () => {
+        setIsListening(false);
+        recognitionRef.current = null;
+      };
+      recognitionRef.current = rec;
+      rec.start();
+      setIsListening(true);
+    } catch (err: any) {
+      setIsListening(false);
+      toast.error(err?.message || "Couldn't start voice input.");
+    }
+  };
+
+  const stopListening = () => {
+    try {
+      recognitionRef.current?.stop();
+    } catch {
+      // already stopped — ignore
+    }
+    setIsListening(false);
+  };
+
+  // Tidy up if the user navigates away mid-listen.
+  useEffect(() => {
+    return () => {
+      try {
+        recognitionRef.current?.abort();
+      } catch {
+        /* noop */
+      }
+      if (SUPPORTS_VOICE_OUTPUT) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {
+          /* noop */
+        }
+      }
+    };
+  }, []);
+
   const handleSend = async (text?: string) => {
     const message = text || input.trim();
     if (!message || isLoading) return;
@@ -204,6 +292,7 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
+      speakReply(assistantMsg.content);
 
       if (data.action) {
         executeAction(data.action);
@@ -249,6 +338,28 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
             </p>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            {SUPPORTS_VOICE_OUTPUT && (
+              <button
+                onClick={() => {
+                  setVoiceReply((v) => {
+                    const next = !v;
+                    if (!next) {
+                      try { window.speechSynthesis.cancel(); } catch { /* noop */ }
+                    }
+                    return next;
+                  });
+                }}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-medium transition-colors ${
+                  voiceReply
+                    ? "bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20"
+                    : "bg-transparent border-border text-muted-foreground hover:bg-white/5"
+                }`}
+                title={voiceReply ? "Speaking replies — click to mute" : "Click to read replies aloud"}
+              >
+                {voiceReply ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+                {voiceReply ? "Speak" : "Mute"}
+              </button>
+            )}
             {BASE_MCP_ENABLED && (
               <button
                 onClick={baseMcpStatus === "connected" ? disconnectBaseMcp : connectBaseMcp}
@@ -409,7 +520,7 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask anything..."
+              placeholder={isListening ? "Listening…" : "Ask anything..."}
               disabled={isLoading}
               className="flex-1 px-4 py-2.5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
               style={{
@@ -418,6 +529,24 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
               }}
               maxLength={500}
             />
+            {SUPPORTS_VOICE_INPUT && (
+              <button
+                onClick={isListening ? stopListening : startListening}
+                disabled={isLoading}
+                className={`p-2.5 rounded-xl transition-all ${
+                  isListening
+                    ? "bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/40 animate-pulse"
+                    : "bg-muted text-muted-foreground/70 border border-border hover:bg-white/5"
+                }`}
+                title={isListening ? "Stop listening" : "Speak to the AI Terminal"}
+              >
+                {isListening ? (
+                  <MicOff className="w-4 h-4" />
+                ) : (
+                  <Mic className="w-4 h-4" />
+                )}
+              </button>
+            )}
             <button
               onClick={() => handleSend()}
               disabled={!input.trim() || isLoading}
