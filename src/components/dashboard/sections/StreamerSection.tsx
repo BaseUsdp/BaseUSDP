@@ -188,19 +188,19 @@ const StreamerSection = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-border bg-card p-6"
+        className="rounded-2xl border border-border bg-card p-4 sm:p-6"
       >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center">
+        <div className="flex items-start sm:items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center shrink-0">
             <Icon icon="ph:broadcast-bold" className="w-5 h-5 text-rose-500" />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <h2 className="font-display text-lg font-bold">Streamer Mode</h2>
             <p className="text-xs text-muted-foreground">
               Everything you need to take BASEUSDP tips live, in one screen.
             </p>
           </div>
-          <span className="text-xs font-mono text-muted-foreground">@{handle}</span>
+          <span className="text-xs font-mono text-muted-foreground truncate max-w-[40%] sm:max-w-none">@{handle}</span>
         </div>
       </motion.div>
 
@@ -209,7 +209,7 @@ const StreamerSection = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="grid grid-cols-2 md:grid-cols-4 gap-3"
+        className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3"
       >
         {[
           { label: "Received", value: stats ? `$${stats.total_received.toFixed(2)}` : "—" },
@@ -222,9 +222,9 @@ const StreamerSection = () => {
               : "—",
           },
         ].map((s) => (
-          <div key={s.label} className="rounded-2xl border border-border bg-card p-4">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
-            <p className="text-xl font-bold mt-1">
+          <div key={s.label} className="rounded-2xl border border-border bg-card p-3 sm:p-4 min-w-0">
+            <p className="text-[10px] sm:text-[11px] uppercase tracking-wide text-muted-foreground truncate">{s.label}</p>
+            <p className="text-lg sm:text-xl font-bold mt-1 truncate">
               {statsLoading ? "…" : s.value}
             </p>
           </div>
@@ -235,13 +235,13 @@ const StreamerSection = () => {
         <p className="text-xs text-amber-500 -mt-3">{statsError}</p>
       )}
 
-      <div className="grid lg:grid-cols-[1.1fr_1fr] gap-6">
+      <div className="grid lg:grid-cols-[1.1fr_1fr] gap-4 sm:gap-6">
         {/* Overlay customizer */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="rounded-2xl border border-border bg-card p-6 space-y-5"
+          className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-5 min-w-0"
         >
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-sky-500/20 flex items-center justify-center">
@@ -256,7 +256,7 @@ const StreamerSection = () => {
           </div>
 
           {/* Customizer fields */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
                 Position
@@ -271,22 +271,22 @@ const StreamerSection = () => {
                 ))}
               </select>
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
                 Accent
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <input
                   type="color"
                   value={accent}
                   onChange={(e) => setAccent(e.target.value)}
-                  className="h-9 w-12 rounded-lg border border-border bg-background cursor-pointer"
+                  className="h-9 w-10 sm:w-12 rounded-lg border border-border bg-background cursor-pointer shrink-0"
                 />
                 <input
                   type="text"
                   value={accent}
                   onChange={(e) => setAccent(e.target.value)}
-                  className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono outline-none focus:border-primary/50"
+                  className="flex-1 min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono outline-none focus:border-primary/50"
                 />
               </div>
             </div>
@@ -335,12 +335,12 @@ const StreamerSection = () => {
             <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
               Overlay URL
             </label>
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/30 p-3">
-              <code className="flex-1 truncate text-xs font-mono">{overlayUrl}</code>
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-secondary/30 p-3">
+              <code className="flex-1 min-w-0 basis-full sm:basis-auto truncate text-xs font-mono">{overlayUrl}</code>
               <button
                 type="button"
                 onClick={() => copy(overlayUrl, "Overlay URL")}
-                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold hover:bg-secondary/50"
+                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold hover:bg-secondary/50 shrink-0"
               >
                 <Icon icon="ph:copy-bold" className="h-3 w-3" />
                 Copy
@@ -349,7 +349,7 @@ const StreamerSection = () => {
                 href={overlayUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold hover:bg-secondary/50"
+                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold hover:bg-secondary/50 shrink-0"
               >
                 <Icon icon="ph:arrow-square-out-bold" className="h-3 w-3" />
                 Open
@@ -374,7 +374,7 @@ const StreamerSection = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="rounded-2xl border border-border bg-card p-6"
+          className="rounded-2xl border border-border bg-card p-4 sm:p-6 min-w-0"
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="w-9 h-9 rounded-lg bg-emerald-500/20 flex items-center justify-center">
@@ -409,23 +409,23 @@ const StreamerSection = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="rounded-2xl border border-border bg-card p-6"
+          className="rounded-2xl border border-border bg-card p-4 sm:p-6 min-w-0"
         >
           <h3 className="font-display font-bold mb-4">Top tippers</h3>
           <div className="space-y-1.5">
             {stats.top_tippers.map((t, i) => (
               <div
                 key={t.address}
-                className="flex items-center justify-between rounded-lg bg-secondary/20 px-3 py-2 text-sm"
+                className="flex items-center justify-between gap-3 rounded-lg bg-secondary/20 px-3 py-2 text-sm min-w-0"
               >
-                <span className="flex items-center gap-2 truncate">
-                  <span className="text-muted-foreground w-4">{i + 1}.</span>
+                <span className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="text-muted-foreground w-4 shrink-0">{i + 1}.</span>
                   <span className="font-medium truncate">
                     {t.handle ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`}
                   </span>
-                  <span className="text-xs text-muted-foreground">({t.count})</span>
+                  <span className="text-xs text-muted-foreground shrink-0">({t.count})</span>
                 </span>
-                <span className="font-mono font-semibold">${t.total.toFixed(2)}</span>
+                <span className="font-mono font-semibold shrink-0">${t.total.toFixed(2)}</span>
               </div>
             ))}
           </div>
@@ -437,7 +437,7 @@ const StreamerSection = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
-        className="rounded-2xl border border-border bg-card p-6 space-y-4"
+        className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4 min-w-0"
       >
         <h3 className="font-display font-bold">Share with your audience</h3>
         {[
@@ -448,12 +448,12 @@ const StreamerSection = () => {
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
               {row.label} <span className="font-normal lowercase text-muted-foreground/70">— {row.hint}</span>
             </p>
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/30 p-3">
-              <code className="flex-1 truncate text-sm font-mono">{row.url}</code>
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-secondary/30 p-3">
+              <code className="flex-1 min-w-0 basis-full sm:basis-auto truncate text-sm font-mono">{row.url}</code>
               <button
                 type="button"
                 onClick={() => copy(row.url, row.label)}
-                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold hover:bg-secondary/50"
+                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold hover:bg-secondary/50 shrink-0"
               >
                 <Icon icon="ph:copy-bold" className="h-3 w-3" />
                 Copy
@@ -462,7 +462,7 @@ const StreamerSection = () => {
                 href={row.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold hover:bg-secondary/50"
+                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold hover:bg-secondary/50 shrink-0"
               >
                 <Icon icon="ph:arrow-square-out-bold" className="h-3 w-3" />
                 Open
