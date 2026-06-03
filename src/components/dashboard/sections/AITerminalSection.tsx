@@ -195,29 +195,66 @@ const AITerminalSection = ({ showBalance, setActiveTab, onWithdraw }: AITerminal
     if (!SUPPORTS_VOICE_INPUT || isListening) return;
     try {
       const rec = new SpeechRecognitionImpl();
-      rec.continuous = false;
+      rec.continuous = true;
       rec.interimResults = true;
       rec.lang = "en-US";
+      let gotAnything = false;
+
+      rec.onstart = () => {
+        console.log("[voice] recognition started");
+        toast.message("🎙️ Listening — speak now");
+      };
+
+      rec.onaudiostart = () => console.log("[voice] audio capture started");
+      rec.onsoundstart = () => console.log("[voice] sound detected");
+      rec.onspeechstart = () => {
+        console.log("[voice] speech detected");
+        gotAnything = true;
+      };
+      rec.onspeechend = () => console.log("[voice] speech ended");
+
       rec.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((r: any) => r[0]?.transcript ?? "")
-          .join("");
+        // Build the transcript from all results (interim + final).
+        let transcript = "";
+        for (let i = 0; i < event.results.length; i++) {
+          const r = event.results[i];
+          if (r && r[0]) transcript += r[0].transcript;
+        }
+        console.log("[voice] result:", transcript);
+        gotAnything = true;
         setInput(transcript);
       };
+
       rec.onerror = (event: any) => {
+        console.warn("[voice] error:", event?.error, event);
+        const code = event?.error || "unknown";
+        const msgs: Record<string, string> = {
+          "not-allowed": "Microphone blocked. Check browser site permissions.",
+          "service-not-allowed": "Speech service blocked by the browser.",
+          "no-speech": "No speech detected — try speaking again.",
+          "audio-capture": "No microphone found. Check that one is connected.",
+          network: "Speech recognition needs a network connection.",
+          aborted: "", // user-initiated, suppress
+        };
+        const userMsg = msgs[code] ?? `Voice error: ${code}`;
+        if (userMsg) toast.error(userMsg);
         setIsListening(false);
-        if (event?.error && event.error !== "aborted" && event.error !== "no-speech") {
-          toast.error(`Voice input error: ${event.error}`);
-        }
       };
+
       rec.onend = () => {
+        console.log("[voice] recognition ended");
+        if (!gotAnything) {
+          toast.message("Didn't catch anything — try clicking the mic and speaking up.");
+        }
         setIsListening(false);
         recognitionRef.current = null;
       };
+
       recognitionRef.current = rec;
       rec.start();
       setIsListening(true);
     } catch (err: any) {
+      console.error("[voice] start failed:", err);
       setIsListening(false);
       toast.error(err?.message || "Couldn't start voice input.");
     }
