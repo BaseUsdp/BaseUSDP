@@ -18,12 +18,15 @@ import {
   Vault,
   Smartphone,
   LineChart,
-  Radio
+  Radio,
+  Smartphone as SmartphoneIcon,
+  X as XIcon
 } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
 import { useTransactionStats } from "@/hooks/useTransactionStats";
 import { isSmsWhitelisted, isVeilWhitelisted, isSwapWhitelisted } from "@/lib/featureGates";
+import { usePwaInstall } from "@/hooks/usePwaInstall";
 
 interface DashboardLeftSidebarProps {
   activeTab: string;
@@ -35,6 +38,7 @@ interface DashboardLeftSidebarProps {
 const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMessages = 0 }: DashboardLeftSidebarProps) => {
   const { encryptedBalance, privacyLevel, walletAddress, fullWalletAddress, activeChain } = useWallet();
   const { stats, isLoading: isLoadingStats } = useTransactionStats();
+  const { available: canInstall, installed, dismissed: pwaDismissed, promptInstall, dismiss: dismissPwa } = usePwaInstall();
 
   const smsAllowed = isSmsWhitelisted(fullWalletAddress);
   const veilAllowed = isVeilWhitelisted(fullWalletAddress);
@@ -161,6 +165,45 @@ const DashboardLeftSidebar = ({ activeTab, setActiveTab, showBalance, unreadMess
           </div>
         </div>
       </div>
+
+      {/* PWA Install prompt — only renders when the browser fires
+          beforeinstallprompt and the user hasn't already installed/dismissed. */}
+      {canInstall && !installed && !pwaDismissed && (
+        <div
+          className="mb-4 rounded-lg border p-3 relative"
+          style={{ borderColor: 'var(--dash-border)', background: 'var(--dash-surface)' }}
+        >
+          <button
+            type="button"
+            onClick={dismissPwa}
+            className="absolute top-1.5 right-1.5 p-0.5 rounded hover:bg-white/5"
+            style={{ color: 'var(--dash-text-faint)' }}
+            aria-label="Dismiss install prompt"
+          >
+            <XIcon className="h-3 w-3" />
+          </button>
+          <div className="flex items-start gap-2 mb-2">
+            <div className="w-7 h-7 rounded-md bg-sky-500/15 flex items-center justify-center shrink-0">
+              <SmartphoneIcon className="h-3.5 w-3.5 text-sky-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold" style={{ color: 'var(--dash-text)' }}>
+                Install BASEUSDP
+              </p>
+              <p className="text-[10px] leading-tight mt-0.5" style={{ color: 'var(--dash-text-faint)' }}>
+                One-tap access from your home screen.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => { void promptInstall(); }}
+            className="w-full text-xs font-semibold rounded-md py-1.5 bg-sky-500/20 text-sky-400 hover:bg-sky-500/30 border border-sky-500/30"
+          >
+            Install
+          </button>
+        </div>
+      )}
 
       {/* Accounts Header */}
       <div className="mb-3 flex items-center justify-between">
