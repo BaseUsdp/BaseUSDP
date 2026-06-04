@@ -32,6 +32,7 @@ import {
   setPasskeyStepUpThreshold as persistPasskeyStepUpThreshold,
 } from "@/lib/passkeyStepUp";
 import { listDevices as listPasskeyDevices } from "@/services/webauthn";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 const SETTINGS_STORAGE_KEY = "void402_settings";
 
@@ -66,6 +67,26 @@ const SettingsSection = () => {
   const [handleInput, setHandleInput] = useState("");
   const [handleError, setHandleError] = useState<string | null>(null);
   const [handleSaving, setHandleSaving] = useState(false);
+
+  // Web Push tip notifications.
+  const push = usePushNotifications();
+  const togglePush = async (next: boolean) => {
+    const result = next ? await push.enable() : await push.disable();
+    if (!result.ok) {
+      toast({
+        title: "Couldn't update notifications",
+        description: result.error || "Try again.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: next ? "Notifications on" : "Notifications off",
+        description: next
+          ? "You'll get a push the next time a tip lands."
+          : "No more push notifications on this device.",
+      });
+    }
+  };
 
   // MCP plugin opt-in. When true, the user's @handle is resolvable and
   // tippable via the BASEUSDP Base MCP plugin so AI assistants (Claude,
@@ -663,6 +684,50 @@ const SettingsSection = () => {
         )}
       </motion.div>
 
+
+      {/* Tip push notifications */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.355 }}
+        className="rounded-2xl border border-border bg-card p-6"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-sky-500/20 flex items-center justify-center">
+            <Icon icon="ph:bell-ringing-bold" className="w-5 h-5 text-sky-500" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-display text-lg font-bold">Tip notifications</h3>
+            <p className="text-xs text-muted-foreground">
+              Get a push on this device the moment a tip lands. Works best with BASEUSDP installed as an app.
+            </p>
+          </div>
+        </div>
+
+        {!push.supported ? (
+          <p className="text-xs text-muted-foreground">
+            Push notifications aren't supported in this browser. iOS users: add BASEUSDP to the home screen first (Share → Add to Home Screen).
+          </p>
+        ) : push.permission === "denied" ? (
+          <p className="text-xs text-amber-500">
+            Notifications are blocked at the browser level. Re-enable in your browser site settings, then come back here.
+          </p>
+        ) : (
+          <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/30">
+            <div className="flex-1 min-w-0 pr-4">
+              <p className="font-medium">Notify me when I get a tip</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Per-device. Detected within a minute of the tip landing.
+              </p>
+            </div>
+            <Switch
+              checked={push.enabled}
+              disabled={push.busy}
+              onCheckedChange={togglePush}
+            />
+          </div>
+        )}
+      </motion.div>
 
       {/* AI assistant access — Base MCP opt-in */}
       <motion.div

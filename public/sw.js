@@ -1,11 +1,6 @@
-// Minimal service worker for PWA install eligibility.
-// No caching / offline logic yet — that's a separate feature. This is just
-// the smallest possible SW that satisfies the browser's "this is a real
-// PWA" check so the install prompt becomes available.
+// Minimal service worker — supports PWA install + Web Push tip notifications.
 
 self.addEventListener("install", () => {
-  // Take over immediately on first install so the install prompt can fire
-  // without a reload.
   self.skipWaiting();
 });
 
@@ -13,8 +8,55 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// No-op fetch handler. Required for the browser to consider the page a
-// fully-functional PWA in some installability checks.
-self.addEventListener("fetch", () => {
-  // pass-through — let the network handle everything
+// No-op fetch handler — present so the browser counts us as a fully
+// installable PWA. We don't intercept anything; the network handles all
+// requests directly.
+self.addEventListener("fetch", () => {});
+
+// Push tip notifications. Payload is JSON sent by /api/cron/push-tips:
+//   { title, body, url, tag }
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  let payload = {};
+  try {
+    payload = event.data.json();
+  } catch {
+    try {
+      payload = { title: "BASEUSDP", body: event.data.text() };
+    } catch {
+      payload = { title: "BASEUSDP", body: "You have a new notification" };
+    }
+  }
+  const title = payload.title || "BASEUSDP";
+  const options = {
+    body: payload.body || "",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    data: { url: payload.url || "/dashboard" },
+    tag: payload.tag || "baseusdp-notification",
+    renotify: true,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Clicking a notification focuses an existing tab if there is one, or
+// opens a new one to the payload's url.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || "/dashboard";
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if (client.url.includes(targetUrl) && "focus" in client) {
+            return client.focus();
+          }
+        }
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(targetUrl);
+        }
+        return null;
+      }),
+  );
 });
