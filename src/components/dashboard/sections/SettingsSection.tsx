@@ -76,6 +76,69 @@ const SettingsSection = () => {
   const [pcWebsite, setPcWebsite] = useState("");
   const [pcLoading, setPcLoading] = useState(true);
   const [pcSaving, setPcSaving] = useState(false);
+  const [bannerUploading, setBannerUploading] = useState(false);
+
+  const handleBannerFile = async (file: File | null) => {
+    if (!file) return;
+    if (!/^image\//.test(file.type)) {
+      toast({
+        title: "Pick an image",
+        description: "JPEG, PNG, WebP, or GIF only.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Banner must be 2 MB or smaller.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const token = authService.getSessionToken();
+    if (!token) {
+      toast({
+        title: "Sign in required",
+        variant: "destructive",
+      });
+      return;
+    }
+    setBannerUploading(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch(`${getApiUrl()}/api/user/upload-banner`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ data_url: dataUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data?.error || "Upload failed");
+      }
+      setPcBanner(data.banner_url);
+      toast({
+        title: "Banner uploaded",
+        description: "It's already saved — Save the form to confirm the rest.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Upload failed",
+        description: err?.message || "Try a smaller image.",
+        variant: "destructive",
+      });
+    } finally {
+      setBannerUploading(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -814,14 +877,63 @@ const SettingsSection = () => {
 
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
-                  Banner image URL
+                  Banner image
                 </label>
+                {pcBanner && (
+                  <div className="mb-2 rounded-lg border border-border overflow-hidden bg-secondary/20">
+                    <img
+                      src={pcBanner}
+                      alt="Banner preview"
+                      className="w-full h-24 object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <label
+                    className={`inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold cursor-pointer hover:bg-secondary/50 ${
+                      bannerUploading ? "opacity-60 pointer-events-none" : ""
+                    }`}
+                  >
+                    {bannerUploading ? (
+                      <Icon icon="ph:circle-notch-bold" className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Icon icon="ph:upload-simple-bold" className="h-3.5 w-3.5" />
+                    )}
+                    {bannerUploading ? "Uploading…" : "Upload image"}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={(e) => {
+                        void handleBannerFile(e.target.files?.[0] ?? null);
+                        // reset so picking the same file again re-fires
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  {pcBanner && (
+                    <button
+                      type="button"
+                      onClick={() => setPcBanner("")}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold hover:bg-secondary/50"
+                    >
+                      <Icon icon="ph:x-bold" className="h-3.5 w-3.5" />
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  JPEG, PNG, WebP, GIF · max 2 MB · or paste a URL below
+                </p>
                 <input
                   type="url"
                   value={pcBanner}
                   onChange={(e) => setPcBanner(e.target.value)}
                   placeholder="https://…"
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/50"
+                  className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono outline-none focus:border-primary/50"
                 />
               </div>
 
