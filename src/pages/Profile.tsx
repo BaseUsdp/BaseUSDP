@@ -162,13 +162,26 @@ const ProfilePage = () => {
               </p>
             </div>
 
-            <Link
-              to={`/tip/${profile.handle}`}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 mt-2"
-            >
-              <Icon icon="ph:hand-coins-bold" className="w-4 h-4" />
-              Tip me
-            </Link>
+            <div className="w-full mt-2 space-y-3">
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 5, 10, 25].map((amt) => (
+                  <Link
+                    key={amt}
+                    to={`/tip/${profile.handle}?amount=${amt}`}
+                    className="flex items-center justify-center px-2 py-2.5 rounded-xl bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary text-sm font-semibold transition-colors"
+                  >
+                    ${amt}
+                  </Link>
+                ))}
+              </div>
+              <Link
+                to={`/tip/${profile.handle}`}
+                className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90"
+              >
+                <Icon icon="ph:hand-coins-bold" className="w-4 h-4" />
+                Tip a custom amount
+              </Link>
+            </div>
           </div>
         </motion.div>
 

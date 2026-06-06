@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
@@ -32,7 +32,22 @@ interface LookupResponse {
 
 const Tip = () => {
   const { handle: rawHandle } = useParams<{ handle: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // Optional `?amount=5` / `?token=USDC` query params let other surfaces
+  // (e.g. tip-ladder buttons on /@handle, share links, embedded widgets)
+  // deep-link straight into a pre-filled tip form.
+  const initialAmount = useMemo(() => {
+    const raw = searchParams.get("amount");
+    if (!raw) return "";
+    const n = parseFloat(raw);
+    return Number.isFinite(n) && n > 0 ? String(n) : "";
+  }, [searchParams]);
+  const initialToken = useMemo<Token>(() => {
+    const raw = (searchParams.get("token") ?? "").toUpperCase();
+    return raw === "USDT" ? "USDT" : "USDC";
+  }, [searchParams]);
 
   const cleanHandle = useMemo(() => {
     if (!rawHandle) return "";
@@ -42,8 +57,8 @@ const Tip = () => {
   const [profile, setProfile] = useState<LookupResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [amount, setAmount] = useState("");
-  const [token, setToken] = useState<Token>("USDC");
+  const [amount, setAmount] = useState(initialAmount);
+  const [token, setToken] = useState<Token>(initialToken);
   const [memo, setMemo] = useState("");
 
   useEffect(() => {
