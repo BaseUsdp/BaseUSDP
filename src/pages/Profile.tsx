@@ -29,6 +29,11 @@ interface Profile {
   displayName: string;
   profilePicture: string | null;
   walletAddress: string;
+  bio: string | null;
+  bannerUrl: string | null;
+  twitterHandle: string | null;
+  farcasterHandle: string | null;
+  websiteUrl: string | null;
   totalReceived: number;
   tipCount: number;
   uniqueTippers: number;
@@ -127,6 +132,29 @@ const ProfilePage = () => {
 
   const useOnchainAvatar = ADDRESS_RE.test(profile.walletAddress);
 
+  const socialLinks: { icon: string; href: string; label: string }[] = [];
+  if (profile.twitterHandle) {
+    socialLinks.push({
+      icon: "ri:twitter-x-fill",
+      href: `https://x.com/${profile.twitterHandle}`,
+      label: `@${profile.twitterHandle} on X`,
+    });
+  }
+  if (profile.farcasterHandle) {
+    socialLinks.push({
+      icon: "simple-icons:farcaster",
+      href: `https://warpcast.com/${profile.farcasterHandle}`,
+      label: `@${profile.farcasterHandle} on Farcaster`,
+    });
+  }
+  if (profile.websiteUrl) {
+    socialLinks.push({
+      icon: "ph:globe-bold",
+      href: profile.websiteUrl,
+      label: profile.websiteUrl,
+    });
+  }
+
   return (
     <div className="min-h-screen bg-background py-10 px-4">
       <div className="max-w-2xl mx-auto space-y-6">
@@ -134,23 +162,34 @@ const ProfilePage = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl border border-border bg-card p-8 text-center"
+          className="rounded-3xl border border-border bg-card overflow-hidden"
         >
-          <div className="flex flex-col items-center gap-4">
+          {/* Banner strip */}
+          {profile.bannerUrl ? (
+            <div
+              className="h-32 sm:h-40 w-full bg-cover bg-center"
+              style={{ backgroundImage: `url(${profile.bannerUrl})` }}
+              aria-hidden
+            />
+          ) : (
+            <div className="h-16 sm:h-20 w-full bg-gradient-to-r from-primary/15 via-primary/5 to-primary/15" aria-hidden />
+          )}
+
+          <div className="px-6 sm:px-8 pb-8 -mt-12 flex flex-col items-center gap-4 text-center">
             {profile.profilePicture ? (
               <img
                 src={profile.profilePicture}
                 alt={profile.handle}
-                className="w-24 h-24 rounded-full object-cover border border-border"
+                className="w-24 h-24 rounded-full object-cover border-4 border-card shadow-md"
               />
             ) : useOnchainAvatar ? (
               <Avatar
                 address={profile.walletAddress as `0x${string}`}
                 chain={base}
-                className="w-24 h-24 rounded-full border border-border"
+                className="w-24 h-24 rounded-full border-4 border-card shadow-md"
               />
             ) : (
-              <div className="w-24 h-24 rounded-full bg-primary/15 flex items-center justify-center">
+              <div className="w-24 h-24 rounded-full bg-primary/15 border-4 border-card flex items-center justify-center shadow-md">
                 <Icon icon="ph:user-bold" className="w-10 h-10 text-primary" />
               </div>
             )}
@@ -161,6 +200,29 @@ const ProfilePage = () => {
                 {profile.walletAddress.slice(0, 6)}…{profile.walletAddress.slice(-4)}
               </p>
             </div>
+
+            {profile.bio && (
+              <p className="text-sm text-muted-foreground max-w-md whitespace-pre-line">
+                {profile.bio}
+              </p>
+            )}
+
+            {socialLinks.length > 0 && (
+              <div className="flex items-center gap-2">
+                {socialLinks.map((s) => (
+                  <a
+                    key={s.href}
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={s.label}
+                    className="w-9 h-9 rounded-full border border-border bg-secondary/30 hover:bg-secondary/60 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Icon icon={s.icon} className="w-4 h-4" />
+                  </a>
+                ))}
+              </div>
+            )}
 
             <div className="w-full mt-2 space-y-3">
               <div className="grid grid-cols-4 gap-2">

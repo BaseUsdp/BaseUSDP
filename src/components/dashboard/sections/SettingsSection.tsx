@@ -68,6 +68,93 @@ const SettingsSection = () => {
   const [handleError, setHandleError] = useState<string | null>(null);
   const [handleSaving, setHandleSaving] = useState(false);
 
+  // Public profile customization fields.
+  const [pcBio, setPcBio] = useState("");
+  const [pcBanner, setPcBanner] = useState("");
+  const [pcTwitter, setPcTwitter] = useState("");
+  const [pcFarcaster, setPcFarcaster] = useState("");
+  const [pcWebsite, setPcWebsite] = useState("");
+  const [pcLoading, setPcLoading] = useState(true);
+  const [pcSaving, setPcSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const token = authService.getSessionToken();
+      if (!token) {
+        setPcLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch(`${getApiUrl()}/api/user/customize-profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (cancelled || !res.ok || !data.success) return;
+        setPcBio(data.bio ?? "");
+        setPcBanner(data.banner_url ?? "");
+        setPcTwitter(data.twitter_handle ?? "");
+        setPcFarcaster(data.farcaster_handle ?? "");
+        setPcWebsite(data.website_url ?? "");
+      } catch {
+        // best-effort load — empty form is fine
+      } finally {
+        if (!cancelled) setPcLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [fullWalletAddress]);
+
+  const saveProfileCustomization = async () => {
+    const token = authService.getSessionToken();
+    if (!token) {
+      toast({
+        title: "Sign in required",
+        description: "Connect your wallet to update your profile.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setPcSaving(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/user/customize-profile`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          bio: pcBio,
+          banner_url: pcBanner,
+          twitter_handle: pcTwitter,
+          farcaster_handle: pcFarcaster,
+          website_url: pcWebsite,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data?.error || "Update failed");
+      }
+      toast({
+        title: "Profile updated",
+        description: myHandle
+          ? `Live at /@${myHandle}`
+          : "Your changes are saved.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Couldn't update",
+        description: err?.message || "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setPcSaving(false);
+    }
+  };
+
   // Web Push tip notifications.
   const push = usePushNotifications();
   const togglePush = async (next: boolean) => {
@@ -684,6 +771,128 @@ const SettingsSection = () => {
         )}
       </motion.div>
 
+
+      {/* Public profile customization */}
+      {myHandle && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.36 }}
+          className="rounded-2xl border border-border bg-card p-6"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-fuchsia-500/20 flex items-center justify-center">
+              <Icon icon="ph:user-circle-gear-bold" className="w-5 h-5 text-fuchsia-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-display text-lg font-bold">Customize your public profile</h3>
+              <p className="text-xs text-muted-foreground">
+                Bio, banner, and socials shown at <span className="font-mono">baseusdp.com/@{myHandle}</span>.
+              </p>
+            </div>
+          </div>
+
+          {pcLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Icon icon="ph:circle-notch-bold" className="h-4 w-4 animate-spin" />
+              Loading…
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+                  Bio <span className="font-normal lowercase text-muted-foreground/70">({pcBio.length}/280)</span>
+                </label>
+                <textarea
+                  value={pcBio}
+                  onChange={(e) => setPcBio(e.target.value.slice(0, 280))}
+                  rows={3}
+                  placeholder="Tell people who you are…"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+                  Banner image URL
+                </label>
+                <input
+                  type="url"
+                  value={pcBanner}
+                  onChange={(e) => setPcBanner(e.target.value)}
+                  placeholder="https://…"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/50"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+                    X handle
+                  </label>
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3">
+                    <span className="text-muted-foreground text-sm">@</span>
+                    <input
+                      type="text"
+                      value={pcTwitter}
+                      onChange={(e) => setPcTwitter(e.target.value.replace(/^@/, ""))}
+                      placeholder="yourhandle"
+                      className="flex-1 bg-transparent py-2 text-sm outline-none"
+                      maxLength={15}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+                    Farcaster
+                  </label>
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3">
+                    <span className="text-muted-foreground text-sm">@</span>
+                    <input
+                      type="text"
+                      value={pcFarcaster}
+                      onChange={(e) => setPcFarcaster(e.target.value.replace(/^@/, "").toLowerCase())}
+                      placeholder="yourhandle"
+                      className="flex-1 bg-transparent py-2 text-sm outline-none"
+                      maxLength={30}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+                  Website
+                </label>
+                <input
+                  type="url"
+                  value={pcWebsite}
+                  onChange={(e) => setPcWebsite(e.target.value)}
+                  placeholder="https://yoursite.com"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/50"
+                />
+              </div>
+
+              <div className="flex items-center justify-end">
+                <Button
+                  variant="outline"
+                  onClick={saveProfileCustomization}
+                  disabled={pcSaving}
+                >
+                  {pcSaving ? (
+                    <>
+                      <Icon icon="ph:circle-notch-bold" className="h-4 w-4 animate-spin mr-1.5" />
+                      Saving…
+                    </>
+                  ) : (
+                    "Save"
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* Tip push notifications */}
       <motion.div

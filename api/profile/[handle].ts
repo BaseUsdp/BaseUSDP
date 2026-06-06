@@ -61,7 +61,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { data: profile, error } = await supabase
       .from("user_profiles")
-      .select("wallet_address, username, profile_picture")
+      .select(
+        "wallet_address, username, profile_picture, bio, banner_url, twitter_handle, farcaster_handle, website_url",
+      )
       .ilike("username", clean)
       .maybeSingle();
     if (error || !profile?.wallet_address) {
@@ -145,6 +147,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       displayName: username,
       profilePicture: (profile.profile_picture as string | null) ?? null,
       walletAddress: profile.wallet_address as string,
+      bio: (profile.bio as string | null) ?? null,
+      bannerUrl: (profile.banner_url as string | null) ?? null,
+      twitterHandle: (profile.twitter_handle as string | null) ?? null,
+      farcasterHandle: (profile.farcaster_handle as string | null) ?? null,
+      websiteUrl: (profile.website_url as string | null) ?? null,
       totalReceived: Number(total.toFixed(2)),
       tipCount: incoming.length,
       uniqueTippers: tippers.size,
