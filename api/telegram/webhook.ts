@@ -32,13 +32,69 @@ const supabaseKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
   process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
-async function reply(chatId: number, text: string): Promise<void> {
+interface InlineButton {
+  text: string;
+  url: string;
+}
+
+async function reply(
+  chatId: number,
+  text: string,
+  inlineButtons?: InlineButton[],
+): Promise<void> {
   if (!TELEGRAM_BOT_TOKEN) return;
+  const body: any = {
+    chat_id: chatId,
+    text,
+    disable_web_page_preview: true,
+  };
+  if (inlineButtons && inlineButtons.length > 0) {
+    body.reply_markup = {
+      inline_keyboard: [inlineButtons.map((b) => ({ text: b.text, url: b.url }))],
+    };
+  }
   await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
+    body: JSON.stringify(body),
   }).catch(() => undefined);
+}
+
+/**
+ * Parse a `/tip` command. Accepts:
+ *   /tip @handle 5
+ *   /tip handle 5
+ *   /tip @handle 5 USDC
+ *   /tip @handle $5
+ *   /tip @handle 5.50 USDT
+ */
+function parseTipCommand(text: string): {
+  handle?: string;
+  amount?: number;
+  token?: "USDC" | "USDT";
+  error?: string;
+} {
+  const parts = text.trim().split(/\s+/);
+  // parts[0] = "/tip" or "/tip@botname"
+  if (parts.length < 3) {
+    return { error: "Format: /tip @handle <amount> [USDC|USDT]" };
+  }
+  const rawHandle = parts[1].replace(/^@/, "");
+  if (!rawHandle || !/^[A-Za-z0-9_-]{2,30}$/.test(rawHandle)) {
+    return { error: "Handle must look like @yourhandle." };
+  }
+  const rawAmount = parts[2].replace(/^\$/, "");
+  const amount = parseFloat(rawAmount);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 999999.99) {
+    return { error: "Amount must be a positive number ≤ 999,999.99." };
+  }
+  let token: "USDC" | "USDT" = "USDC";
+  if (parts[3]) {
+    const t = parts[3].toUpperCase();
+    if (t === "USDC" || t === "USDT") token = t;
+    else return { error: "Token must be USDC or USDT." };
+  }
+  return { handle: rawHandle, amount, token };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -69,8 +125,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await reply(
       chatId,
       "BASEUSDP bot 🛡️\n\n" +
+        "/tip @handle <amount> [USDC|USDT] — tip a BASEUSDP creator. Returns a tap-to-pay link.\n" +
         "/start <code> — link this chat to your wallet (get the code in BASEUSDP → Settings → Telegram).\n" +
         "/unlink — disconnect this chat."
+    );
+    return res.status(200).json({ ok: true });
+  }
+
+  // /tip @handle <amount> [USDC|USDT]
+  if (text === "/tip" || text.startsWith("/tip ") || text.startsWith("/tip@")) {
+    // Normalize "/tip@baseusdp_bot ..." → "/tip ..."
+    const normalized = text.replace(/^\/tip@\S+/, "/tip");
+    const parsed = parseTipCommand(normalized);
+    if (parsed.error || !parsed.handle || !parsed.amount) {
+      await reply(
+        chatId,
+        parsed.error ?? "Format: /tip @handle <amount> [USDC|USDT]\nExample: /tip @GeorgesK 5",
+      );
+      return res.status(200).json({ ok: true });
+    }
+
+    // Verify the handle exists. ILIKE so we tolerate casing.
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("username")
+      .ilike("username", parsed.handle)
+      .maybeSingle();
+
+    if (!profile?.username) {
+      await reply(
+        chatId,
+        `@${parsed.handle} isn't a registered BASEUSDP handle. Double-check the spelling, or ask them to claim it at baseusdp.com.`,
+      );
+      return res.status(200).json({ ok: true });
+    }
+
+    const handleOnPlatform = profile.username as string;
+    const amountStr = parsed.amount % 1 === 0
+      ? parsed.amount.toFixed(0)
+      : parsed.amount.toString();
+    const tipUrl =
+      `https://baseusdp.com/tip/@${encodeURIComponent(handleOnPlatform)}` +
+      `?amount=${encodeURIComponent(amountStr)}` +
+      `&token=${parsed.token ?? "USDC"}`;
+
+    await reply(
+      chatId,
+      `💸 Tap below to tip $${amountStr} ${parsed.token ?? "USDC"} to @${handleOnPlatform}.`,
+      [
+        {
+          text: `Tip $${amountStr} ${parsed.token ?? "USDC"} to @${handleOnPlatform}`,
+          url: tipUrl,
+        },
+      ],
     );
     return res.status(200).json({ ok: true });
   }
