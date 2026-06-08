@@ -77,6 +77,67 @@ const SettingsSection = () => {
   const [pcLoading, setPcLoading] = useState(true);
   const [pcSaving, setPcSaving] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
+  const [pcAvatar, setPcAvatar] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  const handleAvatarFile = async (file: File | null) => {
+    if (!file) return;
+    if (!/^image\//.test(file.type)) {
+      toast({
+        title: "Pick an image",
+        description: "JPEG, PNG, WebP, or GIF only.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (file.size > 1 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Avatar must be 1 MB or smaller.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const token = authService.getSessionToken();
+    if (!token) {
+      toast({ title: "Sign in required", variant: "destructive" });
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch(`${getApiUrl()}/api/user/upload-avatar`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ data_url: dataUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data?.error || "Upload failed");
+      }
+      setPcAvatar(data.avatar_url);
+      toast({
+        title: "Avatar updated",
+        description: "Your new profile picture is saved.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Upload failed",
+        description: err?.message || "Try a smaller image.",
+        variant: "destructive",
+      });
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
 
   const handleBannerFile = async (file: File | null) => {
     if (!file) return;
@@ -159,6 +220,22 @@ const SettingsSection = () => {
         setPcTwitter(data.twitter_handle ?? "");
         setPcFarcaster(data.farcaster_handle ?? "");
         setPcWebsite(data.website_url ?? "");
+        // Avatar lives on the existing user_profiles.profile_picture
+        // column. Load it from /api/user/profile instead since
+        // customize-profile only exposes the customization fields.
+        if (fullWalletAddress) {
+          try {
+            const profRes = await fetch(
+              `${getApiUrl()}/api/user/profile?wallet=${encodeURIComponent(fullWalletAddress)}`,
+            );
+            const profData = await profRes.json();
+            if (!cancelled && profData?.success) {
+              setPcAvatar(profData.profile?.profile_picture ?? null);
+            }
+          } catch {
+            // best-effort
+          }
+        }
       } catch {
         // best-effort load — empty form is fine
       } finally {
@@ -862,6 +939,56 @@ const SettingsSection = () => {
             </div>
           ) : (
             <div className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+                  Profile picture
+                </label>
+                <div className="flex items-center gap-3">
+                  {pcAvatar ? (
+                    <img
+                      src={pcAvatar}
+                      alt="Avatar preview"
+                      className="w-16 h-16 rounded-full object-cover border border-border shrink-0"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-primary/15 border border-border flex items-center justify-center shrink-0">
+                      <Icon icon="ph:user-bold" className="w-7 h-7 text-primary" />
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    <label
+                      className={`inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold cursor-pointer hover:bg-secondary/50 ${
+                        avatarUploading ? "opacity-60 pointer-events-none" : ""
+                      }`}
+                    >
+                      {avatarUploading ? (
+                        <Icon icon="ph:circle-notch-bold" className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Icon icon="ph:upload-simple-bold" className="h-3.5 w-3.5" />
+                      )}
+                      {avatarUploading ? "Uploading…" : "Upload avatar"}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="hidden"
+                        onChange={(e) => {
+                          void handleAvatarFile(e.target.files?.[0] ?? null);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {pcAvatar && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Saved instantly · max 1 MB
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
                   Bio <span className="font-normal lowercase text-muted-foreground/70">({pcBio.length}/280)</span>
