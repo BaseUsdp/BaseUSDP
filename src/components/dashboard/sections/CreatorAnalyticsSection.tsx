@@ -43,6 +43,100 @@ const CreatorAnalyticsSection = () => {
   const [bulkPaidTx, setBulkPaidTx] = useState<string | null>(null);
   const [bulkFree, setBulkFree] = useState(false);
 
+  // Leaderboard state.
+  type LbWindow = "day" | "week" | "month" | "all";
+  interface LbEntry {
+    rank: number;
+    handle: string | null;
+    address: string | null;
+    received: number;
+    tip_count: number;
+    unique_tippers: number;
+  }
+  interface LbData {
+    window: LbWindow;
+    total_creators: number;
+    total_volume: number;
+    total_tippers: number;
+    leaderboard: LbEntry[];
+  }
+  const [lbWindow, setLbWindow] = useState<LbWindow>("week");
+  const [lbLoading, setLbLoading] = useState(false);
+  const [lbError, setLbError] = useState<string | null>(null);
+  const [lbData, setLbData] = useState<LbData | null>(null);
+  const [lbFree, setLbFree] = useState(false);
+  const [lbPaidTx, setLbPaidTx] = useState<string | null>(null);
+
+  const loadLeaderboard = async (windowParam: LbWindow) => {
+    if (!isConnected || !fullWalletAddress) {
+      setLbError("Connect your wallet first.");
+      return;
+    }
+    const provider = getEvmProviderForType(walletType);
+    if (!provider) {
+      setLbError("No EVM wallet provider available.");
+      return;
+    }
+    setLbError(null);
+    setLbData(null);
+    setLbPaidTx(null);
+    setLbFree(false);
+    setLbLoading(true);
+    try {
+      const walletClient = createWalletClient({
+        account: fullWalletAddress as `0x${string}`,
+        chain: base,
+        transport: custom(provider as any),
+      });
+      const fetchWithPay = wrapFetchWithPayment(fetch, walletClient as any);
+      const token = authService.getSessionToken();
+      const url = `${getApiUrl()}/api/x402/leaderboard?window=${windowParam}&limit=10`;
+      const res = await fetchWithPay(
+        url,
+        token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || `Request failed (${res.status})`);
+      }
+      const data = await res.json();
+      setLbData({
+        window: data.window,
+        total_creators: data.total_creators,
+        total_volume: data.total_volume,
+        total_tippers: data.total_tippers,
+        leaderboard: data.leaderboard ?? [],
+      });
+      setLbFree(!!data.free);
+      const payHeader = res.headers.get("X-PAYMENT-RESPONSE");
+      if (payHeader) {
+        try {
+          const decoded = JSON.parse(atob(payHeader));
+          if (decoded?.transaction) setLbPaidTx(decoded.transaction);
+        } catch {
+          /* opaque header — fine */
+        }
+      }
+    } catch (err: any) {
+      const msg = err?.message || "Couldn't load leaderboard.";
+      setLbError(
+        /rejected|denied|user/i.test(msg)
+          ? "Payment cancelled in wallet."
+          : msg,
+      );
+    } finally {
+      setLbLoading(false);
+    }
+  };
+
+  // Auto-load on mount + window change.
+  useEffect(() => {
+    if (fullWalletAddress && isConnected) {
+      void loadLeaderboard(lbWindow);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullWalletAddress, isConnected, lbWindow]);
+
   // Pre-fill with the logged-in user's own handle for convenience.
   useEffect(() => {
     const loadOwnHandle = async () => {
@@ -324,6 +418,138 @@ const CreatorAnalyticsSection = () => {
           </div>
         </motion.div>
       )}
+
+      {/* Platform leaderboard — third x402 endpoint */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="rounded-2xl border border-border bg-card p-4 sm:p-6"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+            <Icon icon="ph:trophy-bold" className="w-5 h-5 text-amber-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="font-display text-lg font-bold">Platform leaderboard</h2>
+            <p className="text-xs text-muted-foreground">
+              Top creators on BASEUSDP by tips received. $0.10 USDC per call via x402 (free for the platform owner).
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-secondary/30 p-1">
+            {(["day", "week", "month", "all"] as LbWindow[]).map((w) => (
+              <button
+                key={w}
+                type="button"
+                onClick={() => setLbWindow(w)}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${
+                  lbWindow === w
+                    ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                    : "text-muted-foreground hover:bg-white/5"
+                }`}
+              >
+                {w}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => loadLeaderboard(lbWindow)}
+            disabled={lbLoading}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold hover:bg-secondary/50 disabled:opacity-50"
+          >
+            {lbLoading ? (
+              <Icon icon="ph:circle-notch-bold" className="h-3 w-3 animate-spin" />
+            ) : (
+              <Icon icon="ph:arrow-clockwise-bold" className="h-3 w-3" />
+            )}
+            Refresh
+          </button>
+        </div>
+
+        {lbError && <p className="text-xs text-red-500 mb-3">{lbError}</p>}
+
+        {lbData && (
+          <>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="rounded-xl bg-secondary/20 p-3 min-w-0">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">Volume</p>
+                <p className="text-sm sm:text-base font-bold mt-0.5 truncate">${lbData.total_volume.toFixed(2)}</p>
+              </div>
+              <div className="rounded-xl bg-secondary/20 p-3 min-w-0">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">Creators</p>
+                <p className="text-sm sm:text-base font-bold mt-0.5 truncate">{lbData.total_creators}</p>
+              </div>
+              <div className="rounded-xl bg-secondary/20 p-3 min-w-0">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">Tippers</p>
+                <p className="text-sm sm:text-base font-bold mt-0.5 truncate">{lbData.total_tippers}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end mb-2">
+              {lbFree ? (
+                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-500">
+                  <Icon icon="ph:check-circle-bold" className="h-3.5 w-3.5" />
+                  Free (owner)
+                </span>
+              ) : lbPaidTx ? (
+                <a
+                  href={`https://basescan.org/tx/${lbPaidTx}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] text-emerald-500 hover:underline"
+                >
+                  <Icon icon="ph:check-circle-bold" className="h-3.5 w-3.5" />
+                  Paid $0.10
+                </a>
+              ) : null}
+            </div>
+
+            {lbData.leaderboard.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                No tips in this window yet.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {lbData.leaderboard.map((e) => (
+                  <div
+                    key={`${e.rank}-${e.address ?? "anon"}`}
+                    className="flex items-center justify-between gap-3 rounded-lg bg-secondary/20 px-3 py-2 text-sm min-w-0"
+                  >
+                    <span className="flex items-center gap-2 min-w-0 flex-1">
+                      <span
+                        className={`w-6 text-center text-xs font-bold shrink-0 ${
+                          e.rank === 1
+                            ? "text-amber-400"
+                            : e.rank === 2
+                            ? "text-slate-300"
+                            : e.rank === 3
+                            ? "text-amber-700"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        #{e.rank}
+                      </span>
+                      <span className="font-medium truncate">
+                        {e.handle ?? "anonymous"}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground shrink-0">
+                        {e.tip_count} tips · {e.unique_tippers} tippers
+                      </span>
+                    </span>
+                    <span className="font-mono font-semibold shrink-0">
+                      ${e.received.toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </motion.div>
 
       {/* Bulk handle resolution — second x402 endpoint */}
       <motion.div
