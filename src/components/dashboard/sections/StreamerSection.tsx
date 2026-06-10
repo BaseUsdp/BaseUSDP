@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { useWallet } from "@/contexts/WalletContext";
 import { authService } from "@/services/authService";
 import { getApiUrl } from "@/utils/apiConfig";
+import { generateStickerPdf } from "@/lib/stickerPdf";
 
 type Position = "bottom-left" | "bottom-right" | "top-left" | "top-right";
 
@@ -154,6 +155,29 @@ const StreamerSection = () => {
       toast.success(`${label} copied`);
     } catch {
       toast.error("Clipboard unavailable");
+    }
+  };
+
+  // Sticker pack generator.
+  const [stickerPages, setStickerPages] = useState(1);
+  const [stickerBusy, setStickerBusy] = useState(false);
+
+  const downloadStickerPack = async () => {
+    if (!handle || !tipUrl) return;
+    setStickerBusy(true);
+    try {
+      await generateStickerPdf({
+        handle,
+        tipUrl,
+        pages: stickerPages,
+      });
+      toast.success(
+        `Sticker pack downloaded (${stickerPages * 8} stickers)`,
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "Couldn't generate PDF");
+    } finally {
+      setStickerBusy(false);
     }
   };
 
@@ -431,6 +455,67 @@ const StreamerSection = () => {
           </div>
         </motion.div>
       )}
+
+      {/* Sticker pack PDF */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.22 }}
+        className="rounded-2xl border border-border bg-card p-4 sm:p-6 min-w-0"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-lg bg-fuchsia-500/20 flex items-center justify-center shrink-0">
+            <Icon icon="ph:sticker-bold" className="w-4 h-4 text-fuchsia-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-display font-bold">Sticker pack PDF</h3>
+            <p className="text-xs text-muted-foreground">
+              Print-ready A4 sheet with QR + @handle + BASEUSDP branding. 8 stickers per page, dotted cut-guides included.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+              Pages
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={stickerPages}
+              onChange={(e) =>
+                setStickerPages(
+                  Math.max(1, Math.min(20, Number(e.target.value) || 1)),
+                )
+              }
+              className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/50"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {stickerPages * 8} stickers total
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={downloadStickerPack}
+            disabled={stickerBusy}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 self-end"
+          >
+            {stickerBusy ? (
+              <>
+                <Icon icon="ph:circle-notch-bold" className="h-4 w-4 animate-spin" />
+                Generating…
+              </>
+            ) : (
+              <>
+                <Icon icon="ph:download-simple-bold" className="h-4 w-4" />
+                Download PDF
+              </>
+            )}
+          </button>
+        </div>
+      </motion.div>
 
       {/* Share URLs */}
       <motion.div
